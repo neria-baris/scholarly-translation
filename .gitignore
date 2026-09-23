@@ -1,0 +1,10 @@
+﻿# Local data and secrets
+.env
+.env.*
+!.env.example
+imports/
+inputs/
+cache/
+outputs/
+.venv/
+node_modules/
