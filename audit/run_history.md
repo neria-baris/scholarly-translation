@@ -48,3 +48,7 @@ This separate receipt is appended after the verified gate commit; its own hash i
 Initial git status clean on main at ddd7afd5af43117727c6eeb4aa4d6d54df27ec3f; AGENTS.md absent. Previous turn successfully pushed 27cc082b5b78eb0f791559c709f79b1a472279ca and ddd7afd5af43117727c6eeb4aa4d6d54df27ec3f normally; remote hash matched and divergence was 0/0. This is a retrospective record of that observed result, not a new remote check.
 
 User requested AGENTS.md before housekeeping commit, but those commits were already published. Preserve history with a local Gate 0 follow-up instead of amendment or force-push. Added only a navigational execution contract and audit entries. Verified source links; no new model calls, product code or remote operations. New commits remain local because earlier push authorization covered only the completed two commits.
+
+## Gate 0 | 2026-09-29T09:39:49.871816+00:00 | AGENTS.md commit receipt
+
+Commit `13cad950fe4a4910f6d63f194aa0e90ca9fdb05f` verified PASS: complete and staged diffs reviewed; git diff --cached --check and git show --check passed; all three policy links resolve; post-commit tree clean. Only AGENTS.md and append-only audit updates changed. This receipt is committed separately without its own hash. No push: authorization for these additional commits has not been given. Gate 1 has not started.
