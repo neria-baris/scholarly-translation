@@ -38,3 +38,12 @@ Full prior report preserved at `audit/raw/20260929T092338Z-gate0-prior.md`.
 - Closure: create the Gate 0 commit, then a separate audit receipt with its hash; normal push of these two commits is user-authorized subject to final checks. Commit/push outcomes follow in the receipt and final response; this card does not claim a future push succeeded.
 - Remaining warnings: reported model cost is a list-price estimate, not an actual-charge verification. Sample PDFs are a later-gate prerequisite and do not block Gate 0.
 - Gate 1 has not started; stop after Git closure.
+
+## Gate 0 | 2026-09-29T09:39:26.913106+00:00 | AGENTS.md follow-up
+
+**Gate 0 instruction follow-up: PASS**
+
+- Added concise root AGENTS.md: conductor/builder roles, source-of-truth links, explicit gate approval, append-only audit, conductor-owned Git, explicit remote/destructive authorization, scoped inexpensive execution, secret exclusions and conflict escalation.
+- Verified all three linked policy/specification files exist. No implementation or model calls.
+- Earlier housekeeping commits were already pushed before this request arrived; preserve published history. Create a separate local Gate 0 follow-up and audit receipt. Prior two-commit push authorization does not cover these new commits.
+- Gate 1 has not started. Stop after local commits and clean-tree verification.
