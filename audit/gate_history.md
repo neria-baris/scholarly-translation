@@ -47,3 +47,7 @@ Full prior report preserved at `audit/raw/20260929T092338Z-gate0-prior.md`.
 - Verified all three linked policy/specification files exist. No implementation or model calls.
 - Earlier housekeeping commits were already pushed before this request arrived; preserve published history. Create a separate local Gate 0 follow-up and audit receipt. Prior two-commit push authorization does not cover these new commits.
 - Gate 1 has not started. Stop after local commits and clean-tree verification.
+
+## Gate 0 | 2026-09-29T09:44:18.129968+00:00 | workflow reconciliation
+
+**PASS (instruction review; Git closure follows).** Pending AGENTS follow-up pushed and verified at remote. Active instructions now use one canonical supervised-autonomy rule with navigational references; historical approval rules remain only as past audit evidence. Diff review and link/rule checks are required before commit. Model calls: 0; conductor usage not_metered. Next: synchronize instruction commit, then Gate 1.

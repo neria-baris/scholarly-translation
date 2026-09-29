@@ -52,3 +52,11 @@ User requested AGENTS.md before housekeeping commit, but those commits were alre
 ## Gate 0 | 2026-09-29T09:39:49.871816+00:00 | AGENTS.md commit receipt
 
 Commit `13cad950fe4a4910f6d63f194aa0e90ca9fdb05f` verified PASS: complete and staged diffs reviewed; git diff --cached --check and git show --check passed; all three policy links resolve; post-commit tree clean. Only AGENTS.md and append-only audit updates changed. This receipt is committed separately without its own hash. No push: authorization for these additional commits has not been given. Gate 1 has not started.
+
+## Gate 0 | 2026-09-29T09:42:59.900771+00:00 | follow-up synchronization
+
+PASS: inspected clean main, the two AGENTS.md follow-up commits and their complete three-file diff. Intended origin verified unchanged; fetch and ancestry check passed. git push --dry-run --porcelain origin main:main and git push --porcelain origin main:main exited 0 (normal fast-forward). Remote main verified at 87a205c (same full hash as local HEAD). No unrelated files or sensitive data included. User now authorizes supervised autonomy and ordinary verified gate pushes.
+
+## Gate 0 | 2026-09-29T09:44:18.129968+00:00 | supervised-autonomy reconciliation
+
+User supersedes per-gate approval. Replaced active stop-after-every-gate rules in AGENTS.md and the central prompt; reconciled policy closure and human-decision sections with the canonical supervised-autonomy rule. Preserved all historical cards unchanged. Routine verified fast-forward pushes to intended origin/main are now authorized; human scholarly/quality/budget/credential/destructive/conflict decisions remain reserved. Audit receipts may be separate or captured at the next gate to avoid recursive receipt-only commits. No model invocation or implementation.

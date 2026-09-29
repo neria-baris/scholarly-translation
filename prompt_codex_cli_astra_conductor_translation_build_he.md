@@ -19,7 +19,7 @@ These rules supplement the Git rules above and model-usage fields in development
 - Keep large evidence only when needed for reproducibility, in timestamped `audit/raw/` files referenced briefly from the histories. Never record secrets, authentication tokens, credentials, sensitive environment values or unnecessary private document contents. Review evidence for privacy and size before staging.
 - The conductor owns routine status checks, explicit-path staging, commits and permitted pushes; do not ask the user to run routine Git commands. Review the complete diff (including untracked files) before staging and the staged diff before committing. Stop and report unexpected changes; never include them or use blanket staging when unrelated changes may exist.
 - A passed gate normally ends with its intended changes committed and a clean working tree. Do not commit failed experiments unless a specific diagnostic artifact is justified and labeled. The existing gate/purpose commit-message and sensitive-data exclusions above remain in force, including local PDF inputs and generated sensitive data.
-- Record the gate commit hash and verification result in a separate audit-receipt commit; do not attempt to embed the receipt commit's own hash inside itself. Verify the final working tree is clean.
+- Record the gate commit hash and verification result in a separate short audit receipt when needed (or the next gate's audit update); do not attempt to embed a receipt commit's own hash inside itself. Verify the final working tree is clean.
 - Before any permitted push, verify the current branch, intended origin URL, accessible remote branch and fast-forward ancestry; use a normal push and verify remote synchronization afterward. Never change the remote as part of a check, force-push, rewrite history, rebase shared history, delete branches or guess how to resolve divergence. Stop and report a failed check. Push only within the user's authorized scope.
 
 ## מסמכי יסוד
@@ -70,7 +70,17 @@ Git: [ענף, commit hash אם PASS, מצב עבודה, remote וסטטוס push
 הצעד הבא:
 ```
 
-**עצור אחרי כל שער והמתן שאכתוב „המשך”, „תקן” או הנחיה אחרת.** זהו הפיקוח שאני רוצה; בתוך שער אין צורך לבקש אישור על בחירות מימוש שגרתיות. אם שער נכשל, תקן בתוך התקציב וסבב התיקון המותר, הצג את הראיות מחדש, ואז עצור. אל תסמן `PASS` על סמך דוח של מודל בלבד. אם צריך החלטה שלי, הבא תוצאה קונקרטית, 2–3 אפשרויות קצרות והמלצה.
+### Supervised autonomy (user instruction, 2026-09-29)
+
+Astra may advance automatically to the next gate when the current gate meets its written acceptance criteria, tests pass, evidence and costs are recorded, intended changes are committed, and routine Git synchronization succeeds. A Gate Card is still required at every gate, but it does not require a user response unless a human decision or blocker is identified.
+
+The user authorizes ordinary verified fast-forward gate pushes to `origin/main` at `https://github.com/neria-baris/scholarly-translation.git`. Apply the standing diff, privacy, ancestry and clean-tree checks; never force-push, rewrite shared history, delete branches or guess at divergence.
+
+Define the smallest testable deliverable before each gate; use cheap deterministic checks first. Mock adapters and synthetic PDFs do not establish real PDF or translation quality. Mark unmet input/credential/quality requirements `BLOCKED`; continue only independent work whose validity does not depend on the blocked gate. Do not silently waive acceptance criteria.
+
+Pause for one precise question with evidence and a recommendation only for scholarly meaning/source reconstruction/approved glossary decisions, representative real PDFs or required human judgments, necessary credentials or spending above the limit, destructive Git or unresolved remote conflict, substantial scope/architecture changes, and final translation-quality or release acceptance. Ordinary Git work and passing gate transitions do not require a response.
+
+Retain one owner and at most one targeted fix/retest per failed implementation attempt before reassessment. No recursive delegation or model debate; no second frontier model to repeat a passing check. Keep the existing limit of two isolated implementation tasks and integrate/test before acceptance. Subscription usage is not free by assumption: record known model usage and reported estimates separately from actual charges; use bounded calls/tasks when measurement is unreliable and do not claim an enforced dollar budget. Configure budget and credentials before enabling a new paid provider.
 
 ## שער 0 — גישה, סביבת עבודה ונתוני בדיקה
 
@@ -122,4 +132,4 @@ Git: [ענף, commit hash אם PASS, מצב עבודה, remote וסטטוס push
 
 ## כלל ההפעלה האחרון
 
-**התחל עכשיו בשער 0.** אל תענה בתכנית של כל השערים בלבד ואל תבנה את כל המערכת במהלך תשובה אחת. השלם את השער הנוכחי ככל שהגישה מאפשרת, הצג כרטיס שער עם ראיות, ועצור כדי שאוכל לפקח לפני השער הבא. שאל אותי רק על מידע שחסר באמת, על מפתח API בזמן שנחוץ, על החלטה מחקרית או על הגדלת תקציב; המשך בינתיים עבודה שאינה תלויה בתשובה.
+**התחל בשער הראשון שטרם הושלם, לפי הסדר.** השלם בכל פעם תוצר קטן שניתן לבדוק, הצג כרטיס שער עם ראיות והמשך לפי כלל האוטונומיה המפוקחת לעיל. עצור רק להכרעה אנושית או לחסם אמיתי; המשך בינתיים עבודה עצמאית שתקפותה אינה תלויה בחסם. אין לסמן שער כחולף ללא עמידה בתנאי הקבלה שלו.

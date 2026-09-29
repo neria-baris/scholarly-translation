@@ -10,10 +10,10 @@ Before substantial work, read the relevant sources of truth:
 
 Execution rules:
 
-- Work gate-by-gate. Never advance to the next gate without explicit user approval.
+- Work in gate order under the central prompt's supervised-autonomy rule: advance after verified acceptance, tests, audit, commit and synchronization; pause only for genuine human decisions or blockers.
 - Maintain append-only `audit/gate_history.md` and `audit/run_history.md`; preserve superseded results with timestamps and gate numbers. Update them before presenting a Gate Card.
 - Astra owns routine Git operations and verified commits after passed gates. Review complete and staged diffs, stage only intended paths, and leave a clean working tree at completed gates. Follow the detailed commit-receipt procedure.
-- Never push or perform destructive or remote Git operations without explicit authorization. Existing authorization applies only within its stated scope; never infer permission from a configured remote.
+- The user authorizes ordinary verified fast-forward gate pushes to `origin/main` at `https://github.com/neria-baris/scholarly-translation.git`, including the necessary remote checks. Destructive operations remain unauthorized; stop on divergence or unexpected changes. Never infer broader permission from a configured remote.
 - Prefer deterministic, local and cheap tools before expensive models where appropriate. Avoid unnecessary model calls and implementation beyond the current gate.
 - Never commit secrets, credentials, local inputs, caches or sensitive generated data.
 - If applicable instructions conflict, stop and surface the conflict rather than guessing.
