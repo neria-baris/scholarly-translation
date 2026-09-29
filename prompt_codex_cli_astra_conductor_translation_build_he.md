@@ -10,6 +10,18 @@
 - אם השער מסתיים ב־FIX או BLOCKED, שמור diff והחלטת שער; אל תיצור commit שמוצג כגרסה מאושרת. הצג דרך חזרה למצב היציב האחרון. לפני שינויי Git הרסניים, בדוק בעלות על שינויים קיימים והבא אותם להחלטתי.
 - אם בשורש המאגר יש `imports/`, בדוק בשער 0 את שמות קובצי ה־ZIP ואת רשימת התכולה שלהם בלי להריץ קוד מתוך הארכיון ובלי לפרוס מעל קובצי הפרויקט. הארכיונים עצמם נשארים מחוץ ל־Git. הצג מה מהם מקור קוד, מסמכים או fixtures, ושלב רק קבצים שנחוצים לשער הנוכחי; אל תתייחס ל־ZIP כמפרט מחייב רק משום שיובא.
 
+### Standing audit and Git procedure (user instruction, 2026-09-29)
+
+These rules supplement the Git rules above and model-usage fields in development-policy section 12; they apply to subsequent gates.
+
+- `audit/gate_history.md` is the append-only chronological record of every Gate Card. `audit/run_history.md` is the append-only record of material commands, model calls, checks, failures, warnings and decisions: concise evidence, not a terminal transcript. Include timestamps and gate numbers; preserve superseded results explicitly. Update the relevant histories before presenting a Gate Card.
+- For model calls, supplement the existing provider/model, purpose, duration, usage and cost fields with exit status and independent verification result when available. Distinguish reported list-price estimates from actual charges; label unavailable metrics `not_metered`.
+- Keep large evidence only when needed for reproducibility, in timestamped `audit/raw/` files referenced briefly from the histories. Never record secrets, authentication tokens, credentials, sensitive environment values or unnecessary private document contents. Review evidence for privacy and size before staging.
+- The conductor owns routine status checks, explicit-path staging, commits and permitted pushes; do not ask the user to run routine Git commands. Review the complete diff (including untracked files) before staging and the staged diff before committing. Stop and report unexpected changes; never include them or use blanket staging when unrelated changes may exist.
+- A passed gate normally ends with its intended changes committed and a clean working tree. Do not commit failed experiments unless a specific diagnostic artifact is justified and labeled. The existing gate/purpose commit-message and sensitive-data exclusions above remain in force, including local PDF inputs and generated sensitive data.
+- Record the gate commit hash and verification result in a separate audit-receipt commit; do not attempt to embed the receipt commit's own hash inside itself. Verify the final working tree is clean.
+- Before any permitted push, verify the current branch, intended origin URL, accessible remote branch and fast-forward ancestry; use a normal push and verify remote synchronization afterward. Never change the remote as part of a check, force-push, rewrite history, rebase shared history, delete branches or guess how to resolve divergence. Stop and report a failed check. Push only within the user's authorized scope.
+
 ## מסמכי יסוד
 
 קרא תחילה את הגרסאות המעודכנות של שני המסמכים המצורפים או הזמינים לי:
