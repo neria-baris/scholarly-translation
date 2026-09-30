@@ -168,6 +168,36 @@ def cmd_inspect(document_path: str) -> int:
     return 0
 
 
+def cmd_extract_pdf(input_path: str, language: str, output_dir: str) -> int:
+    try:
+        from .pdf_extract import ExtractionError, extract_pdf, render_pages, write_comparison_html
+    except ImportError:
+        print("PDF dependencies unavailable; install requirements.txt in a local venv.", file=sys.stderr)
+        return 1
+    try:
+        document = extract_pdf(input_path, language)
+    except ExtractionError as exc:
+        print(f"Extraction failed: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    document_path = out_path / "document.json"
+    save_document(document, document_path)
+
+    try:
+        image_paths = render_pages(input_path, out_path)
+    except ExtractionError as exc:
+        print(f"Rendering failed: {exc}", file=sys.stderr)
+        return 1
+    write_comparison_html(document, image_paths, out_path / "comparison.html")
+
+    print(f"Wrote document: {document_path}")
+    for image_path in image_paths:
+        print(f"Wrote render: {image_path}")
+    print(f"Wrote comparison: {out_path / 'comparison.html'}")
+    return 0
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -185,12 +215,19 @@ def main(argv=None) -> int:
     inspect_parser = subparsers.add_parser("inspect")
     inspect_parser.add_argument("document_path")
 
+    extract_pdf_parser = subparsers.add_parser("extract-pdf")
+    extract_pdf_parser.add_argument("input")
+    extract_pdf_parser.add_argument("--language", required=True)
+    extract_pdf_parser.add_argument("--output", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
         return cmd_demo(args.output, args.config)
     if args.command == "inspect":
         return cmd_inspect(args.document_path)
+    if args.command == "extract-pdf":
+        return cmd_extract_pdf(args.input, args.language, args.output)
     return 1
 
 

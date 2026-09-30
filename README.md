@@ -51,3 +51,24 @@ The config is loaded and strictly validated (object shape, known fields only, co
 types) before anything is written or any provider is invoked. Unknown fields (including
 credential-like ones) are rejected by name only — their values are never printed or logged.
 Omitting `--config` uses the built-in mock defaults.
+
+## Gate 2: digital PDF extraction
+
+Requires `pdfplumber` and `reportlab` (see `requirements.txt`; `reportlab` is only used to
+generate tiny original test fixtures). Records now use schema 3: Segment gains an optional
+`bbox` ([x0, top, x1, bottom] in PDF points) and Page gains optional `width`, `height` and
+`source_text`. Schema 1 and 2 documents remain readable.
+
+```
+python -B -m scholarly_translation extract-pdf INPUT.pdf --language en --output outputs/gate2
+```
+
+Writes `outputs/gate2/document.json` (extracted document/page/segment records with bbox and
+page-local source_text), `outputs/gate2/page-N.png` (page renders at 110 DPI), and
+`outputs/gate2/comparison.html` (escaped static HTML comparing renders to extracted text).
+Extraction uses only basic top-to-bottom, then left-to-right reading order; output status is
+always `needs_human` with a `layout_unverified` warning — extraction is not semantic
+acceptance. Empty pages are retained and flagged `page_N_empty_needs_ocr`. Invalid, empty,
+encrypted or missing PDF input raises a bounded `ExtractionError` with no page content. No PDFs
+are committed to this repository; tests generate tiny original fixtures in temporary
+directories.

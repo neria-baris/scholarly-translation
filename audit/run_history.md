@@ -82,3 +82,9 @@ Policy commit 08035795499c909d6911a716ab982112ddc0b3c6 was normally pushed and r
 ## Gate 1 | 2026-09-30T16:13:59.220530+00:00 | Git receipt and Gate 2 start
 
 Gate 1 commit bff1a545c68b6e6fbc8daaaa19b4e0df97e79971: reviewed intended paths, credential-pattern scan passed, clean commit; branch main and fetch/push target https://github.com/neria-baris/scholarly-translation.git verified; origin/main ancestor; normal push accepted and remote hash equal. Prior card Git wording described scheduled closure; this entry records actual closure. Gate 2 contract established before builder G2-C1. Local isolated venv installed pdfplumber 0.11.8/reportlab 5.0.1; PDFium available, Poppler system present. Official pdfplumber API source checked: https://github.com/jsvine/pdfplumber. Dependencies/cache and generated fixtures are ignored; no runtime paid provider activated.
+
+## Gate 2 | 2026-09-30T16:21:24.348461+00:00 | verification
+
+G2-C1 exit 0; independently verified by 59 tests and real CLI extract/inspect. Local fixture/report outputs are ignored under outputs/gate2; no PDF/image inputs committed. Both rendered pages compared to exact expected source lines. Lazy-import regression and required schema 3 geometry fixed by Sol. Launcher Unicode print failure occurred after model event capture; delivery printing now escaped. No rerun/no raw transcript retained. $0.6193292 is reported list estimate, not an actual charge.
+
+Gate 2 additional renderer check 2026-09-30T16:22:55.167455+00:00: Poppler pdftoppm exit 0, page-1 PNG produced; reported missing optional ArialUnicode display font. PDFium renders were independently inspected; fixture uses Helvetica, all tested source lines retained. Warning does not establish support for missing-glyph PDFs.

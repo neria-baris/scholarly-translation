@@ -1,8 +1,7 @@
 # Current state
-Updated: 2026-09-30T16:04:39.214787+00:00
-Gate 1 software acceptance passed; Git closure in progress. Gate 0 closed.
-Latest known committed baseline: 08035795499c909d6911a716ab982112ddc0b3c6 (synchronized).
-Contracts: contracts/gate_1.md, contracts/data_spine.md. Entry point: python -B -m scholarly_translation; tests: python -B -m unittest discover -s tests -q (41 pass).
-No open Gate 1 defects. Limitations: synthetic/mock evidence only, single-process JSON store; schema 1 has unknown legacy input hash. Runtime provider is mock only.
-Usage: Gate 1 Sonnet calls exhausted at 2, reported list estimate $1.0399862; actual charges/Sol usage unknown. Opus/Astra calls 0. Any new gate gets its own scoped contract/call limits; no approval-model call.
-Next: finish normal Gate 1 commit/push, record hash at Gate 2 boundary, then implement local digital PDF extraction against a generated permissible PDF fixture. Real scholarly quality remains preliminary.
+Updated: 2026-09-30T16:21:24.348461+00:00
+Gate 2 software acceptance passed; Git closure next. Latest synced commit 9b3af4557617ae22d23cd1285b60e4fd8df456ca (Gate 1 receipt).
+Contracts: contracts/gate_2.md; schema 3 PDF geometry with explicit legacy 1/2 reader. Tests: 59 pass; extract-pdf/inspect and rendered two-page comparison verified.
+No open contract defects. Limitations: single-column reading order/layout unverified, synthetic software evidence only, no real OCR/translation quality claim.
+Gate 2 Sonnet 1 call, 245.828 s, list estimate $0.6193292; actual charges/Sol usage unknown; Opus/Astra 0. No further Gate 2 model call required.
+Next: verified commit/push then Gate 3 local OCR. No paid runtime provider.
