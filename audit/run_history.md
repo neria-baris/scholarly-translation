@@ -118,3 +118,20 @@ User explicitly confirms architecture-profile-handoff.zip was intentionally appl
 ## Gate 4 (documentation preflight) | 2026-09-30T17:57:31.293995+00:00 | Git receipt
 
 Commit 5ea21ee4df7f63cda4e6f6b11c45be36bfbbf899: complete/staged intended diff reviewed, whitespace/credential-pattern checks pass; main and intended fetch/push origin verified, remote ancestor, normal dry-run and push accepted, remote hash equal; clean tree after gate commit. No force or history rewrite.
+
+## Gate 4 | 2026-09-30T18:03:23.963407+00:00 | component contract and bounded builder
+
+Documentation commit 5ea21ee4df7f63cda4e6f6b11c45be36bfbbf899 and receipt 316953664120c119edc70c8faa37f459dbcdd9f9 normally pushed, remote equality and clean tree verified. Gate 4 contract gate_4.md written before implementation: source evidence -> validated alternatives -> explicit human selected reading -> versioned units/history/continuity. Two pure component boundaries, no profile fields/code, no literary features. Scoped Sonnet G4-C1 owns only named source/segmentation/CLI/new-tests/README files; no audit/Git/shell/web/delegation. One implementation estimate ceiling $3 plus one demonstrated fix reserve $1; actual subscription charge unknown, no hard actual-dollar claim. No escalation trigger or paid product API.
+
+### 2026-09-30T18:18:04.816297+00:00 ? Gate 4 / G4-A1 verification
+101 tests passed, but six negative probes exposed missing input hash/warnings, accepted bad anchors/page parents/corrupt prior data, and non-idempotent revisions. G4-C1 Sonnet + reported auxiliary Haiku: 396.578s, exit 0, $1.0325174 list-price estimate, actual charge unknown; value partial implementation, not PASS. One targeted repair G4-A2/G4-C2 under $1 reported-estimate limit and 600s; no escalation.
+
+## Gate 4 | 2026-09-30T18:48:18.511985+00:00 | verification and local reassessment
+
+G4-C2 Sonnet (actual claude-sonnet-5, auxiliary Haiku) exit 0, 253.875s, $0.8621756 reported list estimate, actual charge unknown. Verification FAILED: 5 errors/1 failure due to evidence/text hash mismatch; incomplete contract checks. G4-A2-result preserves failure. Reassessed as deterministic producer/consumer validation drift; no more model calls or paid runtime provider. Sol G4-A3 consolidated shared strict evidence validation, source/hash/page bindings and full snapshot checks.
+
+Final verification: `.venv/Scripts/python -B -m unittest discover -s tests -q`: 109 tests, 12.526s, exit 0. 25 negative/replay/provenance probes plus six original probes pass; regression matrix committed in tests/test_structure.py. Base Python CLI structure -> unresolved (2 readings/0 units), synthetic human fixture selection -> 12 units, merge -> 11 units, inspect -> 0 continuity findings; each exit 0, source JSON SHA unchanged. Existing Gate-3 live construction OCR bundles en/fr/ja validate, retain both page alternatives, and emit zero units without human selection. These are original fixtures, not real scholarly accuracy or source approval.
+
+Contract remains schema-1 derived structure; no Gate-3 data changes, profiles/literary code/translation. Reader validates declared evidence and asserted human decision, not file bytes or identity authentication. Default line units do not decide paragraph/footnote meaning. G4-C1 value: partial implementation; G4-C2 value: partial repair that failed its retest; G4-A3 verifies final result. Total 2 Sonnet calls + 2 reported auxiliary Haiku, 650.453s model wall time, $1.894693 reported list estimate; actual charges/subscription quota and Sol internal tokens/time unmeasured, Opus/Astra 0. Git closure next; no further model retry.
+
+2026-09-30T18:50:57.688295+00:00 | Gate 4 usage clarification: two observable Claude CLI invocations, each reporting auxiliary Haiku usage; internal auxiliary model call count is not exposed. The earlier phrase "2 reported auxiliary Haiku" means two per-invocation usage reports, not a verified count of internal calls. Sonnet/Haiku usage and list-estimate total remain as reported.

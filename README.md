@@ -103,3 +103,41 @@ output. Requires a local Tesseract OCR install (5.4.0 tested) and optionally a l
 Standalone language directories need no `configs/tsv` file: TSV output is selected explicitly.
 The clear/degraded English, French and Japanese fixtures demonstrate plumbing and review flags,
 not real scholarly OCR accuracy. Japanese word spacing is preserved as returned by the engine.
+
+## Gate 4: source reading and segmentation
+
+Chooses an inspectable reading per page from validated digital and/or OCR evidence and turns a
+resolved reading into versioned, source-linked translation units. A reading is never
+auto-approved: without an explicit human decision it stays `unresolved` (`unreviewed_source` or
+`missing_source`) and produces zero units. A decision must name an exact candidate hash the
+reader emitted for that page; a model actor, a stale hash or an unknown page is rejected.
+
+```
+python -B -m scholarly_translation structure DOCUMENT_JSON --output outputs/gate4/structure.json \
+    [--ocr OCR_JSON] [--decisions DECISIONS_JSON] [--boundaries BOUNDARIES_JSON] \
+    [--previous PREVIOUS_JSON]
+python -B -m scholarly_translation inspect-structure outputs/gate4/structure.json
+```
+
+`--decisions` is a JSON object mapping `page_id` to
+`{"origin": "digital"|"ocr", "candidate_hash": ..., "actor": ..., "actor_kind": "human", "reason": ...}`.
+Default units are source lines; `--boundaries` maps `page_id` to a list of `[start, end]` half-open
+spans to merge or split lines without ever silently joining or normalizing source text. Passing
+`--previous` (an earlier `structure.json`) preserves stable reading/unit IDs for unchanged content,
+creates a new reading version with a prior-version reference when the selected source changes, and
+keeps a flat history of prior reading/unit snapshots. `inspect-structure` re-validates a persisted
+structure file (rejecting malformed or tampered data) and prints reading/unit status and a
+deterministic continuity report (gaps, overlaps, duplicate coverage, mismatched text, invalid
+anchors). Fixture evidence demonstrates plumbing only; it is not scholarly source approval.
+
+The source reader and segmentation are pure standard-library components. Evidence fingerprints
+bind decisions to the complete digital/OCR candidate, not just matching text. OCR engine/model,
+image geometry, confidence, warnings and failed alternatives remain inspectable. Replaying the
+same inputs with the prior result returns it unchanged; changed boundaries preserve complete
+snapshots and increment affected unit versions. A boundary plan with missing source characters
+is rejected. JSON consumers reject duplicate keys, and the CLI refuses to overwrite evidence inputs.
+
+Validation checks declared hashes, geometry and internal provenance; it does not reopen image/PDF
+bytes or authenticate the asserted human actor. A simulated human decision in a fixture is only
+a construction test. Default source lines do not establish scholarly paragraph or footnote
+association; uncertain readings remain unresolved until a real human chooses the evidence.

@@ -250,6 +250,121 @@ def cmd_ocr_pdf(
     return 0
 
 
+def _load_structure_json(path):
+    """Strict JSON for source decisions and derived structure consumers."""
+    from .source_reading import StructureError
+
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise StructureError("duplicate JSON object key")
+            result[key] = value
+        return result
+
+    def finite(_):
+        raise StructureError("nonfinite JSON value")
+
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"),
+                          object_pairs_hook=unique, parse_constant=finite)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise StructureError("cannot read valid UTF-8 JSON input") from None
+
+
+def cmd_structure(
+    document_path: str,
+    output: str,
+    ocr_path: str = None,
+    decisions_path: str = None,
+    boundaries_path: str = None,
+    previous_path: str = None,
+) -> int:
+    from .segmentation import build_structure
+    from .source_reading import StructureError
+
+    try:
+        document = Document.from_dict(_load_structure_json(document_path))
+        ocr_bundle, decisions, boundaries, previous = [
+            _load_structure_json(p) if p is not None else None
+            for p in (ocr_path, decisions_path, boundaries_path, previous_path)
+        ]
+    except (RecordValidationError, StructureError):
+        print("Invalid structure input.", file=sys.stderr)
+        return 1
+
+    try:
+        structure = build_structure(
+            document, ocr_bundle=ocr_bundle, decisions=decisions,
+            boundaries=boundaries, previous=previous,
+        )
+    except StructureError as exc:
+        print(f"Structure resolution failed: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output)
+    from urllib.parse import urlparse
+    from urllib.request import url2pathname
+    protected = [Path(p).resolve() for p in (document_path, ocr_path, decisions_path,
+                                             boundaries_path, previous_path) if p is not None]
+    evidence_uris = [document.source_uri] + [
+        c["image"]["uri"] for r in structure["readings"] for c in r["alternatives"] if c["image"]
+    ]
+    protected.extend(Path(url2pathname(urlparse(uri).path)).resolve()
+                     for uri in evidence_uris if urlparse(uri).scheme == "file")
+    if out_path.resolve() in protected:
+        print("Output must be separate from source evidence and input files.", file=sys.stderr)
+        return 1
+    try:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as handle:
+            json.dump(structure, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    except OSError:
+        print("Cannot write structure output.", file=sys.stderr)
+        return 1
+
+    resolved = sum(1 for r in structure["readings"] if r["status"] == "resolved")
+    print(f"Wrote structure: {out_path}")
+    print(f"readings: {len(structure['readings'])} resolved: {resolved} units: {len(structure['units'])}")
+    if structure["continuity"]:
+        print(f"continuity findings: {len(structure['continuity'])}")
+    return 0
+
+
+def cmd_inspect_structure(structure_path: str) -> int:
+    from .segmentation import validate_structure
+    from .source_reading import StructureError
+
+    try:
+        data = _load_structure_json(structure_path)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        validate_structure(data)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"document_id: {data['document_id']} pdf_hash: {data['pdf_hash']}")
+    print(f"revision: {data['revision']['id']} parent_revision: {data['revision']['parent_revision']}")
+    for r in data["readings"]:
+        print(
+            f"  reading_id: {r['reading_id']} version: {r['version']} page_number: {r['page_number']} "
+            f"status: {r['status']} reasons: {r['reasons']} selected: {r['selected']}"
+        )
+    for u in data["units"]:
+        print(
+            f"    unit_id: {u['unit_id']} v{u['unit_version']} page_id: {u['page_id']} "
+            f"[{u['source_char_start']}:{u['source_char_end']}] status: {u['status']}"
+        )
+    print(f"continuity findings: {len(data['continuity'])}")
+    for finding in data["continuity"]:
+        print(f"  {finding}")
+    return 0
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -282,6 +397,17 @@ def main(argv=None) -> int:
     ocr_pdf_parser.add_argument("--pages", nargs="+", type=int, default=None)
     ocr_pdf_parser.add_argument("--timeout", type=float, default=30.0)
 
+    structure_parser = subparsers.add_parser("structure")
+    structure_parser.add_argument("document_json")
+    structure_parser.add_argument("--output", required=True)
+    structure_parser.add_argument("--ocr", default=None)
+    structure_parser.add_argument("--decisions", default=None)
+    structure_parser.add_argument("--boundaries", default=None)
+    structure_parser.add_argument("--previous", default=None)
+
+    inspect_structure_parser = subparsers.add_parser("inspect-structure")
+    inspect_structure_parser.add_argument("structure_json")
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -295,6 +421,13 @@ def main(argv=None) -> int:
             args.input, args.document_json, args.language, args.output,
             args.tesseract, args.tessdata_dir, args.pages, args.timeout,
         )
+    if args.command == "structure":
+        return cmd_structure(
+            args.document_json, args.output, args.ocr, args.decisions,
+            args.boundaries, args.previous,
+        )
+    if args.command == "inspect-structure":
+        return cmd_inspect_structure(args.structure_json)
     return 1
 
 

@@ -1,9 +1,7 @@
 # Current state
-Updated: 2026-09-30T17:57:17.704801+00:00
-Gate 4 documentation preflight resolved by explicit user authorization; implementation next after Git closure. Gates 1-3 remain passed. Baseline a5aa8f82598d477820a7a6ebeeeeb846e233c3db synchronized.
-Approved package architecture-profile-handoff.zip SHA-256 7ffe5fd3871bc8b40c3ac9bf3b473e22b235d51b6c27f3739d7483a5c30a66de; AGENTS.md, ARCHITECTURE.md and model strategy match exactly; baseline preconditions verified. Package helper not run/copied. Proposed header retained to preserve exact package; user adoption recorded in append-only history.
-Contracts: ARCHITECTURE.md, contracts/gate_2.md (schema 3 extraction), contracts/gate_3.md (separate schema 1 OCR). Gate 4 must validate digital/OCR handoff, retain alternatives/uncertainty and source provenance, version boundary corrections, detect continuity defects. No profile fields/code or literary features in Gate 4; future single scholarly profile at Gates 6-7 only.
-No remaining ownership blocker; no Gate 4 implementation/contract yet. Usage: external Gate 4 model calls 0, Sol usage/cost unknown. No paid runtime provider.
-Next: commit/push only approved docs and accurate audit changes via normal verified Git; then define Gate 4 contract and scoped builder task. Do not repeat completed gates.
-
-Git closure 2026-09-30T17:57:31.293995+00:00: Gate 4 (documentation preflight) commit 5ea21ee4df7f63cda4e6f6b11c45be36bfbbf899 synchronized; receipt records actual verification. Follow the checkpoint next-action constraint.
+Updated: 2026-09-30T18:48:18.511985+00:00
+Gate 4 software acceptance verified; intended diff/Git closure pending. Latest known receipt 316953664120c119edc70c8faa37f459dbcdd9f9. Gates 1-3 remain passed.
+Contracts: ARCHITECTURE.md; audit/contracts/gate_4.md and gate_4_fix.md; source_reading.py validates evidence and explicit human decisions, segmentation.py validates current/history and boundaries, schema-1 derived records; original Document/OCR unchanged. No profile or literary code.
+Open work: review complete/staged intended diff, clean gate commit and receipt, normal origin/main sync. No software contract blocker. Synthetic acceptance does not establish real scholarly quality; human decisions in tests are simulations.
+Quota: Gate 4 builder calls finished (2 Sonnet, auxiliary Haiku); list estimate $1.894693, actual charge/Sol usage unknown; Opus/Astra 0; no paid runtime API enabled.
+Next action after verified Git closure: Gate 5 terminology/approved-memory contract under supervised autonomy. Real terminology choices remain human-owned.
