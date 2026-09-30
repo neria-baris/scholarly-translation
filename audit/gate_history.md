@@ -96,3 +96,15 @@ Git: reviewed intended diff only; verified gate commit/push and separate receipt
 ## Gate 4 | 2026-09-30T17:57:17.704801+00:00 | documentation preflight resolved
 
 **PASS for documentation verification only; Gate 4 software not yet implemented.** User confirmed intended package. Exact package/baseline hashes and full proposed documentation diff checked, no discrepancies. Source handoff map adopted; profiles deferred to Gates 6-7, scholarly only. Previous preflight BLOCKED preserved. Model calls 0; Sol usage unknown. Intended documentation/audit commit and normal synchronization follow; next define smallest Gate 4 source-resolution/segmentation contract.
+
+## Gate 4 | 2026-09-30T18:51:44.071102+00:00 | PASS (software construction)
+
+- Deliverable: validated digital/OCR source alternatives, explicit human-selected readings, exact source-linked line/merge/split units and complete revision history. Contracts: contracts/gate_4.md, gate_4_fix.md; immutable Document schema 3/OCR schema 1 -> derived structure schema 1. No profile/literary/translation implementation.
+- Evidence: 109 tests pass (12.526s); six original and 25 focused provenance/replay probes pass. Public CLI unresolved 2 pages/0 units -> synthetic human decisions 12 units -> merge 11 units -> persisted inspect with zero findings; source bytes unchanged. Gate-3 live construction bundles en/fr/ja validate and remain unresolved without human choice. Producer/consumer/current/history negatives reject bad hashes, page bindings, anchors, stale decisions, omissions/duplicates and model actors.
+- Failures/fixes: G4-A1/G4-C1 passing basic suite exposed six contract gaps; G4-A2/G4-C2 repair failed (5 errors/1 failure). Reassessed locally; Sol G4-A3 shared validation and independent evidence/text hashes pass. No repeated model retry/escalation.
+- Usage: Sol conductor internal model/tokens/time unknown; Sonnet 2 scoped calls (actual claude-sonnet-5) with auxiliary Haiku usage reported in both CLI invocations (internal auxiliary call count unknown), 650.453s model wall time. Observed Gate 4 work window: 49.7 minutes. Opus 0, Astra 0. Reported list-price estimate $1.894693; actual charges/quota unknown, no hard actual-charge cap claimed. IDs/usage: model_calls.jsonl and attempts.jsonl.
+- Warnings: construction fixtures do not prove scholarly OCR/translation accuracy. Human fixture decisions are simulated. Pure consumer checks declared evidence/internal consistency, not image bytes or actor authentication. Default source lines do not resolve scholarly paragraph order/footnote association; real ambiguity stays human-owned.
+- Git: 129debaa9f922258ae810f5a42032c30f6117115 reviewed/committed and normally pushed to the verified intended origin/main; remote hash equality and clean tree verified. Separate receipt preserves this hash without self-reference.
+- Next: Gate 5 small terminology/approved-memory contract under supervised autonomy; no human decision needed for routine transition.
+
+Receipt preflight 2026-09-30T18:53:02.444701+00:00: trailing blank-line check corrected by this append-only note; gate acceptance and synchronized code commit unchanged.

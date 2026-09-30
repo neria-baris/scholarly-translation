@@ -135,3 +135,9 @@ Final verification: `.venv/Scripts/python -B -m unittest discover -s tests -q`: 
 Contract remains schema-1 derived structure; no Gate-3 data changes, profiles/literary code/translation. Reader validates declared evidence and asserted human decision, not file bytes or identity authentication. Default line units do not decide paragraph/footnote meaning. G4-C1 value: partial implementation; G4-C2 value: partial repair that failed its retest; G4-A3 verifies final result. Total 2 Sonnet calls + 2 reported auxiliary Haiku, 650.453s model wall time, $1.894693 reported list estimate; actual charges/subscription quota and Sol internal tokens/time unmeasured, Opus/Astra 0. Git closure next; no further model retry.
 
 2026-09-30T18:50:57.688295+00:00 | Gate 4 usage clarification: two observable Claude CLI invocations, each reporting auxiliary Haiku usage; internal auxiliary model call count is not exposed. The earlier phrase "2 reported auxiliary Haiku" means two per-invocation usage reports, not a verified count of internal calls. Sonnet/Haiku usage and list-estimate total remain as reported.
+
+## Gate 4 | 2026-09-30T18:51:44.071102+00:00 | Git receipt
+
+Commit 129debaa9f922258ae810f5a42032c30f6117115: complete/staged intended diff reviewed, whitespace/credential-pattern checks pass; main and intended fetch/push origin verified, remote ancestor, normal dry-run and push accepted, remote hash equal; clean tree after gate commit. No force or history rewrite.
+
+2026-09-30T18:53:02.444701+00:00 | Gate 4 receipt preflight: git diff --cached --check rejected an extra blank line at EOF in the newly appended card. No commit/push of receipt occurred. Append-only note resolves the formatting finding; code commit is already synchronized. No source changes or model call.
