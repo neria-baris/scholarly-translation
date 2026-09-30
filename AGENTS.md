@@ -7,6 +7,7 @@ Before substantial work, read the relevant sources of truth:
 - [Gate specification and conductor workflow](prompt_codex_cli_astra_conductor_translation_build_he.md), including the standing audit/Git procedure.
 - [Current development controls](DEVELOPMENT_WORKFLOW.md) for contracts, model escalation, checkpoints and audit events.
 - [Development policy](policy_astra_conductor_claude_builder_he(1).md).
+- [Runtime architecture contracts](ARCHITECTURE.md) for product boundaries, source handoffs, and the scholarly-first translation profile decision.
 - [Translation model strategy](scholarly_translation_model_strategy_he(1).md).
 
 Execution rules:

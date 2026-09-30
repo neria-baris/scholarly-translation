@@ -88,3 +88,11 @@ Git: reviewed intended diff only; verified gate commit/push and separate receipt
 ## Gate 3 | 2026-09-30T17:17:05.311813+00:00 | verified Git closure
 
 **PASS (software construction).** Acceptance evidence above: 81 tests and live en/fr/ja OCR fixtures; source preservation and human-review guards pass. Gate commit 3a1577b77cad0ad5f2552dd60ae659cc145ebf17 normally pushed and remote equality verified; intended diff/credential-pattern checks passed, tree clean. One Sonnet call, reported list estimate $0.7346634, actual charge/Sol usage unknown, Opus/Astra 0. No real scholarly accuracy claim. Next: STOP before Gate 4 as requested; Gate 4 not started.
+
+## Gate 4 | 2026-09-30T17:50:24.151666+00:00 | preflight checkpoint
+
+**BLOCKED (instruction ownership / Git preflight, not a software failure).** Gates 1-3 remain passed; main synchronized at a5aa8f82598d477820a7a6ebeeeeb846e233c3db. Three unexpected instruction changes reviewed (AGENTS.md, ARCHITECTURE.md, model strategy); user confirmation pending. Gate 4 contract/implementation not started; no new tests or external model calls, Sol usage unknown. Git operations stopped under repository rule; files preserved untouched. Next: clarify intentional adoption, then verified instruction commit and Gate 4 source/segmentation contract.
+
+## Gate 4 | 2026-09-30T17:57:17.704801+00:00 | documentation preflight resolved
+
+**PASS for documentation verification only; Gate 4 software not yet implemented.** User confirmed intended package. Exact package/baseline hashes and full proposed documentation diff checked, no discrepancies. Source handoff map adopted; profiles deferred to Gates 6-7, scholarly only. Previous preflight BLOCKED preserved. Model calls 0; Sol usage unknown. Intended documentation/audit commit and normal synchronization follow; next define smallest Gate 4 source-resolution/segmentation contract.

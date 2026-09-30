@@ -1,9 +1,7 @@
 # Current state
-Updated: 2026-09-30T17:14:20.094521+00:00
-Gate 3 software acceptance passed and synchronized; gate commit 3a1577b77cad0ad5f2552dd60ae659cc145ebf17.
-Binding contract: contracts/gate_3.md. Public interface: ocr-pdf; source extraction schema 3 unchanged, separate OCR schema 1 with image/PDF coordinates and source/model hashes.
-Acceptance: 81 tests exit 0; live English/French/Japanese CLI fixtures (six pages) verified. No open Gate 3 contract defect. OCR always needs_human; eligible_for_translation false. Synthetic/degraded fixtures do not prove real scholarly accuracy; real pilot remains preliminary.
-Usage: Gate 3 Sonnet one call G3-C1, 264.5 seconds, list estimate $0.7346634; actual subscription charges/Sol usage unknown; Opus/Astra 0. No further call needed. Local Tesseract 5.4.0 installed in Program Files; best weights in ignored cache. No paid runtime API configured.
-Next action: STOP before Gate 4 at the user-requested boundary. Gate 4 has no contract or implementation; a new instruction is required to proceed.
-
-Git closure 2026-09-30T17:17:05.311813+00:00: Gate 3 commit 3a1577b77cad0ad5f2552dd60ae659cc145ebf17 synchronized; receipt records actual verification. Follow the checkpoint next-action constraint.
+Updated: 2026-09-30T17:57:17.704801+00:00
+Gate 4 documentation preflight resolved by explicit user authorization; implementation next after Git closure. Gates 1-3 remain passed. Baseline a5aa8f82598d477820a7a6ebeeeeb846e233c3db synchronized.
+Approved package architecture-profile-handoff.zip SHA-256 7ffe5fd3871bc8b40c3ac9bf3b473e22b235d51b6c27f3739d7483a5c30a66de; AGENTS.md, ARCHITECTURE.md and model strategy match exactly; baseline preconditions verified. Package helper not run/copied. Proposed header retained to preserve exact package; user adoption recorded in append-only history.
+Contracts: ARCHITECTURE.md, contracts/gate_2.md (schema 3 extraction), contracts/gate_3.md (separate schema 1 OCR). Gate 4 must validate digital/OCR handoff, retain alternatives/uncertainty and source provenance, version boundary corrections, detect continuity defects. No profile fields/code or literary features in Gate 4; future single scholarly profile at Gates 6-7 only.
+No remaining ownership blocker; no Gate 4 implementation/contract yet. Usage: external Gate 4 model calls 0, Sol usage/cost unknown. No paid runtime provider.
+Next: commit/push only approved docs and accurate audit changes via normal verified Git; then define Gate 4 contract and scoped builder task. Do not repeat completed gates.
