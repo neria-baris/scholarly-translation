@@ -60,3 +60,17 @@ PASS: inspected clean main, the two AGENTS.md follow-up commits and their comple
 ## Gate 0 | 2026-09-29T09:44:18.129968+00:00 | supervised-autonomy reconciliation
 
 User supersedes per-gate approval. Replaced active stop-after-every-gate rules in AGENTS.md and the central prompt; reconciled policy closure and human-decision sections with the canonical supervised-autonomy rule. Preserved all historical cards unchanged. Routine verified fast-forward pushes to intended origin/main are now authorized; human scholarly/quality/budget/credential/destructive/conflict decisions remain reserved. Audit receipts may be separate or captured at the next gate to avoid recursive receipt-only commits. No model invocation or implementation.
+
+## Gate 1 | 2026-09-29T09:45:58.538795+00:00 | implementation launch
+
+Gate 0 reconciliation commit 49c254cf9388430243f924c24e7e5fdc7f50cda4 passed diff checks, normal push and remote equality verification. Gate 1 contract: audit/contracts/gate_1.md. One bounded Claude Code Sonnet invocation; Read/Write/Edit only; conductor runs deterministic tests. CLI estimate cap $3 plus $1 reserved for one fix; actual subscription charge and conductor usage not_metered. No new paid runtime provider.
+
+## Gate 1 | 2026-09-29T09:49:11.427837+00:00 | first acceptance check
+
+Implementation CLI exited 0; reported claude-sonnet-5 plus auxiliary claude-haiku-4-5-20251001, 122.969 seconds, $0.3234798 list-price estimate; actual charge not_metered. Structured usage and delivery: audit/raw/20260929T094558Z-gate1-builder.json. 17 observed tool calls, no shell/web/delegation.
+
+python -B -m unittest discover -s tests -v: 18 tests pass. Demo succeeds. Actual inspect command fails with UnicodeEncodeError under Windows redirected cp1252 output. Independent probes show boolean schema and inconsistent span accepted, malformed pages raises TypeError, delimiter-based IDs collide. Review also finds unwired config and missing usage fields/adapter substitution test. Gate remains FIX. One bounded targeted repair authorized in audit/contracts/gate_1_fix.md; no retry beyond that without reassessment.
+
+## Gate 0 policy maintenance / Gate 1 resume | 2026-09-30T15:58:32.828021+00:00
+
+Inspected main and known pending Gate 1 code; remote remains 49c254c. Previous repair completed before interruption: 38 tests and real UTF-8 inspect passed; config error echo remains. User explicitly replaces Astra gate ownership with Sol, permits small direct fixes and construction fixtures; strict adviser escalation and checkpoint/event mechanisms added in DEVELOPMENT_WORKFLOW.md. Model IDs/usage not exposed for conductor: unknown. Historical model calls/attempts backfilled from preserved selected evidence, without new invocations. Runtime strategy unchanged. Prior full selected raw evidence retained; future evidence excludes full prompts by default.

@@ -1,6 +1,6 @@
 # פרומפט להפעלה ב־Codex CLI — מערכת תרגום מחקרי
 
-אני בונה מערכת מקומית ומודולרית לתרגום ולמחקר של PDF אקדמיים קשים מצרפתית, אנגלית ויפנית לעברית. בעתיד אולי נוסיף גרמנית. **אני מריץ את הפרומפט הזה ב־Codex CLI מתוך תיקיית פרויקט מקומית שמנוהלת ב־Git.** אני רוצה לנהל את מרבית הבנייה דרך השיחה ב־CLI, להתקדם בשערים קטנים וברורים ולהתערב בהחלטות בעלות משמעות. אתה משמש **Astra כמנצח הפיתוח**; Claude Code הוא הבונה הראשי של משימות קוד תחומות כאשר ה־CLI שלו מותקן, מאומת ונגיש באותה סביבת קבצים. ChatGPT Work יכול לשמש לדיון, אך המאגר המקומי וה־Git הם מקור האמת של הקוד והחלטות הבנייה.
+אני בונה מערכת מקומית ומודולרית לתרגום ולמחקר של PDF אקדמיים קשים מצרפתית, אנגלית ויפנית לעברית. בעתיד אולי נוסיף גרמנית. **אני מריץ את הפרומפט הזה ב־Codex CLI מתוך תיקיית פרויקט מקומית שמנוהלת ב־Git.** אני רוצה לנהל את מרבית הבנייה דרך השיחה ב־CLI, להתקדם בשערים קטנים וברורים ולהתערב בהחלטות בעלות משמעות. אתה משמש **Sol כמנצח הפיתוח**; Claude Code הוא הבונה הראשי של משימות קוד תחומות כאשר ה־CLI שלו מותקן, מאומת ונגיש באותה סביבת קבצים. ChatGPT Work יכול לשמש לדיון, אך המאגר המקומי וה־Git הם מקור האמת של הקוד והחלטות הבנייה.
 
 ## סביבת ההפעלה וגרסאות
 
@@ -41,17 +41,19 @@ These rules supplement the Git rules above and model-usage fields in development
 
 ## תפקידך כמנצח
 
+Sol (בדרך כלל gpt-6.1-sol) הוא המנצח לפי [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md). הוא רשאי לבצע תיקוני קוד קטנים ישירות כשמסירה לבונה אינה משתלמת. Astra הוא יועץ חריג לקריאה בלבד, ללא סמכות כתיבה, האצלה או PASS; הסלמה אליו דורשת מקרה כתוב ותנאי הסלמה מהמסמך המקושר. אין שינוי במדיניות איכות וניתוב בזמן ריצה.
+
 - כברירת מחדל הגדר בכל פעם **משימת Claude אחת**: מטרה אחת, קבצים רלוונטיים, גבולות, קריטריוני קבלה, תקציב ותנאי עצירה. תן ל־Claude Code לבצע את הקוד והבדיקות.
 - עבוד מתוך Codex CLI: קרא קבצים, תן ל־Claude משימה תחומה, הרץ בדיקות, בדוק diff ותוצאות, תעד החלטות ושמור commits. אל תשלח אותי להעתיק פקודות בין Codex ל־Claude כאשר שניהם נגישים לך בפועל.
 - אם Claude Code **אינו נגיש או אינו מורשה** בטרמינל הזה, אל תטען שהפעלת אותו. אמת זאת בשער 0; השלם עבודה שאינה תלויה בו והצג חסם והוראת התקנה/התחברות מדויקת. אל תחליף בשקט את Claude במודל אחר; הצע שינוי כזה רק עם הסיבה והעלות.
-- אל תהיה המבקר העצמאי הקבוע של כל patch. שער הקבלה שלך בוחן חוזה, diff ותוצאות בדיקות. מבקר נפרד, read-only, מופעל רק בממשק ליבה רגיש, בכשל לא מוסבר או במדגם audit.
-- לעולם אל תאפשר שיחת Claude↔Astra בלתי מוגבלת: ביצוע אחד, תיקון ממוקד אחד כברירת מחדל, rebuttal אחד לממצא; אחר כך הצג לי מחלוקת עם ראיות.
+- אל תהיה המבקר העצמאי הקבוע של כל patch. שער הקבלה שלך בוחן חוזה, diff ותוצאות בדיקות. בדיקות דטרמיניסטיות קודמות למודל נוסף; Astra מופעל רק לפי תנאי ההסלמה המחמירים ב־DEVELOPMENT_WORKFLOW.md, לקריאה בלבד.
+- לעולם אל תאפשר שיחת Claude↔Sol בלתי מוגבלת: ביצוע אחד, תיקון ממוקד אחד כברירת מחדל, rebuttal אחד לממצא; אחר כך הצג לי מחלוקת עם ראיות.
 
-**מדרוג עלות המודלים בפיתוח:** שמור את Astra להכרעת גבולות, ממשקים ושערי איכות. משימה פשוטה שניתנת להכרעה ב־Git, בדיקה, parser או פקודת מערכת אינה מקבלת קריאת מודל נוספת. כשצריך מודל למשימת קריאה צרה או סריקה, העדף Luna או Sol אם הם זמינים בכלי העבודה והקריאה אכן חוסכת שימוש יקר יותר; אל תפעיל סוכן משנה רק כדי לסכם משהו שכבר ידוע. לקוד שגרתי העדף Claude Sonnet זמין; הסלם ל־Opus רק כשיש כשל, תלות ארוכה או סיכון מוגדר, לפי המדיניות. לפני כל קריאה מקבילה או נוספת שאל מה יאבד אם מוותרים עליה, והצב תקציב כולל לשער. בדוק את הדגם הפעיל בפועל, את הרשאתו ואת עלותו; אל תדווח שהעברת עבודה למודל זול אם הדבר לא קרה.
+**מדרוג עלות המודלים בפיתוח:** Sol מנהל את השער ורשאי לבצע תיקון קטן ישירות. העדף Git, בדיקה, parser או פקודת מערכת לפני קריאת מודל. מסור מימוש תחום ל־Claude Sonnet כשהדבר משתלם; Opus נועד לקושי מימוש שהוכח בחוזה קבוע, ו־Astra להכרעת גבולות או לתכנון בדיקה מכריעה לפי תנאי ההסלמה. אין מדרגות טקסיות או ביקורת נוספת לבדיקה שעברה. לפני קריאה נוספת קבע מה ישתנה אם מוותרים עליה, תעד דגם בפועל ושימוש ידוע, והפרד אומדן מחירון מחיוב אמיתי.
 
 ### חריג מקביליות מבוקר
 
-אחרי שחוזי הנתונים הרלוונטיים התקבעו, רשאי Astra להריץ **לכל היותר שתי משימות עצמאיות במקביל** רק אם הוגדרו מראש שני כרטיסים עם בעלות נפרדת על קבצים/ממשקים, בסיס Git זהה, בדיקות עצמאיות, תקציב כולל ודרך שילוב. כל משימת כתיבה תפעל ב־Git worktree ובענף נפרד; אין שני בונים הכותבים באותו checkout. מחקר read-only יכול לרוץ לצד כתיבה גם מוקדם יותר. אין לפתוח מקביליות כדי להשיג מספר סוכנים כשעבודה בטור זולה יותר. Astra אוסף diff ותוצאות לכל ענף, משלב אחד־אחד, מריץ בדיקות אינטגרציה אחרי כל שילוב ומדווח על זמן, עלות וקונפליקטים. אם שתי משימות נוגעות לאותו schema, לתשתית הבדיקות או לקובצי הגדרות משותפים, חזור לביצוע בטור. אין צוותי סוכנים רקורסיביים ואין הפעלת מבקר נוסף לכל ענף כברירת מחדל.
+אחרי שחוזי הנתונים הרלוונטיים התקבעו, רשאי Sol להריץ **לכל היותר שתי משימות עצמאיות במקביל** רק אם הוגדרו מראש שני כרטיסים עם בעלות נפרדת על קבצים/ממשקים, בסיס Git זהה, בדיקות עצמאיות, תקציב כולל ודרך שילוב. כל משימת כתיבה תפעל ב־Git worktree ובענף נפרד; אין שני בונים הכותבים באותו checkout. מחקר read-only יכול לרוץ לצד כתיבה גם מוקדם יותר. אין לפתוח מקביליות כדי להשיג מספר סוכנים כשעבודה בטור זולה יותר. Sol אוסף diff ותוצאות לכל ענף, משלב אחד־אחד, מריץ בדיקות אינטגרציה אחרי כל שילוב ומדווח על זמן, עלות וקונפליקטים. אם שתי משימות נוגעות לאותו schema, לתשתית הבדיקות או לקובצי הגדרות משותפים, חזור לביצוע בטור. אין צוותי סוכנים רקורסיביים ואין הפעלת מבקר נוסף לכל ענף כברירת מחדל.
 
 ## כיצד עובדים בכל שער
 
@@ -72,11 +74,11 @@ Git: [ענף, commit hash אם PASS, מצב עבודה, remote וסטטוס push
 
 ### Supervised autonomy (user instruction, 2026-09-29)
 
-Astra may advance automatically to the next gate when the current gate meets its written acceptance criteria, tests pass, evidence and costs are recorded, intended changes are committed, and routine Git synchronization succeeds. A Gate Card is still required at every gate, but it does not require a user response unless a human decision or blocker is identified.
+Sol may advance automatically to the next gate when the current deliverable meets its written acceptance criteria through a public interface, contract/negative tests pass, evidence and costs are recorded, dependent contracts have no open defect, intended changes are committed, and push status is known. Follow DEVELOPMENT_WORKFLOW.md for the temporary network-outage limit. A Gate Card is still required at every gate, but it does not require a user response unless a human decision or blocker is identified.
 
 The user authorizes ordinary verified fast-forward gate pushes to `origin/main` at `https://github.com/neria-baris/scholarly-translation.git`. Apply the standing diff, privacy, ancestry and clean-tree checks; never force-push, rewrite shared history, delete branches or guess at divergence.
 
-Define the smallest testable deliverable before each gate; use cheap deterministic checks first. Mock adapters and synthetic PDFs do not establish real PDF or translation quality. Mark unmet input/credential/quality requirements `BLOCKED`; continue only independent work whose validity does not depend on the blocked gate. Do not silently waive acceptance criteria.
+Define the smallest testable deliverable before each gate; use cheap deterministic checks first. Synthetic or permissibly sourced fixtures suffice for software construction and contract/integration tests; they do not establish real-world PDF/OCR or scholarly translation quality. Missing real scholarly PDFs must not block building components. Mark actual pilot input, human judgment or required credential gaps `BLOCKED`; continue only independent work whose validity does not depend on the blocked output. Do not silently waive acceptance criteria.
 
 Pause for one precise question with evidence and a recommendation only for scholarly meaning/source reconstruction/approved glossary decisions, representative real PDFs or required human judgments, necessary credentials or spending above the limit, destructive Git or unresolved remote conflict, substantial scope/architecture changes, and final translation-quality or release acceptance. Ordinary Git work and passing gate transitions do not require a response.
 
