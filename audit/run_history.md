@@ -165,3 +165,7 @@ Concurrent writer detected: audit/gate_history.md gained Gate-5 BLOCKED/PASS car
 ## Gate 5 | 2026-09-30T19:45:31+00:00 | sole-conductor verification
 
 User selected this session as the sole conductor. Checkout timestamps and Git status stayed stable since the other session's 19:26:42 UTC stop; no other active edits observed. Reviewed staged Gate-5 code/audit and unstaged G5-A1/A2 attempt events. Full current-tree suite: 132 tests, 13.464s, exit 0. G5-A3 added exact memory dependency-key uniqueness and tests for conflicting human-approved targets and CLI source-PDF output collision. Final full suite: 134 tests, 13.043s, exit 0; source PDF bytes unchanged in collision test. No additional external model call; G5-C1 remains the only observable one. Synthetic fixtures do not approve real scholarship. Proceed to stage exact changed files, inspect staged diff and perform verified normal Git closure.
+
+## Gate 5 | 2026-09-30T19:58:11+00:00 | commit receipt before synchronization
+
+Gate-5 source/audit commit a355837f3fac92c1ab5086963f752af15a774753 created after complete intended-path staging, staged whitespace check, clean unstaged diff and 134 passing tests. Pre-commit fetch confirmed main, intended origin URL https://github.com/neria-baris/scholarly-translation.git, origin/main equal to parent d4ba2c7e48bca49b3a6a24b2b5194e818cddfe1a and fast-forward ancestry. Post-commit working tree clean, main ahead one. This receipt records the hash without a self-reference; normal push and remote equality verification remain pending.
