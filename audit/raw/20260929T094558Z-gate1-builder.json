@@ -1,0 +1,175 @@
+{
+  "gate": 1,
+  "task": "G1-offline-skeleton",
+  "timestamp": "2026-09-29T09:45:58.538795+00:00",
+  "provider": "Anthropic Claude Code",
+  "argv": [
+    "claude",
+    "--print",
+    "--safe-mode",
+    "--strict-mcp-config",
+    "--no-session-persistence",
+    "--model",
+    "sonnet",
+    "--effort",
+    "low",
+    "--max-budget-usd",
+    "3",
+    "--tools",
+    "Read,Write,Edit",
+    "--allowedTools",
+    "Read,Write,Edit",
+    "--permission-mode",
+    "dontAsk",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "Implement only audit/contracts/gate_1.md. Read that contract and the small relevant policy sections it names. You own only the paths listed there. Use Read/Write/Edit only; Astra will run the tests. No web, shell, Git, model delegation, or audit edits. Produce the smallest working implementation and meaningful unittest tests. Return a concise delivery report and stop."
+  ],
+  "exit_status": 0,
+  "duration_seconds": 122.969,
+  "reported_models": [
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-5"
+  ],
+  "reported_list_cost_usd": 0.32347980000000004,
+  "actual_charge": "not_metered",
+  "usage": {
+    "input_tokens": 30,
+    "cache_creation_input_tokens": 31110,
+    "cache_read_input_tokens": 353619,
+    "output_tokens": 12719,
+    "output_tokens_details": {
+      "thinking_tokens": 615
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 31110,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1086,
+        "cache_read_input_tokens": 36228,
+        "cache_creation_input_tokens": 300,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 300
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "model_usage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 976,
+      "outputTokens": 18,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.0010659999999999999,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "thinkingTokens": 0,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 30,
+      "outputTokens": 12719,
+      "cacheReadInputTokens": 353619,
+      "cacheCreationInputTokens": 31110,
+      "webSearchRequests": 0,
+      "costUSD": 0.32241380000000003,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 615,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "tool_calls": [
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\audit\\contracts\\gate_1.md"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\AGENTS.md"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\policy_astra_conductor_claude_builder_he(1).md"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\.gitignore"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\README.md"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__init__.py"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\store.py"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\provider.py"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\usage.py"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__main__.py"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\config.example.json"
+    },
+    {
+      "name": "Write",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\README.md"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\.gitignore"
+    }
+  ],
+  "result_subtype": "success",
+  "is_error": false,
+  "delivery": "## Delivery report — Gate 1 offline skeleton\n\n**Status:** DONE (implementation only; Astra runs tests independently)\n\n**Changed files:**\n- `scholarly_translation/__init__.py`\n- `scholarly_translation/records.py` — `Segment`/`Page`/`Document` dataclasses with validation (nonempty IDs, positive versions/pages, parent references, valid spans, schema version check)\n- `scholarly_translation/store.py` — `deterministic_id`, atomic JSON save (`os.replace`), validating load\n- `scholarly_translation/provider.py` — `ProviderConfig` (default mock, target `he`), rejects unsupported providers before any call, `MockTranslationAdapter` (placeholder-marked output), swappable `TranslationAdapter` interface\n- `scholarly_translation/usage.py` — append-only JSONL `UsageEvent` (no source text/credentials, `cost_basis=\"synthetic_non_billed\"`)\n- `scholarly_translation/__main__.py` — `demo` and `inspect` CLI, builds one synthetic multilingual (FR/EN/JA) document, IDs derived from stable source identity/version/page/segment\n- `tests/test_skeleton.py` — unittest coverage: validation rejections, deterministic IDs, provider rejection/mock marking, unicode round-trip, invalid JSON/schema rejection, demo persistence, ID/usage stability across reruns, inspect exact-text round-trip, nonzero exit on missing file\n- `config.example.json`, `README.md`\n- `.gitignore` — appended `__pycache__/`, `*.pyc`, `*.pyo`\n\n**Interface:** matches contract exactly — `python -B -m scholarly_translation demo --output outputs/gate1`, `... inspect outputs/gate1/document.json`, `python -B -m unittest discover -s tests -v`. No dependencies beyond stdlib.\n\n**Deviations:** none from the contract's scope.\n\n**Open risks/limitations:** single-process JSON store as specified; no real PDF ever touched (synthetic-only, as required); I could not execute the test suite myself (Write/Read/Edit tools only) — Astra should run `python -B -m unittest discover -s tests -v` to confirm.\n\n**Builder:** Claude Sonnet 5 (`claude-sonnet-5`), low effort, as specified by the contract.",
+  "independent_verification": "pending",
+  "stderr_present": false
+}

@@ -8,3 +8,6 @@ cache/
 outputs/
 .venv/
 node_modules/
+__pycache__/
+*.pyc
+*.pyo

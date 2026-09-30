@@ -1,0 +1,20 @@
+# Gate 1 task contract — offline skeleton
+
+- Task: G1-offline-skeleton; owner: Claude Code; conductor: Astra.
+- Base: 49c254cf9388430243f924c24e7e5fdc7f50cda4.
+- Objective: persist and inspect a synthetic document with stable document/page/segment identities, version and source location through an offline CLI, recording a clearly labeled mock-provider usage event.
+- Inputs: this contract; AGENTS.md; central prompt Gate 1; development policy sections 4–5; strategy section 1. No real PDFs currently available. Use original tiny synthetic multilingual text only.
+- Owned paths: scholarly_translation/*.py, tests/test_skeleton.py, config.example.json, README.md, .gitignore (append Python artifact ignores only). No other edits, Git operations, audit writes, network calls or delegation.
+- Runtime: Python 3.9+ standard library only; no dependency installation or server. Prefer 4–6 small modules, approximately 350 lines excluding tests; no empty future modules.
+- In scope: simple validated records, JSON persistence with safe atomic replacement, mock provider configuration/interface, append-only JSONL usage, demo/inspect CLI, focused unittest checks and short usage documentation.
+- Interface: `python -B -m scholarly_translation demo --output outputs/gate1` writes a synthetic document JSON and usage JSONL; `python -B -m scholarly_translation inspect outputs/gate1/document.json` prints IDs, schema/document version, source locator and segment information. Run `python -B -m unittest discover -s tests -v`.
+- Record contract: deterministic IDs based on source identity/version/page/segment identity; explicit schema version, document version, language, synthetic source kind, source URI, page number and source character offsets for each segment. Preserve Unicode text exactly. Demonstration must point to an actual persisted synthetic source text, not pretend a PDF exists. Validate nonempty IDs, positive versions/pages, parent references and source spans. Loaded invalid/unsupported records must fail clearly. No silent source reconstruction or implicit approval.
+- Provider configuration: default mock only, target language he; reject unknown/paid providers before any call. Small adapter contract that can be swapped without changing persistence. Mock output explicitly marked placeholder, never a real translation. No secret values in config or logs.
+- Usage: append records with run/task/document IDs, provider/model, reason, timestamp, duration, known/unknown usage and cost basis, and outcome; never log source text, credentials or pretend unmeasured charges are zero. Mock has no external calls; label it synthetic/non-billed.
+- Acceptance: unit tests pass; demo persists source and JSON; inspect round-trips stable IDs, versions, locations and exact text; rerunning demo preserves IDs and appends usage; invalid references/spans/schema/config rejected; a stub alternate adapter exercises the same interface without changing store code. CLI error path returns nonzero. No API dependency.
+- Out of scope: actual PDF extraction/OCR, translation quality, glossary, UI web server, cloud API, plugins, agents, complete pipeline, release. Passing proves only Gate 1 plumbing.
+- Known risks: synthetic inputs do not establish Gate 2 quality; JSON store is single-process; runtime credentials absent/unneeded.
+- source_provenance_required: true (synthetic text only; no PDF mapping changes).
+- Builder: Anthropic Claude Code sonnet alias, low effort; report resolved model. Suitable routine coding tier; no escalation or second reviewer by default.
+- Budgets: no new runtime API spend; CLI reported-list-price limit 3 USD for implementation, reserve 1 USD for one fix. Actual subscription charge/conductor usage not_metered; no claim of hard actual-dollar enforcement. At most 2 builder invocations (one implementation, one targeted fix); tool calls soft 20/hard 60; wall time soft 10 minutes/hard 15 minutes per invocation. No recursive model calls.
+- Stop: hand back changed paths and concise checks/limitations. Astra runs local tests independently. Stop after implementation; do not advance gates or commit.

@@ -1,0 +1,5 @@
+{
+  "provider": "mock",
+  "target_language": "he",
+  "model": "mock-echo-1"
+}

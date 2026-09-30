@@ -74,3 +74,7 @@ python -B -m unittest discover -s tests -v: 18 tests pass. Demo succeeds. Actual
 ## Gate 0 policy maintenance / Gate 1 resume | 2026-09-30T15:58:32.828021+00:00
 
 Inspected main and known pending Gate 1 code; remote remains 49c254c. Previous repair completed before interruption: 38 tests and real UTF-8 inspect passed; config error echo remains. User explicitly replaces Astra gate ownership with Sol, permits small direct fixes and construction fixtures; strict adviser escalation and checkpoint/event mechanisms added in DEVELOPMENT_WORKFLOW.md. Model IDs/usage not exposed for conductor: unknown. Historical model calls/attempts backfilled from preserved selected evidence, without new invocations. Runtime strategy unchanged. Prior full selected raw evidence retained; future evidence excludes full prompts by default.
+
+## Gate 1 | 2026-09-30T16:04:39.214787+00:00 | completion verification
+
+Policy commit 08035795499c909d6911a716ab982112ddc0b3c6 was normally pushed and remote equality verified. Gate 1 latest tests: 41 pass; configured demo and UTF-8 inspect exit 0. Input bytes SHA-256, source text spans, region identity, schema/version/status and legacy warning verified. Small direct Sol correction after reassessment avoids a third model call. Final code/negative cases complete the data_spine contract; no escalation trigger. Historical builder evidence retained; fix exceeded soft 20-tool guidance (49 observed tool calls) but stayed below 60; this was instruction-bounded, not mechanically enforced. Synthetic output under ignored outputs/gate1 remains local.

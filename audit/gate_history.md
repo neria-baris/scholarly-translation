@@ -51,3 +51,16 @@ Full prior report preserved at `audit/raw/20260929T092338Z-gate0-prior.md`.
 ## Gate 0 | 2026-09-29T09:44:18.129968+00:00 | workflow reconciliation
 
 **PASS (instruction review; Git closure follows).** Pending AGENTS follow-up pushed and verified at remote. Active instructions now use one canonical supervised-autonomy rule with navigational references; historical approval rules remain only as past audit evidence. Diff review and link/rule checks are required before commit. Model calls: 0; conductor usage not_metered. Next: synchronize instruction commit, then Gate 1.
+
+## Gate 1 | 2026-09-29T09:49:11.427837+00:00 | first acceptance
+
+**FIX.** Offline skeleton written; 18 unit tests pass, but real CLI inspect fails on Japanese output and validation/config/usage checks are incomplete. No PDF or translation-quality claim. One Sonnet invocation, reported $0.3234798 list-price estimate, actual charge not_metered. Next: one targeted fix and independent retest. No commit of failed implementation.
+
+## Gate 1 | 2026-09-30T16:04:39.214787+00:00 | acceptance
+
+**Gate 1 ? PASS (software acceptance; Git closure follows).**
+Deliverable: runnable offline CLI, stable document/page/region/segment identity, source location/language, schema 2 stage/hash/status/warnings, explicit schema 1 reader, atomic JSON store, configurable mock provider and append-only usage.
+Evidence: `python -B -m unittest discover -s tests -q` ? 41 pass; demo with config.example.json and inspect succeed including Japanese; producer/consumer source spans/hash and adapter substitution pass. No paid runtime API. Contracts: gate_1.md, data_spine.md.
+Failures/fixes: G1-A1/A2 preserved; UTF-8/config/validation repairs completed, Sol corrected config echo and added current data spine (G1-A3). Synthetic fixture and mock are not scholarly/PDF quality evidence; JSON store is single-process.
+Usage: Sonnet 2 observable CLI calls (G1-C1/G1-C2), 359.922 seconds, $1.0399862 total reported list-price estimate; actual subscription charge unknown. Sol usage/cumulative turns unknown; Opus/Astra 0. No additional model call for approval. CLI estimate limits do not prove a hard cap on subscription charges.
+Git: intended Gate 1 files reviewed/committed/pushed through verified normal main workflow; final hash/sync is recorded at the next boundary. Next: Gate 2 digital PDF component on permissible fixture.

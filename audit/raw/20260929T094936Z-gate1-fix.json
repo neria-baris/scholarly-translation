@@ -1,0 +1,303 @@
+{
+  "gate": 1,
+  "task": "G1-targeted-fix",
+  "timestamp": "2026-09-29T09:49:36.356004+00:00",
+  "provider": "Anthropic Claude Code",
+  "argv": [
+    "claude",
+    "--print",
+    "--safe-mode",
+    "--strict-mcp-config",
+    "--no-session-persistence",
+    "--model",
+    "sonnet",
+    "--effort",
+    "low",
+    "--max-budget-usd",
+    "1",
+    "--tools",
+    "Read,Write,Edit",
+    "--allowedTools",
+    "Read,Write,Edit",
+    "--permission-mode",
+    "dontAsk",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "Complete the single targeted fix round in audit/contracts/gate_1_fix.md. Read that file and affected implementation/tests only; original ownership remains. No web, shell, Git, audit modifications or delegation. Astra runs tests. Return concise delivery and stop."
+  ],
+  "exit_status": 0,
+  "duration_seconds": 236.953,
+  "reported_models": [
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-5"
+  ],
+  "reported_list_cost_usd": 0.7165064000000001,
+  "actual_charge": "not_metered",
+  "usage": {
+    "input_tokens": 72,
+    "cache_creation_input_tokens": 55838,
+    "cache_read_input_tokens": 1247977,
+    "output_tokens": 24237,
+    "output_tokens_details": {
+      "thinking_tokens": 6751
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 55838,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "not_available",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 837,
+        "cache_read_input_tokens": 60194,
+        "cache_creation_input_tokens": 2212,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 2212
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard"
+  },
+  "model_usage": {
+    "claude-haiku-4-5-20251001": {
+      "inputTokens": 950,
+      "outputTokens": 19,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 0,
+      "webSearchRequests": 0,
+      "costUSD": 0.001045,
+      "contextWindow": 200000,
+      "maxOutputTokens": 32000,
+      "thinkingTokens": 0,
+      "canonicalModel": "claude-haiku-4-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    },
+    "claude-sonnet-5": {
+      "inputTokens": 72,
+      "outputTokens": 24237,
+      "cacheReadInputTokens": 1247977,
+      "cacheCreationInputTokens": 55838,
+      "webSearchRequests": 0,
+      "costUSD": 0.7154614000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 6751,
+      "canonicalModel": "claude-sonnet-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "tool_calls": [
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\audit\\contracts\\gate_1_fix.md"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__init__.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__main__.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\cli.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\document.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\ids.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\usage.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\providers.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\config.example.json"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\README.md"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\provider.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\store.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_records.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_store.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_cli.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_usage.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_provider.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\audit\\raw\\20260929T094558Z-gate1-builder.json"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\records.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\store.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\provider.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\usage.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\usage.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__main__.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__main__.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__main__.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__main__.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\__main__.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Edit",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\README.md"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\tests\\test_skeleton.py"
+    },
+    {
+      "name": "Read",
+      "path": "C:\\Users\\pc2\\projects\\scholarly-translation\\scholarly_translation\\provider.py"
+    }
+  ],
+  "result_subtype": "success",
+  "is_error": false,
+  "delivery": "This all looks correct and complete. All fixes are implemented within scope, with tests added alongside.\n\n## Delivery summary — Gate 1 fix round\n\n**Fixed all 5 findings + the source URI note, in the same owned files:**\n\n1. **UTF-8 CLI output** — `__main__.py` now reconfigures `sys.stdout`/`stderr` to UTF-8 in `main()`, unaffected by `PYTHONIOENCODING`. Added `CliUtf8OutputTests` that runs the real subprocess with `PYTHONIOENCODING=cp1252` and asserts the Japanese segment survives.\n2. **`--config` wiring** — `demo` gained an optional `--config` flag; `ProviderConfig.from_dict` (provider.py) now strictly validates before any output/provider call: rejects non-dict configs, unknown fields (names only, never values — protects credential-like fields), bad types, unsupported providers, and now unsupported models too (only `mock`/`mock-echo-1` allowed). Added an alternate-adapter stub test proving `TranslationAdapter` is a genuine swappable interface. README documents the flag.\n3. **records.py hardening** — bool `schema_version` now rejected; segment span length must equal `len(text)`; `pages:[None]` raises `RecordValidationError` (no raw `TypeError`); duplicate segment IDs/orders and duplicate page IDs/page numbers rejected. Fixed the hardcoded incorrect Japanese span in the unicode round-trip test.\n4. **`deterministic_id`** — now length-prefixes each part before hashing, eliminating the `a|b,c` vs `a,b|c` collision; added a regression test.\n5. **Usage log** — `UsageEvent` gained `token_usage` (default `\"not_metered\"`), `actual_charge` (default `\"not_metered\"`, never implies zero), and `estimated_cost_usd` (known synthetic estimate). Verified no source text leaks into the log.\n\nAlso made the synthetic source locator an absolute `file://` URI (`source_path.resolve().as_uri()`), independent of CLI working directory.\n\n**Files touched:** `scholarly_translation/records.py`, `store.py`, `provider.py`, `usage.py`, `__main__.py`, `tests/test_skeleton.py`, `README.md`. No scope beyond the fix contract; no store/schema redesign.\n\nAstra should run `python -B -m unittest discover -s tests -v` to confirm.",
+  "independent_verification": "pending",
+  "stderr_present": false
+}

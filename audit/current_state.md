@@ -1,11 +1,8 @@
 # Current state
-Updated: 2026-09-30T15:58:32.828021+00:00
-Current gate: 1, implementation open; Gate 0 is complete and synchronized.
-Latest committed baseline: 49c254cf9388430243f924c24e7e5fdc7f50cda4.
-Active ownership: Sol conducts; Sonnet is scoped builder; Astra only by written exceptional read-only escalation.
-Binding controls: ../DEVELOPMENT_WORKFLOW.md; contracts/gate_1.md and contracts/gate_1_fix.md (historical Astra owner is superseded).
-Pending code: six stdlib modules, tests, README/config and Python ignores. These are known unfinished Gate 1 changes, not unexpected user edits.
-Open issues: unsupported provider/model error echoes arbitrary config values; minimal data-spine metadata required by the 2026-09-30 instruction must be added with explicit legacy reading.
-Acceptance already observed: 38 unit tests and actual multilingual CLI pass after one Sonnet repair; do not rerun passed Gate 0 or call another model just for approval.
-Quotas: Gate 1 two Sonnet invocations consumed (list estimates $0.3234798+$0.7165064). No further Sonnet invocation for this issue; small direct Sol correction is appropriate. Opus/Astra calls 0. Sol usage/model ID and actual subscription charges unknown.
-Next: commit/push reconciled development controls and audit mechanisms without pending product files; finish Gate 1 directly, then build Gate 2 against a permissible synthetic fixture. Real scholarly input is only required for a genuine quality pilot.
+Updated: 2026-09-30T16:04:39.214787+00:00
+Gate 1 software acceptance passed; Git closure in progress. Gate 0 closed.
+Latest known committed baseline: 08035795499c909d6911a716ab982112ddc0b3c6 (synchronized).
+Contracts: contracts/gate_1.md, contracts/data_spine.md. Entry point: python -B -m scholarly_translation; tests: python -B -m unittest discover -s tests -q (41 pass).
+No open Gate 1 defects. Limitations: synthetic/mock evidence only, single-process JSON store; schema 1 has unknown legacy input hash. Runtime provider is mock only.
+Usage: Gate 1 Sonnet calls exhausted at 2, reported list estimate $1.0399862; actual charges/Sol usage unknown. Opus/Astra calls 0. Any new gate gets its own scoped contract/call limits; no approval-model call.
+Next: finish normal Gate 1 commit/push, record hash at Gate 2 boundary, then implement local digital PDF extraction against a generated permissible PDF fixture. Real scholarly quality remains preliminary.
