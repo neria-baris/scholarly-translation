@@ -72,3 +72,34 @@ acceptance. Empty pages are retained and flagged `page_N_empty_needs_ocr`. Inval
 encrypted or missing PDF input raises a bounded `ExtractionError` with no page content. No PDFs
 are committed to this repository; tests generate tiny original fixtures in temporary
 directories.
+
+## Gate 3: local OCR fallback
+
+OCR runs a single local Tesseract engine on image-only or failed-text pages of a validated
+schema-3 Document, using the exact original PDF whose bytes match `input_hash`. It writes a
+separate OCR bundle (schema 1) alongside rendered page images at 200 DPI; it never overwrites
+`document.json` or `source_text`. Bundle pages are always `status: needs_human`,
+`eligible_for_translation: false`, carry an `ocr_unreviewed` warning (plus `low_confidence`,
+`empty`, or `error` as applicable), and OCR confidence is never proof of accuracy.
+
+```
+python -B -m scholarly_translation ocr-pdf INPUT.pdf outputs/gate2/document.json \
+    --language en --output outputs/gate3 \
+    --tesseract "C:/Program Files/Tesseract-OCR/tesseract.exe" \
+    --tessdata-dir cache/ocr/tessdata
+```
+
+By default only pages with empty extracted text are OCR'd; pages with digital text are skipped
+and listed with reason `digital_text_available`. Pass `--pages 1 2` to force specific pages
+(flagged `forced_page_review`); an invalid or mismatched selection raises a bounded
+`OCRInputError` before any engine call. Supported `--language` values are `en`/`fr`/`ja`,
+mapped to Tesseract's `eng`/`fra`/`jpn`. Engine failure, timeout, a nonzero exit, or malformed
+TSV output leaves the affected page `needs_human` with an error code and empty text. Successfully
+rendered images are retained; rendering failures keep the original PDF/page reference and an error.
+The engine subprocess runs with a finite timeout (maximum 120 seconds) and list
+arguments (no shell), and engine stderr/private paths are never included in bundle or log
+output. Requires a local Tesseract OCR install (5.4.0 tested) and optionally a local, uncommitted
+`cache/ocr/tessdata` directory for language weights; no network calls are made.
+Standalone language directories need no `configs/tsv` file: TSV output is selected explicitly.
+The clear/degraded English, French and Japanese fixtures demonstrate plumbing and review flags,
+not real scholarly OCR accuracy. Japanese word spacing is preserved as returned by the engine.

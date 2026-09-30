@@ -92,3 +92,13 @@ Gate 2 additional renderer check 2026-09-30T16:22:55.167455+00:00: Poppler pdfto
 ## Gate 2 | 2026-09-30T16:23:08.739745+00:00 | Git receipt
 
 Commit ee85c619ac31a2ce9934bf22460422b7dccbc7c6: complete/staged intended diff reviewed, whitespace/credential-pattern checks pass; main and intended fetch/push origin verified, remote ancestor, normal dry-run and push accepted, remote hash equal; clean tree after gate commit. No force or history rewrite.
+
+## Gate 3 | 2026-09-30T16:29:10.715005+00:00 | contract and local engine setup
+
+Gate 2 receipt 1c1004fdd0ed17c396098045195219f66b0ed84d synchronized. Contract gate_3.md precedes implementation G3-C1; original extraction remains immutable, OCR bundle requires human review and forbids automatic translation. Tesseract absent initially. WinGet explicit user-scope installer selection failed (no applicable installer); ordinary verified WinGet install succeeded with SHA-256 verification, version 5.4.0.20240606. Requested cache location ignored by installer: actual executable C:/Program Files/Tesseract-OCR/tesseract.exe. No paid service or credential. Official setup/TSV API checked at https://tesseract-ocr.github.io/tessdoc/Installation.html and https://tesseract-ocr.github.io/tessdoc/Command-Line-Usage.html; traineddata from official tessdata_best tag 4.1.0 under ignored cache/ocr/tessdata. Real OCR quality pilot remains preliminary.
+
+Gate 3 language-data hashes 2026-09-30T16:29:33.627237+00:00: {"eng": "8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba", "fra": "907743d98915c91a3906dfbf6e48b97598346698fe53aaa797e1a064ffcac913", "jpn": "36bdf9ac823f5911e624c30d0553e890b8abc7c31a65b3ef14da943658c40b79"}. Locally measured identity; weights are ignored, no accuracy claim.
+
+## Gate 3 | 2026-09-30T17:14:20.094521+00:00 | final verification and stop boundary
+
+User resumed with explicit stop before Gate 4; checked main/status/history/origin hash 1c1004fdd0ed17c396098045195219f66b0ed84d, known Gate 3 files only. G3-C1 builder exit 0 is now independently verified: 81 tests exit 0 (6.823 seconds latest run), standalone TSV regression and three actual CLI invocations/six pages pass. Initial configured-language run failed with malformed_output; bounded direct Tesseract experiment identified missing optional tsv config, explicit tessedit_create_tsv=1 solved it without new model call. Original document.json hashes unchanged before/after OCR. Derived output/word boxes match source spans; degraded pages remain needs_human. Known list estimate $0.7346634 is not actual billing; model token/cache details are in G3-C1 event. No new raw transcript/private content saved. Gate 3 software PASS recorded, real quality preliminary. Gate 4 has not started; stop after verified Git closure.

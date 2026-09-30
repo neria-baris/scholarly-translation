@@ -198,6 +198,58 @@ def cmd_extract_pdf(input_path: str, language: str, output_dir: str) -> int:
     return 0
 
 
+def cmd_ocr_pdf(
+    input_path: str,
+    document_path: str,
+    language: str,
+    output_dir: str,
+    tesseract: str,
+    tessdata_dir: str = None,
+    pages=None,
+    timeout: float = 30.0,
+) -> int:
+    try:
+        from .ocr import OCRInputError, run_ocr
+    except ImportError:
+        print("OCR dependencies unavailable; install requirements.txt in a local venv.", file=sys.stderr)
+        return 1
+    try:
+        document = load_document(Path(document_path))
+    except RecordValidationError as exc:
+        print(f"Invalid document: {exc}", file=sys.stderr)
+        return 1
+    except FileNotFoundError as exc:
+        print(f"Document not found: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    try:
+        bundle = run_ocr(
+            input_path,
+            document,
+            language=language,
+            tesseract_path=tesseract,
+            output_dir=out_path,
+            tessdata_dir=tessdata_dir,
+            timeout=timeout,
+            pages=pages,
+        )
+    except OCRInputError as exc:
+        print(f"OCR input invalid: {exc}", file=sys.stderr)
+        return 1
+
+    out_path.mkdir(parents=True, exist_ok=True)
+    bundle_path = out_path / "ocr.json"
+    with open(bundle_path, "w", encoding="utf-8") as handle:
+        json.dump(bundle, handle, ensure_ascii=False, indent=2)
+
+    print(f"Wrote OCR bundle: {bundle_path}")
+    for page in bundle["pages"]:
+        if page["image_uri"]:
+            print(f"Wrote render: {page['image_uri']}")
+    return 0
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -220,6 +272,16 @@ def main(argv=None) -> int:
     extract_pdf_parser.add_argument("--language", required=True)
     extract_pdf_parser.add_argument("--output", required=True)
 
+    ocr_pdf_parser = subparsers.add_parser("ocr-pdf")
+    ocr_pdf_parser.add_argument("input")
+    ocr_pdf_parser.add_argument("document_json")
+    ocr_pdf_parser.add_argument("--language", required=True)
+    ocr_pdf_parser.add_argument("--output", required=True)
+    ocr_pdf_parser.add_argument("--tesseract", required=True)
+    ocr_pdf_parser.add_argument("--tessdata-dir", default=None)
+    ocr_pdf_parser.add_argument("--pages", nargs="+", type=int, default=None)
+    ocr_pdf_parser.add_argument("--timeout", type=float, default=30.0)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -228,6 +290,11 @@ def main(argv=None) -> int:
         return cmd_inspect(args.document_path)
     if args.command == "extract-pdf":
         return cmd_extract_pdf(args.input, args.language, args.output)
+    if args.command == "ocr-pdf":
+        return cmd_ocr_pdf(
+            args.input, args.document_json, args.language, args.output,
+            args.tesseract, args.tessdata_dir, args.pages, args.timeout,
+        )
     return 1
 
 
