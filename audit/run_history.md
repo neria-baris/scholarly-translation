@@ -102,3 +102,7 @@ Gate 3 language-data hashes 2026-09-30T16:29:33.627237+00:00: {"eng": "8280aed07
 ## Gate 3 | 2026-09-30T17:14:20.094521+00:00 | final verification and stop boundary
 
 User resumed with explicit stop before Gate 4; checked main/status/history/origin hash 1c1004fdd0ed17c396098045195219f66b0ed84d, known Gate 3 files only. G3-C1 builder exit 0 is now independently verified: 81 tests exit 0 (6.823 seconds latest run), standalone TSV regression and three actual CLI invocations/six pages pass. Initial configured-language run failed with malformed_output; bounded direct Tesseract experiment identified missing optional tsv config, explicit tessedit_create_tsv=1 solved it without new model call. Original document.json hashes unchanged before/after OCR. Derived output/word boxes match source spans; degraded pages remain needs_human. Known list estimate $0.7346634 is not actual billing; model token/cache details are in G3-C1 event. No new raw transcript/private content saved. Gate 3 software PASS recorded, real quality preliminary. Gate 4 has not started; stop after verified Git closure.
+
+## Gate 3 | 2026-09-30T17:17:05.311813+00:00 | Git receipt
+
+Commit 3a1577b77cad0ad5f2552dd60ae659cc145ebf17: complete/staged intended diff reviewed, whitespace/credential-pattern checks pass; main and intended fetch/push origin verified, remote ancestor, normal dry-run and push accepted, remote hash equal; clean tree after gate commit. No force or history rewrite.
