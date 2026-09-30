@@ -5,3 +5,5 @@ Contracts: contracts/gate_2.md; schema 3 PDF geometry with explicit legacy 1/2 r
 No open contract defects. Limitations: single-column reading order/layout unverified, synthetic software evidence only, no real OCR/translation quality claim.
 Gate 2 Sonnet 1 call, 245.828 s, list estimate $0.6193292; actual charges/Sol usage unknown; Opus/Astra 0. No further Gate 2 model call required.
 Next: verified commit/push then Gate 3 local OCR. No paid runtime provider.
+
+Git closure 2026-09-30T16:23:08.739745+00:00: Gate 2 commit ee85c619ac31a2ce9934bf22460422b7dccbc7c6 synchronized; receipt records actual verification. Next gate may begin.

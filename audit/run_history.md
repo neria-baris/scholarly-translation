@@ -88,3 +88,7 @@ Gate 1 commit bff1a545c68b6e6fbc8daaaa19b4e0df97e79971: reviewed intended paths,
 G2-C1 exit 0; independently verified by 59 tests and real CLI extract/inspect. Local fixture/report outputs are ignored under outputs/gate2; no PDF/image inputs committed. Both rendered pages compared to exact expected source lines. Lazy-import regression and required schema 3 geometry fixed by Sol. Launcher Unicode print failure occurred after model event capture; delivery printing now escaped. No rerun/no raw transcript retained. $0.6193292 is reported list estimate, not an actual charge.
 
 Gate 2 additional renderer check 2026-09-30T16:22:55.167455+00:00: Poppler pdftoppm exit 0, page-1 PNG produced; reported missing optional ArialUnicode display font. PDFium renders were independently inspected; fixture uses Helvetica, all tested source lines retained. Warning does not establish support for missing-glyph PDFs.
+
+## Gate 2 | 2026-09-30T16:23:08.739745+00:00 | Git receipt
+
+Commit ee85c619ac31a2ce9934bf22460422b7dccbc7c6: complete/staged intended diff reviewed, whitespace/credential-pattern checks pass; main and intended fetch/push origin verified, remote ancestor, normal dry-run and push accepted, remote hash equal; clean tree after gate commit. No force or history rewrite.
