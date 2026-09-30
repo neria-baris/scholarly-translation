@@ -1,9 +1,7 @@
 # Current state
-Updated: 2026-09-30T18:48:18.511985+00:00
-Gate 4 PASS; intended gate commit verified and synchronized. Latest known receipt 316953664120c119edc70c8faa37f459dbcdd9f9. Gates 1-3 remain passed.
-Contracts: ARCHITECTURE.md; audit/contracts/gate_4.md and gate_4_fix.md; source_reading.py validates evidence and explicit human decisions, segmentation.py validates current/history and boundaries, schema-1 derived records; original Document/OCR unchanged. No profile or literary code.
-Open issues: no Gate 4 software contract blocker; review/commit/push completed. Real quality remains unmeasured. Synthetic acceptance does not establish real scholarly quality; human decisions in tests are simulations.
-Quota: Gate 4 builder calls finished (2 Sonnet, auxiliary Haiku); list estimate $1.894693, actual charge/Sol usage unknown; Opus/Astra 0; no paid runtime API enabled.
-Next action after verified Git closure: Gate 5 terminology/approved-memory contract under supervised autonomy. Real terminology choices remain human-owned.
-
-Git closure 2026-09-30T18:51:44.071102+00:00: Gate 4 commit 129debaa9f922258ae810f5a42032c30f6117115 synchronized; receipt records actual verification. Follow the checkpoint next-action constraint.
+Updated: 2026-09-30T19:45:31+00:00
+Gate 5 software PASS; sole-conductor Git closure in progress. Gate 4 PASS, source commit 129debaa9f922258ae810f5a42032c30f6117115 and latest receipt/HEAD d4ba2c7e48bca49b3a6a24b2b5194e818cddfe1a synchronized.
+Contracts: ARCHITECTURE.md, audit/contracts/gate_4.md, audit/contracts/gate_5.md; source schema 3/OCR schema 1/derived structure schema 1; glossary/memory schema 1 working files. No profile implementation or paid runtime provider.
+Verification: user chose this session as sole conductor; current tree stable. G5-A2 fixes full memory unit/version/location binding, exact term context, history and policy validation. G5-A3 rejects duplicate exact memory keys and CLI source-PDF collisions. Full suite 134 tests, 13.043s, exit 0. Synthetic assertions are not scholarly approval.
+Quota: G5-C1 completed, one Sonnet call/auxiliary Haiku usage, 356.25s, $0.9519952 reported list estimate; actual charge/Sol usage unknown; no second model call, Opus/Astra 0.
+Next: review final staged diff, commit/receipt, verify origin/main ancestry, normal push and clean tree. Gate 6 has not started.

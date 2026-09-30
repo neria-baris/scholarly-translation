@@ -365,6 +365,142 @@ def cmd_inspect_structure(structure_path: str) -> int:
     return 0
 
 
+def cmd_terminology(
+    structure_path: str,
+    glossary_path: str,
+    output: str,
+    memory_path: str = None,
+    action_path: str = None,
+) -> int:
+    from .glossary import GlossaryError, new_store as new_glossary_store
+    from .glossary import propose_rule, resolve_applicable, review_rule, validate_glossary
+    from .segmentation import validate_structure
+    from .source_reading import StructureError
+    from .translation_memory import MemoryError, new_store as new_memory_store
+    from .translation_memory import remember, validate_memory
+
+    try:
+        structure = _load_structure_json(structure_path)
+        validate_structure(structure)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        glossary = _load_structure_json(glossary_path) if Path(glossary_path).exists() else new_glossary_store()
+        validate_glossary(glossary)
+    except (StructureError, GlossaryError) as exc:
+        print(f"Invalid glossary: {exc}", file=sys.stderr)
+        return 1
+
+    memory = new_memory_store()
+    if memory_path is not None:
+        try:
+            memory = _load_structure_json(memory_path) if Path(memory_path).exists() else new_memory_store()
+            validate_memory(memory)
+        except (StructureError, MemoryError) as exc:
+            print(f"Invalid memory: {exc}", file=sys.stderr)
+            return 1
+
+    action = None
+    if action_path is not None:
+        try:
+            action = _load_structure_json(action_path)
+        except StructureError as exc:
+            print(f"Invalid action: {exc}", file=sys.stderr)
+            return 1
+
+    kind, resolution = None, None
+    try:
+        if action is not None:
+            if not isinstance(action, dict):
+                raise GlossaryError("action must be an object")
+            kind = action.get("action")
+            action_fields = {
+                "propose": ({"action", "unit_id", "source_language", "source_char_start", "source_char_end", "target_term"},
+                            {"scope", "loaded"}),
+                "review": ({"action", "rule_id", "expected_version", "expected_rule_fingerprint",
+                            "actor", "actor_kind", "reason", "status"}, {"target_term", "scope"}),
+                "remember": ({"action", "unit_id", "target_text", "actor", "actor_kind", "reason"}, set()),
+                "resolve": ({"action", "unit_id"}, set()),
+            }
+            if not isinstance(kind, str) or kind not in action_fields:
+                raise GlossaryError("unknown terminology action")
+            required, optional = action_fields[kind]
+            if not required <= set(action) or not set(action) <= required | optional:
+                raise GlossaryError("invalid terminology action fields")
+            if kind == "propose":
+                glossary = propose_rule(
+                    glossary, structure, action["unit_id"], action["source_language"],
+                    action["source_char_start"], action["source_char_end"], action["target_term"],
+                    scope=action.get("scope"), loaded=action.get("loaded", False),
+                )
+            elif kind == "review":
+                glossary = review_rule(
+                    glossary, action["rule_id"], action["expected_version"],
+                    action["expected_rule_fingerprint"], action["actor"], action["actor_kind"],
+                    action["reason"], action["status"],
+                    target_term=action.get("target_term"), scope=action.get("scope"),
+                )
+            elif kind == "remember":
+                resolution = resolve_applicable(glossary, structure, action["unit_id"])
+                memory = remember(
+                    memory, structure, action["unit_id"], resolution, action["target_text"],
+                    action["actor"], action["actor_kind"], action["reason"],
+                )
+            elif kind == "resolve":
+                resolution = resolve_applicable(glossary, structure, action["unit_id"])
+            else:
+                raise GlossaryError("unknown terminology action")
+    except (GlossaryError, MemoryError, KeyError, TypeError) as exc:
+        print(f"Action failed: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output)
+    protected = [Path(p).resolve() for p in (structure_path, action_path) if p is not None]
+    from urllib.parse import urlparse
+    from urllib.request import url2pathname
+    uris = [structure["source_uri"]] + [c["image"]["uri"] for r in structure["readings"]
+                                       for c in r["alternatives"] if c["image"] is not None]
+    try:
+        protected.extend(Path(url2pathname(urlparse(uri).path)).resolve()
+                         for uri in uris if urlparse(uri).scheme == "file")
+    except ValueError:
+        print("Invalid source evidence URI.", file=sys.stderr)
+        return 1
+    glossary_out_path = out_path / "glossary.json"
+    memory_out_path = out_path / "memory.json"
+    resolution_out_path = out_path / "resolution.json"
+    write_memory = memory_path is not None or kind == "remember"
+    targets = [glossary_out_path] + ([memory_out_path] if write_memory else []) \
+        + ([resolution_out_path] if resolution is not None else [])
+    if any(t.resolve() in protected for t in targets):
+        print("Output must be separate from structure and action input files.", file=sys.stderr)
+        return 1
+
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(glossary_out_path, "w", encoding="utf-8") as handle:
+            json.dump(glossary, handle, ensure_ascii=False, indent=2, allow_nan=False)
+        if write_memory:
+            with open(memory_out_path, "w", encoding="utf-8") as handle:
+                json.dump(memory, handle, ensure_ascii=False, indent=2, allow_nan=False)
+        if resolution is not None:
+            with open(resolution_out_path, "w", encoding="utf-8") as handle:
+                json.dump(resolution, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    except OSError:
+        print("Cannot write terminology output.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote glossary: {glossary_out_path}")
+    if write_memory:
+        print(f"Wrote memory: {memory_out_path}")
+    if resolution is not None:
+        print(f"Wrote resolution: {resolution_out_path}")
+        print(f"resolution status: {resolution['status']}")
+    return 0
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -408,6 +544,13 @@ def main(argv=None) -> int:
     inspect_structure_parser = subparsers.add_parser("inspect-structure")
     inspect_structure_parser.add_argument("structure_json")
 
+    terminology_parser = subparsers.add_parser("terminology")
+    terminology_parser.add_argument("structure_json")
+    terminology_parser.add_argument("--glossary", required=True)
+    terminology_parser.add_argument("--memory", default=None)
+    terminology_parser.add_argument("--action", default=None)
+    terminology_parser.add_argument("--output", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -428,6 +571,10 @@ def main(argv=None) -> int:
         )
     if args.command == "inspect-structure":
         return cmd_inspect_structure(args.structure_json)
+    if args.command == "terminology":
+        return cmd_terminology(
+            args.structure_json, args.glossary, args.output, args.memory, args.action,
+        )
     return 1
 
 

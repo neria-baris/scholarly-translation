@@ -108,3 +108,19 @@ Git: reviewed intended diff only; verified gate commit/push and separate receipt
 - Next: Gate 5 small terminology/approved-memory contract under supervised autonomy; no human decision needed for routine transition.
 
 Receipt preflight 2026-09-30T18:53:02.444701+00:00: trailing blank-line check corrected by this append-only note; gate acceptance and synchronized code commit unchanged.
+
+## Gate 5 | 2026-09-30T19:19:22+00:00 | software verified, Git ownership hold
+
+**BLOCKED for gate closure (unexpected unrelated edit).** Versioned source-bound glossary, explicit human reviews, scoped applicable-policy fingerprint and exact human-approved memory are implemented behind pure functions and the terminology CLI. Contract: contracts/gate_5.md. 125 tests pass (12.492s latest), including constructed PDF/structure/CLI round trip, negative history and actor cases, affected-rule invalidation and unrelated-unit reuse. Synthetic decisions are not real scholarly approval. One Sonnet CLI invocation with reported auxiliary Haiku usage, 356.25s and $0.9519952 list estimate; actual charge/Sol usage unknown, Opus/Astra 0. Intended Gate-5 diff reviewed; no gate commit/push yet because tests/test_structure.py contains an unattributed EOF blank line outside Gate-5 ownership. That line remains untouched. Next: obtain exact disposition of the unrelated line, then staged review and verified Git closure; advance only after clean tree.
+
+## Gate 5 | 2026-09-30T19:21:00+00:00 | ownership resolved, construction acceptance
+
+**PASS for software construction; Git closure follows.** User authorized exact removal of the unrelated EOF blank line; tests/test_structure.py matches HEAD, and complete unstaged diff passes whitespace check. The preceding BLOCKED card is superseded only for this ownership issue. Acceptance remains 125 passing tests and scoped memory invalidation; real glossary/translation judgments remain human-owned. One Sonnet invocation as recorded above, actual charge unknown; no additional model call. Stage only Gate-5 code, tests, contract, documentation and audit, then verified commit and normal push before Gate 6.
+
+## Gate 5 | 2026-09-30T19:26:42.341486+00:00 | BLOCKED (concurrent writer / integration and Git closure)
+
+This-session checkpoint supersedes no historical evidence silently. Glossary/approved-memory working implementation exists under contracts/gate_5.md; G5-A1 defects and G5-A2 local repair recorded. Last suite: 132 tests passed in 13.500s; final tree verification pending after latest CLI guard. One Sonnet CLI call, auxiliary Haiku reported, 356.25s, $0.9519952 list estimate; actual charge/Sol usage unknown, Opus/Astra 0. Another writer changed shared tests and append-only audit and claimed approval absent from this conversation. Gate-5 code/audit remain uncommitted; no PASS for gate closure, no Gate 6. Next: user assigns one active conductor, then inspect exact current diff, rerun relevant checks and perform normal verified Git closure. Real scholarly judgments remain unapproved.
+
+## Gate 5 | 2026-09-30T19:45:31+00:00 | construction acceptance after sole-conductor verification
+
+**PASS for software construction; Git closure follows.** User chose this session as sole conductor. The preceding concurrent-writer BLOCKED card is resolved, and both sessions' G5-A1/A2 evidence remains preserved. Complete current-tree suite passes 134 tests (13.043s), including exact source/unit/version/policy memory binding, scoped invalidation, history corruption, conflicting memory targets, and CLI protection of source PDF bytes. Public CLI uses synthetic human selections and approvals; no real scholarly quality claim. One Sonnet CLI invocation with reported auxiliary Haiku usage, 356.25s, $0.9519952 list estimate, actual charge/Sol usage unknown; Opus/Astra 0. Intended paths and staged diff require final Git review, commit and normal verified push before Gate 6.
