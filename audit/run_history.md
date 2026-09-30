@@ -169,3 +169,7 @@ User selected this session as the sole conductor. Checkout timestamps and Git st
 ## Gate 5 | 2026-09-30T19:58:11+00:00 | commit receipt before synchronization
 
 Gate-5 source/audit commit a355837f3fac92c1ab5086963f752af15a774753 created after complete intended-path staging, staged whitespace check, clean unstaged diff and 134 passing tests. Pre-commit fetch confirmed main, intended origin URL https://github.com/neria-baris/scholarly-translation.git, origin/main equal to parent d4ba2c7e48bca49b3a6a24b2b5194e818cddfe1a and fast-forward ancestry. Post-commit working tree clean, main ahead one. This receipt records the hash without a self-reference; normal push and remote equality verification remain pending.
+
+## Gate 5 | 2026-09-30T20:01:22+00:00 | verified synchronization
+
+Gate-5 source commit a355837f3fac92c1ab5086963f752af15a774753 and receipt 522bcb79d8a242b1fb54b841c339ab17b0431f10: branch main and intended origin fetch/push URL rechecked; fetched origin/main remained d4ba2c7e48bca49b3a6a24b2b5194e818cddfe1a, ancestor of local HEAD. Normal dry-run and normal push both accepted. Post-push fetch verifies origin/main equals local HEAD 522bcb79d8a242b1fb54b841c339ab17b0431f10; working tree clean. No force or history rewrite. Gate 5 closure PASS; Gate 6 not yet started.
