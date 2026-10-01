@@ -1,5 +1,5 @@
 # Current state
-Updated: 2026-10-01T06:23:47+00:00
+Updated: 2026-10-01T06:26:15+00:00
 
 Gate 7 PASS. Implementation commit 9d016fbdcc2606b55f2f95cde7eaff889ee12ff9 normally pushed; post-push fetch verifies main equals origin/main and a clean tree before this receipt. Gates 1–6 passed.
 
@@ -9,4 +9,4 @@ Usage: G7-C1 one successful Sonnet builder invocation with auxiliary Haiku, 342.
 
 Temporary key was used only in a process, then removed; process/user/machine checks false. Ignored outputs/gate7 holds synthetic fixtures, drafts and local verification scripts. Never stage those files or credentials.
 
-Gate 8 post-closure architecture correction G8-A3 pending Git closure. Implementation commit 35ba2acf33b627c53de2509e5953ebff83ba460c and receipt e946a6e936ab89656859f272d677e8d36c3b6950 were normally pushed, local=origin/main clean before this correction. ARCHITECTURE.md required review policy/cache identity; new code keys exact draft/profile/risks/policy/provider/models and records version/key without persistent cache. Targeted 21 tests and full 234 tests pass; no runtime call. G8-C1 Sonnet with auxiliary Haiku reported $1.9372894 list estimate, actual charge unknown; Opus/Astra 0, Sol usage unknown. Review accuracy and human approval remain unverified. Next: review/stage/commit/push correction, then Gate 9 contract and implementation.
+Gate 8 software PASS including G8-A3 architecture correction. Implementation 35ba2acf33b627c53de2509e5953ebff83ba460c, first receipt e946a6e936ab89656859f272d677e8d36c3b6950 and correction fa95651ba3463e6483c5b586775a29657c2aba43 normally pushed; post-push fetch verifies main=origin/main and clean tree before this receipt. Review policy/cache identity now keys exact draft/profile/risks/policy/provider/models without persistent cache. Targeted 21 and full 234 tests pass; no Gate-8 runtime call. G8-C1 Sonnet with auxiliary Haiku reported $1.9372894 list estimate, actual charge unknown; Opus/Astra 0, Sol usage unknown. Review accuracy and human approval remain unverified. Next: Gate 9 human review/approval and bilingual export contract.

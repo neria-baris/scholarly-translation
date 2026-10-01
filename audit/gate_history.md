@@ -160,3 +160,7 @@ Conditional risk routing, canonical Gate-7 draft binding, exact source-to-target
 ## Gate 8 | 2026-10-01T06:23:47+00:00 | architecture correction before Gate 9
 
 The preceding PASS lacked the versioned review-policy/cache identity required by ARCHITECTURE.md. G8-A3 adds it without changing draft/source or granting approval. Targeted 21-test and full 234-test suites pass; reviewed Git closure follows. The earlier receipt remains a valid record of its then-observed checks, not evidence this dependency was already implemented.
+
+## Gate 8 | 2026-10-01T06:26:15+00:00 | architecture correction verified Git closure
+
+**PASS with G8-A3 correction.** Reviewed complete/staged seven-path diff, passed whitespace and credential-pattern checks, then normally pushed commit fa95651ba3463e6483c5b586775a29657c2aba43 to intended origin/main. Post-push fetch verifies hash equality and clean tree. The versioned review policy/cache identity is now in request, result and test. Gate 9 may start.

@@ -217,3 +217,7 @@ Reviewed complete and staged diff for 10 exact Gate-8 paths; `git diff --cached 
 ## Gate 8 | 2026-10-01T06:23:47+00:00 | post-closure architecture correction
 
 Before Gate 9 implementation, conductor found ARCHITECTURE.md's Gate-8 resolved review policy/cache identity requirement missing from the accepted review result. G8-A3 adds a versioned scholarly review policy and deterministic review_cache_key keyed by exact draft, profile, risks, policy and provider/models, plus a test that policy/provider changes alter identity. This preserves no persistent cache and no approval. Targeted suite 21 tests passes; full suite exits 0 with 234 tests. Original Gate-8 card and receipt remain as recorded; this correction awaits separate reviewed Git closure.
+
+## Gate 8 | 2026-10-01T06:26:15+00:00 | architecture correction verified Git closure
+
+Fetched intended origin/main e946a6e936ab89656859f272d677e8d36c3b6950, ancestor of local main. Reviewed seven exact correction paths; staged whitespace and credential-pattern checks passed. Commit fa95651ba3463e6483c5b586775a29657c2aba43 normally dry-run/pushed; post-push fetch verifies main=origin/main and clean tree. No force/rewrite. Gate 8 dependency correction closed before Gate 9.
