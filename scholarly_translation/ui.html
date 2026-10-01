@@ -13,6 +13,7 @@
       <div class="brand">P<span>.</span></div>
       <nav class="primary-nav">
         <button data-view="library"><span class="nav-icon">▤</span> ספרייה</button>
+        <button data-view="source"><span class="nav-icon">⌑</span> מקור</button>
         <button data-view="translate" class="active"><span class="nav-icon">⇄</span> תרגום</button>
         <button data-view="glossary"><span class="nav-icon">◇</span> מילון</button>
         <button data-view="review"><span class="nav-icon">▢</span> סקירה</button>
@@ -44,6 +45,42 @@
             <button id="import-button" class="button-primary">חלץ טקסט</button>
           </div>
           <div id="library-list" class="library-list"></div>
+        </section>
+
+        <section id="source-editor" class="decision-panel" hidden>
+          <div class="section-kicker">SOURCE DECISION / הכרעת מקור</div>
+          <h2>בחרו קריאה לעמוד</h2>
+          <p class="muted" id="source-guidance">לאישור המקור נדרש מסמך מחולץ. הפעולה יוצרת גרסה חדשה ושומרת את הראיות הקודמות.</p>
+          <button id="prepare-source" class="button-secondary">הכן מועמדי מקור</button>
+          <div class="field"><label for="source-page">עמוד</label><select id="source-page"></select></div>
+          <div id="source-candidates" class="candidate-list"></div>
+          <div class="form-grid decision-fields">
+            <div class="field"><label for="source-actor">שם הבודק/ת *</label><input id="source-actor" autocomplete="name"></div>
+            <div class="field"><label for="source-reason">נימוק הבדיקה מול המקור *</label><input id="source-reason"></div>
+          </div>
+          <div class="inline-actions"><button id="save-source" class="button-primary">שמור הכרעת מקור</button><span id="source-status" class="muted"></span></div>
+        </section>
+
+        <section id="glossary-editor" class="decision-panel" hidden>
+          <div class="section-kicker">TERMINOLOGY / מילון</div>
+          <h2>הצעה ובדיקה של מונחים</h2>
+          <p class="muted" id="term-guidance">בחרו מקטע מקור פתור. הצעה נשארת ממתינה עד לאישור אנושי מפורש.</p>
+          <div class="field"><label for="term-unit">מקטע מקור</label><select id="term-unit"></select></div>
+          <div id="term-source" class="term-source"></div>
+          <div class="form-grid decision-fields">
+            <div class="field"><label for="term-source-term">מונח במקור *</label><input id="term-source-term"></div>
+            <div class="field"><label for="term-target">תרגום מוצע לעברית *</label><input id="term-target" dir="rtl"></div>
+            <div class="field"><label for="term-occurrence">מופע במקטע (1 = הראשון)</label><input id="term-occurrence" type="number" min="1" step="1" value="1"></div>
+            <div class="field"><label for="term-scope">תחולה</label><select id="term-scope"><option value="unit">המקטע הזה</option><option value="document">המסמך הזה</option><option value="global">כל המסמכים</option></select></div>
+          </div>
+          <label class="checkbox-line"><input id="term-loaded" type="checkbox"> מונח טעון משמעות</label>
+          <div class="inline-actions"><button id="propose-term" class="button-primary">הצע מונח</button><span id="term-status" class="muted"></span></div>
+          <h3>מונחים קיימים</h3>
+          <div class="form-grid decision-fields">
+            <div class="field"><label for="term-actor">שם הבודק/ת לאישור או דחייה *</label><input id="term-actor" autocomplete="name"></div>
+            <div class="field"><label for="term-reason">נימוק ההחלטה *</label><input id="term-reason"></div>
+          </div>
+          <div id="term-rules" class="rule-list"></div>
         </section>
 
         <section id="reader-section" class="reader">

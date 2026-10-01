@@ -15,6 +15,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .gui import STEPS, build_command
+from .ui_decisions import (
+    UIDecisionError, glossary_action, glossary_options, source_decisions, source_options,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -121,6 +124,18 @@ def make_handler(token: str):
     session_settings = {"api_key": None}
     session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
+
+    def decision_file(data: dict, key: str) -> tuple[str, dict]:
+        path = data.get(key, "")
+        if not isinstance(path, str) or not path:
+            raise ValueError(f"{key} is required")
+        loaded = _read_artifact(path, "structure" if key == "structure_json" else "glossary")
+        return str(Path(path).resolve()), loaded
+
+    def action_dir(prefix: str) -> Path:
+        path = OUTPUT_ROOT / f"{prefix}-{secrets.token_hex(10)}"
+        path.mkdir(parents=True, exist_ok=False)
+        return path
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, _format, *_args):
@@ -229,6 +244,58 @@ def make_handler(token: str):
                     self._json(200, preview_artifacts(data))
                 elif route.path == "/library":
                     self._json(200, {"documents": local_library()})
+                elif route.path == "/source-options":
+                    _, structure = decision_file(data, "structure_json")
+                    self._json(200, source_options(structure))
+                elif route.path == "/source-decide":
+                    structure_path, structure = decision_file(data, "structure_json")
+                    document_path, _ = decision_file(data, "document_json")
+                    decisions = source_decisions(structure, data)
+                    ocr_path = data.get("ocr", "")
+                    if ocr_path:
+                        if not isinstance(ocr_path, str):
+                            raise ValueError("invalid OCR path")
+                        _read_artifact(ocr_path, "ocr")
+                    directory = action_dir("source-choice")
+                    action_path = directory / "decisions.json"
+                    action_path.write_text(json.dumps(decisions, ensure_ascii=False, indent=2), encoding="utf-8")
+                    target = directory / "structure.json"
+                    argv = [sys.executable, "-B", "-m", "scholarly_translation", "structure",
+                            document_path, "--output", str(target), "--decisions", str(action_path),
+                            "--previous", structure_path]
+                    if ocr_path:
+                        argv.extend(["--ocr", ocr_path])
+                    result = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True,
+                                            encoding="utf-8", errors="replace", timeout=1800)
+                    if result.returncode:
+                        raise UIDecisionError((result.stderr or "source resolution failed")[-500:])
+                    self._json(200, {"structure_json": str(target), "decisions_json": str(action_path),
+                                     "stdout": result.stdout[-1000:]})
+                elif route.path == "/glossary-options":
+                    structure_path, structure = decision_file(data, "structure_json")
+                    from .glossary import new_store
+                    glossary_path = data.get("glossary", "")
+                    glossary = decision_file(data, "glossary")[1] if glossary_path else new_store()
+                    self._json(200, glossary_options(structure, glossary))
+                elif route.path == "/glossary-action":
+                    structure_path, structure = decision_file(data, "structure_json")
+                    from .glossary import new_store
+                    glossary_path = data.get("glossary", "")
+                    glossary = decision_file(data, "glossary")[1] if glossary_path else new_store()
+                    action = glossary_action(structure, glossary, data)
+                    directory = action_dir("term-action")
+                    action_path = directory / "action.json"
+                    action_path.write_text(json.dumps(action, ensure_ascii=False, indent=2), encoding="utf-8")
+                    glossary_input = glossary_path or str(directory / "new_glossary.json")
+                    argv = [sys.executable, "-B", "-m", "scholarly_translation", "terminology",
+                            structure_path, "--glossary", glossary_input, "--action", str(action_path),
+                            "--output", str(directory)]
+                    result = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True,
+                                            encoding="utf-8", errors="replace", timeout=1800)
+                    if result.returncode:
+                        raise UIDecisionError((result.stderr or "terminology action failed")[-500:])
+                    self._json(200, {"glossary": str(directory / "glossary.json"),
+                                     "action_json": str(action_path), "stdout": result.stdout[-1000:]})
                 elif route.path == "/open":
                     path = Path(data.get("path", "")).resolve()
                     with settings_lock:
