@@ -136,3 +136,7 @@ This-session checkpoint supersedes no historical evidence silently. Glossary/app
 ## Gate 6 | 2026-10-01T04:03:21+00:00 | PASS for software acceptance, Git closure follows
 
 The preceding credential BLOCKED card is superseded for acceptance. G6-R1 completed exactly one real synthetic gpt-6-luna Responses probe: status completed_unapproved, 3.969s, 18 input/7 output tokens, $0.0000053 standard list estimate, actual charge unknown. The result is unapproved and proves provider access/usage plumbing only, not scholarly translation quality. Full suite 168 tests pass (13.621s); public mock and live CLIs both worked. G6-C1/C2 and G6-A1/A2/A3 retain builder failure, builder cost, local repair and live evidence. Developer reported list estimate $0.5961736 from one successful Sonnet invocation with auxiliary Haiku; Sol usage/actual charge unknown, Opus/Astra 0. Git diff review, commit and verified normal push remain before Gate 7.
+
+## Gate 6 | 2026-10-01T04:25:38+00:00 | verified Git closure
+
+**PASS.** Full and staged diff checks passed; 168 tests and the one G6-R1 live diagnostic meet the written software acceptance. Commit b241f67d57d04df9a5aa79811230e8310a49771e was normally pushed to verified intended origin/main; post-push fetch confirms hash equality and a clean tree. Only synthetic provider access was demonstrated; scholarly quality remains unapproved. Gate 7 may start under supervised autonomy.
