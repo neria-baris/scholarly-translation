@@ -152,3 +152,7 @@ Source-bound scholarly first-draft job, bounded same-reading context, applicable
 ## Gate 8 | 2026-10-01T06:12:32+00:00 | PASS for software acceptance, Git closure follows
 
 Conditional risk routing, canonical Gate-7 draft binding, exact source-to-target critic claims, false-positive display, one correction with formal recheck, and unresolved human handoff work through the public mock CLI. Full suite 233 tests passes (13.385s); saved synthetic en/ja drafts remain unapproved. G8-C1 builder used $1.9372894 reported list estimate, actual charge unknown, including auxiliary Haiku; G8-A1/A2 preserve the initial two failures and focused repair. Runtime provider calls 0, Opus/Astra 0, Sol usage unknown. Software construction is accepted; fake lexical review is not evidence of real semantic accuracy. Complete Git review and normal commit/push before Gate 9.
+
+## Gate 8 | 2026-10-01T06:18:52+00:00 | verified Git closure
+
+**PASS for software construction.** Full and staged diffs reviewed; whitespace and staged credential-pattern checks passed. Final 233-test suite and public mock CLI meet the written offline acceptance. Commit 35ba2acf33b627c53de2509e5953ebff83ba460c was normally pushed to verified intended origin/main. Post-push fetch confirms local/remote hash equality and a clean tree. Real semantic accuracy and human approval remain unverified. Gate 9 may start under supervised autonomy.
