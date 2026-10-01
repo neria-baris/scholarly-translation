@@ -1,5 +1,5 @@
 # Current state
-Updated: 2026-10-01T06:18:52+00:00
+Updated: 2026-10-01T06:23:47+00:00
 
 Gate 7 PASS. Implementation commit 9d016fbdcc2606b55f2f95cde7eaff889ee12ff9 normally pushed; post-push fetch verifies main equals origin/main and a clean tree before this receipt. Gates 1–6 passed.
 
@@ -9,4 +9,4 @@ Usage: G7-C1 one successful Sonnet builder invocation with auxiliary Haiku, 342.
 
 Temporary key was used only in a process, then removed; process/user/machine checks false. Ignored outputs/gate7 holds synthetic fixtures, drafts and local verification scripts. Never stage those files or credentials.
 
-Gate 8 software PASS. Implementation commit 35ba2acf33b627c53de2509e5953ebff83ba460c normally pushed; post-push fetch verified main equals origin/main and clean tree before this receipt. Contract `audit/contracts/gate_8.md` defines conditional risk routing, source-to-target claims, false-positive disposition and one correction with formal recheck. G8-C1 Sonnet builder with auxiliary Haiku: 587.738s, $1.9372894 reported list estimate, actual charge unknown. G8-A1 two targeted test failures; G8-A2 local repair. Final 20 targeted and 233 full tests pass in 13.385s. Public mock CLI on saved synthetic en/ja drafts succeeds: not_triggered/needs_human, both approved=false. Runtime calls 0, Opus/Astra 0, Sol usage unknown. Review software only; semantic accuracy and scholarly quality unverified. Next: Gate 9 human review/approval and bilingual export contract. Human approval remains separate.
+Gate 8 post-closure architecture correction G8-A3 pending Git closure. Implementation commit 35ba2acf33b627c53de2509e5953ebff83ba460c and receipt e946a6e936ab89656859f272d677e8d36c3b6950 were normally pushed, local=origin/main clean before this correction. ARCHITECTURE.md required review policy/cache identity; new code keys exact draft/profile/risks/policy/provider/models and records version/key without persistent cache. Targeted 21 tests and full 234 tests pass; no runtime call. G8-C1 Sonnet with auxiliary Haiku reported $1.9372894 list estimate, actual charge unknown; Opus/Astra 0, Sol usage unknown. Review accuracy and human approval remain unverified. Next: review/stage/commit/push correction, then Gate 9 contract and implementation.

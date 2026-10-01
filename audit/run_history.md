@@ -213,3 +213,7 @@ G8-C1 Sonnet builder with auxiliary Haiku returned in 587.738s, $1.9372894 repor
 ## Gate 8 | 2026-10-01T06:18:52+00:00 | verified Git closure
 
 Reviewed complete and staged diff for 10 exact Gate-8 paths; `git diff --cached --check` and staged credential-pattern check passed. Fetched origin/main 686d6db15113278682c6fd41188c99155cc34ce2 was ancestor of local main on intended origin URL. Commit 35ba2acf33b627c53de2509e5953ebff83ba460c created after 233 passing tests and public mock CLI. Normal dry-run and push accepted; post-push fetch verifies origin/main equals local HEAD and clean tree. No force or rewrite. Gate 8 software PASS; Gate 9 may start.
+
+## Gate 8 | 2026-10-01T06:23:47+00:00 | post-closure architecture correction
+
+Before Gate 9 implementation, conductor found ARCHITECTURE.md's Gate-8 resolved review policy/cache identity requirement missing from the accepted review result. G8-A3 adds a versioned scholarly review policy and deterministic review_cache_key keyed by exact draft, profile, risks, policy and provider/models, plus a test that policy/provider changes alter identity. This preserves no persistent cache and no approval. Targeted suite 21 tests passes; full suite exits 0 with 234 tests. Original Gate-8 card and receipt remain as recorded; this correction awaits separate reviewed Git closure.

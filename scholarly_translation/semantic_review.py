@@ -39,6 +39,7 @@ from .translation import (
 
 SCHEMA_VERSION = 1
 STAGE = "semantic-review@1"
+REVIEW_POLICY_VERSION = "scholarly-semantic-review@1"
 
 _HEBREW_RE = re.compile(r"[֐-׿]")
 
@@ -140,6 +141,8 @@ class SemanticReviewRequest:
     applicable_rules: tuple
     risk_triggers: tuple
     provider: str
+    review_policy_version: str
+    review_cache_key: str
 
 
 def build_semantic_review_request(structure, glossary, draft, provider="mock") -> SemanticReviewRequest:
@@ -196,11 +199,20 @@ def build_semantic_review_request(structure, glossary, draft, provider="mock") -
         canonical.unit, canonical.source_language, draft["findings"], reading["selected"]["origin"],
     )
 
+    review_cache_key = fingerprint({
+        "draft_hash": fingerprint(draft),
+        "profile_id": draft["profile_id"],
+        "review_policy_version": REVIEW_POLICY_VERSION,
+        "review_provider": provider,
+        "review_models": SEMANTIC_REVIEW_MODELS[provider],
+        "risk_triggers": risk_triggers,
+    })
     return SemanticReviewRequest(
         draft=draft, structure=structure, glossary_store=glossary, unit=canonical.unit,
         source_language=canonical.source_language, draft_text=draft_text,
         context_segments=tuple(canonical.context_segments), applicable_rules=tuple(canonical.applicable_rules),
         risk_triggers=tuple(risk_triggers), provider=provider,
+        review_policy_version=REVIEW_POLICY_VERSION, review_cache_key=review_cache_key,
     )
 
 
@@ -398,6 +410,8 @@ def run_semantic_review(request: SemanticReviewRequest, critic=None, corrector=N
     base = {
         "schema_version": SCHEMA_VERSION,
         "stage": STAGE,
+        "review_policy_version": request.review_policy_version,
+        "review_cache_key": request.review_cache_key,
         "draft_cache_key": request.draft["cache_key"],
         "draft_hash": fingerprint(request.draft),
         "source_uri": request.draft["source_uri"],

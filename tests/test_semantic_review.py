@@ -115,6 +115,18 @@ class RiskRoutingTests(SemanticReviewTestBase):
         self.assertEqual(review["risk_triggers"], [])
         self.assertFalse(review["approved"])
 
+    def test_review_cache_tracks_policy_and_provider(self):
+        structure = self._structure(["The argument is not valid here."])
+        unit = structure["units"][0]
+        draft = _make_draft(structure, self.glossary, unit["unit_id"], "הטיעון תקף כאן.")
+        mock_request = build_semantic_review_request(structure, self.glossary, draft, provider="mock")
+        openai_request = build_semantic_review_request(structure, self.glossary, draft, provider="openai")
+        self.assertNotEqual(mock_request.review_cache_key, openai_request.review_cache_key)
+        with unittest.mock.patch("scholarly_translation.semantic_review.REVIEW_POLICY_VERSION", "scholarly-semantic-review@2"):
+            changed = build_semantic_review_request(structure, self.glossary, draft, provider="mock")
+        self.assertNotEqual(mock_request.review_cache_key, changed.review_cache_key)
+        self.assertEqual(run_semantic_review(mock_request)["review_cache_key"], mock_request.review_cache_key)
+
     def test_ocr_warning_bypasses_critic_to_human(self):
         structure = self._structure(["A calm and ordinary sentence here."])
         structure["units"][0] = dict(structure["units"][0], warnings=list(structure["units"][0]["warnings"]) + ["low_confidence"])

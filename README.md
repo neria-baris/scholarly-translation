@@ -243,6 +243,10 @@ model ever repairs the source. Output is always `approved: false`.
 python -B -m scholarly_translation semantic-review STRUCTURE_JSON --glossary GLOSSARY_JSON --draft TRANSLATION_DRAFT_JSON --provider mock --output outputs/gate8-mock
 ```
 
+The result records `scholarly-semantic-review@1` and a review cache key derived
+from the exact draft, profile, resolved risk triggers, review policy, provider and
+models. The key is provenance only; no persistent review cache is used.
+
 Status is one of `not_triggered`, `needs_human`, `corrected_unapproved`,
 `needs_human_or_budget`, or an explicit failure status; synthetic fixtures and
 the fake critic/corrector establish software behavior only, never reviewer

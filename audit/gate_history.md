@@ -156,3 +156,7 @@ Conditional risk routing, canonical Gate-7 draft binding, exact source-to-target
 ## Gate 8 | 2026-10-01T06:18:52+00:00 | verified Git closure
 
 **PASS for software construction.** Full and staged diffs reviewed; whitespace and staged credential-pattern checks passed. Final 233-test suite and public mock CLI meet the written offline acceptance. Commit 35ba2acf33b627c53de2509e5953ebff83ba460c was normally pushed to verified intended origin/main. Post-push fetch confirms local/remote hash equality and a clean tree. Real semantic accuracy and human approval remain unverified. Gate 9 may start under supervised autonomy.
+
+## Gate 8 | 2026-10-01T06:23:47+00:00 | architecture correction before Gate 9
+
+The preceding PASS lacked the versioned review-policy/cache identity required by ARCHITECTURE.md. G8-A3 adds it without changing draft/source or granting approval. Targeted 21-test and full 234-test suites pass; reviewed Git closure follows. The earlier receipt remains a valid record of its then-observed checks, not evidence this dependency was already implemented.
