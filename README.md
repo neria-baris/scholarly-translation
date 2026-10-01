@@ -223,6 +223,47 @@ refuses to overwrite an existing result file or write into the source/test tree,
 printed/persisted output is summary metadata only (status, duration, token usage,
 estimate) with no credential or private source text.
 
+## Gate 9: local human review, decision and bilingual export
+
+`human_review.py` binds a Gate-4 structure, Gate-5 glossary, Gate-7
+`translation-draft@1` and an optional Gate-8 `semantic-review@1` to one
+reviewable unit, renders a static offline review page (source text with its
+PDF page or OCR image preview and exact page/unit/span, Hebrew draft, formal/semantic flags,
+applicable glossary, and any Gate-8 correction), and validates a *separate*
+explicit human decision JSON -- actor, reason, a candidate text bound to its
+declared origin (`draft`, Gate-8 `correction`, or a `human_edit`), and an
+explicit `approve`/`defer` action. The page has a local form to edit/select
+the candidate and download a decision JSON. Its action starts blank and the
+download alone grants nothing; submit the file through the CLI.
+
+```
+python -B -m scholarly_translation human-review-render STRUCTURE_JSON --glossary GLOSSARY_JSON --draft TRANSLATION_DRAFT_JSON [--review SEMANTIC_REVIEW_JSON] --output outputs/gate9-render
+python -B -m scholarly_translation human-review-decide STRUCTURE_JSON --glossary GLOSSARY_JSON --draft TRANSLATION_DRAFT_JSON [--review SEMANTIC_REVIEW_JSON] --decision DECISION_JSON [--previous PRIOR_RECORD_JSON] --output outputs/gate9-decide
+python -B -m scholarly_translation human-review-export STRUCTURE_JSON --glossary GLOSSARY_JSON --draft TRANSLATION_DRAFT_JSON [--review SEMANTIC_REVIEW_JSON] --record HUMAN_REVIEW_JSON --output outputs/gate9-export
+```
+
+A unit flagged by any Gate-8 critic-eligible or bypass-to-human risk trigger
+(negation/quantifier/scope-modality, Japanese context-dependence, OCR source
+uncertainty, an unapproved loaded term) requires a bound Gate-8 review before
+approval; a unit flagged only by a plain formal finding does not, since Gate 9
+reruns the Gate-7 formal checker itself. Missing numbers, notes, references,
+formulas or Hebrew script must be corrected before approval; other formal
+findings need an explicit `formal_override_reason`. No supplied `actor_kind`
+or other field outside the fixed decision schema can grant approval -- the
+record always sets `actor_kind: "human"` itself and strict field checking
+refuses anything else. A revision supplies the prior record and its exact
+`prior_decision_hash`; records are never overwritten, and `human-review-decide`
+refuses to overwrite an existing decision file or create an unlinked second
+record in the same history directory. `human-review-export` checks the latest
+decision in that directory and renders
+escaped bilingual HTML (explicit `dir="ltr"` source, `dir="rtl"` Hebrew, with a
+link back to the exact PDF page or OCR image) only for a record whose
+`status` is `approved`, whose hashes still match the exact structure/draft/
+review being exported, and whose stored formal findings still match a fresh
+recheck -- a deferred, stale, tampered or merely-unapproved record is refused.
+Synthetic actor/approve decisions in tests are explicitly test-only and prove
+software behavior, not real human judgment.
+
 ## Gate 8: conditional semantic review and one bounded correction
 
 `semantic_review.py` binds a Gate-7 `translation-draft@1` record to its canonical

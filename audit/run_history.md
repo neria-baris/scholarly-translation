@@ -221,3 +221,19 @@ Before Gate 9 implementation, conductor found ARCHITECTURE.md's Gate-8 resolved 
 ## Gate 8 | 2026-10-01T06:26:15+00:00 | architecture correction verified Git closure
 
 Fetched intended origin/main e946a6e936ab89656859f272d677e8d36c3b6950, ancestor of local main. Reviewed seven exact correction paths; staged whitespace and credential-pattern checks passed. Commit fa95651ba3463e6483c5b586775a29657c2aba43 normally dry-run/pushed; post-push fetch verifies main=origin/main and clean tree. No force/rewrite. Gate 8 dependency correction closed before Gate 9.
+
+## Gate 9 | 2026-10-01T06:30:24+00:00 | contract and offline preflight
+
+Gate-8 correction receipt 3b9cfff3e53e63853a43ff7f1f5c1615b524d824 normally pushed; fetched main=origin/main and clean tree before Gate 9. Read central Gate-9 acceptance, architecture human-resolution/export boundary, current controls and existing producer records. Contract gate_9.md scopes a local static review page, explicit per-unit human decision record, and escaped bilingual HTML export keyed to exact source/draft/review versions. Synthetic decisions can test the software path; real human approval and scholarly quality remain pending. One scoped Sonnet builder call is capped at $3 reported list estimate and 900s, with one evidence-based $1 fix reserve; runtime paid model calls 0, Opus/Astra 0.
+
+## Gate 9 | 2026-10-01T07:20:26+00:00 | offline software acceptance
+
+G9-C1 Sonnet builder with auxiliary Haiku returned after 536.381s, $2.1967838 reported list estimate, actual charge/Sol usage unknown. Builder sandbox denied Python execution. G9-A1 records one initial 18-test failure: repeated identical decision created a second timestamped record. G9-A2 local repair uses deterministic decision identity, permits prior records as siblings but refuses unlinked second decisions, binds exact review content, protects missing numbers/notes/references/formulas/target script before approval, adds a local form to download an explicit decision JSON, and rejects export of superseded approvals. Targeted 19 tests pass; full suite 253 tests passes (14.429s). Public CLI with saved synthetic en structure/draft/review rendered review.html, accepted a labeled test-only human edit through a separate decision JSON, and exported bilingual HTML; artifacts and helper remain ignored. First render refused an older Gate-8 mock review after policy-key change; a current offline mock review resolved it. A visual check in personal Edge was rejected by automatic approval review because it could expose signed-in content; no UI action occurred and the rejection was not bypassed. HTML generation/escaping and CLI behavior were verified offline, but visual appearance, real human approval and scholarly quality remain unverified. No runtime model call. Complete/staged Git review and normal closure remain.
+
+## Gate 9 | 2026-10-01T07:26:05+00:00 | final evidence-path and export-link recheck
+
+Final local review adds selected source-evidence path protection to all Gate-9 output commands and an in-page anchor to the exact source unit in bilingual export. Targeted 19 tests pass; final full suite 253 tests passes in 14.203s. Public export rerun on ignored synthetic decision succeeded. No additional model call; earlier visual-check auto-review rejection remains as recorded. Proceed to complete/staged diff and Git closure.
+
+## Gate 9 | 2026-10-01T07:29:41+00:00 | decision-history integrity recheck
+
+Final inspection found that a supplied prior decision or history head needed its own content hash verified before supersession/export. G9-A2 local repair now verifies those hashes and rejects duplicate history records; a tampered-prior negative case passes. Targeted 19 tests pass; final full suite 253 tests passes in 13.387s. No additional model call. Complete/staged Git review follows.

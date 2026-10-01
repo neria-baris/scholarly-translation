@@ -779,6 +779,230 @@ def cmd_semantic_review(
     return 0 if not review["status"].startswith("failed_") else 1
 
 
+def _load_optional_json(path):
+    return _load_structure_json(path) if path is not None else None
+
+
+def _protect_output(out_path, extra_inputs, structure=None):
+    """Refuse writing inside the package/tests tree or colliding with input files."""
+    package_dir = Path(__file__).resolve().parent
+    unsafe_roots = [package_dir, package_dir.parent / "tests"]
+    resolved_out = out_path.resolve()
+    if any(resolved_out == root or root in resolved_out.parents for root in unsafe_roots):
+        return "Output path must not be inside the source or test tree."
+    protected = [Path(p).resolve() for p in extra_inputs if p is not None]
+    if structure is not None:
+        from urllib.parse import urlparse
+        from urllib.request import url2pathname
+        uris = [structure["source_uri"]] + [
+            c["image"]["uri"] for r in structure["readings"]
+            for c in r["alternatives"] if c["image"] is not None
+        ]
+        try:
+            protected.extend(
+                Path(url2pathname(urlparse(uri).path)).resolve()
+                for uri in uris if urlparse(uri).scheme == "file"
+            )
+        except ValueError:
+            return "Invalid source evidence URI."
+    if any(resolved_out == item or resolved_out in item.parents for item in protected):
+        return "Output must be separate from input files."
+    return None
+
+
+def cmd_human_review_render(
+    structure_path: str, glossary_path: str, draft_path: str, review_path: str, output_dir: str,
+) -> int:
+    from .glossary import GlossaryError, validate_glossary
+    from .human_review import HumanReviewRequestError, render_review_page, resolve_review_unit
+    from .segmentation import validate_structure
+    from .source_reading import StructureError
+
+    try:
+        structure = _load_structure_json(structure_path)
+        validate_structure(structure)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+    try:
+        glossary = _load_structure_json(glossary_path)
+        validate_glossary(glossary)
+    except (StructureError, GlossaryError) as exc:
+        print(f"Invalid glossary: {exc}", file=sys.stderr)
+        return 1
+    try:
+        draft = _load_structure_json(draft_path)
+        review = _load_optional_json(review_path)
+    except StructureError as exc:
+        print(f"Invalid draft/review: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        review_unit = resolve_review_unit(structure, glossary, draft, review)
+    except HumanReviewRequestError as exc:
+        print(f"Human review request refused: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    problem = _protect_output(out_path, [structure_path, glossary_path, draft_path, review_path], structure)
+    if problem:
+        print(problem, file=sys.stderr)
+        return 1
+
+    page_path = out_path / "review.html"
+    if page_path.exists():
+        print(f"Refusing to overwrite existing review page: {page_path}", file=sys.stderr)
+        return 1
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(page_path, "x", encoding="utf-8") as handle:
+            handle.write(render_review_page(review_unit))
+    except OSError:
+        print("Cannot write review page.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote review page: {page_path}")
+    print(f"unit_id: {review_unit.unit['unit_id']} risk_triggers: {len(review_unit.risk_triggers)}")
+    return 0
+
+
+def cmd_human_review_decide(
+    structure_path: str, glossary_path: str, draft_path: str, review_path: str,
+    decision_path: str, previous_path: str, output_dir: str,
+) -> int:
+    from .glossary import GlossaryError, validate_glossary
+    from .human_review import HumanReviewRequestError, resolve_review_unit, run_human_review
+    from .segmentation import validate_structure
+    from .source_reading import StructureError
+
+    try:
+        structure = _load_structure_json(structure_path)
+        validate_structure(structure)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+    try:
+        glossary = _load_structure_json(glossary_path)
+        validate_glossary(glossary)
+    except (StructureError, GlossaryError) as exc:
+        print(f"Invalid glossary: {exc}", file=sys.stderr)
+        return 1
+    try:
+        draft = _load_structure_json(draft_path)
+        review = _load_optional_json(review_path)
+        decision = _load_structure_json(decision_path)
+        previous = _load_optional_json(previous_path)
+    except StructureError as exc:
+        print(f"Invalid draft/review/decision/previous: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        review_unit = resolve_review_unit(structure, glossary, draft, review)
+        record = run_human_review(review_unit, decision, previous)
+    except HumanReviewRequestError as exc:
+        print(f"Human review decision refused: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    problem = _protect_output(
+        out_path, [structure_path, glossary_path, draft_path, review_path, decision_path], structure,
+    )
+    if problem:
+        print(problem, file=sys.stderr)
+        return 1
+
+    from .source_reading import fingerprint
+    decision_key = fingerprint({
+        "unit_id": record["unit_id"], "draft_hash": record["draft_hash"],
+        "review_cache_key": record["review_cache_key"], "decision": decision,
+    })[:16]
+    record_path = out_path / f"human_review_{record['unit_id']}_{decision_key}.json"
+    if record_path.exists():
+        print(f"Refusing to overwrite existing decision record: {record_path}", file=sys.stderr)
+        return 1
+    if previous is None and list(out_path.glob(f"human_review_{record['unit_id']}_*.json")):
+        print("A prior decision exists; supply --previous to preserve its history.", file=sys.stderr)
+        return 1
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(record_path, "x", encoding="utf-8") as handle:
+            json.dump(record, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    except OSError:
+        print("Cannot write decision record.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote decision record: {record_path}")
+    print(f"action: {record['action']} status: {record['status']} approved: {record['approved']}")
+    return 0
+
+
+def cmd_human_review_export(
+    structure_path: str, glossary_path: str, draft_path: str, review_path: str,
+    record_path: str, output_dir: str,
+) -> int:
+    from .glossary import GlossaryError, validate_glossary
+    from .human_review import HumanReviewRequestError, export_bilingual_html, latest_decision, resolve_review_unit
+    from .segmentation import validate_structure
+    from .source_reading import StructureError
+
+    try:
+        structure = _load_structure_json(structure_path)
+        validate_structure(structure)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+    try:
+        glossary = _load_structure_json(glossary_path)
+        validate_glossary(glossary)
+    except (StructureError, GlossaryError) as exc:
+        print(f"Invalid glossary: {exc}", file=sys.stderr)
+        return 1
+    try:
+        draft = _load_structure_json(draft_path)
+        review = _load_optional_json(review_path)
+        record = _load_structure_json(record_path)
+    except StructureError as exc:
+        print(f"Invalid draft/review/record: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        review_unit = resolve_review_unit(structure, glossary, draft, review)
+        history_paths = sorted(Path(record_path).parent.glob(f"human_review_{review_unit.unit['unit_id']}_*.json"))
+        history = [_load_structure_json(str(path)) for path in history_paths]
+        if not any(item.get("record_hash") == record.get("record_hash") for item in history):
+            history.append(record)
+        head = latest_decision(history)
+        if head is None or head.get("record_hash") != record.get("record_hash"):
+            raise HumanReviewRequestError("record has been superseded by a later decision")
+        exported = export_bilingual_html(review_unit, record)
+    except (HumanReviewRequestError, StructureError) as exc:
+        print(f"Export refused: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    problem = _protect_output(
+        out_path, [structure_path, glossary_path, draft_path, review_path, record_path], structure,
+    )
+    if problem:
+        print(problem, file=sys.stderr)
+        return 1
+
+    export_path = out_path / "export.html"
+    if export_path.exists():
+        print(f"Refusing to overwrite existing export: {export_path}", file=sys.stderr)
+        return 1
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(export_path, "x", encoding="utf-8") as handle:
+            handle.write(exported)
+    except OSError:
+        print("Cannot write export.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote bilingual export: {export_path}")
+    return 0
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -848,6 +1072,30 @@ def main(argv=None) -> int:
     semantic_review_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
     semantic_review_parser.add_argument("--output", required=True)
 
+    hr_render_parser = subparsers.add_parser("human-review-render")
+    hr_render_parser.add_argument("structure_json")
+    hr_render_parser.add_argument("--glossary", required=True)
+    hr_render_parser.add_argument("--draft", required=True)
+    hr_render_parser.add_argument("--review", default=None)
+    hr_render_parser.add_argument("--output", required=True)
+
+    hr_decide_parser = subparsers.add_parser("human-review-decide")
+    hr_decide_parser.add_argument("structure_json")
+    hr_decide_parser.add_argument("--glossary", required=True)
+    hr_decide_parser.add_argument("--draft", required=True)
+    hr_decide_parser.add_argument("--review", default=None)
+    hr_decide_parser.add_argument("--decision", required=True)
+    hr_decide_parser.add_argument("--previous", default=None)
+    hr_decide_parser.add_argument("--output", required=True)
+
+    hr_export_parser = subparsers.add_parser("human-review-export")
+    hr_export_parser.add_argument("structure_json")
+    hr_export_parser.add_argument("--glossary", required=True)
+    hr_export_parser.add_argument("--draft", required=True)
+    hr_export_parser.add_argument("--review", default=None)
+    hr_export_parser.add_argument("--record", required=True)
+    hr_export_parser.add_argument("--output", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -881,6 +1129,19 @@ def main(argv=None) -> int:
     if args.command == "semantic-review":
         return cmd_semantic_review(
             args.structure_json, args.glossary, args.draft, args.provider, args.output,
+        )
+    if args.command == "human-review-render":
+        return cmd_human_review_render(
+            args.structure_json, args.glossary, args.draft, args.review, args.output,
+        )
+    if args.command == "human-review-decide":
+        return cmd_human_review_decide(
+            args.structure_json, args.glossary, args.draft, args.review,
+            args.decision, args.previous, args.output,
+        )
+    if args.command == "human-review-export":
+        return cmd_human_review_export(
+            args.structure_json, args.glossary, args.draft, args.review, args.record, args.output,
         )
     return 1
 

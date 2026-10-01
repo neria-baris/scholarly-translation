@@ -164,3 +164,15 @@ The preceding PASS lacked the versioned review-policy/cache identity required by
 ## Gate 8 | 2026-10-01T06:26:15+00:00 | architecture correction verified Git closure
 
 **PASS with G8-A3 correction.** Reviewed complete/staged seven-path diff, passed whitespace and credential-pattern checks, then normally pushed commit fa95651ba3463e6483c5b586775a29657c2aba43 to intended origin/main. Post-push fetch verifies hash equality and clean tree. The versioned review policy/cache identity is now in request, result and test. Gate 9 may start.
+
+## Gate 9 | 2026-10-01T07:20:26+00:00 | PASS for offline software construction, Git closure follows
+
+Local review page, explicit per-unit human decision with source/draft/review hashes, and escaped bilingual HTML export work through three public CLI commands. The page shows source PDF/OCR evidence, Hebrew, flags, glossary and correction history; it can download a decision JSON but cannot approve by itself. Targeted 19 and full 253 tests pass (14.429s). One ignored synthetic test-only decision was accepted and exported; no real person approved a translation. G9-C1 Sonnet builder with auxiliary Haiku reported $2.1967838 list estimate, actual charge unknown; G9-A1/A2 preserve initial duplicate-decision failure and focused repair. Runtime calls 0, Opus/Astra 0, Sol usage unknown. Browser visual inspection was blocked by automatic approval review of a personal Edge window; generated HTML and public CLI were checked offline. Real scholarly quality and human review remain pending. Review full/staged diff and normally commit/push before Gate 10.
+
+## Gate 9 | 2026-10-01T07:26:05+00:00 | final offline recheck, Git closure follows
+
+After adding source-evidence output protection and a source-unit anchor in export, the full 253-test suite passed again (14.203s) and the public synthetic export succeeded. The earlier software acceptance remains preliminary for real visual appearance and human judgment. Review complete/staged diff and normally commit/push.
+
+## Gate 9 | 2026-10-01T07:29:41+00:00 | final decision-history recheck, Git closure follows
+
+Prior and latest decision records now verify their own content hashes before supersession/export. The full 253-test suite passes again (13.387s), including tampered-history rejection. Software construction remains unapproved for real scholarly quality and visual browser appearance. Reviewed Git closure follows.
