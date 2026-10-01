@@ -237,3 +237,7 @@ Final local review adds selected source-evidence path protection to all Gate-9 o
 ## Gate 9 | 2026-10-01T07:29:41+00:00 | decision-history integrity recheck
 
 Final inspection found that a supplied prior decision or history head needed its own content hash verified before supersession/export. G9-A2 local repair now verifies those hashes and rejects duplicate history records; a tampered-prior negative case passes. Targeted 19 tests pass; final full suite 253 tests passes in 13.387s. No additional model call. Complete/staged Git review follows.
+
+## Gate 9 | 2026-10-01T07:32:14+00:00 | verified Git closure
+
+Reviewed complete and staged diff for ten exact Gate-9 paths; `git diff --cached --check` and staged credential-pattern scan passed. Fetched intended origin/main 3b9cfff3e53e63853a43ff7f1f5c1615b524d824 was ancestor of local main. Commit bda6f337e54fd1352468515b76075116e255a5e8 normally dry-run/pushed; post-push fetch verifies main=origin/main and clean tree. No force/rewrite. Only ignored synthetic fixtures and outputs remain locally. Gate 9 offline software PASS; Gate 10 prerequisite assessment follows.

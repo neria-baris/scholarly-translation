@@ -176,3 +176,7 @@ After adding source-evidence output protection and a source-unit anchor in expor
 ## Gate 9 | 2026-10-01T07:29:41+00:00 | final decision-history recheck, Git closure follows
 
 Prior and latest decision records now verify their own content hashes before supersession/export. The full 253-test suite passes again (13.387s), including tampered-history rejection. Software construction remains unapproved for real scholarly quality and visual browser appearance. Reviewed Git closure follows.
+
+## Gate 9 | 2026-10-01T07:32:14+00:00 | verified Git closure
+
+**PASS for offline software construction.** Complete and staged ten-path diffs reviewed; whitespace and credential-pattern checks passed. The final 253-test suite and public synthetic render/decision/export CLI meet the software acceptance. Commit bda6f337e54fd1352468515b76075116e255a5e8 was normally pushed to intended origin/main; post-push fetch confirms local/remote hash equality and a clean tree. Actual human approval, visual browser appearance and scholarly quality are not established. Gate 10 may assess real pilot prerequisites.
