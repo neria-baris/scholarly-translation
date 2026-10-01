@@ -1003,6 +1003,46 @@ def cmd_human_review_export(
     return 0
 
 
+def cmd_evaluate_pilot(manifest_path: str, output_dir: str) -> int:
+    from .evaluation import EvaluationError, build_report
+    from .source_reading import StructureError
+
+    try:
+        manifest = _load_structure_json(manifest_path)
+    except StructureError as exc:
+        print(f"Invalid manifest: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        report = build_report(manifest)
+    except EvaluationError as exc:
+        print(f"Pilot manifest refused: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    problem = _protect_output(out_path, [manifest_path])
+    if problem:
+        print(problem, file=sys.stderr)
+        return 1
+
+    report_path = out_path / "pilot_report.json"
+    if report_path.exists():
+        print(f"Refusing to overwrite existing pilot report: {report_path}", file=sys.stderr)
+        return 1
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(report_path, "x", encoding="utf-8") as handle:
+            json.dump(report, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    except OSError:
+        print("Cannot write pilot report.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote pilot report: {report_path}")
+    print(f"status: {report['status']}")
+    print(f"sample_counts: {report['sample_counts']}")
+    return 0
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -1096,6 +1136,10 @@ def main(argv=None) -> int:
     hr_export_parser.add_argument("--record", required=True)
     hr_export_parser.add_argument("--output", required=True)
 
+    evaluate_pilot_parser = subparsers.add_parser("evaluate-pilot")
+    evaluate_pilot_parser.add_argument("manifest_json")
+    evaluate_pilot_parser.add_argument("--output", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -1143,6 +1187,8 @@ def main(argv=None) -> int:
         return cmd_human_review_export(
             args.structure_json, args.glossary, args.draft, args.review, args.record, args.output,
         )
+    if args.command == "evaluate-pilot":
+        return cmd_evaluate_pilot(args.manifest_json, args.output)
     return 1
 
 

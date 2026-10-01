@@ -180,3 +180,15 @@ Prior and latest decision records now verify their own content hashes before sup
 ## Gate 9 | 2026-10-01T07:32:14+00:00 | verified Git closure
 
 **PASS for offline software construction.** Complete and staged ten-path diffs reviewed; whitespace and credential-pattern checks passed. The final 253-test suite and public synthetic render/decision/export CLI meet the software acceptance. Commit bda6f337e54fd1352468515b76075116e255a5e8 was normally pushed to intended origin/main; post-push fetch confirms local/remote hash equality and a clean tree. Actual human approval, visual browser appearance and scholarly quality are not established. Gate 10 may assess real pilot prerequisites.
+
+## Gate 10 | 2026-10-01T08:17:36+00:00 | PRELIMINARY software checkpoint; full quality gate BLOCKED
+
+The deterministic `evaluate-pilot` CLI validates a human-labeled manifest and computes per-language/genre error, correction-time, cost and latency metrics with per-unit context/critic comparisons. Distinct fully reviewed source segments determine the 72/24 thresholds; the report never selects a model or routing policy. G10-C1 and G10-A1/A2 record the builder and focused conductor verification repair. Final full suite: 291 tests passed in 13.578s; tests use synthetic annotations and demonstrate software arithmetic only. Six licensed public source candidates are indexed, with retrieval/genre caveats. No actual source spans or Hebrew references have expert approval, and no blinded MQM labels, correction times or bounded real model comparison exist. Thus the requested Gate-10 per-language quality recommendation and transition criterion are **not met**. Sonnet builder reported $1.5686432 list estimate (actual charge unknown); runtime calls 0, Opus/Astra 0, Sol usage unknown. Commit the reviewed harness as explicitly preliminary, then pause at Gate 10 pending genuine gold evidence and human evaluation.
+
+## Gate 10 | 2026-10-01T08:34:34+00:00 | final offline recheck; status unchanged
+
+An approved Hebrew reference must contain Hebrew script. The added negative test passes; final full suite is 292 tests in 13.852s. This supersedes the earlier test count, not the preliminary/BLOCKED quality decision. No new paid call. Reviewed preliminary Git checkpoint follows.
+
+## Gate 10 | 2026-10-01T08:40:23+00:00 | accounting correction; status unchanged
+
+Staged review separated direct expert MQM findings from critic true positives and counted those findings in the critical-error metric. Targeted 40 and full 293 tests pass (14.725s); severity key order is deterministic. Prior 291/292-test results remain historical checkpoints. No real gold set or model comparison; full Gate 10 stays BLOCKED.

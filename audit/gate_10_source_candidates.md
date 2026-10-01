@@ -1,0 +1,14 @@
+# Gate 10 public source candidates (2026-10-01)
+
+These are source-document candidates found online after the user asked Sol to locate examples. They are not a gold set. No passage boundary, PDF extraction, Hebrew reference, expert approval, MQM label, or correction time has been produced. License statements below apply to the linked article text; check each document and any figures separately before reuse. Preserve attribution and original URLs in any private pilot manifest.
+
+| Language | Subject | Publisher source | License evidence | Pilot use |
+|---|---|---|---|---|
+| English | Mathematical logic and cognition | [Cresswell and Speelman, *Does mathematics training lead to better logical thinking and reasoning?*](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0236153) | Article states CC BY. | Possible logic passage with quantitative claims. |
+| English | Scholarly publishing, citations, structured data | [Shotton et al., *Adventures in Semantic Publishing*](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1000361) | Article states CC BY. | Possible references/technical terminology passage. |
+| French | Philosophy and literary interpretation | [Goldzink, *La philosophie dans Aline et Valcour*](https://journals.openedition.org/litterales/461) | Publisher PDF states text only CC BY 4.0. | Possible argument and ambiguity passage. Publisher access may need manual retrieval. |
+| French | Mathematics education | [Goulet and Voyer, *Enseigner la résolution de problèmes écrits de mathématiques au primaire*](https://www.erudit.org/fr/revues/fp/2023-v31-n1-fp09472/1112657ar.pdf) | Publisher PDF search result states CC BY 4.0; direct retrieval met an anti-bot page during this search. | Possible methodological passage; verify PDF manually before selection. |
+| Japanese | Epistemology and testimonial injustice | [ALCE article on testimonial injustice in language education](https://www.jstage.jst.go.jp/article/gbkkg/23/0/23_224/_pdf/-char/ja) | PDF page 1 states CC BY-SA 4.0. | Possible philosophy/terminology passage. |
+| Japanese | Philosophy of science and scholarly publishing | [Matsumoto, *The social significance of academic books*](https://www.jstage.jst.go.jp/article/jkg/75/6/75_265/_pdf/-char/ja) | PDF page 1 states CC BY 4.0. | Possible argument and scholarly terminology passage. |
+
+Selection still needs 24 distinct approved segments per language across the target genres and OCR conditions. The six links are a starting pool, not a balanced or representative sample. An expert reader must approve each exact source span and Hebrew reference, then independently label each candidate translation and record correction time. Public English or Japanese translations attached to an article are not Hebrew references. Do not infer a pass or model winner from these candidates.

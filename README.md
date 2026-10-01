@@ -341,3 +341,47 @@ CLI refuses to overwrite an existing draft, to write into the source/test tree, 
 collide its output with the structure/glossary/source evidence, and prints summary
 metadata only. The draft is schema-1 `translation-draft@1`: it is not approved memory, a
 final translation, or a review/export artifact.
+
+## Gate 10: offline evidence-based quality pilot evaluation
+
+`evaluation.py` validates a human-labeled schema-1 `pilot-manifest@1` (exact source/reading/
+unit binding, explicit human-approved source and Hebrew reference hashes, one or more
+comparable candidate arms per unit with provider/model/prompt/context-policy/critic-enabled
+identity, a shared glossary hash, a draft hash and human review attestation,
+observed/list-estimated cost/latency/correction minutes, and MQM-style expert
+span/error annotations with severity, actor and reviewer verdict) and computes a
+deterministic schema-1 `pilot-report@1`. This gate makes no provider call, infers no
+semantic truth from model output, and never selects a model winner or routing
+recommendation — that remains a separate, later, human-made deliverable requiring a
+genuinely balanced gold set under full Gate-10 acceptance.
+
+```
+python -B -m scholarly_translation evaluate-pilot MANIFEST_JSON --output outputs/gate10
+```
+
+Strict validation requires: an explicit `actor_kind: "human"` actor and reason, with a
+matching SHA-256 hash, for both the source text and the approved Hebrew reference per unit;
+exact source span/text-length binding and a positive, expert-recorded `source_word_count`
+(especially important for Japanese, where whitespace splitting is not a word count);
+a consistent `pdf_hash` per `document_id`; a consistent provider/model/prompt/context-policy/
+critic-enabled/glossary signature for every reuse of the same `arm_id`; matching draft hashes
+for human review attestations; shared glossary hash and page denominator across a unit's arms;
+unique unit, arm and annotation IDs; supported `en`/`fr`/`ja` source
+languages; and finite, non-negative numeric fields throughout. Annotations require
+`expert_reviewed: true` on their arm. Malformed, duplicate or nonfinite JSON, an unsupported
+language/category, or any of the above invariant violations is refused before any report is
+computed or written.
+
+The report gives sample counts by language/genre/OCR level and experimental arm; per-arm,
+per-language and per-language/genre critical errors per 1,000 source words (counted once per
+unique confirmed source span/type; false-positive reviewer flags are excluded), severity
+counts, correction minutes/page, list-estimated cost/page, p50/p95 latency, and reviewer
+true/false-positive counts where verdicts are present; measured context-policy and critic
+deltas and their missingness per unit; and explicit
+missing-data/uncertainty notes. Each source segment counts once across its arms and must have
+expert review for every arm. A report built from fewer than 72 such segments
+(24 per `en`/`fr`/`ja`) or missing a paired context or critic arm for any unit is `preliminary`;
+`model_winner` and `recommendation` are always `null`. Output is one exclusive
+`pilot_report.json` under `--output`; the CLI refuses to overwrite an existing report or write
+into the source/test tree, and prints only counts/status to stdout. Synthetic fixtures in
+tests demonstrate arithmetic/software construction only, never real expert judgment.
