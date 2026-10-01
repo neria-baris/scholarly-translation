@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>תרגום מחקרי · סביבת עבודה</title>
+  <link rel="stylesheet" href="/ui.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="ניווט ראשי">
+      <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="brand">P<span>.</span></div>
+      <nav class="primary-nav">
+        <button data-view="library"><span class="nav-icon">▤</span> ספרייה</button>
+        <button data-view="translate" class="active"><span class="nav-icon">⇄</span> תרגום</button>
+        <button data-view="glossary"><span class="nav-icon">◇</span> מילון</button>
+        <button data-view="review"><span class="nav-icon">▢</span> סקירה</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button data-view="settings"><span class="nav-icon">⚙</span> הגדרות</button>
+      </div>
+    </aside>
+
+    <main class="main-pane">
+      <section id="workspace-view">
+        <div class="progress" id="progress" aria-label="שלבי עבודה"></div>
+        <header class="document-head">
+          <div>
+            <div class="eyebrow">DOCUMENT / מסמך</div>
+            <h1 id="document-title">סביבת תרגום מחקרי</h1>
+            <p class="document-meta" id="document-meta">בחרו מסמך מהספרייה או העלו PDF כדי להתחיל</p>
+          </div>
+          <div class="document-select-wrap"><select id="unit-select" aria-label="בחירת מקטע"><option value="">כל המסמך</option></select></div>
+        </header>
+
+        <section id="library-section" class="library-section" hidden>
+          <div class="section-kicker">LIBRARY / ספרייה</div>
+          <h2>המסמכים המקומיים שלך</h2>
+          <p class="muted">קובצי המקור והתוצרים נשארים במחשב שלך.</p>
+          <div class="library-import">
+            <label for="pdf-upload">בחרו PDF לייבוא</label>
+            <input id="pdf-upload" type="file" accept=".pdf,application/pdf">
+            <button id="import-button" class="button-primary">חלץ טקסט</button>
+          </div>
+          <div id="library-list" class="library-list"></div>
+        </section>
+
+        <section id="reader-section" class="reader">
+          <div class="reading-block">
+            <div class="reading-label"><span>SOURCE <small id="source-language"></small></span><span id="source-stat">מקור</span></div>
+            <div class="reading-content" id="source-text" dir="auto">עדיין לא נטען מסמך. בחרו PDF בספרייה כדי לראות כאן את טקסט המקור.</div>
+          </div>
+          <div class="reading-block translation-block">
+            <div class="reading-label"><span>TRANSLATION <small>HEBREW</small></span><span id="translation-stat">ממתין לתרגום</span></div>
+            <div class="reading-content target-text" id="translation-text" dir="rtl">טיוטת התרגום תופיע כאן לאחר בחירת מקטע והרצת שלב התרגום.</div>
+          </div>
+        </section>
+
+        <section class="operation" id="operation-section">
+          <div class="operation-heading">
+            <div><div class="section-kicker">WORKFLOW / תהליך עבודה</div><h2 id="step-title"></h2><p id="step-help"></p></div>
+            <select id="step-select" aria-label="בחר כלי עבודה"></select>
+          </div>
+          <div class="form-grid" id="step-form"></div>
+          <div class="field output-field" id="output-row"><label for="output">תיקיית פלט חדשה</label><input id="output" dir="ltr"></div>
+          <div class="operation-actions"><button id="run" class="button-primary">הפעל שלב</button><button id="open" class="button-secondary" disabled>פתח תוצאה</button><span id="status">מוכן</span></div>
+          <pre id="log" class="log" aria-live="polite"></pre>
+        </section>
+      </section>
+
+      <section id="settings-view" class="settings-view" hidden>
+        <div class="eyebrow">PREFERENCES / העדפות</div>
+        <h1>הגדרות</h1>
+        <p class="muted">בחירת ספק ומשאבים לעבודה המקומית. מפתח API נשמר בזיכרון רק עד סגירת השרת.</p>
+        <div class="settings-grid">
+          <div class="setting-card"><h2>ספק תרגום</h2>
+            <div class="field"><label for="setting-provider">ספק ברירת מחדל</label><select id="setting-provider"><option value="mock">Mock · ללא עלות</option><option value="openai">OpenAI · קריאה בתשלום</option></select></div>
+            <div class="field"><label for="setting-api-key">OpenAI API key</label><input id="setting-api-key" type="password" autocomplete="new-password" placeholder="יוזן לזיכרון של ההרצה בלבד" dir="ltr"></div>
+            <div class="inline-actions"><button id="save-key" class="button-primary">החל מפתח לסשן</button><button id="clear-key" class="button-plain">נקה מפתח</button></div>
+            <p id="key-status" class="setting-note"></p>
+          </div>
+          <div class="setting-card"><h2>תקציב ובקרה</h2>
+            <div class="field"><label for="setting-max-calls">קריאות מרביות למשימה</label><input id="setting-max-calls" type="number" min="1" step="1" value="3" dir="ltr"></div>
+            <div class="field"><label for="setting-hard-list-usd">תקרת מחירון בדולרים</label><input id="setting-hard-list-usd" type="number" min="0.0001" step="0.001" value="0.01" dir="ltr"></div>
+            <div class="field"><label for="setting-control-store">מאגר תקציב ומטמון</label><input id="setting-control-store" value="outputs/runtime_controls.sqlite3" dir="ltr"></div>
+            <p class="setting-note">העלות היא אומדן מחירון; החיוב בפועל תלוי בספק. שינוי מדיניות של משימה קיימת עשוי להיחסם.</p>
+          </div>
+          <div class="setting-card"><h2>מקור ו־OCR</h2>
+            <div class="field"><label for="setting-language">שפת מקור</label><select id="setting-language"><option value="en">אנגלית</option><option value="fr">צרפתית</option><option value="ja">יפנית</option></select></div>
+            <div class="field"><label for="setting-tesseract">נתיב Tesseract</label><input id="setting-tesseract" placeholder="C:\Program Files\Tesseract-OCR\tesseract.exe" dir="ltr"></div>
+            <div class="field"><label for="setting-tessdata">תיקיית tessdata</label><input id="setting-tessdata" placeholder="אופציונלי" dir="ltr"></div>
+          </div>
+        </div>
+        <p class="settings-footer">הממשק מאזין רק ל־127.0.0.1. אין להדביק מפתחות בצ'אט או לשמור אותם בקובצי הפרויקט. <a href="/help" target="_blank" rel="noopener">מדריך שימוש</a></p>
+      </section>
+    </main>
+  </div>
+  <script>window.UI_CONFIG = __CONFIG__;</script>
+  <script src="/ui.js"></script>
+</body>
+</html>
