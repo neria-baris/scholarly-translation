@@ -223,6 +223,31 @@ refuses to overwrite an existing result file or write into the source/test tree,
 printed/persisted output is summary metadata only (status, duration, token usage,
 estimate) with no credential or private source text.
 
+## Gate 8: conditional semantic review and one bounded correction
+
+`semantic_review.py` binds a Gate-7 `translation-draft@1` record to its canonical
+source/policy identity and, only when deterministic risk flags fire (negation,
+quantifier/scope-modality words, Japanese context-dependence, selected OCR
+warnings, an unapproved loaded term, or a Gate-7 formal finding), runs a
+replaceable, bounded critic over the target unit, same-reading context, approved
+terms and the Hebrew draft -- never a whole PDF, translator rationale or model
+name. Critic claims are only accepted when their source/target spans are grounded
+in the real source/draft text; malformed or ungrounded claims go to a human. At
+most one validated, correctable claim may trigger one bounded correction, which is
+rechecked with the Gate-7 formal checker and the same deterministic grounding
+before being offered as an unapproved candidate. OCR/source uncertainty and
+formal/terminology findings always bypass the critic straight to a human; no
+model ever repairs the source. Output is always `approved: false`.
+
+```
+python -B -m scholarly_translation semantic-review STRUCTURE_JSON --glossary GLOSSARY_JSON --draft TRANSLATION_DRAFT_JSON --provider mock --output outputs/gate8-mock
+```
+
+Status is one of `not_triggered`, `needs_human`, `corrected_unapproved`,
+`needs_human_or_budget`, or an explicit failure status; synthetic fixtures and
+the fake critic/corrector establish software behavior only, never reviewer
+accuracy or scholarly quality.
+
 ## Gate 7: first source-bound translation draft and formal checks
 
 `translation.py` resolves the smallest scholarly-profile translation job from an existing

@@ -677,6 +677,108 @@ def cmd_translate_unit(
     return 0 if draft["status"] not in ("failed_transport", "failed_empty_response") else 1
 
 
+def cmd_semantic_review(
+    structure_path: str, glossary_path: str, draft_path: str, provider: str, output_dir: str,
+) -> int:
+    from .glossary import GlossaryError, validate_glossary
+    from .model_adapter import OpenAIConfigurationError
+    from .segmentation import validate_structure
+    from .semantic_review import (
+        SEMANTIC_REVIEW_MODELS, SemanticReviewRequestError,
+        build_semantic_review_request, run_semantic_review,
+    )
+    from .source_reading import StructureError
+
+    try:
+        structure = _load_structure_json(structure_path)
+        validate_structure(structure)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        glossary = _load_structure_json(glossary_path)
+        validate_glossary(glossary)
+    except (StructureError, GlossaryError) as exc:
+        print(f"Invalid glossary: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        draft = _load_structure_json(draft_path)
+    except StructureError as exc:
+        print(f"Invalid draft: {exc}", file=sys.stderr)
+        return 1
+
+    if provider not in SEMANTIC_REVIEW_MODELS:
+        print(f"Unsupported provider; allowed: {sorted(SEMANTIC_REVIEW_MODELS)}", file=sys.stderr)
+        return 1
+
+    try:
+        request = build_semantic_review_request(structure, glossary, draft, provider)
+    except SemanticReviewRequestError as exc:
+        print(f"Semantic review request refused: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    package_dir = Path(__file__).resolve().parent
+    unsafe_roots = [package_dir, package_dir.parent / "tests"]
+    resolved_out = out_path.resolve()
+    if any(resolved_out == root or root in resolved_out.parents for root in unsafe_roots):
+        print("Output path must not be inside the source or test tree.", file=sys.stderr)
+        return 1
+
+    from urllib.parse import urlparse
+    from urllib.request import url2pathname
+    protected = [Path(structure_path).resolve(), Path(glossary_path).resolve(), Path(draft_path).resolve()]
+    uris = [structure["source_uri"]] + [
+        c["image"]["uri"] for r in structure["readings"] for c in r["alternatives"] if c["image"] is not None
+    ]
+    try:
+        protected.extend(
+            Path(url2pathname(urlparse(uri).path)).resolve() for uri in uris if urlparse(uri).scheme == "file"
+        )
+    except ValueError:
+        print("Invalid source evidence URI.", file=sys.stderr)
+        return 1
+    if any(resolved_out == item or resolved_out in item.parents for item in protected):
+        print("Output must be separate from structure/glossary/draft/source evidence.", file=sys.stderr)
+        return 1
+
+    review_path = out_path / "semantic_review.json"
+    if review_path.exists():
+        print(f"Refusing to overwrite existing semantic review: {review_path}", file=sys.stderr)
+        return 1
+
+    print(f"Reviewing unit={request.unit['unit_id']} provider={provider}")
+    if provider == "openai":
+        print(
+            "Cost notice: at most one critic call and at most one correction call, list-price estimate "
+            "below $0.01, actual charge is reported as unknown; no automatic retries."
+        )
+
+    try:
+        review = run_semantic_review(request)
+    except OpenAIConfigurationError as exc:
+        print(f"OpenAI semantic review not configured: {exc}", file=sys.stderr)
+        return 1
+    except SemanticReviewRequestError as exc:
+        print(f"Semantic review refused: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(review_path, "x", encoding="utf-8") as handle:
+            json.dump(review, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    except OSError:
+        print("Cannot write semantic review.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote semantic review: {review_path}")
+    print(f"status: {review['status']} review_disposition: {review['review_disposition']} approved: {review['approved']}")
+    print(f"risk_triggers: {len(review['risk_triggers'])} claims: {len(review['claims'])}")
+    return 0 if not review["status"].startswith("failed_") else 1
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -739,6 +841,13 @@ def main(argv=None) -> int:
     translate_unit_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
     translate_unit_parser.add_argument("--output", required=True)
 
+    semantic_review_parser = subparsers.add_parser("semantic-review")
+    semantic_review_parser.add_argument("structure_json")
+    semantic_review_parser.add_argument("--glossary", required=True)
+    semantic_review_parser.add_argument("--draft", required=True)
+    semantic_review_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
+    semantic_review_parser.add_argument("--output", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -768,6 +877,10 @@ def main(argv=None) -> int:
     if args.command == "translate-unit":
         return cmd_translate_unit(
             args.structure_json, args.glossary, args.unit_id, args.profile, args.provider, args.output,
+        )
+    if args.command == "semantic-review":
+        return cmd_semantic_review(
+            args.structure_json, args.glossary, args.draft, args.provider, args.output,
         )
     return 1
 

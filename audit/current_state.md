@@ -1,5 +1,5 @@
 # Current state
-Updated: 2026-10-01T05:45:05+00:00
+Updated: 2026-10-01T06:12:32+00:00
 
 Gate 7 PASS. Implementation commit 9d016fbdcc2606b55f2f95cde7eaff889ee12ff9 normally pushed; post-push fetch verifies main equals origin/main and a clean tree before this receipt. Gates 1–6 passed.
 
@@ -9,4 +9,4 @@ Usage: G7-C1 one successful Sonnet builder invocation with auxiliary Haiku, 342.
 
 Temporary key was used only in a process, then removed; process/user/machine checks false. Ignored outputs/gate7 holds synthetic fixtures, drafts and local verification scripts. Never stage those files or credentials.
 
-Next: read Gate-8 acceptance and implement conditional semantic review with source-linked findings and one bounded correction pass. Human translation approval remains separate.
+Gate 8 software acceptance PASS; Git closure pending. Contract `audit/contracts/gate_8.md` defines conditional risk routing, source-to-target claims, false-positive disposition and one correction with formal recheck. G8-C1 Sonnet builder with auxiliary Haiku: 587.738s, $1.9372894 reported list estimate, actual charge unknown. G8-A1 two targeted test failures; G8-A2 local repair. Final 20 targeted and 233 full tests pass in 13.385s. Public mock CLI on saved synthetic en/ja drafts succeeds: not_triggered/needs_human, both approved=false. Runtime calls 0, Opus/Astra 0, Sol usage unknown. Review software only; semantic accuracy and scholarly quality unverified. Next: full/staged diff review, commit and normal push with receipt, then Gate 9. Human approval remains separate.
