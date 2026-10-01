@@ -1,7 +1,7 @@
 # Current state
-Updated: 2026-10-01T09:40:12+00:00
+Updated: 2026-10-01T09:47:16+00:00
 
-Gates 1-9 passed scoped software acceptance and are pushed. Gate-9 synthetic decision/export establishes plumbing; real human approval, scholarly quality and browser appearance remain unverified. Gate-10 harness b703dbba1b477059092165238c1e5caf4a52b038 and receipt 50d34946ddf6b24a938be4b8b38805bf879da1be were synchronized to origin/main before this continuation.
+Gates 1-9 passed scoped software acceptance and are pushed. Gate-9 synthetic decision/export establishes plumbing; real human approval, scholarly quality and browser appearance remain unverified. Gate-10 preliminary corpus/correction commit 628fca1adcffbcddda775308dc83c90d34a22cd7 was normally pushed and fetched equal to origin/main with a clean tree before this receipt. Previous harness b703dbba1b477059092165238c1e5caf4a52b038 and receipt 50d34946ddf6b24a938be4b8b38805bf879da1be remain in history.
 
 Gate 10 remains PRELIMINARY for software and BLOCKED for full quality acceptance. Contracts: audit/contracts/gate_10.md and gate_10_corpus.md. User asked to continue independent preparation. Six publisher PDFs supply 72 distinct local candidates (24 per en/fr/ja) and 18 context plans. Final review index: outputs/gate10_sources/candidates-v6/review.html; context_review.html alongside it. All source/reference/word-count/MQM approvals remain empty. Candidates retain separate unapproved cropped readings; primary product documents remain unresolved. No model winner or release-quality pass.
 
@@ -9,4 +9,4 @@ G10-A3: six PDF hashes/parser opens, 62 independently re-extracted readings, 72 
 
 G10-A4 rejects renamed duplicate PDF/reading/version/span identities; focused 42/full 295 tests pass (14.627s). Public real-PDF extract-pdf succeeded; evaluate-pilot refuses candidate schema. Source aliases and human identities still need independent review. New paid/provider/Sonnet/Opus/Astra calls 0; Sol usage not metered. Corpus used 6/12 retrieval attempts and 1/4 search batches. Prior G10-C1 Sonnet+Haiku reported $1.5686432 list estimate; actual charge unknown. Chat-exposed temporary key is not used or staged.
 
-Next: reviewed preliminary corpus/correction commit and normal Git closure; then expert source-order/boundary/word-count approval, Hebrew references, blind MQM/correction-time evidence and a separately bounded real comparison. Do not advance Gate 11 or waive quality acceptance. Ignored PDFs/excerpts/images/human/model data stay outside Git.
+Next: expert source-order/boundary/word-count approval, Hebrew references, representative sampling, blind MQM/correction-time evidence and a separately bounded real comparison. Do not advance Gate 11 or waive quality acceptance. Ignored PDFs/excerpts/images/human/model data stay outside Git.
