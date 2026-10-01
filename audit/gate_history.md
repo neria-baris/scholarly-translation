@@ -192,3 +192,7 @@ An approved Hebrew reference must contain Hebrew script. The added negative test
 ## Gate 10 | 2026-10-01T08:40:23+00:00 | accounting correction; status unchanged
 
 Staged review separated direct expert MQM findings from critic true positives and counted those findings in the critical-error metric. Targeted 40 and full 293 tests pass (14.725s); severity key order is deterministic. Prior 291/292-test results remain historical checkpoints. No real gold set or model comparison; full Gate 10 stays BLOCKED.
+
+## Gate 10 | 2026-10-01T08:45:56+00:00 | preliminary checkpoint Git receipt
+
+The reviewed offline harness and source-candidate index were committed as `b703dbba1b477059092165238c1e5caf4a52b038`, normally pushed to authorized origin/main, fetched, and verified equal with a clean tree before this receipt. Final full suite: 293 tests. **Gate 10 remains BLOCKED for quality acceptance**; no genuine 72-segment gold set, expert MQM evaluation, measured model comparison or routing recommendation exists. The commit is an unapproved software checkpoint, not a quality-pass version.

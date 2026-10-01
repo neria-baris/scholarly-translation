@@ -257,3 +257,7 @@ Final inspection added a required Hebrew-script check for the approved reference
 ## Gate 10 | 2026-10-01T08:40:23+00:00 | staged accounting recheck
 
 Staged diff review found that a direct human MQM error with no critic verdict was incorrectly added to critic true-positive counts and omitted from critical-error metrics. Corrected both counters; targeted 40 tests pass and full suite passes 293 tests in 14.725s. Severity-key ordering is now stable for reproducible JSON. Earlier counts remain as superseded checkpoints. No additional model/provider call; Gate 10 remains preliminary software/BLOCKED full quality.
+
+## Gate 10 | 2026-10-01T08:45:56+00:00 | preliminary checkpoint verified Git closure
+
+Reviewed complete/staged eleven-path diff, including all new source/test/candidate files; staged whitespace and credential-pattern checks passed. Intended origin URL and main branch verified; fetched origin/main `81db65bf517f06bb666af9b4e1325a06f500718a` equaled the local base and was an ancestor. Commit `b703dbba1b477059092165238c1e5caf4a52b038` is explicitly labeled preliminary; normal dry-run/push succeeded. Post-push fetch verifies main=origin/main and a clean tree. No force/rewrite or ignored local PDF/tooling output staged. This closes only the offline software checkpoint; Gate 10 quality remains BLOCKED on genuine gold and human judgments.
