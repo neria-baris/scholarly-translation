@@ -222,3 +222,52 @@ an approved result. Output is written to `probe_result.json` under `--output`; t
 refuses to overwrite an existing result file or write into the source/test tree, and
 printed/persisted output is summary metadata only (status, duration, token usage,
 estimate) with no credential or private source text.
+
+## Gate 7: first source-bound translation draft and formal checks
+
+`translation.py` resolves the smallest scholarly-profile translation job from an existing
+validated Gate-4 structure unit and a fresh Gate-5 glossary resolution, through the
+Gate-6 generic text-generation adapter added to `model_adapter.py`, to an unapproved
+Hebrew draft plus deterministic formal findings from `formal_checks.py`. This gate does
+not select a quality winner between providers and never auto-approves a draft.
+
+```
+python -B -m scholarly_translation translate-unit STRUCTURE_JSON --glossary GLOSSARY_JSON --unit-id UNIT_ID --profile scholarly --provider mock --output outputs/gate7-mock
+```
+
+`profile_id` must be exactly `scholarly` (no profile registry, no fallback); source
+language must be `en`, `fr` or `ja`, target language is fixed at `he`. The request is
+refused before any network call for an unresolved reading, continuity findings, a
+missing/stale unit, a conflicting glossary resolution, malformed source/policy input, or
+an oversized prompt. Context sent to the provider is bounded to the target unit plus at
+most one previous/next unit from the *same* reading, each with an explicit role
+(`previous`/`target`/`next`); it never crosses page/document/readings and never sends a
+whole PDF. Only applicable approved glossary rule source/target/version/loaded fields
+enter the provider prompt and effective policy fingerprint; proposed loaded terms create
+human-review findings and are never sent as instructions. A deterministic cache key is computed from profile, exact source/reading/
+unit spans and hashes, neighbor hashes, the effective glossary policy fingerprint,
+provider/model and prompt/config/decoding parameters, but this gate keeps no persistent
+cache and performs no automatic translation-memory approval.
+
+For OpenAI, use `--provider openai` and a new output directory. The local
+gateway bounds the prompt, reserves a conservative token-price estimate before
+the call, allows one call per CLI invocation with no retry, and records usage and
+50%/80% budget notices. A caller translating several units must reuse one
+`TranslationBudget` object to enforce a cumulative list-price cap; actual
+account charges cannot be enforced from the API response.
+
+The mock adapter produces a conspicuous `[GATE7-MOCK-PLACEHOLDER-NON-HEBREW]` placeholder
+and is never counted as a real translation. The optional OpenAI path reuses the Gate-6
+`gpt-6-luna` boundary (`store=False`, no tools, `reasoning.effort=none`, 256-token output
+cap, `max_retries=0`, 20s timeout); a missing key/SDK fails before any network attempt,
+and a transport/incomplete/empty response is an explicit, sanitized failure. `formal_checks.py`
+is a separate, pure checker that reports typed findings (missing numbers, footnote
+markers, citation/reference tokens, formula-like expressions, proper-name candidates,
+missing Hebrew script) using Unicode-normalized exact token counts; it never rewrites
+text, asserts a transliteration is wrong, or sets approval. A formally clean draft remains
+`draft_unapproved`; any finding yields `needs_human`. Output is one
+`translation_draft.json` under `--output`, including failures with any observed usage; the
+CLI refuses to overwrite an existing draft, to write into the source/test tree, or to
+collide its output with the structure/glossary/source evidence, and prints summary
+metadata only. The draft is schema-1 `translation-draft@1`: it is not approved memory, a
+final translation, or a review/export artifact.

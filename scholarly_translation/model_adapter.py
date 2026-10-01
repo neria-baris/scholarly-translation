@@ -378,3 +378,140 @@ def build_adapter(provider: str, model: str, client=None) -> DiagnosticAdapter:
     if provider == "openai":
         return OpenAIDiagnosticAdapter(client=client)
     raise RequestValidationError("provider is not supported")
+
+
+# --- Gate 7: minimal generic text-generation adapter (provider plumbing only).
+#
+# Receives a fully resolved prompt string from a caller (e.g. the Gate-7
+# translation workflow) and returns a provider-independent result shape. This
+# adapter contains no scholarly/profile branching and makes no decision about
+# approval, caching or terminology.
+
+TRANSLATION_SUPPORTED_PROVIDERS = {"mock", "openai"}
+TRANSLATION_SUPPORTED_MODELS = {
+    "mock": {"mock-translation-1"},
+    "openai": {"gpt-6-luna"},
+}
+MOCK_TRANSLATION_PLACEHOLDER_PREFIX = "[GATE7-MOCK-PLACEHOLDER-NON-HEBREW]"
+
+
+@dataclass(frozen=True)
+class TextGenerationResult:
+    """Provider-independent result of a single text-generation call."""
+
+    status: str  # "completed" | "mock_placeholder" | "failed_transport" | "failed_empty_response"
+    text: Optional[str]
+    token_usage: object
+    observed_model: Optional[str]
+    duration_seconds: float
+    error: Optional[str] = None
+
+
+class TextGenerationAdapter:
+    """Shared adapter contract: mock and OpenAI return the same result shape."""
+
+    def generate(self, prompt_text: str, model: str) -> TextGenerationResult:
+        raise NotImplementedError
+
+
+class MockTextGenerationAdapter(TextGenerationAdapter):
+    """No network, no secret needed. Conspicuous non-Hebrew placeholder, never a real translation."""
+
+    def generate(self, prompt_text: str, model: str) -> TextGenerationResult:
+        if model != "mock-translation-1":
+            raise RequestValidationError("mock adapter requires mock-translation-1")
+        start = time.monotonic()
+        text = MOCK_TRANSLATION_PLACEHOLDER_PREFIX
+        duration = time.monotonic() - start
+        return TextGenerationResult(
+            status="mock_placeholder", text=text, token_usage="not_metered",
+            observed_model=model, duration_seconds=duration,
+        )
+
+
+class OpenAITextGenerationAdapter(TextGenerationAdapter):
+    """Real calls only via the official OpenAI Python SDK, imported lazily.
+
+    A `client` may be injected (tests only) to avoid any SDK import or
+    network access. Without an injected client, the SDK is imported and a
+    client built only inside `generate`, and only after an `OPENAI_API_KEY`
+    environment variable is found; its value is never stored or logged.
+    """
+
+    def __init__(self, client=None) -> None:
+        self._client = client
+
+    def _build_client(self):
+        import os
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise OpenAIConfigurationError(
+                "OPENAI_API_KEY is not set in the environment; configure it before calling openai"
+            )
+        try:
+            import openai
+        except ImportError:
+            raise OpenAIConfigurationError(
+                "openai SDK is not installed; install it before calling openai"
+            ) from None
+        return openai.OpenAI(
+            api_key=api_key,
+            max_retries=OPENAI_MAX_RETRIES,
+            timeout=OPENAI_TIMEOUT_SECONDS,
+        )
+
+    def generate(self, prompt_text: str, model: str) -> TextGenerationResult:
+        if model != "gpt-6-luna":
+            raise RequestValidationError("openai adapter requires gpt-6-luna")
+        client = self._client
+        if client is None:
+            client = self._build_client()
+
+        start = time.monotonic()
+        try:
+            response = client.responses.create(
+                model=model,
+                input=prompt_text,
+                store=False,
+                tools=[],
+                reasoning={"effort": "none"},
+                max_output_tokens=OPENAI_MAX_OUTPUT_TOKENS,
+            )
+        except Exception:
+            duration = time.monotonic() - start
+            return TextGenerationResult(
+                status="failed_transport", text=None, token_usage="not_metered",
+                observed_model=None, duration_seconds=duration,
+                error="openai request failed (transport or timeout)",
+            )
+        duration = time.monotonic() - start
+
+        text = _extract_output_text(response) if getattr(response, "status", None) == "completed" else None
+        usage = _extract_usage(response)
+        observed_model = getattr(response, "model", None)
+        observed_model = observed_model if isinstance(observed_model, str) else None
+        if not text:
+            return TextGenerationResult(
+                status="failed_empty_response", text=None, token_usage=usage,
+                observed_model=observed_model, duration_seconds=duration,
+                error="model response was incomplete or empty",
+            )
+        return TextGenerationResult(
+            status="completed", text=text, token_usage=usage,
+            observed_model=observed_model, duration_seconds=duration,
+        )
+
+
+def build_translation_adapter(provider: str, model: str, client=None) -> TextGenerationAdapter:
+    """Build the text-generation adapter for a supported provider/model."""
+    if provider not in TRANSLATION_SUPPORTED_PROVIDERS:
+        raise RequestValidationError(f"provider is not supported; allowed: {sorted(TRANSLATION_SUPPORTED_PROVIDERS)}")
+    allowed_models = TRANSLATION_SUPPORTED_MODELS[provider]
+    if model not in allowed_models:
+        raise RequestValidationError(f"model is not supported for provider; allowed: {sorted(allowed_models)}")
+    if provider == "mock":
+        return MockTextGenerationAdapter()
+    if provider == "openai":
+        return OpenAITextGenerationAdapter(client=client)
+    raise RequestValidationError("provider is not supported")

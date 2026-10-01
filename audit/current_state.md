@@ -1,12 +1,12 @@
 # Current state
-Updated: 2026-10-01T04:25:38+00:00
+Updated: 2026-10-01T05:38:41+00:00
 
-Gate 6 PASS. Commit b241f67d57d04df9a5aa79811230e8310a49771e normally pushed; fetched origin/main equals local HEAD and tree was clean before this receipt. Gates 1–5 passed.
+Gate 7 software acceptance PASS; Git closure pending. Base 2fa1208a2cd2346749b14f25fbea3b288f48c03a synchronized with origin/main before Gate 7. Gates 1–6 passed.
 
-Gate-6 contract: audit/contracts/gate_6.md. Full suite 168 tests passed in 13.621s; mock CLI succeeded. G6-R1 completed one synthetic gpt-6-luna live probe in 3.969s: 18 input/7 output tokens, $0.0000053 list estimate, actual charge unknown, result completed_unapproved. No real translation or scholarly-quality claim. G6-A1/A2/A3 and G6-C1/C2/R1 in append-only audit.
+Contract: audit/contracts/gate_7.md. Source-bound first-draft translation, applicable approved glossary prompt, same-reading context, generic mock/OpenAI adapter, exact cache identity, shared budget and formal findings are implemented as uncommitted working diff. Final full suite 213 tests passed in 13.501s; public mock CLI succeeded. G7-R1/R2/R3 each produced a Hebrew, unapproved synthetic draft for en/fr/ja; 306 input/38 output tokens total, $0.0000496 standard list estimate, actual charge unknown. Read-only verification confirms source hash, prompt/cache key, final checker and usage. Synthetic PDF envelopes and simulated decisions prove plumbing only, not extraction fidelity or scholarly quality.
 
-The temporary key was entered only for the process call and removed. Process/user/machine key checks are all false after the probe; ignored outputs/gate6-live/probe_result.json contains no key. Official SDK 2.48.0 is installed only in ignored local venv. Do not repeat the paid call.
+Usage: G7-C1 one successful Sonnet builder invocation with auxiliary Haiku, 342.755s, $1.3226808 reported list estimate; actual charge/Sol usage unknown, Opus/Astra 0. G7-A1 initial 203-test failure and G7-A2 focused local repair are preserved. Runtime three-call cap reached; do not repeat Gate-7 paid calls.
 
-Development usage: one failed sandbox builder invocation (zero observed model use) and one successful Sonnet builder invocation with reported auxiliary Haiku, 160.346s, $0.5961736 reported list estimate; actual charge/Sol usage unknown. Opus/Astra 0. No further builder call planned.
+Temporary key was used only in a process, then removed; process/user/machine checks false. Ignored outputs/gate7 holds synthetic fixtures, drafts and local verification scripts. Never stage those files or credentials.
 
-Next: read Gate-7 requirements and architecture, define smallest source-bound translation job contract under scholarly profile. No further paid call from Gate 6.
+Next: review full and staged Gate-7 diff, commit and normal push with receipt. Then read Gate-8 contract. Human translation approval remains separate.

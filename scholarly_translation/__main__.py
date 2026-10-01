@@ -578,6 +578,105 @@ def cmd_probe_provider(provider: str, output_dir: str) -> int:
     return 0 if result.status in ("mock_placeholder", "completed_unapproved") else 1
 
 
+TRANSLATE_MODELS = {"mock": "mock-translation-1", "openai": "gpt-6-luna"}
+
+
+def cmd_translate_unit(
+    structure_path: str, glossary_path: str, unit_id: str, profile: str, provider: str, output_dir: str,
+) -> int:
+    from .glossary import GlossaryError, validate_glossary
+    from .model_adapter import OpenAIConfigurationError, RequestValidationError
+    from .segmentation import validate_structure
+    from .source_reading import StructureError
+    from .translation import TranslationRequestError, build_translation_request, run_translation
+
+    try:
+        structure = _load_structure_json(structure_path)
+        validate_structure(structure)
+    except StructureError as exc:
+        print(f"Invalid structure: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        glossary = _load_structure_json(glossary_path)
+        validate_glossary(glossary)
+    except (StructureError, GlossaryError) as exc:
+        print(f"Invalid glossary: {exc}", file=sys.stderr)
+        return 1
+
+    if provider not in TRANSLATE_MODELS:
+        print(f"Unsupported provider; allowed: {sorted(TRANSLATE_MODELS)}", file=sys.stderr)
+        return 1
+
+    try:
+        request = build_translation_request(
+            structure, glossary, unit_id, profile, provider, TRANSLATE_MODELS[provider],
+        )
+    except (TranslationRequestError, RequestValidationError) as exc:
+        print(f"Translation request refused: {exc}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    package_dir = Path(__file__).resolve().parent
+    unsafe_roots = [package_dir, package_dir.parent / "tests"]
+    resolved_out = out_path.resolve()
+    if any(resolved_out == root or root in resolved_out.parents for root in unsafe_roots):
+        print("Output path must not be inside the source or test tree.", file=sys.stderr)
+        return 1
+
+    from urllib.parse import urlparse
+    from urllib.request import url2pathname
+    protected = [Path(structure_path).resolve(), Path(glossary_path).resolve()]
+    uris = [structure["source_uri"]] + [
+        c["image"]["uri"] for r in structure["readings"] for c in r["alternatives"] if c["image"] is not None
+    ]
+    try:
+        protected.extend(
+            Path(url2pathname(urlparse(uri).path)).resolve() for uri in uris if urlparse(uri).scheme == "file"
+        )
+    except ValueError:
+        print("Invalid source evidence URI.", file=sys.stderr)
+        return 1
+    if any(resolved_out == item or resolved_out in item.parents for item in protected):
+        print("Output must be separate from structure/glossary/source evidence.", file=sys.stderr)
+        return 1
+
+    draft_path = out_path / "translation_draft.json"
+    if draft_path.exists():
+        print(f"Refusing to overwrite existing translation draft: {draft_path}", file=sys.stderr)
+        return 1
+
+    print(f"Translating unit={unit_id} profile={profile} provider={provider} model={TRANSLATE_MODELS[provider]}")
+    if provider == "openai":
+        print(
+            "Cost notice: at most one live call, list-price estimate below $0.01, "
+            "actual charge is reported as unknown; no automatic retries."
+        )
+
+    try:
+        draft = run_translation(request)
+    except OpenAIConfigurationError as exc:
+        print(f"OpenAI translation not configured: {exc}", file=sys.stderr)
+        return 1
+    except TranslationRequestError as exc:
+        print(f"Translation refused: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(draft_path, "x", encoding="utf-8") as handle:
+            json.dump(draft, handle, ensure_ascii=False, indent=2, allow_nan=False)
+    except OSError:
+        print("Cannot write translation draft.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote translation draft: {draft_path}")
+    print(f"status: {draft['status']} approved: {draft['approved']}")
+    print(f"token_usage: {draft['token_usage']} estimated_cost_usd: {draft['estimated_cost_usd']}")
+    print(f"actual_charge: {draft['actual_charge']} findings: {len(draft['findings'])}")
+    return 0 if draft["status"] not in ("failed_transport", "failed_empty_response") else 1
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -632,6 +731,14 @@ def main(argv=None) -> int:
     probe_provider_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
     probe_provider_parser.add_argument("--output", required=True)
 
+    translate_unit_parser = subparsers.add_parser("translate-unit")
+    translate_unit_parser.add_argument("structure_json")
+    translate_unit_parser.add_argument("--glossary", required=True)
+    translate_unit_parser.add_argument("--unit-id", required=True)
+    translate_unit_parser.add_argument("--profile", required=True, choices=["scholarly"])
+    translate_unit_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
+    translate_unit_parser.add_argument("--output", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -658,6 +765,10 @@ def main(argv=None) -> int:
         )
     if args.command == "probe-provider":
         return cmd_probe_provider(args.provider, args.output)
+    if args.command == "translate-unit":
+        return cmd_translate_unit(
+            args.structure_json, args.glossary, args.unit_id, args.profile, args.provider, args.output,
+        )
     return 1
 
 
