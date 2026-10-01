@@ -12,3 +12,7 @@ These are source-document candidates found online after the user asked Sol to lo
 | Japanese | Philosophy of science and scholarly publishing | [Matsumoto, *The social significance of academic books*](https://www.jstage.jst.go.jp/article/jkg/75/6/75_265/_pdf/-char/ja) | PDF page 1 states CC BY 4.0. | Possible argument and scholarly terminology passage. |
 
 Selection still needs 24 distinct approved segments per language across the target genres and OCR conditions. The six links are a starting pool, not a balanced or representative sample. An expert reader must approve each exact source span and Hebrew reference, then independently label each candidate translation and record correction time. Public English or Japanese translations attached to an article are not Hebrew references. Do not infer a pass or model winner from these candidates.
+
+## Acquisition update — 2026-10-01T09:40:12+00:00
+
+All six publisher downloads now returned actual parseable PDFs, including both French sources. Earlier access caveats describe the initial search. [Preparation evidence](gate_10_corpus_preparation.md) and [source identities](gate_10_corpus_summary.json) record 72 distinct local candidate spans (24 per language), 18 context plans and independent binding checks. All remain `needs_human`; Hebrew gold references and expert judgments are absent. Technical mathematics, history of mathematics and poor OCR remain uncovered.

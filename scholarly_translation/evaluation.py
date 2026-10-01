@@ -195,9 +195,13 @@ def validate_manifest(manifest: dict) -> None:
     _require(set(manifest) == MANIFEST_FIELDS, "invalid manifest shape")
     _require(isinstance(manifest["units"], list) and manifest["units"], "manifest requires at least one unit")
 
-    seen_unit_ids, seen_annotation_ids = set(), set()
+    seen_unit_ids, seen_annotation_ids, seen_source_spans = set(), set(), set()
     for unit in manifest["units"]:
         _validate_unit(unit, seen_unit_ids, seen_annotation_ids)
+        source_span = (unit["pdf_hash"], unit["reading_id"], unit["reading_version"],
+                       unit["source_char_start"], unit["source_char_end"])
+        _require(source_span not in seen_source_spans, "duplicate source span under different unit IDs")
+        seen_source_spans.add(source_span)
 
     document_hashes = {}
     for unit in manifest["units"]:

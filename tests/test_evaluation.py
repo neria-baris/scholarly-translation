@@ -50,13 +50,14 @@ def _arm(arm_id, provider="mock", model="mock-translation-1", prompt_version="v1
 
 def _unit(unit_id, language="en", genre="philosophy", ocr_level="digital", text=None,
           reference=None, arms=None, document_id="doc-1", pdf_hash="a" * 64,
-          reading_id="reading-1", reading_version=1, start=0, source_word_count=None):
+          reading_id=None, reading_version=1, start=0, source_word_count=None):
     text = (text if text is not None else "word " * 20).rstrip()
     reference = (reference if reference is not None else "מילה " * 20).rstrip()
     end = start + len(text)
     return {
         "unit_id": unit_id, "document_id": document_id, "pdf_hash": pdf_hash,
-        "reading_id": reading_id, "reading_version": reading_version,
+        "reading_id": reading_id if reading_id is not None else "reading-" + unit_id,
+        "reading_version": reading_version,
         "source_char_start": start, "source_char_end": end,
         "source_language": language, "genre": genre, "ocr_level": ocr_level,
         "source_text": text, "source_word_count": source_word_count or len(text.split()),
@@ -264,6 +265,18 @@ class ValidateManifestTests(unittest.TestCase):
     def test_duplicate_unit_id_rejected(self):
         with self.assertRaises(EvaluationError):
             validate_manifest(_manifest([_unit("dup"), _unit("dup")]))
+
+    def test_renamed_duplicate_source_span_rejected(self):
+        units = [_unit("u1", reading_id="same-reading"),
+                 _unit("u2", reading_id="same-reading")]
+        with self.assertRaisesRegex(EvaluationError, "duplicate source span"):
+            build_report(_manifest(units))
+
+    def test_adjacent_source_spans_count_separately(self):
+        first = _unit("u1", reading_id="same-reading")
+        second = _unit("u2", reading_id="same-reading", start=first["source_char_end"])
+        report = build_report(_manifest([first, second]))
+        self.assertEqual(report["sample_counts"]["by_language"]["en"], 2)
 
     def test_duplicate_annotation_id_rejected(self):
         unit = _unit("u1", arms=[
