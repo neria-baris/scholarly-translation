@@ -187,3 +187,38 @@ under an unchanged, `ready` applicable-approved policy is reusable, and a later 
 approved rule invalidates only the lookups that actually depend on it. There is no fuzzy search,
 embeddings or real translation cache in this gate, and glossary/memory entries are fixture-level
 plumbing, not an assertion of real scholarly terminology quality.
+
+## Gate 6: bounded provider adapter and live access probe
+
+`model_adapter.py` defines a provider-independent diagnostic request/result boundary
+(schema 1), separate from the translation provider config in Gate 1's `provider.py` and
+unrelated to translation memory. A mock adapter is deterministic and non-billed; an
+optional OpenAI adapter (exact model `gpt-6-luna`, Responses API, official SDK) is
+imported and used only inside `probe-provider --provider openai`. This is provider
+plumbing only, not a translation job, not model-quality evidence, and never
+auto-approved.
+
+```
+python -B -m scholarly_translation probe-provider --provider mock --output outputs/gate6-mock
+python -B -m scholarly_translation probe-provider --provider openai --output outputs/gate6-live
+```
+
+Both probes send a fixed, small synthetic English phrase through the same validated
+request schema (`profile_id=scholarly`, synthetic marker, `target_language=he`, source
+SHA-256, prompt/config version). The mock probe runs offline with no credential or SDK.
+The OpenAI probe requires the official `openai` Python package installed locally
+(`pip install openai`; not bundled in `requirements.txt`, since it is optional and only
+this one probe path imports it) and an `OPENAI_API_KEY` in the process environment; the key is never stored, logged, or printed,
+and the probe refuses to run with an explicit local-setup error before any network attempt
+if either is missing — there is no silent fallback to mock. The call uses `store=False`,
+no tools, `reasoning.effort=none`, a 256-token output cap, a single attempt
+(`max_retries=0`) and a 20-second timeout. Standard list rates (verified 2026-09-30) are
+$0.10/M input, $0.01/M cached input, $0.125/M cache write, $0.50/M output tokens; the
+fixed diagnostic phrase with the 256-token cap is estimated below $0.01 per call. Reported
+usage produces a list-price estimate; missing or invalid usage is recorded as
+`not_metered` rather than an invented charge, and the actual account charge is always
+recorded as `unknown`. An incomplete or empty model response is an explicit failure, never
+an approved result. Output is written to `probe_result.json` under `--output`; the CLI
+refuses to overwrite an existing result file or write into the source/test tree, and
+printed/persisted output is summary metadata only (status, duration, token usage,
+estimate) with no credential or private source text.

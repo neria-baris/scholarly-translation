@@ -501,6 +501,83 @@ def cmd_terminology(
     return 0
 
 
+PROBE_SOURCE_TEXT = "This is a fixed synthetic diagnostic phrase for Gate 6."
+PROBE_MODELS = {"mock": "mock-diagnostic-1", "openai": "gpt-6-luna"}
+
+
+def cmd_probe_provider(provider: str, output_dir: str) -> int:
+    from .model_adapter import (
+        DiagnosticRequest,
+        OpenAIConfigurationError,
+        RequestValidationError,
+        SYNTHETIC_MARKER,
+        build_adapter,
+    )
+
+    if provider not in PROBE_MODELS:
+        print(f"Unsupported provider; allowed: {sorted(PROBE_MODELS)}", file=sys.stderr)
+        return 1
+
+    out_path = Path(output_dir)
+    package_dir = Path(__file__).resolve().parent
+    unsafe_roots = [package_dir, package_dir.parent / "tests"]
+    resolved_out = out_path.resolve()
+    if any(resolved_out == root or root in resolved_out.parents for root in unsafe_roots):
+        print("Output path must not be inside the source or test tree.", file=sys.stderr)
+        return 1
+    result_path = out_path / "probe_result.json"
+    if result_path.exists():
+        print(f"Refusing to overwrite existing probe result: {result_path}", file=sys.stderr)
+        return 1
+
+    source_text = PROBE_SOURCE_TEXT
+    try:
+        request = DiagnosticRequest(
+            request_id=str(uuid.uuid4()),
+            profile_id="scholarly",
+            marker=SYNTHETIC_MARKER,
+            source_language="en",
+            target_language="he",
+            source_text=source_text,
+            source_sha256=hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
+            prompt_version="gate6-v1",
+            config_version="gate6-v1",
+            provider=provider,
+            model=PROBE_MODELS[provider],
+        )
+        adapter = build_adapter(provider, PROBE_MODELS[provider])
+    except RequestValidationError as exc:
+        print(f"Invalid diagnostic request: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Probing provider={provider} model={PROBE_MODELS[provider]} purpose=gate6-diagnostic")
+    if provider == "openai":
+        print(
+            "Cost notice: at most one live call, list-price estimate below $0.01, "
+            "actual charge is reported as unknown; no automatic retries."
+        )
+
+    try:
+        result = adapter.run(request)
+    except OpenAIConfigurationError as exc:
+        print(f"OpenAI probe not configured: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        out_path.mkdir(parents=True, exist_ok=True)
+        with open(result_path, "x", encoding="utf-8") as handle:
+            json.dump(result.to_dict(), handle, ensure_ascii=False, indent=2, allow_nan=False)
+    except OSError:
+        print("Cannot write probe result.", file=sys.stderr)
+        return 1
+
+    print(f"Wrote probe result: {result_path}")
+    print(f"status: {result.status} duration_seconds: {result.duration_seconds:.4f}")
+    print(f"token_usage: {result.token_usage} estimated_cost_usd: {result.estimated_cost_usd}")
+    print(f"actual_charge: {result.actual_charge} approved: {result.approved}")
+    return 0 if result.status in ("mock_placeholder", "completed_unapproved") else 1
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -551,6 +628,10 @@ def main(argv=None) -> int:
     terminology_parser.add_argument("--action", default=None)
     terminology_parser.add_argument("--output", required=True)
 
+    probe_provider_parser = subparsers.add_parser("probe-provider")
+    probe_provider_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
+    probe_provider_parser.add_argument("--output", required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "demo":
@@ -575,6 +656,8 @@ def main(argv=None) -> int:
         return cmd_terminology(
             args.structure_json, args.glossary, args.output, args.memory, args.action,
         )
+    if args.command == "probe-provider":
+        return cmd_probe_provider(args.provider, args.output)
     return 1
 
 
