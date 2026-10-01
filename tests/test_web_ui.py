@@ -44,6 +44,10 @@ class BrowserShellTests(unittest.TestCase):
             self.assertEqual(response["code"], 0)
             self.assertTrue((Path(output) / "document.json").is_file())
             self.assertIn("Wrote document", response["stdout"])
+            with patch.object(web_ui.webbrowser, "open") as browser_open:
+                opened = self.post("/open", {"path": str(Path(output) / "document.json")})
+                self.assertTrue(opened["opened"])
+                browser_open.assert_called_once()
 
     def test_paid_request_needs_explicit_confirmation(self):
         with self.assertRaises(HTTPError) as caught:

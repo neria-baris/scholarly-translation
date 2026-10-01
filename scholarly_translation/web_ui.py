@@ -119,6 +119,7 @@ def local_library() -> list[dict]:
 
 def make_handler(token: str):
     session_settings = {"api_key": None}
+    session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
@@ -197,6 +198,10 @@ def make_handler(token: str):
                     if step is None or not isinstance(data.get("values"), dict):
                         raise ValueError("unknown step")
                     values = data["values"]
+                    if not isinstance(data.get("output"), str) or any(
+                        not isinstance(value, str) for value in values.values()
+                    ):
+                        raise ValueError("invalid step values")
                     if values.get("provider") == "openai" and data.get("paid_confirm") is not True:
                         raise ValueError("paid provider requires confirmation")
                     argv = build_command(step, values, data.get("output", ""))
@@ -206,6 +211,9 @@ def make_handler(token: str):
                             environment["OPENAI_API_KEY"] = session_settings["api_key"]
                     result = subprocess.run(argv, cwd=ROOT, env=environment, capture_output=True,
                                             text=True, encoding="utf-8", errors="replace", timeout=1800)
+                    if result.returncode == 0 and data.get("output"):
+                        with settings_lock:
+                            session_outputs.add(Path(data["output"]).resolve())
                     self._json(200, {"code": result.returncode,
                                      "stdout": result.stdout[-40000:], "stderr": result.stderr[-40000:]})
                 elif route.path == "/settings":
@@ -223,7 +231,12 @@ def make_handler(token: str):
                     self._json(200, {"documents": local_library()})
                 elif route.path == "/open":
                     path = Path(data.get("path", "")).resolve()
-                    if not path.exists() or not path.is_relative_to(OUTPUT_ROOT.resolve()):
+                    with settings_lock:
+                        allowed = path.is_relative_to((ROOT / "outputs").resolve()) or any(
+                            path == directory or path.is_relative_to(directory)
+                            for directory in session_outputs
+                        )
+                    if not path.exists() or not allowed:
                         raise ValueError("result is unavailable")
                     webbrowser.open(path.as_uri())
                     self._json(200, {"opened": True})
