@@ -69,7 +69,8 @@ class DigitalToUnitsTests(unittest.TestCase):
             reading = structure["readings"][0]
             self.assertEqual(reading["status"], "resolved")
             self.assertEqual(reading["selected"]["origin"], "digital")
-            self.assertEqual(len(structure["units"]), 4)
+            self.assertEqual(len(structure["nodes"]), 4)
+            self.assertEqual(len(structure["units"]), 2)
             for unit in structure["units"]:
                 self.assertEqual(unit["text"], candidate["text"][unit["source_char_start"]:unit["source_char_end"]])
             self.assertEqual(structure["continuity"], [])
@@ -86,11 +87,11 @@ class DigitalToUnitsTests(unittest.TestCase):
             decisions = {page.page_id: _human_decision(candidate)}
             structure = build_structure(document, decisions=decisions)
 
-            texts = [u["text"] for u in structure["units"]]
-            self.assertTrue(any(t.endswith("marker [1].") for t in texts))
-            self.assertTrue(any("Author, 2020" in t for t in texts))
-            self.assertTrue(any("E=mc^2" in t for t in texts))
-            self.assertTrue(any(t.startswith("[1] Footnote body text.") for t in texts))
+            node_texts = [n["text"] for n in structure["nodes"]]
+            self.assertTrue(any(t.endswith("marker [1].") for t in node_texts))
+            self.assertTrue(any("Author, 2020" in t for t in node_texts))
+            self.assertTrue(any("E=mc^2" in t for t in node_texts))
+            self.assertTrue(any(t.startswith("[1] Footnote body text.") for t in node_texts))
             for unit in structure["units"]:
                 for anchor in unit["anchors"]:
                     self.assertEqual(anchor["kind"], "line")
@@ -251,17 +252,29 @@ class CorrectionAndRevisionTests(unittest.TestCase):
             candidate = _digital_candidate_for(document, page.page_id)
             decisions = {page.page_id: _human_decision(candidate)}
 
-            first = build_structure(document, decisions=decisions)
+            # Default logical-structure segmentation would merge these three
+            # single-sentence body lines into one scholarly unit; pin the
+            # original per-line boundaries explicitly so this test exercises
+            # merge/split identity and versioning, not the default policy
+            # (covered separately in test_structure_v2.py).
+            text = candidate["text"]
+            first_line_end = text.index("\n")
+            second_line_end = text.index("\n", first_line_end + 1)
+            third_line_end = text.index("\n", second_line_end + 1)
+            original_boundaries = {page.page_id: [
+                [0, first_line_end],
+                [first_line_end + 1, second_line_end],
+                [second_line_end + 1, third_line_end],
+                [third_line_end + 1, len(text)],
+            ]}
+
+            first = build_structure(document, decisions=decisions, boundaries=original_boundaries)
             self.assertEqual(len(first["units"]), 4)
             first_unit_ids = [u["unit_id"] for u in first["units"]]
             self.assertTrue(all(u["unit_version"] == 1 for u in first["units"]))
 
             # Merge the first two lines into one unit; the last two lines are
             # explicitly included unaffected, covering the full source text.
-            text = candidate["text"]
-            first_line_end = text.index("\n")
-            second_line_end = text.index("\n", first_line_end + 1)
-            third_line_end = text.index("\n", second_line_end + 1)
             boundaries = {page.page_id: [
                 [0, second_line_end],
                 [second_line_end + 1, third_line_end],
@@ -284,7 +297,7 @@ class CorrectionAndRevisionTests(unittest.TestCase):
 
             # Split back to the original four lines; unaffected units keep prior
             # versions, affected ones increment again, and both snapshots remain.
-            third = build_structure(document, decisions=decisions, previous=second)
+            third = build_structure(document, decisions=decisions, boundaries=original_boundaries, previous=second)
             self.assertEqual(len(third["units"]), 4)
             third_by_span = {(u["source_char_start"], u["source_char_end"]): u for u in third["units"]}
             first_by_span = {(u["source_char_start"], u["source_char_end"]): u for u in first["units"]}

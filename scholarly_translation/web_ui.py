@@ -45,7 +45,9 @@ def _read_artifact(path: str, expected: str) -> dict | None:
         raise ValueError("artifact is too large for preview")
     with candidate.open(encoding="utf-8") as handle:
         data = json.load(handle)
-    if not isinstance(data, dict) or (expected == "structure" and data.get("stage") != "structure@1"):
+    if not isinstance(data, dict) or (
+        expected == "structure" and data.get("stage") not in ("structure@1", "structure@2")
+    ):
         raise ValueError("artifact has an unexpected format")
     return data
 
