@@ -388,3 +388,28 @@ Receipt commit `fcf0ca77e37b450bcd798797be146892d62a65bd` succeeded. The subsequ
 ## INTEGRATION-B | 2026-10-04T18:40:50.532460+00:00 | software PASS; reviewed Git closure follows
 
 A merge a35d3ab normally pushed and fetched; main/origin equality 0 0 and clean tree verified. B isolated 375 tests pass (29.246s, one skip). Sequential B merge preserves both audit tails, both profiles and E role metadata. Resolved translation request signature, cache identity, canonical revalidation and result parsing by combining B context/profile inputs with E provider/capabilities and unpriced stops. CLI accepts literary and configured roles. Combined full 436 tests pass in 22.222s. Runtime/model calls 0, quota/charges unknown. Source/quality limits remain, Gate 10 BLOCKED. D/X await checked contracts/common base.
+
+## SESSION-D | 2026-10-04T19:40:00+00:00 | chapter-aware context strategy, integrated and pushed
+
+Claude acting as temporary integration conductor launched Session D as an isolated
+worktree/branch sub-agent (worktree-agent-ac188145aaddcd523) off checked common base
+6741f65, per audit/contracts/session_d_context_strategy.md. The builder added
+scholarly_translation/context_strategy.py and extended translation.py: when
+ModelCapabilities are supplied, build_translation_request now sends the unit's
+enclosing chapter/part node as full context when it fits the model's usable-context
+budget (headroom-adjusted), else expands target+bounded original source outward
+within the chapter/reading; capabilities=None reproduces the exact pre-Session-D
+one-previous/one-next behavior unchanged. Added build_whole_chapter_translation_request
+as an explicit opt-in comparison mode, target-vs-context provenance fields, and
+context_policy_version/context_mode in compute_cache_key/to_metadata_dict (unit
+cache identity depends only on text actually sent, never unrelated chapter text
+elsewhere). 20 new tests in tests/test_context_strategy.py.
+
+Conductor review: read the full translation.py/context_strategy.py diff, confirmed
+reuse of document_structure._word_count (no second tokenizer) and no change to
+persisted node/unit schema. Independently reran the suite in the isolated worktree
+(456 tests, 1 skip, 22.2s, matching the builder's report) before merging. Merged
+into main via --no-ff merge commit 89adbd76 (no conflicts; D and X have disjoint
+file ownership). Reran full suite on merged main: 456 tests, 1 skip, 26.4s, OK.
+Fetched origin/main, verified ancestry, pushed; post-push fetch confirmed
+main == origin/main == 89adbd76. No runtime provider calls; mock-only.
