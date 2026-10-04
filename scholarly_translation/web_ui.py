@@ -123,8 +123,18 @@ def local_library() -> list[dict]:
     return sorted(entries, key=lambda item: item["modified"], reverse=True)
 
 
-def make_handler(token: str):
-    from .document_draft import DocumentJobs, DocumentDraftError, MODELS, QUALITIES, MAX_FILE_BYTES, render_download
+def make_handler(token: str, model_config_path: str | None = None):
+    from .document_draft import (
+        DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download,
+    )
+    from .model_config import ModelConfiguration
+    from .translation_profiles import SUPPORTED_PROFILE_IDS
+
+    server_model_config = None
+    if model_config_path:
+        server_model_config = json.loads(Path(model_config_path).read_text(encoding="utf-8"))
+        ModelConfiguration.from_dict(server_model_config)  # fail fast on an invalid deployment file
+
     session_settings = {"api_key": None}
     session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
@@ -213,23 +223,33 @@ def make_handler(token: str):
                 if not isinstance(data, dict):
                     raise ValueError("invalid request")
                 if route.path == "/document-config":
-                    with settings_lock:
-                        available = bool(session_settings["api_key"] or os.environ.get("OPENAI_API_KEY"))
-                    self._json(200, {"models": [{"id": model, "label": spec["label"]} for model, spec in MODELS.items()],
-                                     "qualities": [{"id": quality, "label": spec["label"]} for quality, spec in QUALITIES.items()],
-                                     "api_key_available": available, "max_file_bytes": MAX_FILE_BYTES})
+                    translator_label = None
+                    if server_model_config is not None:
+                        translator = server_model_config.get("models", {}).get("translator", {})
+                        translator_label = f"{translator.get('provider')}/{translator.get('model')}"
+                    self._json(200, {
+                        "profiles": [{"id": pid} for pid in SUPPORTED_PROFILE_IDS],
+                        "qualities": [{"id": q} for q in sorted(QUALITY_MODES)],
+                        "model_choices": sorted(MODEL_CHOICES),
+                        "model_config_available": server_model_config is not None,
+                        "configured_translator_model": translator_label,
+                        "max_file_bytes": MAX_FILE_BYTES,
+                    })
                 elif route.path == "/document-translate":
                     source = Path(data.get("path", "")).resolve()
                     if not source.is_relative_to((OUTPUT_ROOT / "uploads").resolve()) or not source.is_file():
                         raise DocumentDraftError("בחרו קובץ שהועלה דרך הממשק.")
-                    if source.suffix.lower() not in (".pdf", ".epub") or not 0 < source.stat().st_size <= MAX_FILE_BYTES:
-                        raise DocumentDraftError("בחרו PDF או EPUB עד 25 MB.")
-                    if not isinstance(data.get("settings"), dict):
+                    if source.suffix.lower() != ".pdf" or not 0 < source.stat().st_size <= MAX_FILE_BYTES:
+                        raise DocumentDraftError("בחרו PDF עד 25 MB (EPUB אינו נתמך כרגע בזרימה זו).")
+                    settings = data.get("settings")
+                    if not isinstance(settings, dict):
                         raise DocumentDraftError("הגדרות המסמך חסרות.")
-                    with settings_lock:
-                        key = session_settings["api_key"]
-                    self._json(200, document_jobs.start(source, data["settings"], api_key=key,
-                                                       paid_confirm=data.get("paid_confirm")))
+                    settings = dict(settings)
+                    if settings.get("model") == "configured" and settings.get("model_config") is None:
+                        if server_model_config is None:
+                            raise DocumentDraftError("לא הוגדר קובץ תצורת מודל בשרת.")
+                        settings["model_config"] = server_model_config
+                    self._json(200, document_jobs.start(source, settings, paid_confirm=data.get("paid_confirm")))
                 elif route.path == "/document-job":
                     self._json(200, document_jobs.get(data.get("job_id")))
                 elif route.path == "/document-recent":
@@ -244,31 +264,31 @@ def make_handler(token: str):
                             continue
                     self._json(200, {"job": recent})
                 elif route.path == "/document-review":
-                    self._json(200, document_jobs.review(data.get("job_id"), data.get("chunk_index"),
+                    self._json(200, document_jobs.review(data.get("job_id"), data.get("unit_index"),
                                data.get("target_text"), data.get("expected_revision")))
                 elif route.path == "/document-download":
                     job = document_jobs.get(data.get("job_id"))
-                    if not job["completed_chunks"]:
+                    if job["status"] != "completed":
                         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
-                    kind = data.get("format")
+                    kind = data.get("format", "pdf")
                     body = render_download(job, kind)
                     self.send_response(200)
-                    self.send_header("Content-Type", ("text/html" if kind == "html" else "text/plain") + "; charset=utf-8")
-                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + ".he." + kind))
+                    self.send_header("Content-Type", "application/pdf")
+                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + ".he.pdf"))
                     self.send_header("Content-Length", str(len(body)))
                     self.send_header("Cache-Control", "no-store")
                     self.send_header("X-Content-Type-Options", "nosniff")
                     self.end_headers()
                     self.wfile.write(body)
                 elif route.path == "/document-sample":
-                    import zipfile
-                    destination = OUTPUT_ROOT / "uploads" / secrets.token_hex(10) / "sample.epub"
+                    from reportlab.pdfgen import canvas as _rl_canvas
+                    destination = OUTPUT_ROOT / "uploads" / secrets.token_hex(10) / "sample.pdf"
                     destination.parent.mkdir(parents=True, exist_ok=False)
-                    with zipfile.ZipFile(destination, "w") as archive:
-                        archive.writestr("mimetype", "application/epub+zip")
-                        archive.writestr("META-INF/container.xml", '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>')
-                        archive.writestr("book.opf", '<package xmlns="http://www.idpf.org/2007/opf"><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>')
-                        archive.writestr("chapter.xhtml", '<html><body><h1>A short sample</h1><p>Some scholars do not accept the claim. The original document contains 3 arguments.</p></body></html>')
+                    pdf = _rl_canvas.Canvas(str(destination))
+                    pdf.drawString(72, 700, "A short sample")
+                    pdf.drawString(72, 680, "Some scholars do not accept the claim. The document contains 3 arguments.")
+                    pdf.showPage()
+                    pdf.save()
                     self._json(200, {"path": str(destination), "name": destination.name, "size": destination.stat().st_size})
                 elif route.path == "/run":
                     command = data.get("command")
@@ -380,7 +400,8 @@ def make_handler(token: str):
 
 def main() -> int:
     token = secrets.token_urlsafe(24)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(token))
+    model_config_path = os.environ.get("SCHOLARLY_TRANSLATION_MODEL_CONFIG")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(token, model_config_path))
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"Local UI: {url}", flush=True)
     webbrowser.open(url)

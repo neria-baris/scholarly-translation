@@ -106,30 +106,29 @@ class DocumentFlowHTTPTests(unittest.TestCase):
 
     def test_document_lifecycle_download_and_optional_review(self):
         sample = self.post("/document-sample", {})
-        request = Request(self.url + "/upload?name=uploaded.epub",
+        request = Request(self.url + "/upload?name=uploaded.pdf",
                           data=Path(sample["path"]).read_bytes(),
                           headers={"X-UI-Token": "test-token", "Origin": self.url}, method="POST")
         with urlopen(request) as response:
             uploaded = json.load(response)
         started = self.post("/document-translate", {"path": uploaded["path"],
-                            "settings": {"model": "demo", "quality": "balanced", "language": "auto", "budget_usd": 2}})
-        deadline = time.monotonic() + 5
+                            "settings": {"model": "auto", "quality": "fast", "language": "en", "budget_usd": 2}})
+        deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             job = self.post("/document-job", started)
-            if job["status"] not in ("queued", "reading", "translating"):
+            if job["status"] not in ("queued", "reading", "translating", "reviewing", "rebuilding"):
                 break
             time.sleep(.02)
-        self.assertEqual(job["status"], "demo")
+        self.assertEqual(job["status"], "completed")
         self.assertFalse(job["approved"])
         self.assertFalse(job["source_reviewed"])
         self.assertEqual(self.post("/document-recent", {})["job"]["job_id"], job["job_id"])
-        for kind in ("html", "txt"):
-            request = Request(self.url + "/document-download", data=json.dumps({**started, "format": kind}).encode(),
-                              headers={"X-UI-Token": "test-token", "Origin": self.url}, method="POST")
-            with urlopen(request) as response:
-                self.assertIn("attachment", response.headers["Content-Disposition"])
-                self.assertIn("Some scholars", response.read().decode("utf-8"))
-        edit = {**started, "chunk_index": 0, "target_text": "An edited draft <script>bad()</script>", "expected_revision": 0}
+        request = Request(self.url + "/document-download", data=json.dumps({**started, "format": "pdf"}).encode(),
+                          headers={"X-UI-Token": "test-token", "Origin": self.url}, method="POST")
+        with urlopen(request) as response:
+            self.assertIn("attachment", response.headers["Content-Disposition"])
+            self.assertTrue(response.read().startswith(b"%PDF"))
+        edit = {**started, "unit_index": 0, "target_text": "עריכה אנושית של התרגום", "expected_revision": 0}
         revised = self.post("/document-review", edit)
         self.assertEqual(revised["revision"], 1)
         self.assertFalse(revised["approved"])
@@ -141,15 +140,65 @@ class DocumentFlowHTTPTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as caught:
             self.post("/document-config", {}, token="bad")
         self.assertEqual(caught.exception.code, 403)
-        for path in (str(Path(__file__).resolve()), "../outside.epub"):
+        for path in (str(Path(__file__).resolve()), "../outside.pdf"):
             with self.assertRaises(HTTPError) as caught:
-                self.post("/document-translate", {"path": path, "settings": {"model": "demo"}})
+                self.post("/document-translate", {"path": path, "settings": {"model": "auto"}})
             self.assertEqual(caught.exception.code, 400)
         sample = self.post("/document-sample", {})
+        request = Request(self.url + "/upload?name=guard.pdf",
+                          data=Path(sample["path"]).read_bytes(),
+                          headers={"X-UI-Token": "test-token", "Origin": self.url}, method="POST")
+        with urlopen(request) as response:
+            uploaded = json.load(response)
         with self.assertRaises(HTTPError) as caught:
-            self.post("/document-translate", {"path": sample["path"], "settings": {
-                      "model": "gpt-6-luna", "quality": "balanced", "language": "auto", "budget_usd": 2}})
+            self.post("/document-translate", {"path": uploaded["path"], "settings": {
+                      "model": "configured", "quality": "fast", "language": "en", "budget_usd": 2}})
         self.assertEqual(caught.exception.code, 400)
+        with self.assertRaises(HTTPError) as caught:
+            self.post("/document-translate", {"path": uploaded["path"], "settings": {
+                      "model": "invented-model", "quality": "fast", "language": "en", "budget_usd": 2}})
+        self.assertEqual(caught.exception.code, 400)
+
+    def test_model_list_is_populated_from_a_supplied_model_config_file_not_hard_coded(self):
+        model_config = {
+            "schema_version": 1,
+            "providers": {"mock": {"type": "mock"}},
+            "models": {"translator": {"provider": "mock", "model": "mock-translation-1",
+                                      "capabilities": {"context_window": 8000, "usable_context_tokens": 6000}}},
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            config_path = Path(temp) / "model_config.json"
+            config_path.write_text(json.dumps(model_config), encoding="utf-8")
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler("test-token", str(config_path)))
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                url = f"http://127.0.0.1:{server.server_port}"
+                request = Request(url + "/document-config", data=json.dumps({}).encode(),
+                                  headers={"Content-Type": "application/json", "X-UI-Token": "test-token",
+                                           "Origin": url}, method="POST")
+                with urlopen(request, timeout=15) as response:
+                    config = json.load(response)
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join()
+        self.assertTrue(config["model_config_available"])
+        self.assertEqual(config["configured_translator_model"], "mock/mock-translation-1")
+        # And with no model-config file supplied at all (the default server in setUp), Auto still works.
+        default_config = self.post("/document-config", {})
+        self.assertFalse(default_config["model_config_available"])
+        self.assertIn("auto", default_config["model_choices"])
+
+    def test_advanced_dashboard_unaffected_by_simple_flow_changes(self):
+        config = self.post("/document-config", {})
+        self.assertIn("profiles", config)
+        self.assertFalse(config["model_config_available"])
+        with tempfile.TemporaryDirectory() as temp:
+            output = str(Path(temp) / "demo")
+            response = self.post("/run", {"command": "demo", "values": {}, "output": output})
+            self.assertEqual(response["code"], 0)
+            self.assertTrue((Path(output) / "document.json").is_file())
 
 
 if __name__ == "__main__":
