@@ -1,12 +1,44 @@
 # Current state
-Updated: 2026-10-04T17:46:34.2724439Z
+Updated: 2026-10-04T18:31:00Z
 
-Session C optional review/evaluation remains accepted. Session E PROVIDER-MODEL is implemented, integrated and normally pushed in feature commit `a705e0a51ad8bb3b19ed9644cf7b0c69a7934631`; post-push fetch verified HEAD=origin/main and a clean tree before this receipt. Contract: `audit/contracts/provider_model_selection.md`. This receipt's own hash is verified after its commit rather than embedded.
+Phase: validate/integrate completed A/B/C/E under the user-authorized integration
+run. Latest integrated main/origin commit: `633c33d`. Authoritative remaining
+stage prompts: `audit/claude_integration_conductor.md` (user-supplied file,
+preserved verbatim). All listed policies read in requested order.
 
-Session E adds versioned secret-free JSON for arbitrary model IDs and per-model capability metadata across translator, semantic reviewer, chapter QA, candidate evaluator and optional context-state roles. OpenAI, Anthropic, DeepSeek and named OpenAI-compatible adapters share the provider-neutral result boundary. Translation and Gate-8 semantic-review CLI resolve roles with exact cache/provenance identity; Session C unit review, candidate comparison and chapter QA resolve their matching roles and record provider/model/capabilities. Missing credentials/SDK/endpoint fail clearly with no fallback; legacy mock/OpenAI commands remain supported.
+C (`fd5c852`, receipt `4bf8482`) and E (`a705e0a`, receipt `633c33d`) are already
+ancestors of main. Their worktrees `run-it-fcad978d` and `run-it-472aaedb` are
+clean. Main baseline: 412 tests pass in 27.183s, zero live provider calls.
 
-Evidence: PM-E-C1 connection-refused before model execution (180.237s, zero tokens/cost/product changes); no retry. PM-E-A1/A2/A3 record Sol implementation and upstream integration. Focused 158 tests pass; full 412 pass in 24.463s with one established skip. No live runtime provider call. Earlier 378-test result is superseded for final combined acceptance.
+A: clean `agents/run-it`, worktree sibling `scholarly-translation.worktrees/run-it`,
+feature `8bc29b2`, receipt `d7b6723`, base `36fbbf0`, unmerged. Logical structure
+schema 2, source links, bounded units, legacy reader, direct-consumer tests.
+B: clean `agents/run-it-de649c23`, corresponding sibling worktree, feature
+`64f7ca6`, receipts `fcf0ca7`/`7b43494`, base `36fbbf0`, unmerged. Versioned
+scholarly/literary prompts, layered caller inputs and cache/provenance.
+B fresh validation: 375 tests pass, one skip, 29.246s. A fresh validation: 375 tests pass, one skip, 31.290s. Historical acceptance reports remain on their branches.
 
-Limitations remain: dated OpenAI prices are the only verified runtime rate table. Other providers preserve token usage but report price `not_metered`, retain the reservation, stop additional calls and do not cache until verified pricing exists. Compact PDF/EPUB browser draft remains explicitly OpenAI-only; low-level endpoint/credential configuration stays out of the upload screen.
+Overlap: A/B/C/E append shared audit histories and replace current state;
+preserve all appended events during sequential merges. A/B both update
+ARCHITECTURE and translation fixtures; B/E overlap translation.py and CLI.
+Resolve routine combined behavior, retaining E role metadata and B profiles.
+A units remain page-bound; D owns broader semantic/context composition.
 
-Gate 10 remains BLOCKED human quality: genuine expert-approved source/Hebrew references, blind labels and representative measured comparison are required. No model winner, scholarly approval or release-quality claim.
+Continuity bootstrap `CLAUDE.md` and `scripts/handoff_to_claude.ps1` prepared.
+PowerShell parser and `-ValidateOnly` passed; no second conductor launched.
+Helper uses Claude native `--bg` for a separate resumable session, Sonnet and
+auto permission checks (no bypass). Claude 2.1.268 available/authenticated.
+
+Running delegated tasks: none launched by this conductor. Existing four stage
+worktrees preserved. Runtime Python:
+`C:/Users/pc2/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`.
+`python` is absent from sandbox PATH; worktree CLI tests need filesystem access
+beyond current root. Fetch succeeded; HEAD/origin comparison `0 0`.
+
+Quota/actual subscription charges: unknown. New external model invocations: 0.
+Gate 10 remains BLOCKED on genuine expert quality evidence; no release/model
+winner/source approval implied. No paid runtime calls authorized here.
+
+Exact next action: commit reviewed continuity
+bootstrap/audit files, then merge `agents/run-it` into main with audit additions
+preserved and run the combined full offline suite before acceptance/push.
