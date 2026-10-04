@@ -310,6 +310,83 @@ Status is one of `not_triggered`, `needs_human`, `corrected_unapproved`,
 the fake critic/corrector establish software behavior only, never reviewer
 accuracy or scholarly quality.
 
+## Session C: optional semantic review, candidate comparison and chapter QA
+
+`review_qa.py` is a lightweight, provider-neutral review/evaluation layer over
+already selected source/context and already produced Hebrew. It is independent
+of `segmentation.py`, context selection, Gate-8 correction behavior, provider
+adapters and persistent budget/cache/schema state, and establishes no
+translation quality, model selection or human approval by itself. It faithfully
+renders three versioned runtime prompt assets under `runtime_prompts/`
+(`04_independent_semantic_review.md`, `05_candidate_comparison.md`,
+`06_chapter_level_qa.md`) and calls a minimal injected
+`generate(prompt_text, model)` callable (the same shape as
+`model_adapter.TextGenerationAdapter.generate`); it never calls a paid
+provider itself, makes no network/Git access, and writes no user content; it
+only reads the three bundled prompt assets. The supplied assets remain
+byte-identical; candidate and chapter prompts receive a short
+appended structured-output contract so their free-form `...` sections can be
+validated deterministically and fail closed.
+
+**Unit review** (`build_unit_review_request` / `run_unit_review`) takes a
+source unit text, a Hebrew translation, optional source context and glossary
+decisions, and a `policy` of exactly `off`, `risk_based` or `all`, plus
+caller-supplied `risk_flags` (`translation_notes`, `extraction_or_ocr_risk`,
+`formal_check_failure`, and a free-form `configured_risk_flags` list). `off`
+always skips; `risk_based` skips unless at least one risk flag is set; `all`
+always calls the adapter. These flags are routing evidence only, never a
+semantic verdict. The result is `VERDICT: PASS` with no issues, or `REVISE`
+with one or more `CRITICAL|MAJOR|MINOR` issues, each carrying a source span
+and a translation span that must be a literal grounded substring of the
+supplied source/translation text respectively. A `PASS` with issues, a
+`REVISE` with none, an unparseable response, or an ungrounded span is rejected
+and the record's status becomes `needs_human` rather than fabricating a
+verdict.
+
+**Candidate comparison** (`build_candidate_comparison_request` /
+`run_candidate_comparison`) takes a source unit text and exactly 2 or 3
+anonymously identified candidate translations (`{"A": "...", "B": "..."}`),
+always calling the adapter. The result preserves material differences (each
+tagged `stylistic_only`, `genuine_interpretive_difference` or
+`likely_translation_error`), a per-candidate assessment for every known
+candidate id, and a `best_supported_translation` that must be one of the
+known candidate ids or `NO_CLEAR_WINNER`. An unknown winner id, a missing
+per-candidate assessment, or an unparseable response routes the record to
+`needs_human`.
+
+**Chapter-level QA** (`build_chapter_qa_request` / `run_chapter_qa`) takes a
+fully assembled source chapter and Hebrew chapter, an optional profile and
+glossary decisions, and a `policy` of exactly `off` or `on`. `off` always
+skips without calling the adapter. `on` returns `VERDICT: PASS` or `REVISE`
+with one or more issues, each categorized as `completeness`, `consistency`,
+`continuity` or `hebrew_quality`, carrying a severity and a span that must be
+a literal grounded substring of either the source or Hebrew chapter, and a
+local correction -- never a wholesale retranslation.
+
+All three record types are schema-versioned (`unit-review@1`,
+`candidate-comparison@1`, `chapter-qa@1`), always carry `approved: false`,
+and record hashed input identity, the byte hash/version of the prompt asset,
+provider/model identity and a bounded provenance `call`
+entry (prompt hash, observed model, token usage, estimated cost at the
+Gate-6/7 pricing table, and provider status) whenever the adapter is actually
+invoked; skipped paths carry `call: None` and never invoke the adapter.
+
+```python
+from scholarly_translation.review_qa import build_unit_review_request, run_unit_review
+
+request = build_unit_review_request(
+    source_text, hebrew_translation, policy="risk_based",
+    risk_flags={"formal_check_failure": True},
+)
+review = run_unit_review(request, generate=my_generate_callable)
+```
+
+Limitations: this module treats all inputs as data, never instructions; it
+performs no automatic source repair, translation generation/correction, or
+mandatory review, and makes no real scholarly-quality or human-approval
+claim. Deterministic fakes in `tests/test_review_qa.py` establish parsing and
+routing behavior only, never reviewer accuracy.
+
 ## Gate 7: first source-bound translation draft and formal checks
 
 `translation.py` resolves the smallest scholarly-profile translation job from an existing
