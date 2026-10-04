@@ -95,9 +95,14 @@ abstract every deterministic source operation.
 The pipeline remains scholarly-first, but the generic translation, provider and
 result path must not bake scholarly context or quality rules into its interface.
 A translation profile is the policy selection at the orchestration boundary.
-No profile runtime code exists yet. The first implementation will support only
-profile_id = scholarly; no second profile, registry, plugin framework or
-literary feature is introduced by this decision.
+
+Gate 12 (2026-10-04) supersedes the profile-count decision below: it adds a
+second, explicit `literary` profile_id alongside `scholarly`, each with its
+own versioned, stable style/profile prompt text sourced from
+`scholarly_translation_prompts_v2/runtime/`. It introduces no registry/plugin
+framework, no provider-specific prompt branching and no quality claim; the
+request builder still accepts exactly one closed set of profile IDs and fails
+closed on anything else, with no implicit fallback.
 
 A future profile could resolve a different context-building policy,
 terminology policy, quality/review policy and prompt/config selection while
@@ -168,8 +173,10 @@ term scope/version. Gates 6-7 own the first real translation request/result
 shape. Gates 8-9 own review findings and approval/export details. Gate 10
 measures model/routing quality. Do not freeze those later field sets, provider
 choices, prompt wording, OCR thresholds, Japanese layout heuristics or context
-window sizes before their Gate or real-source experiments. Only scholarly is
-planned for the first implementation; future profile behavior remains deferred.
+window sizes before their Gate or real-source experiments. Scholarly was the
+first implemented profile; Gate 12 adds literary as the second and, as of
+this writing, final planned profile_id (see "Translation profile decision"
+above).
 
 ## User-directed simple document flow (2026-10-04)
 

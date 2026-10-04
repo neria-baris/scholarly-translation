@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 
-from scholarly_translation.__main__ import cmd_translate_unit
+from scholarly_translation.__main__ import cmd_translate_unit, main as cli_main
 from scholarly_translation.formal_checks import run_formal_checks
 from scholarly_translation.glossary import (
     new_store as new_glossary_store, propose_rule, review_rule, validate_glossary,
@@ -173,6 +173,9 @@ class ContextAndCacheKeyTests(unittest.TestCase):
         self.assertNotEqual(key1, compute_cache_key(**dict(base_kwargs, policy_fingerprint="e" * 64)))
         self.assertNotEqual(key1, compute_cache_key(**dict(base_kwargs, provider="openai", model="gpt-6-luna")))
         self.assertNotEqual(key1, compute_cache_key(**dict(base_kwargs, neighbor_fingerprint="f" * 64)))
+        self.assertNotEqual(key1, compute_cache_key(**dict(base_kwargs, profile_id="literary")))
+        self.assertNotEqual(key1, compute_cache_key(**dict(base_kwargs, prompt_version="scholarly-prompts-v2@2")))
+        self.assertNotEqual(key1, compute_cache_key(**dict(base_kwargs, config_version="scholarly-prompts-v2@2")))
 
 
 class BuildTranslationRequestTests(unittest.TestCase):
@@ -516,6 +519,158 @@ class TranslationAdapterBuilderTests(unittest.TestCase):
             build_translation_adapter("mock", "not-a-model")
 
 
+class TranslationProfileTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.structure = _build_structure_for_lines(
+            Path(self.tmp.name),
+            ["The logos is central to the argument.", "Later the logos returns once more."],
+            "en",
+        )
+        self.unit = sorted(self.structure["units"], key=lambda u: u["source_char_start"])[0]
+        self.glossary = new_glossary_store()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_unsupported_literary_profile_still_rejects_unknown_id(self):
+        with self.assertRaises(TranslationRequestError):
+            build_translation_request(
+                self.structure, self.glossary, self.unit["unit_id"], "literary-ish", "mock", "mock-translation-1",
+            )
+
+    def test_scholarly_and_literary_prompts_are_distinct_and_carry_markers(self):
+        scholarly = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+        )
+        literary = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "literary", "mock", "mock-translation-1",
+        )
+        for request, fidelity_word in ((scholarly, "quantifiers"), (literary, "wordplay")):
+            for marker in (
+                "GLOSSARY_AND_APPROVED_DECISIONS:", "LOCAL_STATE:", "SOURCE_CONTEXT:",
+                "<TARGET_UNIT>", "</TARGET_UNIT>", "TRANSLATION:", "TRANSLATION_NOTE:",
+            ):
+                self.assertIn(marker, request.prompt_text)
+            self.assertIn(fidelity_word, request.prompt_text)
+        self.assertNotEqual(scholarly.prompt_text, literary.prompt_text)
+        self.assertNotEqual(scholarly.cache_key, literary.cache_key)
+        self.assertNotEqual(scholarly.prompt_version, literary.prompt_version)
+        self.assertNotEqual(scholarly.config_version, literary.config_version)
+
+    def test_profiles_preserve_runtime_pack_context_and_uncertainty_rules(self):
+        scholarly = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+        )
+        literary = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "literary", "mock", "mock-translation-1",
+        )
+        self.assertIn("The original source", scholarly.prompt_text)
+        self.assertIn("context is authoritative", scholarly.prompt_text)
+        self.assertIn("omitted subjects, objects, and references", scholarly.prompt_text)
+        self.assertIn("best-supported reading", scholarly.prompt_text)
+        self.assertIn("culturally specific expressions", literary.prompt_text)
+        self.assertIn("omitted subjects", literary.prompt_text)
+        self.assertIn("best-supported one", literary.prompt_text)
+
+    def test_target_unit_only_instruction_distinguishes_source_context(self):
+        request = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+        )
+        self.assertIn("Translate only the explicitly marked TARGET_UNIT", request.prompt_text)
+        self.assertIn("SOURCE_CONTEXT", request.prompt_text)
+
+    def test_approved_decisions_appear_only_in_glossary_layer(self):
+        request = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+            approved_decisions=["logos -> לוגוס (approved 2026-09-01)"],
+        )
+        self.assertIn("לוגוס", request.prompt_text)
+        glossary_index = request.prompt_text.index("GLOSSARY_AND_APPROVED_DECISIONS:")
+        state_index = request.prompt_text.index("LOCAL_STATE:")
+        decision_index = request.prompt_text.index("לוגוס")
+        self.assertTrue(glossary_index < decision_index < state_index)
+
+    def test_changing_layered_context_changes_cache_identity_but_is_stable(self):
+        baseline = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+        )
+        same_again = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+        )
+        self.assertEqual(baseline.cache_key, same_again.cache_key)
+
+        with_decisions = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+            approved_decisions=["logos stays transliterated"],
+        )
+        with_state = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+            local_state="Speaker: narrator.",
+        )
+        with_context = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+            source_context="Earlier the author introduced the term.",
+        )
+        self.assertNotEqual(baseline.cache_key, with_decisions.cache_key)
+        self.assertNotEqual(baseline.cache_key, with_state.cache_key)
+        self.assertNotEqual(baseline.cache_key, with_context.cache_key)
+
+    def test_oversized_local_state_fails_closed(self):
+        with self.assertRaises(TranslationRequestError):
+            build_translation_request(
+                self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+                local_state="x" * 100000,
+            )
+
+    def test_malformed_approved_decisions_fail_closed(self):
+        with self.assertRaises(TranslationRequestError):
+            build_translation_request(
+                self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+                approved_decisions="not-a-list",
+            )
+
+    def test_structured_completed_result_exposes_translation_text_and_null_note(self):
+        request = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "literary", "openai", "gpt-6-luna",
+        )
+        response = SimpleNamespace(
+            status="completed",
+            output_text="TRANSLATION:\nהלוגוס מרכזי.\nTRANSLATION_NOTE:\nnull",
+            usage=make_usage(),
+        )
+        adapter = OpenAITextGenerationAdapter(client=FakeClient(response=response))
+        draft = run_translation(request, adapter=adapter)
+        self.assertEqual(draft["draft_text"], "הלוגוס מרכזי.")
+        self.assertIsNone(draft["translation_note"])
+        self.assertFalse(draft["approved"])
+
+    def test_structured_result_with_brief_uncertainty_note(self):
+        request = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "openai", "gpt-6-luna",
+        )
+        response = SimpleNamespace(
+            status="completed",
+            output_text=(
+                "TRANSLATION:\nהלוגוס מרכזי בטיעון.\n"
+                "TRANSLATION_NOTE:\nscope of the modal is ambiguous in source"
+            ),
+            usage=make_usage(),
+        )
+        adapter = OpenAITextGenerationAdapter(client=FakeClient(response=response))
+        draft = run_translation(request, adapter=adapter)
+        self.assertEqual(draft["translation_note"], "scope of the modal is ambiguous in source")
+        self.assertFalse(draft["approved"])
+
+    def test_legacy_unstructured_mock_output_keeps_null_note(self):
+        request = build_translation_request(
+            self.structure, self.glossary, self.unit["unit_id"], "scholarly", "mock", "mock-translation-1",
+        )
+        draft = run_translation(request)
+        self.assertIsNone(draft["translation_note"])
+        self.assertFalse(draft["approved"])
+
+
 class TranslateUnitCLITests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -544,6 +699,21 @@ class TranslateUnitCLITests(unittest.TestCase):
         data = json.loads(draft_path.read_text(encoding="utf-8"))
         self.assertEqual(data["status"], "mock_placeholder")
         self.assertFalse(data["approved"])
+
+    def test_public_cli_accepts_literary_profile(self):
+        out_dir = Path(self.tmp.name) / "literary-out"
+        with unittest.mock.patch(
+            "scholarly_translation.__main__.cmd_translate_unit", return_value=0,
+        ) as translate:
+            rc = cli_main([
+                "translate-unit", str(self.structure_path),
+                "--glossary", str(self.glossary_path),
+                "--unit-id", self.unit["unit_id"],
+                "--profile", "literary", "--provider", "mock",
+                "--output", str(out_dir),
+            ])
+        self.assertEqual(rc, 0)
+        self.assertEqual(translate.call_args.args[3], "literary")
 
     def test_refuses_to_overwrite_existing_draft(self):
         out_dir = Path(self.tmp.name) / "out"
