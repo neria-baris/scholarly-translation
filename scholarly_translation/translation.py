@@ -18,8 +18,6 @@ from datetime import datetime, timezone
 from .formal_checks import run_formal_checks
 from .glossary import GlossaryError, effective_fingerprint, resolve_applicable, validate_glossary
 from .model_adapter import (
-    TRANSLATION_SUPPORTED_MODELS,
-    TRANSLATION_SUPPORTED_PROVIDERS,
     OPENAI_MAX_OUTPUT_TOKENS,
     PRICING_VERSION,
     RATES_PER_MILLION,
@@ -27,6 +25,7 @@ from .model_adapter import (
     build_translation_adapter,
     compute_estimate,
 )
+from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
 from .segmentation import validate_structure
 from .source_reading import StructureError, fingerprint, text_hash
 
@@ -201,12 +200,20 @@ class TranslationRequest:
     policy_fingerprint: str
     prompt_text: str
     cache_key: str
+    provider_definition: ProviderDefinition | None = None
+    capabilities: ModelCapabilities | None = None
 
     def to_metadata_dict(self) -> dict:
         return {
             "profile_id": self.profile_id,
             "provider": self.provider,
             "model": self.model,
+            "provider_type": (
+                self.provider_definition.provider_type if self.provider_definition else self.provider
+            ),
+            "provider_definition": (
+                self.provider_definition.to_dict() if self.provider_definition else None
+            ),
             "source_language": self.source_language,
             "target_language": self.target_language,
             "source_uri": self.structure["source_uri"],
@@ -233,10 +240,12 @@ class TranslationRequest:
             "config_version": CONFIG_VERSION,
             "prompt_hash": text_hash(self.prompt_text),
             "cache_key": self.cache_key,
+            "model_capabilities": self.capabilities.to_dict() if self.capabilities else None,
         }
 
 
-def build_translation_request(structure, glossary, unit_id, profile_id, provider, model) -> TranslationRequest:
+def build_translation_request(structure, glossary, unit_id, profile_id, provider, model,
+                              provider_definition=None, capabilities=None) -> TranslationRequest:
     """Validate and resolve a translation job before any network call.
 
     Refuses unresolved readings, continuity findings, a missing unit,
@@ -251,9 +260,19 @@ def build_translation_request(structure, glossary, unit_id, profile_id, provider
     except (StructureError, GlossaryError):
         raise TranslationRequestError("invalid source or glossary for translation") from None
     _require(not structure["continuity"], "structure has unresolved continuity findings")
-    _require(provider in TRANSLATION_SUPPORTED_PROVIDERS, "unsupported provider")
-    allowed_models = TRANSLATION_SUPPORTED_MODELS[provider]
-    _require(model in allowed_models, "unsupported model for provider")
+    _require(isinstance(provider, str) and bool(provider.strip()), "unsupported provider")
+    _require(isinstance(model, str) and bool(model.strip()), "unsupported model for provider")
+    if provider == "mock":
+        _require(model == "mock-translation-1", "unsupported model for mock provider")
+    elif provider_definition is None:
+        _require(provider in {"openai", "anthropic", "deepseek"},
+                 "custom provider requires an explicit provider definition")
+    else:
+        _require(isinstance(provider_definition, ProviderDefinition)
+                 and provider_definition.provider_id == provider,
+                 "provider definition does not match selected provider")
+    _require(capabilities is None or isinstance(capabilities, ModelCapabilities),
+             "invalid model capability metadata")
 
     unit = next((u for u in structure["units"] if u["unit_id"] == unit_id), None)
     _require(unit is not None, "unknown or missing unit for translation job")
@@ -282,7 +301,12 @@ def build_translation_request(structure, glossary, unit_id, profile_id, provider
         source_char_start=unit["source_char_start"], source_char_end=unit["source_char_end"],
         unit_text_hash=text_hash(unit["text"]), neighbor_fingerprint=fingerprint(context_segments),
         policy_fingerprint=policy_fingerprint, provider=provider, model=model,
-        prompt_version=PROMPT_VERSION, config_version=CONFIG_VERSION, decoding_params=DECODING_PARAMS,
+        prompt_version=PROMPT_VERSION, config_version=CONFIG_VERSION,
+        decoding_params={
+            **DECODING_PARAMS,
+            "provider_definition": provider_definition.to_dict() if provider_definition else None,
+            "capabilities": capabilities.to_dict() if capabilities else None,
+        },
     )
 
     return TranslationRequest(
@@ -292,6 +316,20 @@ def build_translation_request(structure, glossary, unit_id, profile_id, provider
         applicable_rules=applicable_rules, proposed_loaded_rules=proposed_loaded_rules,
         policy_fingerprint=policy_fingerprint,
         prompt_text=prompt_text, cache_key=cache_key,
+        provider_definition=provider_definition, capabilities=capabilities,
+    )
+
+
+def build_translation_request_for_role(structure, glossary, unit_id, profile_id,
+                                       configuration: ModelConfiguration,
+                                       role="translator") -> TranslationRequest:
+    """Resolve an explicit role selection before constructing the core request."""
+    if not isinstance(configuration, ModelConfiguration):
+        raise TranslationRequestError("configuration must be a validated ModelConfiguration")
+    selection, definition = configuration.resolve(role)
+    return build_translation_request(
+        structure, glossary, unit_id, profile_id, selection.provider, selection.model,
+        provider_definition=definition, capabilities=selection.capabilities,
     )
 
 
@@ -311,13 +349,20 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
     canonical = build_translation_request(
         request.structure, request.glossary_store, request.unit["unit_id"],
         request.profile_id, request.provider, request.model,
+        request.provider_definition, request.capabilities,
     )
     _require(request == canonical, "translation request changed after source/policy resolution")
 
     notices = []
     cache_hit = False
+    live_provider = request.provider != "mock"
+    provider_type = request.provider_definition.provider_type if request.provider_definition else request.provider
+    priced_provider = provider_type == "openai"
     if cache is not None:
-        adapter = adapter or build_translation_adapter(request.provider, request.model)
+        adapter = adapter or build_translation_adapter(
+            request.provider, request.model, provider_definition=request.provider_definition,
+            max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+        )
         result, cache_hit, control_notices = cache.execute(
             request.cache_key, request.prompt_text, request.model, adapter.generate,
             stage="translate", metadata=request.to_metadata_dict(), budget=budget,
@@ -326,8 +371,11 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
         duration = result.duration_seconds
     else:
         if adapter is None:
-            adapter = build_translation_adapter(request.provider, request.model)
-        if request.provider == "openai":
+            adapter = build_translation_adapter(
+                request.provider, request.model, provider_definition=request.provider_definition,
+                max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+            )
+        if live_provider:
             budget = budget or TranslationBudget(max_calls=1)
             notices.extend(budget.reserve(request.prompt_text))
 
@@ -335,15 +383,19 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
         try:
             result = adapter.generate(request.prompt_text, request.model)
         except OpenAIConfigurationError:
-            if request.provider == "openai":
+            if live_provider:
                 budget.release_unstarted()
             raise
         duration = getattr(result, "duration_seconds", time.monotonic() - start)
 
     token_usage = result.token_usage
-    estimate = compute_estimate(token_usage)
-    if request.provider == "openai" and cache is None:
-        notices.extend(budget.record(token_usage))
+    estimate = compute_estimate(token_usage) if priced_provider else "not_metered"
+    if live_provider and cache is None:
+        if priced_provider:
+            notices.extend(budget.record(token_usage))
+        else:
+            budget.stopped = True
+            notices.append("pricing_not_configured_stop")
     draft_text = result.text if result.status in ("completed", "mock_placeholder") else None
 
     findings = run_formal_checks(request.unit["text"], draft_text, request.source_language)
@@ -355,9 +407,15 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
             "source_char_start": start_offset, "source_char_end": start_offset + len(term),
             "target_evidence": None, "severity": "needs_human",
         })
-    if request.provider == "openai" and estimate == "not_metered":
+    if priced_provider and estimate == "not_metered":
         findings.append({
             "type": "usage_not_metered", "source_token": None,
+            "source_char_start": None, "source_char_end": None,
+            "target_evidence": None, "severity": "needs_human",
+        })
+    elif live_provider and not priced_provider:
+        findings.append({
+            "type": "pricing_not_configured", "source_token": None,
             "source_char_start": None, "source_char_end": None,
             "target_evidence": None, "severity": "needs_human",
         })
@@ -371,6 +429,7 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
         "schema_version": SCHEMA_VERSION,
         "stage": STAGE,
         "observed_model": result.observed_model,
+        "observed_provider": result.observed_provider or request.provider,
         "status": status,
         "draft_text": draft_text,
         "token_usage": token_usage,
@@ -378,7 +437,7 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
         "estimated_cost_usd": estimate,
         "budget_notices": notices,
         "actual_charge": "not_metered" if cache_hit else (
-            "unknown" if request.provider == "openai" else "not_metered"
+            "unknown" if live_provider else "not_metered"
         ),
         "duration_seconds": duration,
         "timestamp": datetime.now(timezone.utc).isoformat(),

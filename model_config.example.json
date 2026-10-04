@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "providers": {
+    "openai": {"type": "openai", "credential_env": "OPENAI_API_KEY"},
+    "anthropic": {"type": "anthropic", "credential_env": "ANTHROPIC_API_KEY"},
+    "deepseek": {"type": "deepseek", "credential_env": "DEEPSEEK_API_KEY", "base_url": "https://api.deepseek.com"},
+    "my_compatible_service": {"type": "openai_compatible", "credential_env": "MY_COMPATIBLE_API_KEY", "base_url": "https://models.example.invalid/v1"}
+  },
+  "models": {
+    "translator": {
+      "provider": "anthropic", "model": "replace-with-translator-model-id",
+      "capabilities": {"context_window": 200000, "usable_context_tokens": 160000, "max_output_tokens": 8192, "structured_output": false}
+    },
+    "semantic_reviewer": {
+      "provider": "openai", "model": "replace-with-reviewer-model-id",
+      "capabilities": {"context_window": 128000, "usable_context_tokens": 100000, "max_output_tokens": 4096, "structured_output": true}
+    },
+    "chapter_qa": {
+      "provider": "deepseek", "model": "replace-with-chapter-qa-model-id",
+      "capabilities": {"context_window": 64000, "usable_context_tokens": 48000, "max_output_tokens": 4096, "structured_output": true}
+    },
+    "candidate_evaluator": {
+      "provider": "my_compatible_service", "model": "replace-with-evaluator-model-id",
+      "capabilities": {"context_window": 32000, "usable_context_tokens": 24000, "max_output_tokens": 2048, "structured_output": false}
+    },
+    "context_state_builder": {
+      "provider": "openai", "model": "replace-with-context-model-id",
+      "capabilities": {"context_window": 128000, "usable_context_tokens": 100000, "max_output_tokens": 4096, "structured_output": true}
+    }
+  }
+}

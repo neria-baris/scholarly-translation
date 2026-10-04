@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
+from .model_config import ModelConfigError, ProviderDefinition
+
 SUPPORTED_PROVIDERS = {"mock", "openai"}
 SUPPORTED_MODELS = {
     "mock": {"mock-diagnostic-1"},
@@ -387,11 +389,11 @@ def build_adapter(provider: str, model: str, client=None) -> DiagnosticAdapter:
 # adapter contains no scholarly/profile branching and makes no decision about
 # approval, caching or terminology.
 
-TRANSLATION_SUPPORTED_PROVIDERS = {"mock", "openai"}
-TRANSLATION_SUPPORTED_MODELS = {
-    "mock": {"mock-translation-1"},
-    "openai": {"gpt-6-luna"},
-}
+TRANSLATION_SUPPORTED_PROVIDERS = {"mock", "openai", "anthropic", "deepseek", "openai_compatible"}
+# Kept for compatibility with callers that display the offline fixture. Live
+# model identifiers are deliberately not allowlisted here; they come from
+# ModelConfiguration.
+TRANSLATION_SUPPORTED_MODELS = {"mock": {"mock-translation-1"}}
 MOCK_TRANSLATION_PLACEHOLDER_PREFIX = "[GATE7-MOCK-PLACEHOLDER-NON-HEBREW]"
 
 
@@ -405,6 +407,7 @@ class TextGenerationResult:
     observed_model: Optional[str]
     duration_seconds: float
     error: Optional[str] = None
+    observed_provider: Optional[str] = None
 
 
 class TextGenerationAdapter:
@@ -438,32 +441,34 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
     environment variable is found; its value is never stored or logged.
     """
 
-    def __init__(self, client=None) -> None:
+    def __init__(self, client=None, provider_definition=None, max_output_tokens=None) -> None:
         self._client = client
+        self._provider = provider_definition or ProviderDefinition(
+            "openai", "openai", "OPENAI_API_KEY", None,
+        )
+        self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
 
     def _build_client(self):
         import os
 
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise OpenAIConfigurationError(
-                "OPENAI_API_KEY is not set in the environment; configure it before calling openai"
-            )
+        try:
+            api_key = self._provider.require_credential(os.environ)
+        except ModelConfigError as exc:
+            raise OpenAIConfigurationError(str(exc)) from None
         try:
             import openai
         except ImportError:
             raise OpenAIConfigurationError(
                 "openai SDK is not installed; install it before calling openai"
             ) from None
-        return openai.OpenAI(
-            api_key=api_key,
-            max_retries=OPENAI_MAX_RETRIES,
-            timeout=OPENAI_TIMEOUT_SECONDS,
-        )
+        kwargs = dict(api_key=api_key, max_retries=OPENAI_MAX_RETRIES, timeout=OPENAI_TIMEOUT_SECONDS)
+        if self._provider.base_url:
+            kwargs["base_url"] = self._provider.base_url
+        return openai.OpenAI(**kwargs)
 
     def generate(self, prompt_text: str, model: str) -> TextGenerationResult:
-        if model != "gpt-6-luna":
-            raise RequestValidationError("openai adapter requires gpt-6-luna")
+        if not isinstance(model, str) or not model.strip():
+            raise RequestValidationError("model must be a nonempty configured identifier")
         client = self._client
         if client is None:
             client = self._build_client()
@@ -476,14 +481,15 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
                 store=False,
                 tools=[],
                 reasoning={"effort": "none"},
-                max_output_tokens=OPENAI_MAX_OUTPUT_TOKENS,
+                max_output_tokens=self._max_output_tokens,
             )
         except Exception:
             duration = time.monotonic() - start
             return TextGenerationResult(
                 status="failed_transport", text=None, token_usage="not_metered",
                 observed_model=None, duration_seconds=duration,
-                error="openai request failed (transport or timeout)",
+                error=f"{self._provider.provider_id} request failed (transport or timeout)",
+                observed_provider=self._provider.provider_id,
             )
         duration = time.monotonic() - start
 
@@ -496,22 +502,181 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
                 status="failed_empty_response", text=None, token_usage=usage,
                 observed_model=observed_model, duration_seconds=duration,
                 error="model response was incomplete or empty",
+                observed_provider=self._provider.provider_id,
             )
         return TextGenerationResult(
             status="completed", text=text, token_usage=usage,
             observed_model=observed_model, duration_seconds=duration,
+            observed_provider=self._provider.provider_id,
         )
 
 
-def build_translation_adapter(provider: str, model: str, client=None) -> TextGenerationAdapter:
-    """Build the text-generation adapter for a supported provider/model."""
-    if provider not in TRANSLATION_SUPPORTED_PROVIDERS:
-        raise RequestValidationError(f"provider is not supported; allowed: {sorted(TRANSLATION_SUPPORTED_PROVIDERS)}")
-    allowed_models = TRANSLATION_SUPPORTED_MODELS[provider]
-    if model not in allowed_models:
-        raise RequestValidationError(f"model is not supported for provider; allowed: {sorted(allowed_models)}")
+def _anthropic_text(response):
+    content = getattr(response, "content", None)
+    if not isinstance(content, (list, tuple)):
+        return None
+    parts = [getattr(item, "text", None) for item in content]
+    text = "".join(part for part in parts if isinstance(part, str))
+    return text if text.strip() else None
+
+
+def _anthropic_usage(response):
+    usage = getattr(response, "usage", None)
+    input_tokens = getattr(usage, "input_tokens", None)
+    output_tokens = getattr(usage, "output_tokens", None)
+    if type(input_tokens) is not int or type(output_tokens) is not int or input_tokens < 0 or output_tokens < 0:
+        return "not_metered"
+    return {"input": input_tokens, "output": output_tokens}
+
+
+class AnthropicTextGenerationAdapter(TextGenerationAdapter):
+    """Anthropic Messages adapter behind the shared result boundary."""
+
+    def __init__(self, client=None, provider_definition=None, max_output_tokens=None):
+        self._client = client
+        self._provider = provider_definition or ProviderDefinition(
+            "anthropic", "anthropic", "ANTHROPIC_API_KEY", None,
+        )
+        self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
+
+    def _build_client(self):
+        import os
+        try:
+            api_key = self._provider.require_credential(os.environ)
+        except ModelConfigError as exc:
+            raise OpenAIConfigurationError(str(exc)) from None
+        try:
+            import anthropic
+        except ImportError:
+            raise OpenAIConfigurationError(
+                "anthropic SDK is not installed; install it before calling anthropic"
+            ) from None
+        kwargs = {"api_key": api_key, "max_retries": 0, "timeout": OPENAI_TIMEOUT_SECONDS}
+        if self._provider.base_url:
+            kwargs["base_url"] = self._provider.base_url
+        return anthropic.Anthropic(**kwargs)
+
+    def generate(self, prompt_text, model):
+        if not isinstance(model, str) or not model.strip():
+            raise RequestValidationError("model must be a nonempty configured identifier")
+        client = self._client or self._build_client()
+        start = time.monotonic()
+        try:
+            response = client.messages.create(
+                model=model, max_tokens=self._max_output_tokens,
+                messages=[{"role": "user", "content": prompt_text}],
+            )
+        except Exception:
+            return TextGenerationResult(
+                "failed_transport", None, "not_metered", None,
+                time.monotonic() - start,
+                f"{self._provider.provider_id} request failed (transport or timeout)",
+                self._provider.provider_id,
+            )
+        duration = time.monotonic() - start
+        text, usage = _anthropic_text(response), _anthropic_usage(response)
+        observed = getattr(response, "model", None)
+        observed = observed if isinstance(observed, str) else None
+        if not text:
+            return TextGenerationResult("failed_empty_response", None, usage, observed, duration,
+                                        "model response was incomplete or empty", self._provider.provider_id)
+        return TextGenerationResult("completed", text, usage, observed, duration,
+                                    observed_provider=self._provider.provider_id)
+
+
+def _chat_text(response):
+    choices = getattr(response, "choices", None)
+    if not isinstance(choices, (list, tuple)) or not choices:
+        return None
+    text = getattr(getattr(choices[0], "message", None), "content", None)
+    return text if isinstance(text, str) and text.strip() else None
+
+
+def _chat_usage(response):
+    usage = getattr(response, "usage", None)
+    input_tokens = getattr(usage, "prompt_tokens", None)
+    output_tokens = getattr(usage, "completion_tokens", None)
+    if type(input_tokens) is not int or type(output_tokens) is not int or input_tokens < 0 or output_tokens < 0:
+        return "not_metered"
+    return {"input": input_tokens, "output": output_tokens}
+
+
+class OpenAICompatibleTextGenerationAdapter(TextGenerationAdapter):
+    """DeepSeek and explicitly configured OpenAI-compatible chat endpoints."""
+
+    def __init__(self, client=None, provider_definition=None, max_output_tokens=None):
+        self._client = client
+        self._provider = provider_definition
+        self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
+
+    def _build_client(self):
+        import os
+        try:
+            api_key = self._provider.require_credential(os.environ)
+        except ModelConfigError as exc:
+            raise OpenAIConfigurationError(str(exc)) from None
+        try:
+            import openai
+        except ImportError:
+            raise OpenAIConfigurationError(
+                "openai SDK is not installed; install it for compatible-provider calls"
+            ) from None
+        return openai.OpenAI(api_key=api_key, base_url=self._provider.base_url,
+                             max_retries=0, timeout=OPENAI_TIMEOUT_SECONDS)
+
+    def generate(self, prompt_text, model):
+        if not isinstance(model, str) or not model.strip():
+            raise RequestValidationError("model must be a nonempty configured identifier")
+        client = self._client or self._build_client()
+        start = time.monotonic()
+        try:
+            response = client.chat.completions.create(
+                model=model, messages=[{"role": "user", "content": prompt_text}],
+                max_tokens=self._max_output_tokens,
+            )
+        except Exception:
+            return TextGenerationResult(
+                "failed_transport", None, "not_metered", None,
+                time.monotonic() - start,
+                f"{self._provider.provider_id} request failed (transport or timeout)",
+                self._provider.provider_id,
+            )
+        duration = time.monotonic() - start
+        text, usage = _chat_text(response), _chat_usage(response)
+        observed = getattr(response, "model", None)
+        observed = observed if isinstance(observed, str) else None
+        if not text:
+            return TextGenerationResult("failed_empty_response", None, usage, observed, duration,
+                                        "model response was incomplete or empty", self._provider.provider_id)
+        return TextGenerationResult("completed", text, usage, observed, duration,
+                                    observed_provider=self._provider.provider_id)
+
+
+def _default_provider(provider):
+    defaults = {
+        "openai": ProviderDefinition("openai", "openai", "OPENAI_API_KEY"),
+        "anthropic": ProviderDefinition("anthropic", "anthropic", "ANTHROPIC_API_KEY"),
+        "deepseek": ProviderDefinition("deepseek", "deepseek", "DEEPSEEK_API_KEY", "https://api.deepseek.com"),
+    }
+    return defaults.get(provider)
+
+
+def build_translation_adapter(provider: str, model: str, client=None,
+                              provider_definition=None, max_output_tokens=None) -> TextGenerationAdapter:
+    """Build exactly the configured adapter; never substitutes a fallback."""
+    if not isinstance(model, str) or not model.strip():
+        raise RequestValidationError("model must be a nonempty configured identifier")
+    definition = provider_definition or _default_provider(provider)
     if provider == "mock":
+        if model != "mock-translation-1":
+            raise RequestValidationError("mock adapter requires mock-translation-1")
         return MockTextGenerationAdapter()
-    if provider == "openai":
-        return OpenAITextGenerationAdapter(client=client)
-    raise RequestValidationError("provider is not supported")
+    if definition is None or definition.provider_id != provider:
+        raise RequestValidationError("provider is not configured; no fallback is available")
+    if definition.provider_type == "openai":
+        return OpenAITextGenerationAdapter(client, definition, max_output_tokens)
+    if definition.provider_type == "anthropic":
+        return AnthropicTextGenerationAdapter(client, definition, max_output_tokens)
+    if definition.provider_type in {"deepseek", "openai_compatible"}:
+        return OpenAICompatibleTextGenerationAdapter(client, definition, max_output_tokens)
+    raise RequestValidationError("provider type is not supported")

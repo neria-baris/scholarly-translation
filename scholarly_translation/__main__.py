@@ -616,13 +616,18 @@ def _open_runtime_controls(
 def cmd_translate_unit(
     structure_path: str, glossary_path: str, unit_id: str, profile: str, provider: str, output_dir: str,
     control_store: str = None, task_id: str = None, max_calls: int = 3, hard_list_usd: float = 0.01,
+    model_config_path: str = None,
 ) -> int:
     from .glossary import GlossaryError, validate_glossary
     from .model_adapter import OpenAIConfigurationError, RequestValidationError
     from .runtime_controls import RuntimeControlsError
     from .segmentation import validate_structure
     from .source_reading import StructureError
-    from .translation import TranslationRequestError, build_translation_request, run_translation
+    from .translation import (
+        TranslationRequestError, build_translation_request,
+        build_translation_request_for_role, run_translation,
+    )
+    from .model_config import ModelConfigError, load_model_configuration
 
     try:
         structure = _load_structure_json(structure_path)
@@ -638,17 +643,26 @@ def cmd_translate_unit(
         print(f"Invalid glossary: {exc}", file=sys.stderr)
         return 1
 
-    if provider not in TRANSLATE_MODELS:
-        print(f"Unsupported provider; allowed: {sorted(TRANSLATE_MODELS)}", file=sys.stderr)
-        return 1
-
     try:
-        request = build_translation_request(
-            structure, glossary, unit_id, profile, provider, TRANSLATE_MODELS[provider],
-        )
-    except (TranslationRequestError, RequestValidationError) as exc:
+        if model_config_path:
+            if provider is not None:
+                raise TranslationRequestError("use either --model-config or --provider, not both")
+            configuration = load_model_configuration(model_config_path)
+            request = build_translation_request_for_role(
+                structure, glossary, unit_id, profile, configuration, "translator",
+            )
+        else:
+            if provider not in TRANSLATE_MODELS:
+                raise TranslationRequestError(
+                    f"unsupported provider; allowed legacy providers: {sorted(TRANSLATE_MODELS)}"
+                )
+            request = build_translation_request(
+                structure, glossary, unit_id, profile, provider, TRANSLATE_MODELS[provider],
+            )
+    except (TranslationRequestError, RequestValidationError, ModelConfigError) as exc:
         print(f"Translation request refused: {exc}", file=sys.stderr)
         return 1
+    provider, model = request.provider, request.model
 
     out_path = Path(output_dir)
     package_dir = Path(__file__).resolve().parent
@@ -661,6 +675,8 @@ def cmd_translate_unit(
     from urllib.parse import urlparse
     from urllib.request import url2pathname
     protected = [Path(structure_path).resolve(), Path(glossary_path).resolve()]
+    if model_config_path:
+        protected.append(Path(model_config_path).resolve())
     uris = [structure["source_uri"]] + [
         c["image"]["uri"] for r in structure["readings"] for c in r["alternatives"] if c["image"] is not None
     ]
@@ -680,17 +696,18 @@ def cmd_translate_unit(
         print(f"Refusing to overwrite existing translation draft: {draft_path}", file=sys.stderr)
         return 1
 
-    print(f"Translating unit={unit_id} profile={profile} provider={provider} model={TRANSLATE_MODELS[provider]}")
-    if provider == "openai":
+    print(f"Translating unit={unit_id} profile={profile} provider={provider} model={model}")
+    if provider != "mock":
         print(
-            "Cost notice: at most one live call, list-price estimate below $0.01, "
-            "actual charge is reported as unknown; no automatic retries."
+            "Cost notice: at most one live call and no automatic retries. "
+            "The local cap is a reservation, not an account billing limit; provider-specific "
+            "pricing is reported only when configured rates apply, and actual charge is unknown."
         )
 
     try:
         store, budget, cache = _open_runtime_controls(
             control_store, task_id, max_calls, hard_list_usd, stage="translate",
-            provider=provider, model=TRANSLATE_MODELS[provider],
+            provider=provider, model=model,
             document_id=structure["document_id"], unit_id=unit_id,
             protected_paths=protected,
         )
@@ -701,7 +718,7 @@ def cmd_translate_unit(
     try:
         draft = run_translation(request, budget=budget, cache=cache)
     except OpenAIConfigurationError as exc:
-        print(f"OpenAI translation not configured: {exc}", file=sys.stderr)
+        print(f"Translation provider not configured: {exc}", file=sys.stderr)
         return 1
     except TranslationRequestError as exc:
         print(f"Translation refused: {exc}", file=sys.stderr)
@@ -731,6 +748,7 @@ def cmd_translate_unit(
 def cmd_semantic_review(
     structure_path: str, glossary_path: str, draft_path: str, provider: str, output_dir: str,
     control_store: str = None, task_id: str = None, max_calls: int = 3, hard_list_usd: float = 0.01,
+    model_config_path: str = None,
 ) -> int:
     from .glossary import GlossaryError, validate_glossary
     from .model_adapter import OpenAIConfigurationError
@@ -738,8 +756,10 @@ def cmd_semantic_review(
     from .segmentation import validate_structure
     from .semantic_review import (
         SEMANTIC_REVIEW_MODELS, SemanticReviewRequestError,
-        build_semantic_review_request, run_semantic_review,
+        build_semantic_review_request, build_semantic_review_request_for_role,
+        run_semantic_review,
     )
+    from .model_config import ModelConfigError, load_model_configuration
     from .source_reading import StructureError
 
     try:
@@ -762,15 +782,24 @@ def cmd_semantic_review(
         print(f"Invalid draft: {exc}", file=sys.stderr)
         return 1
 
-    if provider not in SEMANTIC_REVIEW_MODELS:
-        print(f"Unsupported provider; allowed: {sorted(SEMANTIC_REVIEW_MODELS)}", file=sys.stderr)
-        return 1
-
     try:
-        request = build_semantic_review_request(structure, glossary, draft, provider)
-    except SemanticReviewRequestError as exc:
+        if model_config_path:
+            if provider is not None:
+                raise SemanticReviewRequestError("use either --model-config or --provider, not both")
+            configuration = load_model_configuration(model_config_path)
+            request = build_semantic_review_request_for_role(
+                structure, glossary, draft, configuration, "semantic_reviewer",
+            )
+        else:
+            if provider not in SEMANTIC_REVIEW_MODELS:
+                raise SemanticReviewRequestError(
+                    f"unsupported legacy review provider; allowed: {sorted(SEMANTIC_REVIEW_MODELS)}"
+                )
+            request = build_semantic_review_request(structure, glossary, draft, provider)
+    except (SemanticReviewRequestError, ModelConfigError) as exc:
         print(f"Semantic review request refused: {exc}", file=sys.stderr)
         return 1
+    provider, model = request.provider, request.model
 
     out_path = Path(output_dir)
     package_dir = Path(__file__).resolve().parent
@@ -783,6 +812,8 @@ def cmd_semantic_review(
     from urllib.parse import urlparse
     from urllib.request import url2pathname
     protected = [Path(structure_path).resolve(), Path(glossary_path).resolve(), Path(draft_path).resolve()]
+    if model_config_path:
+        protected.append(Path(model_config_path).resolve())
     uris = [structure["source_uri"]] + [
         c["image"]["uri"] for r in structure["readings"] for c in r["alternatives"] if c["image"] is not None
     ]
@@ -802,17 +833,18 @@ def cmd_semantic_review(
         print(f"Refusing to overwrite existing semantic review: {review_path}", file=sys.stderr)
         return 1
 
-    print(f"Reviewing unit={request.unit['unit_id']} provider={provider}")
-    if provider == "openai":
+    print(f"Reviewing unit={request.unit['unit_id']} provider={provider} model={model}")
+    if provider != "mock":
         print(
-            "Cost notice: at most one critic call and at most one correction call, list-price estimate "
-            "below $0.01, actual charge is reported as unknown; no automatic retries."
+            "Cost notice: at most one critic call and one correction call, with no automatic retries. "
+            "The local cap is a reservation, not an account billing limit; provider-specific pricing "
+            "is reported only when configured rates apply, and actual charge is unknown."
         )
 
     try:
         store, budget, cache = _open_runtime_controls(
             control_store, task_id, max_calls, hard_list_usd, stage="semantic_review",
-            provider=provider, model=SEMANTIC_REVIEW_MODELS[provider]["critic"],
+            provider=provider, model=model,
             document_id=request.unit["document_id"], unit_id=request.unit["unit_id"],
             protected_paths=protected,
         )
@@ -823,7 +855,7 @@ def cmd_semantic_review(
     try:
         review = run_semantic_review(request, budget=budget, cache=cache)
     except OpenAIConfigurationError as exc:
-        print(f"OpenAI semantic review not configured: {exc}", file=sys.stderr)
+        print(f"Semantic-review provider not configured: {exc}", file=sys.stderr)
         return 1
     except SemanticReviewRequestError as exc:
         print(f"Semantic review refused: {exc}", file=sys.stderr)
@@ -1202,7 +1234,9 @@ def main(argv=None) -> int:
     translate_unit_parser.add_argument("--glossary", required=True)
     translate_unit_parser.add_argument("--unit-id", required=True)
     translate_unit_parser.add_argument("--profile", required=True, choices=["scholarly"])
-    translate_unit_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
+    translate_unit_parser.add_argument("--provider", choices=["mock", "openai"])
+    translate_unit_parser.add_argument("--model-config", default=None,
+                                       help="Role-based model configuration JSON; resolves translator")
     translate_unit_parser.add_argument("--output", required=True)
     translate_unit_parser.add_argument("--control-store", default=None)
     translate_unit_parser.add_argument("--task-id", default=None)
@@ -1213,7 +1247,9 @@ def main(argv=None) -> int:
     semantic_review_parser.add_argument("structure_json")
     semantic_review_parser.add_argument("--glossary", required=True)
     semantic_review_parser.add_argument("--draft", required=True)
-    semantic_review_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
+    semantic_review_parser.add_argument("--provider", choices=["mock", "openai"])
+    semantic_review_parser.add_argument("--model-config", default=None,
+                                        help="Role-based model configuration JSON; resolves semantic_reviewer")
     semantic_review_parser.add_argument("--output", required=True)
     semantic_review_parser.add_argument("--control-store", default=None)
     semantic_review_parser.add_argument("--task-id", default=None)
@@ -1282,11 +1318,13 @@ def main(argv=None) -> int:
         return cmd_translate_unit(
             args.structure_json, args.glossary, args.unit_id, args.profile, args.provider, args.output,
             args.control_store, args.task_id, args.max_calls, args.hard_list_usd,
+            args.model_config,
         )
     if args.command == "semantic-review":
         return cmd_semantic_review(
             args.structure_json, args.glossary, args.draft, args.provider, args.output,
             args.control_store, args.task_id, args.max_calls, args.hard_list_usd,
+            args.model_config,
         )
     if args.command == "human-review-render":
         return cmd_human_review_render(

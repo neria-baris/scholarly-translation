@@ -28,7 +28,9 @@ from .model_adapter import (
     RequestValidationError,
     TextGenerationResult,
     compute_estimate,
+    build_translation_adapter,
 )
+from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
 from .source_reading import fingerprint, text_hash
 from .translation import (
     TranslationBudget,
@@ -141,11 +143,15 @@ class SemanticReviewRequest:
     applicable_rules: tuple
     risk_triggers: tuple
     provider: str
+    model: str
     review_policy_version: str
     review_cache_key: str
+    provider_definition: ProviderDefinition | None = None
+    capabilities: ModelCapabilities | None = None
 
 
-def build_semantic_review_request(structure, glossary, draft, provider="mock") -> SemanticReviewRequest:
+def build_semantic_review_request(structure, glossary, draft, provider="mock", model=None,
+                                  provider_definition=None, capabilities=None) -> SemanticReviewRequest:
     """Bind a Gate-7 draft to its canonical source/policy identity before any provider call.
 
     Refuses a non-draft record, a draft whose metadata diverges from the
@@ -158,14 +164,39 @@ def build_semantic_review_request(structure, glossary, draft, provider="mock") -
         draft.get("schema_version") == 1 and draft.get("stage") == "translation-draft@1",
         "draft must be a schema-1 translation-draft@1 record",
     )
-    _require(provider in SEMANTIC_REVIEW_MODELS, "unsupported review provider")
+    _require(isinstance(provider, str) and bool(provider.strip()), "unsupported review provider")
+    if model is None:
+        _require(provider in SEMANTIC_REVIEW_MODELS,
+                 "review model must be configured explicitly for this provider")
+        model = SEMANTIC_REVIEW_MODELS[provider]["critic"]
+    _require(isinstance(model, str) and bool(model.strip()), "invalid review model")
+    if provider == "mock":
+        _require(model == MOCK_CRITIC_MODEL, "unsupported mock review model")
+    elif provider_definition is None:
+        _require(provider in {"openai", "anthropic", "deepseek"},
+                 "custom review provider requires an explicit provider definition")
+    else:
+        _require(isinstance(provider_definition, ProviderDefinition)
+                 and provider_definition.provider_id == provider,
+                 "review provider definition does not match selected provider")
+    _require(capabilities is None or isinstance(capabilities, ModelCapabilities),
+             "invalid review capability metadata")
 
     try:
+        translation_definition = None
+        if draft.get("provider_definition") is not None:
+            translation_definition = ProviderDefinition.from_dict(
+                draft.get("provider"), draft["provider_definition"],
+            )
+        translation_capabilities = None
+        if draft.get("model_capabilities") is not None:
+            translation_capabilities = ModelCapabilities.from_dict(draft["model_capabilities"])
         canonical = build_translation_request(
             structure, glossary, draft.get("unit_id"), draft.get("profile_id"),
             draft.get("provider"), draft.get("model"),
+            translation_definition, translation_capabilities,
         )
-    except TranslationRequestError:
+    except (TranslationRequestError, ValueError):
         raise SemanticReviewRequestError(
             "draft is not bound to a valid canonical source/policy request"
         ) from None
@@ -204,15 +235,30 @@ def build_semantic_review_request(structure, glossary, draft, provider="mock") -
         "profile_id": draft["profile_id"],
         "review_policy_version": REVIEW_POLICY_VERSION,
         "review_provider": provider,
-        "review_models": SEMANTIC_REVIEW_MODELS[provider],
+        "review_model": model,
+        "review_provider_definition": provider_definition.to_dict() if provider_definition else None,
+        "review_capabilities": capabilities.to_dict() if capabilities else None,
         "risk_triggers": risk_triggers,
     })
     return SemanticReviewRequest(
         draft=draft, structure=structure, glossary_store=glossary, unit=canonical.unit,
         source_language=canonical.source_language, draft_text=draft_text,
         context_segments=tuple(canonical.context_segments), applicable_rules=tuple(canonical.applicable_rules),
-        risk_triggers=tuple(risk_triggers), provider=provider,
+        risk_triggers=tuple(risk_triggers), provider=provider, model=model,
         review_policy_version=REVIEW_POLICY_VERSION, review_cache_key=review_cache_key,
+        provider_definition=provider_definition, capabilities=capabilities,
+    )
+
+
+def build_semantic_review_request_for_role(structure, glossary, draft,
+                                           configuration: ModelConfiguration,
+                                           role="semantic_reviewer"):
+    if not isinstance(configuration, ModelConfiguration):
+        raise SemanticReviewRequestError("configuration must be a validated ModelConfiguration")
+    selection, definition = configuration.resolve(role)
+    return build_semantic_review_request(
+        structure, glossary, draft, selection.provider, selection.model,
+        definition, selection.capabilities,
     )
 
 
@@ -321,15 +367,19 @@ def _heuristic_disposition(trigger_type, hebrew_text):
 def _build_critic_adapter(request: SemanticReviewRequest):
     if request.provider == "mock":
         return FakeSemanticCritic(request)
-    from .model_adapter import OpenAITextGenerationAdapter
-    return OpenAITextGenerationAdapter()
+    return build_translation_adapter(
+        request.provider, request.model, provider_definition=request.provider_definition,
+        max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+    )
 
 
 def _build_corrector_adapter(request: SemanticReviewRequest, claim: dict):
     if request.provider == "mock":
         return FakeSemanticCorrector(request, claim)
-    from .model_adapter import OpenAITextGenerationAdapter
-    return OpenAITextGenerationAdapter()
+    return build_translation_adapter(
+        request.provider, request.model, provider_definition=request.provider_definition,
+        max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+    )
 
 
 def _parse_and_validate_claims(raw_text, request: SemanticReviewRequest):
@@ -375,16 +425,21 @@ def _parse_and_validate_claims(raw_text, request: SemanticReviewRequest):
 
 
 def _provider_call(call, request, prompt_text, model, budget, notices):
-    if request.provider == "openai":
+    if request.provider != "mock":
         notices.extend(budget.reserve(prompt_text))
     try:
         result = call(prompt_text, model)
     except OpenAIConfigurationError:
-        if request.provider == "openai":
+        if request.provider != "mock":
             budget.release_unstarted()
         raise
-    if request.provider == "openai":
-        notices.extend(budget.record(result.token_usage))
+    if request.provider != "mock":
+        provider_type = request.provider_definition.provider_type if request.provider_definition else request.provider
+        if provider_type == "openai":
+            notices.extend(budget.record(result.token_usage))
+        else:
+            budget.stopped = True
+            notices.append("pricing_not_configured_stop")
     return result
 
 
@@ -408,10 +463,13 @@ def _cached_provider_call(cache, suffix, call, request, prompt_text, model, budg
     return result, hit
 
 
-def _call_record(result, prompt_text, cache_hit=False):
-    estimate = compute_estimate(result.token_usage)
+def _call_record(result, prompt_text, requested_provider, requested_model,
+                 provider_type, cache_hit=False):
+    estimate = compute_estimate(result.token_usage) if provider_type == "openai" else "not_metered"
     return {
-        "prompt_hash": text_hash(prompt_text), "model": result.observed_model,
+        "prompt_hash": text_hash(prompt_text), "provider": requested_provider,
+        "model": requested_model, "observed_provider": result.observed_provider or requested_provider,
+        "observed_model": result.observed_model,
         "token_usage": result.token_usage, "pricing_version": PRICING_VERSION,
         "estimated_cost_usd": estimate, "status": result.status, "error": result.error,
         "actual_charge": "no_provider_call" if cache_hit else "unknown",
@@ -432,6 +490,7 @@ def run_semantic_review(
         raise SemanticReviewRequestError("run_semantic_review requires a resolved SemanticReviewRequest")
     canonical = build_semantic_review_request(
         request.structure, request.glossary_store, request.draft, request.provider,
+        request.model, request.provider_definition, request.capabilities,
     )
     _require(request == canonical, "review request changed after source/policy resolution")
     control_start = len(cache.provenance) if cache is not None else 0
@@ -459,6 +518,7 @@ def run_semantic_review(
         "translation_provider": request.draft["provider"],
         "translation_model": request.draft["model"],
         "review_provider": request.provider,
+        "review_model": request.model,
         "risk_triggers": [dict(t) for t in request.risk_triggers],
         "before_findings": request.draft["findings"],
         "after_findings": None,
@@ -489,20 +549,23 @@ def run_semantic_review(
         return finish("needs_human", "bypass_" + bypass[0]["type"])
 
     notices = []
+    provider_type = request.provider_definition.provider_type if request.provider_definition else request.provider
     if cache is None:
-        budget = budget or (TranslationBudget(max_calls=2, hard_list_usd=0.01) if request.provider == "openai" else None)
+        budget = budget or (TranslationBudget(max_calls=2, hard_list_usd=0.01) if request.provider != "mock" else None)
     critic = critic or _build_critic_adapter(request)
     critic_prompt = _render_critic_prompt(request)
     try:
         critic_result, critic_cache_hit = _cached_provider_call(
             cache, "critic", critic.generate, request, critic_prompt,
-            SEMANTIC_REVIEW_MODELS[request.provider]["critic"], budget, notices,
+            request.model, budget, notices,
         )
     except TranslationBudgetError:
         return finish("needs_human_or_budget", "budget_exhausted_before_critic_call", budget_notices=notices)
     if critic_cache_hit:
         base["cache_hit"] = True
-    critic_record = _call_record(critic_result, critic_prompt, critic_cache_hit)
+    critic_record = _call_record(
+        critic_result, critic_prompt, request.provider, request.model, provider_type, critic_cache_hit,
+    )
 
     if critic_result.status not in ("completed", "mock_placeholder"):
         return finish(critic_result.status, "critic_call_failed", critic=critic_record, budget_notices=notices)
@@ -531,7 +594,7 @@ def run_semantic_review(
     try:
         correction_result, corrector_cache_hit = _cached_provider_call(
             cache, "corrector", corrector.generate, request, corrector_prompt,
-            SEMANTIC_REVIEW_MODELS[request.provider]["corrector"], budget, notices,
+            (MOCK_CORRECTOR_MODEL if request.provider == "mock" else request.model), budget, notices,
         )
     except TranslationBudgetError:
         return finish(
@@ -540,7 +603,11 @@ def run_semantic_review(
         )
     if corrector_cache_hit:
         base["cache_hit"] = True
-    corrector_record = _call_record(correction_result, corrector_prompt, corrector_cache_hit)
+    corrector_record = _call_record(
+        correction_result, corrector_prompt, request.provider,
+        (MOCK_CORRECTOR_MODEL if request.provider == "mock" else request.model),
+        provider_type, corrector_cache_hit,
+    )
 
     if correction_result.status not in ("completed", "mock_placeholder"):
         return finish(

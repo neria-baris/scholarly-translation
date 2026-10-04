@@ -31,7 +31,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .model_adapter import compute_estimate, PRICING_VERSION, TextGenerationResult
+from .model_adapter import (
+    PRICING_VERSION, TextGenerationResult, build_translation_adapter, compute_estimate,
+)
+from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
 from .source_reading import fingerprint, text_hash
 
 SCHEMA_VERSION = 1
@@ -131,17 +134,25 @@ def _glossary_text(glossary_decisions) -> str:
     return "\n".join(str(entry) for entry in glossary_decisions)
 
 
-def _call_record(result, prompt_text) -> dict:
-    estimate = compute_estimate(result.token_usage)
+def _provider_type(provider, provider_definition):
+    return provider_definition.provider_type if provider_definition else provider
+
+
+def _call_record(result, prompt_text, request) -> dict:
+    provider_type = _provider_type(request.provider, request.provider_definition)
+    estimate = compute_estimate(result.token_usage) if provider_type == "openai" else "not_metered"
     return {
-        "prompt_hash": text_hash(prompt_text), "model": result.observed_model,
+        "prompt_hash": text_hash(prompt_text), "provider": request.provider,
+        "model": request.model, "observed_provider": result.observed_provider or request.provider,
+        "observed_model": result.observed_model,
         "token_usage": result.token_usage, "pricing_version": PRICING_VERSION,
         "estimated_cost_usd": estimate, "status": result.status, "error": result.error,
         "actual_charge": "unknown",
     }
 
 
-def _base_record(stage, prompt_id, provider, model, policy) -> dict:
+def _base_record(stage, prompt_id, provider, model, policy,
+                 provider_definition=None, capabilities=None) -> dict:
     return {
         "schema_version": SCHEMA_VERSION,
         "stage": stage,
@@ -151,6 +162,8 @@ def _base_record(stage, prompt_id, provider, model, policy) -> dict:
         "policy": policy,
         "provider": provider,
         "model": model,
+        "provider_type": _provider_type(provider, provider_definition),
+        "model_capabilities": capabilities.to_dict() if capabilities else None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "approved": False,
         "error": None,
@@ -170,11 +183,14 @@ class UnitReviewRequest:
     risk_flags: dict
     provider: str
     model: str
+    provider_definition: ProviderDefinition | None = None
+    capabilities: ModelCapabilities | None = None
 
 
 def build_unit_review_request(
     source_text, translation, source_context=(), glossary_decisions=(),
     policy="off", risk_flags=None, provider="mock", model="mock-review-1",
+    provider_definition=None, capabilities=None,
 ) -> UnitReviewRequest:
     _require_nonempty_str(source_text, "source_text must be a nonempty string")
     _require_hebrew(translation, "translation must be a nonempty Hebrew string")
@@ -198,11 +214,31 @@ def build_unit_review_request(
 
     _require_nonempty_str(provider, "provider must be a nonempty string")
     _require_nonempty_str(model, "model must be a nonempty string")
+    _require(provider_definition is None or (
+        isinstance(provider_definition, ProviderDefinition)
+        and provider_definition.provider_id == provider
+    ), "provider definition does not match selected provider")
+    _require(capabilities is None or isinstance(capabilities, ModelCapabilities),
+             "invalid model capability metadata")
 
     return UnitReviewRequest(
         source_text=source_text, translation=translation,
         source_context=tuple(source_context), glossary_decisions=tuple(glossary_decisions),
         policy=policy, risk_flags=dict(risk_flags), provider=provider, model=model,
+        provider_definition=provider_definition, capabilities=capabilities,
+    )
+
+
+def build_unit_review_request_for_role(
+    source_text, translation, configuration: ModelConfiguration,
+    source_context=(), glossary_decisions=(), policy="off", risk_flags=None,
+) -> UnitReviewRequest:
+    _require(isinstance(configuration, ModelConfiguration),
+             "configuration must be a validated ModelConfiguration")
+    selection, definition = configuration.resolve("semantic_reviewer")
+    return build_unit_review_request(
+        source_text, translation, source_context, glossary_decisions, policy, risk_flags,
+        selection.provider, selection.model, definition, selection.capabilities,
     )
 
 
@@ -289,8 +325,12 @@ def run_unit_review(request: UnitReviewRequest, generate=None) -> dict:
     request = build_unit_review_request(
         request.source_text, request.translation, request.source_context, request.glossary_decisions,
         request.policy, request.risk_flags, request.provider, request.model,
+        request.provider_definition, request.capabilities,
     )
-    base = _base_record(STAGE_UNIT_REVIEW, UNIT_REVIEW_PROMPT_ID, request.provider, request.model, request.policy)
+    base = _base_record(
+        STAGE_UNIT_REVIEW, UNIT_REVIEW_PROMPT_ID, request.provider, request.model,
+        request.policy, request.provider_definition, request.capabilities,
+    )
     base["risk_flags"] = dict(request.risk_flags)
     base["input_hash"] = fingerprint({
         "source_text": request.source_text,
@@ -306,6 +346,11 @@ def run_unit_review(request: UnitReviewRequest, generate=None) -> dict:
     if request.policy == "risk_based" and not _unit_review_is_risky(request.risk_flags):
         return dict(base, status="skipped", skip_reason="no_risk_flagged", verdict=None, issues=[], call=None)
 
+    if generate is None and request.provider_definition is not None:
+        generate = build_translation_adapter(
+            request.provider, request.model, provider_definition=request.provider_definition,
+            max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+        ).generate
     _require(callable(generate), "a generate callable is required when the adapter is invoked")
     prompt_text = _render(UNIT_REVIEW_PROMPT_ID, {
         "source_context": _context_text(request.source_context),
@@ -325,7 +370,7 @@ def run_unit_review(request: UnitReviewRequest, generate=None) -> dict:
             base, status="failed", skip_reason=None, verdict=None, issues=[], call=None,
             error="adapter returned an invalid result",
         )
-    call = _call_record(result, prompt_text)
+    call = _call_record(result, prompt_text, request)
     if result.status not in ("completed", "mock_placeholder"):
         return dict(base, status="failed", skip_reason=None, verdict=None, issues=[], call=call)
 
@@ -352,11 +397,13 @@ class CandidateComparisonRequest:
     candidates: tuple  # tuple of (candidate_id, text) pairs, order preserved
     provider: str
     model: str
+    provider_definition: ProviderDefinition | None = None
+    capabilities: ModelCapabilities | None = None
 
 
 def build_candidate_comparison_request(
     source_text, candidates, source_context=(), glossary_decisions=(),
-    provider="mock", model="mock-review-1",
+    provider="mock", model="mock-review-1", provider_definition=None, capabilities=None,
 ) -> CandidateComparisonRequest:
     _require_nonempty_str(source_text, "source_text must be a nonempty string")
     _require(isinstance(candidates, dict), "candidates must be an object of id -> Hebrew text")
@@ -372,11 +419,31 @@ def build_candidate_comparison_request(
     _require_string_sequence(glossary_decisions, "glossary_decisions must contain only nonempty strings")
     _require_nonempty_str(provider, "provider must be a nonempty string")
     _require_nonempty_str(model, "model must be a nonempty string")
+    _require(provider_definition is None or (
+        isinstance(provider_definition, ProviderDefinition)
+        and provider_definition.provider_id == provider
+    ), "provider definition does not match selected provider")
+    _require(capabilities is None or isinstance(capabilities, ModelCapabilities),
+             "invalid model capability metadata")
 
     return CandidateComparisonRequest(
         source_text=source_text, source_context=tuple(source_context),
         glossary_decisions=tuple(glossary_decisions), candidates=tuple(candidates.items()),
-        provider=provider, model=model,
+        provider=provider, model=model, provider_definition=provider_definition,
+        capabilities=capabilities,
+    )
+
+
+def build_candidate_comparison_request_for_role(
+    source_text, candidates, configuration: ModelConfiguration,
+    source_context=(), glossary_decisions=(),
+) -> CandidateComparisonRequest:
+    _require(isinstance(configuration, ModelConfiguration),
+             "configuration must be a validated ModelConfiguration")
+    selection, definition = configuration.resolve("candidate_evaluator")
+    return build_candidate_comparison_request(
+        source_text, candidates, source_context, glossary_decisions,
+        selection.provider, selection.model, definition, selection.capabilities,
     )
 
 
@@ -466,7 +533,7 @@ def _parse_candidate_comparison_response(raw_text, request: CandidateComparisonR
     }, None
 
 
-def run_candidate_comparison(request: CandidateComparisonRequest, generate) -> dict:
+def run_candidate_comparison(request: CandidateComparisonRequest, generate=None) -> dict:
     """Run the candidate-comparison workflow. Returns an unapproved schema-1 `candidate-comparison@1` dict."""
     _require(
         isinstance(request, CandidateComparisonRequest),
@@ -475,10 +542,11 @@ def run_candidate_comparison(request: CandidateComparisonRequest, generate) -> d
     request = build_candidate_comparison_request(
         request.source_text, dict(request.candidates), request.source_context,
         request.glossary_decisions, request.provider, request.model,
+        request.provider_definition, request.capabilities,
     )
-    _require(callable(generate), "a generate callable is required")
     base = _base_record(
         STAGE_CANDIDATE_COMPARISON, CANDIDATE_COMPARISON_PROMPT_ID, request.provider, request.model, policy=None,
+        provider_definition=request.provider_definition, capabilities=request.capabilities,
     )
     base.pop("policy")
     base["candidate_ids"] = [candidate_id for candidate_id, _ in request.candidates]
@@ -488,6 +556,13 @@ def run_candidate_comparison(request: CandidateComparisonRequest, generate) -> d
         "glossary_decisions": request.glossary_decisions,
         "candidates": request.candidates,
     })
+
+    if generate is None and request.provider_definition is not None:
+        generate = build_translation_adapter(
+            request.provider, request.model, provider_definition=request.provider_definition,
+            max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+        ).generate
+    _require(callable(generate), "a generate callable is required")
 
     prompt_text = _render(CANDIDATE_COMPARISON_PROMPT_ID, {
         "source_context": _context_text(request.source_context),
@@ -501,7 +576,7 @@ def run_candidate_comparison(request: CandidateComparisonRequest, generate) -> d
         return dict(base, status="failed", call=None, result=None, error="adapter call failed")
     if not isinstance(result, TextGenerationResult):
         return dict(base, status="failed", call=None, result=None, error="adapter returned an invalid result")
-    call = _call_record(result, prompt_text)
+    call = _call_record(result, prompt_text, request)
     if result.status not in ("completed", "mock_placeholder"):
         return dict(base, status="failed", call=call, result=None)
 
@@ -523,11 +598,14 @@ class ChapterQARequest:
     policy: str
     provider: str
     model: str
+    provider_definition: ProviderDefinition | None = None
+    capabilities: ModelCapabilities | None = None
 
 
 def build_chapter_qa_request(
     source_chapter, hebrew_chapter, profile="", glossary_decisions=(),
     policy="off", provider="mock", model="mock-review-1",
+    provider_definition=None, capabilities=None,
 ) -> ChapterQARequest:
     _require_nonempty_str(source_chapter, "source_chapter must be a nonempty string")
     _require_hebrew(hebrew_chapter, "hebrew_chapter must be a nonempty Hebrew string")
@@ -536,10 +614,30 @@ def build_chapter_qa_request(
     _require(policy in CHAPTER_QA_POLICIES, "chapter QA policy must be off or on")
     _require_nonempty_str(provider, "provider must be a nonempty string")
     _require_nonempty_str(model, "model must be a nonempty string")
+    _require(provider_definition is None or (
+        isinstance(provider_definition, ProviderDefinition)
+        and provider_definition.provider_id == provider
+    ), "provider definition does not match selected provider")
+    _require(capabilities is None or isinstance(capabilities, ModelCapabilities),
+             "invalid model capability metadata")
 
     return ChapterQARequest(
         source_chapter=source_chapter, hebrew_chapter=hebrew_chapter, profile=profile,
         glossary_decisions=tuple(glossary_decisions), policy=policy, provider=provider, model=model,
+        provider_definition=provider_definition, capabilities=capabilities,
+    )
+
+
+def build_chapter_qa_request_for_role(
+    source_chapter, hebrew_chapter, configuration: ModelConfiguration,
+    profile="", glossary_decisions=(), policy="off",
+) -> ChapterQARequest:
+    _require(isinstance(configuration, ModelConfiguration),
+             "configuration must be a validated ModelConfiguration")
+    selection, definition = configuration.resolve("chapter_qa")
+    return build_chapter_qa_request(
+        source_chapter, hebrew_chapter, profile, glossary_decisions, policy,
+        selection.provider, selection.model, definition, selection.capabilities,
     )
 
 
@@ -604,8 +702,12 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
     request = build_chapter_qa_request(
         request.source_chapter, request.hebrew_chapter, request.profile,
         request.glossary_decisions, request.policy, request.provider, request.model,
+        request.provider_definition, request.capabilities,
     )
-    base = _base_record(STAGE_CHAPTER_QA, CHAPTER_QA_PROMPT_ID, request.provider, request.model, request.policy)
+    base = _base_record(
+        STAGE_CHAPTER_QA, CHAPTER_QA_PROMPT_ID, request.provider, request.model,
+        request.policy, request.provider_definition, request.capabilities,
+    )
     base["input_hash"] = fingerprint({
         "source_chapter": request.source_chapter,
         "hebrew_chapter": request.hebrew_chapter,
@@ -618,6 +720,11 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
         return dict(base, status="skipped", skip_reason="policy_off", verdict=None, issues=[],
                     chapter_level_notes=None, call=None)
 
+    if generate is None and request.provider_definition is not None:
+        generate = build_translation_adapter(
+            request.provider, request.model, provider_definition=request.provider_definition,
+            max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+        ).generate
     _require(callable(generate), "a generate callable is required when the adapter is invoked")
     prompt_text = _render(CHAPTER_QA_PROMPT_ID, {
         "source_chapter": request.source_chapter,
@@ -637,7 +744,7 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
             base, status="failed", skip_reason=None, verdict=None, issues=[],
             chapter_level_notes=None, call=None, error="adapter returned an invalid result",
         )
-    call = _call_record(result, prompt_text)
+    call = _call_record(result, prompt_text, request)
     if result.status not in ("completed", "mock_placeholder"):
         return dict(base, status="failed", skip_reason=None, verdict=None, issues=[],
                     chapter_level_notes=None, call=call)

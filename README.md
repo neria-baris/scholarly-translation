@@ -535,3 +535,59 @@ expert review for every arm. A report built from fewer than 72 such segments
 `pilot_report.json` under `--output`; the CLI refuses to overwrite an existing report or write
 into the source/test tree, and prints only counts/status to stdout. Synthetic fixtures in
 tests demonstrate arithmetic/software construction only, never real expert judgment.
+
+## Role-based provider and model selection
+
+The scholarly runtime is no longer tied to one live provider or a fixed model
+allowlist. `model_config.example.json` is the versioned, secret-free schema for
+the `translator`, `semantic_reviewer`, `chapter_qa`, `candidate_evaluator`, and
+optional `context_state_builder` roles. Each role selects a provider and an
+arbitrary nonempty model ID and supplies its own context window, usable context
+budget, optional output limit, and structured-output capability. The same
+provider/model may be assigned to every role. Capability values are deployment
+metadata and should be checked against the provider before a live run.
+
+Built-in adapter types are `openai`, `anthropic`, and `deepseek`; a named
+`openai_compatible` provider requires an explicit HTTPS `base_url`. Credential
+values never belong in JSON. Configuration contains only the environment
+variable name: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, or the
+uppercase name chosen for a compatible endpoint.
+
+SDKs are optional and imported only at dispatch time. OpenAI and compatible
+providers use the `openai` Python package; Anthropic uses `anthropic`. Missing
+credentials or SDKs fail before a request. Provider failures are sanitized,
+and no adapter silently switches provider or model.
+
+The committed price table is still the dated OpenAI table used by the existing
+budget gateway. Other provider types record token usage when returned but mark
+price as `not_metered`, retain the conservative reservation, stop further calls,
+and do not cache that response. Add verified provider-specific pricing before
+enabling multi-call automated runs for those providers.
+
+Use the role configuration on the existing CLI boundaries:
+
+```
+python -B -m scholarly_translation translate-unit STRUCTURE_JSON \
+  --glossary GLOSSARY_JSON --unit-id UNIT_ID --profile scholarly \
+  --model-config model_config.example.json --output OUTPUT_DIR
+
+python -B -m scholarly_translation semantic-review STRUCTURE_JSON \
+  --glossary GLOSSARY_JSON --draft DRAFT_JSON \
+  --model-config model_config.example.json --output OUTPUT_DIR
+```
+
+The commands resolve `translator` and `semantic_reviewer`, respectively.
+Provider/model/capability identity participates in cache identity. Requested
+and observed provider/model identity is recorded in draft/review provenance.
+Session C's optional unit review, candidate comparison and chapter QA expose
+matching `build_*_request_for_role()` helpers for `semantic_reviewer`,
+`candidate_evaluator` and `chapter_qa`; their records carry the resolved
+provider/model/capabilities. `context_state_builder` remains validated and
+available through `ModelConfiguration.resolve()` because no context-building
+workflow exists yet.
+
+Legacy `--provider mock|openai` commands and Gate-1's `config.example.json`
+remain readable. The compact whole-document browser draft is still a separate
+OpenAI-only convenience path with its dated model/price table; it never
+silently consumes this role configuration. Multi-provider credentials and
+base URLs stay in environment/configuration rather than the upload screen.

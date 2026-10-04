@@ -507,9 +507,12 @@ class TranslationAdapterBuilderTests(unittest.TestCase):
     def test_build_mock_adapter(self):
         self.assertIsInstance(build_translation_adapter("mock", "mock-translation-1"), MockTextGenerationAdapter)
 
-    def test_build_rejects_unsupported_provider(self):
-        with self.assertRaises(RequestValidationError):
-            build_translation_adapter("anthropic", "claude")
+    def test_build_supports_anthropic_provider(self):
+        from scholarly_translation.model_adapter import AnthropicTextGenerationAdapter
+        self.assertIsInstance(
+            build_translation_adapter("anthropic", "configured-claude-model"),
+            AnthropicTextGenerationAdapter,
+        )
 
     def test_build_rejects_unsupported_model(self):
         with self.assertRaises(RequestValidationError):

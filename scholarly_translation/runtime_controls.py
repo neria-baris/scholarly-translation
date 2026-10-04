@@ -100,7 +100,7 @@ def _raw_result(result, provider, status):
             or result["error"] is not None
             or not (result["observed_model"] is None or _identifier(result["observed_model"]))):
         raise StoreCorruptionError("invalid cached raw-result schema")
-    if provider not in ("openai", "mock") or (provider == "openai" and (status != "completed" or compute_estimate(result["token_usage"]) == "not_metered")):
+    if provider != "mock" and (status != "completed" or compute_estimate(result["token_usage"]) == "not_metered"):
         raise StoreCorruptionError("unmetered or unsupported live result cannot be cached")
     if _usage(result["token_usage"]) != result["token_usage"]:
         raise StoreCorruptionError("invalid cached usage")
@@ -440,7 +440,7 @@ class RuntimeCache:
         key = fingerprint(dict(identity=identity, prompt_hash=fingerprint(prompt_text), stage=stage,
                                provider=self.provider, model=model, gateway_version=1, output_cap=OPENAI_MAX_OUTPUT_TOKENS))
         # Only explicit identities/hashes enter usage events.
-        meta = {k: metadata.get(k) for k in ("document_id", "unit_id", "source_text_hash", "pdf_hash", "policy_fingerprint", "profile_id")}
+        meta = {k: metadata.get(k) for k in ("document_id", "unit_id", "source_text_hash", "pdf_hash", "policy_fingerprint", "profile_id", "provider_type")}
         meta.update(requested_provider=self.provider, requested_model=model, prompt_hash=fingerprint(prompt_text),
                     cache_hash=key, reason="runtime_" + stage)
         expected = (stage, self.provider, model)
@@ -488,7 +488,10 @@ class RuntimeCache:
             raw = {k: getattr(result, k) for k in ("status", "text", "token_usage", "observed_model", "error")}
             if not _identifier(result.status) or not (result.observed_model is None or _identifier(result.observed_model)):
                 raise ValueError()
-            estimate = 0.0 if self.provider == "mock" else compute_estimate(result.token_usage)
+            provider_type = metadata.get("provider_type", self.provider)
+            estimate = (0.0 if provider_type == "mock" else
+                        compute_estimate(result.token_usage) if provider_type == "openai" else
+                        "not_metered")
             cache_entry = None
             if result.status in COMPLETED_STATUSES and estimate != "not_metered":
                 _raw_result(raw, self.provider, result.status)
