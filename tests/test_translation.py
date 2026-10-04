@@ -46,7 +46,7 @@ def _human_decision(candidate, reason="verified against page image") -> dict:
     }
 
 
-def _build_structure_for_lines(tmp_path, lines, language):
+def _build_structure_for_lines(tmp_path, lines, language, unit_policy=None):
     pdf_path = tmp_path / "fixture.pdf"
     c = canvas.Canvas(str(pdf_path), pagesize=LETTER)
     width, height = LETTER
@@ -61,7 +61,7 @@ def _build_structure_for_lines(tmp_path, lines, language):
     reading = build_readings(document)[0]
     candidate = next(cand for cand in reading["alternatives"] if cand["origin"] == "digital")
     decisions = {page.page_id: _human_decision(candidate)}
-    return build_structure(document, decisions=decisions)
+    return build_structure(document, decisions=decisions, unit_policy=unit_policy)
 
 
 def _synthetic_source_structure(tmp_path, language, text):
@@ -109,10 +109,15 @@ def _approved_glossary(structure, unit, term, target_term, loaded=False, store=N
 class ContextAndCacheKeyTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
+        # Pin a small word-count ceiling so each short sentence stays its own
+        # unit under the default logical-structure grouping policy (the
+        # policy's merge-toward-target behavior is covered separately in
+        # tests/test_structure_v2.py).
         self.structure = _build_structure_for_lines(
             Path(self.tmp.name),
             ["The logos is central to the argument.", "Later the logos returns once more."],
             "en",
+            unit_policy={"max_unit_words": 1},
         )
 
     def tearDown(self):
@@ -178,10 +183,15 @@ class ContextAndCacheKeyTests(unittest.TestCase):
 class BuildTranslationRequestTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
+        # Pin a small word-count ceiling so each short sentence stays its own
+        # unit under the default logical-structure grouping policy (the
+        # policy's merge-toward-target behavior is covered separately in
+        # tests/test_structure_v2.py).
         self.structure = _build_structure_for_lines(
             Path(self.tmp.name),
             ["The logos is central to the argument.", "Later the logos returns once more."],
             "en",
+            unit_policy={"max_unit_words": 1},
         )
         self.unit = sorted(self.structure["units"], key=lambda u: u["source_char_start"])[0]
         self.glossary = new_glossary_store()

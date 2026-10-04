@@ -162,6 +162,12 @@ meaning error with evidence; a human decides uncertain reading, footnote
 association, loaded terminology, unresolved translation and final publication
 approval. A valid schema is not semantic correctness.
 
+Document structure (`segmentation.build_structure`/`validate_structure`) now
+defaults to logical nodes and bounded semantic units (schema 2) instead of
+one unit per visual line; schema-1 artifacts remain readable and may seed a
+fresh schema-2 lineage. See `scholarly_translation/STRUCTURE_SCHEMA.md` for
+the full field shapes, classification heuristics and known limitations.
+
 Gate 4 must test both a digital page and an OCR page reaching a source-linked
 translation unit, and an ambiguous OCR page remaining unresolved. Gate 5 owns
 term scope/version. Gates 6-7 own the first real translation request/result

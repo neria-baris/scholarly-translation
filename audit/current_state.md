@@ -1,44 +1,37 @@
 # Current state
-Updated: 2026-10-04T18:31:00Z
+Updated: 2026-10-04T18:36:48.879980+00:00
 
-Phase: validate/integrate completed A/B/C/E under the user-authorized integration
-run. Latest integrated main/origin commit: `633c33d`. Authoritative remaining
-stage prompts: `audit/claude_integration_conductor.md` (user-supplied file,
-preserved verbatim). All listed policies read in requested order.
+Phase: A integration PASS; B integration next. Main parent before this merge:
+59235ee (continuity bootstrap), incorporating C fd5c852/4bf8482 and E
+a705e0a/633c33d. A branch agents/run-it (8bc29b2/d7b6723) has been merged into
+the index, verified, and is ready for reviewed merge commit and normal push.
+No code conflicts; all four append-only audit histories preserve both branches.
+Checkpoint replaces historical branch snapshots by design.
 
-C (`fd5c852`, receipt `4bf8482`) and E (`a705e0a`, receipt `633c33d`) are already
-ancestors of main. Their worktrees `run-it-fcad978d` and `run-it-472aaedb` are
-clean. Main baseline: 412 tests pass in 27.183s, zero live provider calls.
+Authoritative remaining prompts: audit/claude_integration_conductor.md,
+unchanged user-supplied file now committed. Existing instructions remain in force.
+CLAUDE.md and scripts/handoff_to_claude.ps1 provide controlled temporary conductor
+continuity. Parser and ValidateOnly passed without starting another conductor.
 
-A: clean `agents/run-it`, worktree sibling `scholarly-translation.worktrees/run-it`,
-feature `8bc29b2`, receipt `d7b6723`, base `36fbbf0`, unmerged. Logical structure
-schema 2, source links, bounded units, legacy reader, direct-consumer tests.
-B: clean `agents/run-it-de649c23`, corresponding sibling worktree, feature
-`64f7ca6`, receipts `fcf0ca7`/`7b43494`, base `36fbbf0`, unmerged. Versioned
-scholarly/literary prompts, layered caller inputs and cache/provenance.
-B fresh validation: 375 tests pass, one skip, 29.246s. A fresh validation: 375 tests pass, one skip, 31.290s. Historical acceptance reports remain on their branches.
+Fresh verification: main C/E baseline 412 tests (27.183s); isolated A 375
+(31.290s, one skip); isolated B 375 (29.246s, one skip); combined A/C/E 424
+(22.277s, OK). Zero live runtime calls. Source structure schema 2 and legacy
+reader accepted; bounded source-exact units remain page-bound, with D owning
+broader semantic/chapter context. A full diff and direct-consumer changes reviewed.
 
-Overlap: A/B/C/E append shared audit histories and replace current state;
-preserve all appended events during sequential merges. A/B both update
-ARCHITECTURE and translation fixtures; B/E overlap translation.py and CLI.
-Resolve routine combined behavior, retaining E role metadata and B profiles.
-A units remain page-bound; D owns broader semantic/context composition.
+B remains clean/unmerged: agents/run-it-de649c23 at 7b43494, feature 64f7ca6,
+sibling scholarly-translation.worktrees/run-it-de649c23. Preserve B profile/prompt
+identity and E provider/capability fields when resolving translation.py overlap.
+All four original stage worktrees preserved: run-it (A), run-it-de649c23 (B),
+run-it-fcad978d (C), run-it-472aaedb (E). No delegated builders running.
 
-Continuity bootstrap `CLAUDE.md` and `scripts/handoff_to_claude.ps1` prepared.
-PowerShell parser and `-ValidateOnly` passed; no second conductor launched.
-Helper uses Claude native `--bg` for a separate resumable session, Sonnet and
-auto permission checks (no bypass). Claude 2.1.268 available/authenticated.
+Quota/charges unknown; new external model calls 0. Gate 10 human quality BLOCKED;
+no scholarly approval, release or model winner. Other-provider pricing remains
+not_metered and fails closed under E. Python for checks:
+C:/Users/pc2/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe
+Worktree CLI tests require filesystem access beyond current writable root.
+Failed sandbox-only verification processes stopped; valid stage work preserved.
 
-Running delegated tasks: none launched by this conductor. Existing four stage
-worktrees preserved. Runtime Python:
-`C:/Users/pc2/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`.
-`python` is absent from sandbox PATH; worktree CLI tests need filesystem access
-beyond current root. Fetch succeeded; HEAD/origin comparison `0 0`.
-
-Quota/actual subscription charges: unknown. New external model invocations: 0.
-Gate 10 remains BLOCKED on genuine expert quality evidence; no release/model
-winner/source approval implied. No paid runtime calls authorized here.
-
-Exact next action: commit reviewed continuity
-bootstrap/audit files, then merge `agents/run-it` into main with audit additions
-preserved and run the combined full offline suite before acceptance/push.
+Exact next action: commit the reviewed A merge and audit updates, verify/push
+normally to authorized origin/main, then sequentially integrate verified B before
+setting the common base/contracts for independent D and X writers.

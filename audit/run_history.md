@@ -350,3 +350,22 @@ Complete/staged diff review covered eighteen intended paths. JSONL parse, append
 ## INTEGRATION-BOOTSTRAP | 2026-10-04T18:32:32.8673597Z | validated continuity preparation
 
 Read authoritative instructions in order and the unchanged user-supplied audit/claude_integration_conductor.md. Git inspection found clean A/B unmerged and C/E already on main 633c33d. Fresh main 412 tests pass (27.183s); B 375 pass (29.246s, one skip). Worktree sandbox writes were denied, so validation reruns use authorized filesystem access; no code repair inferred. Python resolved to the bundled 3.12 runtime. Added concise CLAUDE bootstrap and native-background handoff helper; parser and ValidateOnly pass without launching Claude. Origin fetch and main equality 0 0 verified. A full summary pending before integration. New external model/runtime calls 0; conductor quota and charges unknown.
+## SESSION-A | 2026-10-04T17:50:29Z | contract, builder and baseline
+
+Read the current controls/architecture/state and user Session-A prompt; repository was clean at `36fbbf04e22bae2643b91956940c81a7cd2fc6ed`. Contract `audit/contracts/session_a_structure_segmentation.md`. Baseline full suite: 363 passed, one optional OCR-weight skip, 27.420s. System Python was unavailable; all verification used the bundled Codex Python runtime. First restricted Claude call was blocked by sandbox networking after 179.994s with zero usage; escalation was initially rejected, then the user explicitly approved the exact repository-scoped call. SESSION-A-C1 completed in 1,336.161s with Sonnet plus auxiliary Haiku, $4.6888078 reported list estimate, actual charge unknown, and no test execution.
+
+## SESSION-A | 2026-10-04T17:50:29Z | verification and focused repair
+
+Initial structure discovery had one fixture geometry error; the first full run otherwise reached 369/371 with one local-UI schema-stage rejection. Conductor review found missing parent/order hierarchy, no executable subheading path, no explicit unit-node mapping and no persisted effective unit policy. SESSION-A-A2 added and validated those fields, French/Japanese conservative markers and non-space Japanese sizing. Embedding node IDs in unit records first broke translation-memory exact shape; the final separate `unit_node_links` collection preserves legacy consumers. Local UI accepts both structure schema stages. Focused structure, terminology/memory, translation and UI suites pass. Final full suite: 375 passed in 26.071s, one optional OCR-weight skip; `git diff --check` passes aside from informational Windows line-ending warnings. Runtime provider calls 0; scholarly/source/human approval unchanged.
+
+## SESSION-A | 2026-10-04T17:50:29Z | pre-commit Git status
+
+Reviewed tracked and untracked Session-A code/tests/docs/contract, no secrets/private input/generated outputs staged. Branch remains `agents/run-it`. Local `origin/main` tracking ref advanced during work from the common base to `633c33d` through Session-C/provider-selection commits; no merge/rebase/push attempted because the user requested a commit on this branch without merging other branches and standing push authorization is only for `origin/main`. Exact-path local staging/commit and clean-tree verification follow.
+
+## SESSION-A | 2026-10-04T17:57:10Z | local commit receipt
+
+Fifteen explicit reviewed paths staged with no unstaged delta; staged path set, diff check and privacy scan passed. Commit `8bc29b20a26f981b258fa9af91730a42ebef40c9` created on `agents/run-it`; immediate tree clean. No push: branch has no upstream, authorized push scope is origin/main, and origin/main advanced by four commits while Session A explicitly forbids merging other branches. Append this receipt, commit it locally, and verify final clean/ahead-behind state without embedding the receipt commit's own hash.
+
+## INTEGRATION-A | 2026-10-04T18:36:48.879980+00:00 | sequential integration verified
+
+Validated clean A branch 8bc29b2/d7b6723 and scoped diff; isolated full 375 tests pass (31.290s, one skip). Merge into main 59235ee plus C/E produced only shared audit/checkpoint conflicts. Both append-only tails retained with base-prefix checks; no source or product conflict. Combined full 424 tests pass in 22.277s. B remains independently verified (375 tests, 29.246s, one skip), unmerged. Continuity bootstrap commit 59235ee syntax/ValidateOnly verified. Runtime/model calls 0; Sol quota/charges unknown. Reviewed A merge commit and authorized normal push follow. Source/quality limitations unchanged; Gate 10 human evidence BLOCKED.

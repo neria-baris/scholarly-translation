@@ -48,7 +48,11 @@ def _build_structure(tmp_path):
     reading = build_readings(document)[0]
     candidate = next(c for c in reading["alternatives"] if c["origin"] == "digital")
     decisions = {page.page_id: _human_decision(candidate)}
-    return build_structure(document, decisions=decisions)
+    # Pin a small word-count ceiling so the two short fixture sentences stay
+    # separate units under the default logical-structure grouping policy
+    # (the policy's merge-toward-target behavior is covered separately in
+    # tests/test_structure_v2.py).
+    return build_structure(document, decisions=decisions, unit_policy={"max_unit_words": 1})
 
 
 class GlossaryProposalAndReviewTests(unittest.TestCase):
@@ -485,7 +489,8 @@ class TerminologyContractRegressionTests(unittest.TestCase):
         decisions = {r["page_id"]:_human_decision(r["alternatives"][0]) for r in build_readings(document)}
         merged = build_structure(document,decisions=decisions,previous=self.structure,
                                  boundaries={document.pages[0].page_id:[[0,len(document.pages[0].source_text)]]})
-        restored = build_structure(document,decisions=decisions,previous=merged)
+        restored = build_structure(document,decisions=decisions,previous=merged,
+                                   unit_policy={"max_unit_words": 1})
         self.assertEqual(restored["units"][0]["unit_id"],self.uid)
         self.assertEqual(restored["units"][0]["unit_version"],3)
         result = lookup(memory,restored,self.uid,resolve_applicable(glossary,restored,self.uid))

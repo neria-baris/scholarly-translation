@@ -171,7 +171,7 @@ def _validate_previous_structure(previous: Optional[dict], document: Document) -
     return previous
 
 
-def build_structure(document: Document, ocr_bundle=None, decisions=None, boundaries=None, previous=None) -> dict:
+def _build_structure_v1(document: Document, ocr_bundle=None, decisions=None, boundaries=None, previous=None) -> dict:
     previous = _validate_previous_structure(previous, document)
 
     if boundaries is None:
@@ -357,7 +357,7 @@ def _validate_snapshot(readings, units, continuity, data):
     return index, {u['unit_id']:u for u in units}
 
 
-def validate_structure(data):
+def _validate_structure_v1(data):
     """Validate current and historical snapshots with the same evidence checks.
 
     Detect inconsistent/tampered records, not coordinated rewriting of all source
@@ -411,3 +411,36 @@ def validate_structure(data):
                         and u['unit_version'] == max((p['unit_version'] for p in overlaps), default=0) + 1,
                         'unit predecessor/version mismatch')
         previous_id, previous_readings, previous_units = snap['revision_id'], readings, units
+
+
+def validate_structure(data):
+    """Validate either a historical line-oriented schema-1 artifact or the
+    current logical-structure schema. Validation never upgrades or rewrites the
+    supplied artifact.
+    """
+    if isinstance(data, dict) and data.get("schema_version") == 1:
+        return _validate_structure_v1(data)
+    from .document_structure import validate_structure_v2
+    return validate_structure_v2(data, validate_legacy=_validate_structure_v1)
+
+
+def build_structure(document: Document, ocr_bundle=None, decisions=None, boundaries=None,
+                    previous=None, unit_policy=None) -> dict:
+    """Build logical nodes and semantic units (schema 2).
+
+    ``unit_policy`` is a narrow deterministic segmentation policy, not a
+    translation profile. Historical schema-1 artifacts remain accepted as a
+    previous lineage and by :func:`validate_structure`.
+    """
+    from .document_structure import build_structure_v2
+    return build_structure_v2(
+        document,
+        ocr_bundle=ocr_bundle,
+        decisions=decisions,
+        boundaries=boundaries,
+        previous=previous,
+        unit_policy=unit_policy,
+        validate_any=validate_structure,
+        validate_boundaries=_validate_boundaries,
+        continuity_check=check_continuity,
+    )
