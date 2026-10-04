@@ -1,52 +1,55 @@
 # Current state
-Updated: 2026-10-05T00:20:00+00:00 (Claude conductor)
+Updated: 2026-10-05T01:00:00+00:00 (Claude conductor)
 
-Phase: A/B/C/D(+persistent-state addendum)/E/X all integrated, tested and
-pushed. `origin/main` == `main` == `9506352` ("Integrate Session X:
-PDF/EPUB format-preserving export"). Independent full-suite rerun on
-merged main: 509 tests pass, 0 skips (29.2s), bundled runtime
+Phase: A/B/C/D(+persistent-state addendum)/E/F(PDF-only)/X integrated,
+tested and pushed. `origin/main` == `main` == `c2b6b174` ("Integrate
+Session F: simple UI rewired onto canonical backend (PDF path)").
+Independent full-suite rerun on merged main: 513 tests pass, 0 skips
+(26.8s), bundled runtime
 `C:/Users/pc2/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`.
 
-A = document structure/segmentation schema 2. B = scholarly+literary
-profiles (Gate 12). C = optional review/chapter QA
-(scholarly_translation/review_qa.py, chapter QA at lines ~593-761,
-verdict/issues/chapter_level_notes, categories {completeness, consistency,
-continuity, hebrew_quality}). D = (1) chapter-aware, model-budget
-translation context strategy (context_strategy.py), (2) per the user's
-2026-10-05 addendum, a versioned, source-backed cross-chapter persistent
-document-state store (document_state.py: propose_item/find_conflicts/
-commit_update, certainty established/likely/unresolved, model-authored
-items barred from "established", document_state_version in cache key).
-E = role-based provider/model selection. X = PDF export (export_pdf.py,
-reportlab + a small documented Hebrew/RTL bidi routine since no rlbidi
-package is installed) and EPUB export (export_epub.py, using the EPUB's
-own XHTML structure as ground truth under a new epub-structure@1 schema,
-since no canonical document_structure producer exists yet for EPUB).
+Stage summary: A=structure schema 2; B=scholarly+literary profiles;
+C=optional review/chapter QA (review_qa.py); D=chapter-aware context
+(context_strategy.py) + versioned cross-chapter persistent state
+(document_state.py, NOT yet wired to C's chapter QA - that's G's job);
+E=role-based provider/model selection; X=PDF/EPUB export (export_pdf.py
+working fully; export_epub.py works for the X session's own export-only
+scope but cannot yet receive a translated EPUB from the canonical
+pipeline - see below); F=the simple upload/translate/download UI now
+drives the real backend for PDF end-to-end (structure -> translation
+-> quality-mode-gated review -> export_pdf); EPUB upload in that UI is
+explicitly refused pending the decision below.
 
-IMPORTANT for Session G (not yet launched), per the addendum
-(audit/raw/addendum_2026-10-05_persistent_state.md, contract
-audit/contracts/session_d2_persistent_document_state.md): document_state.py
-is deliberately NOT wired to review_qa.py's chapter QA output yet. G must
-connect them with the smallest clean adapter (extending review_qa.py's
-structured output only if required, never rewriting it), add the ten
-addendum test scenarios end-to-end, and confirm historical reproducibility
-across a state-version bump. G should also check export_epub.py's new
-epub-structure@1 schema is clearly documented as EPUB-specific (not
-confused with document_structure schema 2) as part of its cross-component
-consistency check.
+OPEN PRODUCT/ARCHITECTURE QUESTION (raised to the user, not yet decided):
+Session F found that `translation.build_translation_request` transitively
+requires every reading candidate to carry literal provenance
+`stage == "digital-pdf@1"` plus positive `pdf_width`/`pdf_height`
+(enforced in `source_reading.py` ~lines 132-162, confirmed by conductor
+inspection). EPUB text has no page geometry and never goes through PDF
+digital extraction, so it cannot satisfy this without either fabricating
+false provenance or extending that core schema with a new non-geometric
+digital-text origin type. This is a genuine cross-cutting decision
+(touches source_reading.py/document_structure.py, used by segmentation.py
+and translation.py) - the user has been asked to choose a path (schema
+extension to support real EPUB translation vs. shipping PDF-only for now
+with EPUB staying export-only/BLOCKED) before Session G runs, since G's
+own completion checklist names "EPUB -> translated EPUB" as part of the
+fully supported final feature set.
 
 Original clean worktrees preserved at sibling scholarly-translation.worktrees/
-(A/B/C/E, fully merged, kept per no-unnecessary-cleanup policy) and
-.claude/worktrees/ (untracked, harness-managed: both D's and X's are done
-and may be pruned once confirmed with the user).
+(A/B/C/E, fully merged) and .claude/worktrees/ (untracked, harness-managed:
+D's, X's and F's are done and may be pruned once confirmed with the user).
 
 Quota and actual subscription charges unknown. No new external paid
 model/provider calls this session (mock/fixture-only).
 
-Exact next action: launch F (simple UI integration) per
-audit/claude_integration_conductor.md, wiring Academic/Literary profile
-selection, Auto/explicit model choice, Fast/Checked/Thorough quality
-modes, and the new export_pdf/export_epub output into the existing simple
-upload/download UI (web_ui.py/ui.html/ui.js) without exposing internal
-pipeline/provenance/cache details. Then G (final integration review,
-including the Session C/D persistent-state wiring above).
+Exact next action: awaiting the user's decision on the EPUB-translation
+schema question above. Once resolved (either via a small follow-up
+contract to extend source_reading.py, or by confirming PDF-only for now),
+launch Session G (final integration review), which per
+audit/claude_integration_conductor.md plus the 2026-10-05 persistent-state
+addendum must additionally: (1) wire Session C's chapter QA output into
+Session D's document_state.py via the smallest adapter necessary; (2) add
+the ten addendum test scenarios end-to-end; (3) run the complete test
+suite and fix only concrete integration defects; (4) document the EPUB-
+translation limitation (or its resolution) accurately.

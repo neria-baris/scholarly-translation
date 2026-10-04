@@ -486,3 +486,49 @@ audit/claude_integration_conductor.md Phase 4/5, F (UI) is next, then G
 (final integration review, which per the user's 2026-10-05 addendum also
 owns wiring Session C's chapter QA into Session D's document_state.py - see
 audit/raw/addendum_2026-10-05_persistent_state.md).
+
+## SESSION-F | 2026-10-05T01:00:00+00:00 | simple UI rewired onto canonical backend (PDF path), integrated and pushed
+
+Claude acting as temporary integration conductor launched Session F as an isolated
+worktree/branch sub-agent (worktree-agent-ab23e0a88f5fcb6ed) off checked common base
+d9458d7, per audit/contracts/session_f_simple_ui_integration.md. The builder
+replaced document_draft.py's ad-hoc internals (fixed-size chunking, hard-coded
+two-OpenAI-model list, direct openai SDK calls, HTML/TXT-only output) with
+pdf_extract.extract_pdf -> segmentation.build_structure -> per-unit
+translation.build_translation_request_for_role/run_translation ->
+quality-mode-gated review_qa (Fast/Checked/Thorough mapped onto
+UNIT_REVIEW_POLICIES/CHAPTER_QA_POLICIES exactly as specified) ->
+export_pdf.export_pdf, while preserving the job-runner's durable/resumable
+shape. Model selection is now Auto (zero-cost mock) or a server-supplied
+model-config file resolved via model_config.py's provider-neutral registry.
+
+The builder hit the contract's own named stop_condition on EPUB:
+translation.build_translation_request transitively requires every reading
+candidate to carry literal provenance stage "digital-pdf@1" plus positive
+pdf_width/pdf_height geometry (enforced in source_reading.py, confirmed by
+conductor inspection at source_reading.py lines ~132-162), which EPUB text
+(reflowable, no page geometry) cannot honestly satisfy without fabricating
+false provenance or extending that core schema - explicitly out of this
+session's scope. The builder correctly stopped and reported this rather than
+improvising around it; EPUB upload is refused in the UI with a clear message.
+
+Conductor review: read document_draft.py (full rewrite)/web_ui.py/ui.html/
+ui.js diffs in full; confirmed the removed browser-pasted-API-key path for
+this flow (replaced by env-var/model-config-file-based credentials, needed
+for multi-provider support) is intentional and documented, and remains
+available unchanged for the separate advanced CLI-step dashboard.
+Independently reran the suite in the isolated worktree (513 tests, 1
+pre-existing unrelated skip, 24.6s, matching the builder's own before/after
+comparison) before merging via --no-ff merge commit c2b6b174 (no conflicts).
+Reran full suite on merged main: 513 tests, 0 skips, 26.8s, OK. Fetched
+origin/main, verified ancestry, pushed; post-push fetch confirmed main ==
+origin/main == c2b6b174. No runtime provider calls; mock/fixture-only.
+
+EPUB-translation-in-the-simple-UI is a genuine product/architecture decision
+(a core schema extension to source_reading.py/document_structure.py) raised
+to the user rather than decided unilaterally; see the conversation and any
+follow-up contract this produces. A/B/C/D(+addendum)/E/F(PDF-only)/X are
+integrated on main; Session G (final integration review) is next, scoped per
+audit/claude_integration_conductor.md plus the 2026-10-05 persistent-state
+addendum, and should treat the EPUB-translation gap as a known, explicitly
+tracked limitation unless the user's decision changes that before G runs.
