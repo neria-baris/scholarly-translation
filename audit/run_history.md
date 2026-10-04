@@ -337,3 +337,7 @@ Initial structure discovery had one fixture geometry error; the first full run o
 ## SESSION-A | 2026-10-04T17:50:29Z | pre-commit Git status
 
 Reviewed tracked and untracked Session-A code/tests/docs/contract, no secrets/private input/generated outputs staged. Branch remains `agents/run-it`. Local `origin/main` tracking ref advanced during work from the common base to `633c33d` through Session-C/provider-selection commits; no merge/rebase/push attempted because the user requested a commit on this branch without merging other branches and standing push authorization is only for `origin/main`. Exact-path local staging/commit and clean-tree verification follow.
+
+## SESSION-A | 2026-10-04T17:57:10Z | local commit receipt
+
+Fifteen explicit reviewed paths staged with no unstaged delta; staged path set, diff check and privacy scan passed. Commit `8bc29b20a26f981b258fa9af91730a42ebef40c9` created on `agents/run-it`; immediate tree clean. No push: branch has no upstream, authorized push scope is origin/main, and origin/main advanced by four commits while Session A explicitly forbids merging other branches. Append this receipt, commit it locally, and verify final clean/ahead-behind state without embedding the receipt commit's own hash.
