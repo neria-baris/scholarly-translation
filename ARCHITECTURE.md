@@ -170,3 +170,24 @@ measures model/routing quality. Do not freeze those later field sets, provider
 choices, prompt wording, OCR thresholds, Japanese layout heuristics or context
 window sizes before their Gate or real-source experiments. Only scholarly is
 planned for the first implementation; future profile behavior remains deferred.
+
+## User-directed simple document flow (2026-10-04)
+
+The user explicitly requested PDF/EPUB upload, automatic translation/download
+and optional review. This independent UI extension, scoped by
+`audit/contracts/ui_simple.md`, adds EPUB text input for that product flow;
+prior Gate-specific deferrals above remain historical descriptions of those
+Gates. It introduces no literary profile, glossary approval shortcut or OCR.
+
+`document_draft.py` owns bounded embedded-text PDF/EPUB-spine extraction,
+source spans/hash, model/effort requests, durable Gate-11 reservations/cache,
+job progress/recovery and optional edited revisions. `web_ui.py` exposes these
+through token/origin-guarded loopback endpoints; `ui.html/css/js` present upload,
+secondary settings, results/download and optional source/target editing.
+
+Schema-1 `document-draft@1` is deliberately separate from canonical scholarly
+translation/review/export schemas. Its `approved` and `source_reviewed` are
+always false. HTML/TXT outputs are labeled automatic drafts, including partial
+results; human edits preserve prior revisions and never grant research approval.
+Completed results can resume after server restart; in-flight interrupted jobs
+cannot silently dispatch again. No network call occurs in demo or tests.

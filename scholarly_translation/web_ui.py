@@ -13,6 +13,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import quote
 
 from .gui import STEPS, build_command
 from .ui_decisions import (
@@ -121,9 +122,11 @@ def local_library() -> list[dict]:
 
 
 def make_handler(token: str):
+    from .document_draft import DocumentJobs, DocumentDraftError, MODELS, QUALITIES, MAX_FILE_BYTES, render_download
     session_settings = {"api_key": None}
     session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
+    document_jobs = DocumentJobs(OUTPUT_ROOT)
 
     def decision_file(data: dict, key: str) -> tuple[str, dict]:
         path = data.get(key, "")
@@ -165,7 +168,7 @@ def make_handler(token: str):
             if self.path != "/":
                 self._json(404, {"error": "not found"})
                 return
-            config = json.dumps({"token": token, "steps": public_steps()}, ensure_ascii=False)
+            config = json.dumps({"token": token}, ensure_ascii=False)
             html = (UI_DIR / "ui.html").read_text(encoding="utf-8").replace("__CONFIG__", config)
             self._reply(200, html.encode("utf-8"), "text/html")
 
@@ -207,7 +210,65 @@ def make_handler(token: str):
                 data = json.loads(self.rfile.read(length))
                 if not isinstance(data, dict):
                     raise ValueError("invalid request")
-                if route.path == "/run":
+                if route.path == "/document-config":
+                    with settings_lock:
+                        available = bool(session_settings["api_key"] or os.environ.get("OPENAI_API_KEY"))
+                    self._json(200, {"models": [{"id": model, "label": spec["label"]} for model, spec in MODELS.items()],
+                                     "qualities": [{"id": quality, "label": spec["label"]} for quality, spec in QUALITIES.items()],
+                                     "api_key_available": available, "max_file_bytes": MAX_FILE_BYTES})
+                elif route.path == "/document-translate":
+                    source = Path(data.get("path", "")).resolve()
+                    if not source.is_relative_to((OUTPUT_ROOT / "uploads").resolve()) or not source.is_file():
+                        raise DocumentDraftError("בחרו קובץ שהועלה דרך הממשק.")
+                    if source.suffix.lower() not in (".pdf", ".epub") or not 0 < source.stat().st_size <= MAX_FILE_BYTES:
+                        raise DocumentDraftError("בחרו PDF או EPUB עד 25 MB.")
+                    if not isinstance(data.get("settings"), dict):
+                        raise DocumentDraftError("הגדרות המסמך חסרות.")
+                    with settings_lock:
+                        key = session_settings["api_key"]
+                    self._json(200, document_jobs.start(source, data["settings"], api_key=key,
+                                                       paid_confirm=data.get("paid_confirm")))
+                elif route.path == "/document-job":
+                    self._json(200, document_jobs.get(data.get("job_id")))
+                elif route.path == "/document-recent":
+                    candidates = sorted(document_jobs.root.glob("*/job.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+                    recent = None
+                    for candidate in candidates[:10]:
+                        try:
+                            job = document_jobs.get(candidate.parent.name)
+                            recent = {"job_id": job["job_id"], "filename": job["filename"], "status": job["status"]}
+                            break
+                        except (ValueError, OSError):
+                            continue
+                    self._json(200, {"job": recent})
+                elif route.path == "/document-review":
+                    self._json(200, document_jobs.review(data.get("job_id"), data.get("chunk_index"),
+                               data.get("target_text"), data.get("expected_revision")))
+                elif route.path == "/document-download":
+                    job = document_jobs.get(data.get("job_id"))
+                    if not job["completed_chunks"]:
+                        raise DocumentDraftError("עדיין אין תוצאה להורדה.")
+                    kind = data.get("format")
+                    body = render_download(job, kind)
+                    self.send_response(200)
+                    self.send_header("Content-Type", ("text/html" if kind == "html" else "text/plain") + "; charset=utf-8")
+                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + ".he." + kind))
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    self.wfile.write(body)
+                elif route.path == "/document-sample":
+                    import zipfile
+                    destination = OUTPUT_ROOT / "uploads" / secrets.token_hex(10) / "sample.epub"
+                    destination.parent.mkdir(parents=True, exist_ok=False)
+                    with zipfile.ZipFile(destination, "w") as archive:
+                        archive.writestr("mimetype", "application/epub+zip")
+                        archive.writestr("META-INF/container.xml", '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>')
+                        archive.writestr("book.opf", '<package xmlns="http://www.idpf.org/2007/opf"><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>')
+                        archive.writestr("chapter.xhtml", '<html><body><h1>A short sample</h1><p>Some scholars do not accept the claim. The original document contains 3 arguments.</p></body></html>')
+                    self._json(200, {"path": str(destination), "name": destination.name, "size": destination.stat().st_size})
+                elif route.path == "/run":
                     command = data.get("command")
                     step = next((s for s in STEPS if s.command == command), None)
                     if step is None or not isinstance(data.get("values"), dict):

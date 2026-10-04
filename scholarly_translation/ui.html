@@ -1,139 +1,59 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>תרגום מחקרי · סביבת עבודה</title>
-  <link rel="stylesheet" href="/ui.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light"><title>תרגום מסמכים לעברית</title>
+<link rel="stylesheet" href="/ui.css">
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="ניווט ראשי">
-      <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
-      <div class="brand">P<span>.</span></div>
-      <nav class="primary-nav">
-        <button data-view="library"><span class="nav-icon">▤</span> ספרייה</button>
-        <button data-view="source"><span class="nav-icon">⌑</span> מקור</button>
-        <button data-view="translate" class="active"><span class="nav-icon">⇄</span> תרגום</button>
-        <button data-view="glossary"><span class="nav-icon">◇</span> מילון</button>
-        <button data-view="review"><span class="nav-icon">▢</span> סקירה</button>
-      </nav>
-      <div class="sidebar-bottom">
-        <button data-view="settings"><span class="nav-icon">⚙</span> הגדרות</button>
-      </div>
-    </aside>
-
-    <main class="main-pane">
-      <section id="workspace-view">
-        <div class="progress" id="progress" aria-label="שלבי עבודה"></div>
-        <header class="document-head">
-          <div>
-            <div class="eyebrow">DOCUMENT / מסמך</div>
-            <h1 id="document-title">סביבת תרגום מחקרי</h1>
-            <p class="document-meta" id="document-meta">בחרו מסמך מהספרייה או העלו PDF כדי להתחיל</p>
-          </div>
-          <div class="document-select-wrap"><select id="unit-select" aria-label="בחירת מקטע"><option value="">כל המסמך</option></select></div>
-        </header>
-
-        <section id="library-section" class="library-section" hidden>
-          <div class="section-kicker">LIBRARY / ספרייה</div>
-          <h2>המסמכים המקומיים שלך</h2>
-          <p class="muted">קובצי המקור והתוצרים נשארים במחשב שלך.</p>
-          <div class="library-import">
-            <label for="pdf-upload">בחרו PDF לייבוא</label>
-            <input id="pdf-upload" type="file" accept=".pdf,application/pdf">
-            <button id="import-button" class="button-primary">חלץ טקסט</button>
-          </div>
-          <div id="library-list" class="library-list"></div>
-        </section>
-
-        <section id="source-editor" class="decision-panel" hidden>
-          <div class="section-kicker">SOURCE DECISION / הכרעת מקור</div>
-          <h2>בחרו קריאה לעמוד</h2>
-          <p class="muted" id="source-guidance">לאישור המקור נדרש מסמך מחולץ. הפעולה יוצרת גרסה חדשה ושומרת את הראיות הקודמות.</p>
-          <button id="prepare-source" class="button-secondary">הכן מועמדי מקור</button>
-          <div class="field"><label for="source-page">עמוד</label><select id="source-page"></select></div>
-          <div id="source-candidates" class="candidate-list"></div>
-          <div class="form-grid decision-fields">
-            <div class="field"><label for="source-actor">שם הבודק/ת *</label><input id="source-actor" autocomplete="name"></div>
-            <div class="field"><label for="source-reason">נימוק הבדיקה מול המקור *</label><input id="source-reason"></div>
-          </div>
-          <div class="inline-actions"><button id="save-source" class="button-primary">שמור הכרעת מקור</button><span id="source-status" class="muted"></span></div>
-        </section>
-
-        <section id="glossary-editor" class="decision-panel" hidden>
-          <div class="section-kicker">TERMINOLOGY / מילון</div>
-          <h2>הצעה ובדיקה של מונחים</h2>
-          <p class="muted" id="term-guidance">בחרו מקטע מקור פתור. הצעה נשארת ממתינה עד לאישור אנושי מפורש.</p>
-          <div class="field"><label for="term-unit">מקטע מקור</label><select id="term-unit"></select></div>
-          <div id="term-source" class="term-source"></div>
-          <div class="form-grid decision-fields">
-            <div class="field"><label for="term-source-term">מונח במקור *</label><input id="term-source-term"></div>
-            <div class="field"><label for="term-target">תרגום מוצע לעברית *</label><input id="term-target" dir="rtl"></div>
-            <div class="field"><label for="term-occurrence">מופע במקטע (1 = הראשון)</label><input id="term-occurrence" type="number" min="1" step="1" value="1"></div>
-            <div class="field"><label for="term-scope">תחולה</label><select id="term-scope"><option value="unit">המקטע הזה</option><option value="document">המסמך הזה</option><option value="global">כל המסמכים</option></select></div>
-          </div>
-          <label class="checkbox-line"><input id="term-loaded" type="checkbox"> מונח טעון משמעות</label>
-          <div class="inline-actions"><button id="propose-term" class="button-primary">הצע מונח</button><span id="term-status" class="muted"></span></div>
-          <h3>מונחים קיימים</h3>
-          <div class="form-grid decision-fields">
-            <div class="field"><label for="term-actor">שם הבודק/ת לאישור או דחייה *</label><input id="term-actor" autocomplete="name"></div>
-            <div class="field"><label for="term-reason">נימוק ההחלטה *</label><input id="term-reason"></div>
-          </div>
-          <div id="term-rules" class="rule-list"></div>
-        </section>
-
-        <section id="reader-section" class="reader">
-          <div class="reading-block">
-            <div class="reading-label"><span>SOURCE <small id="source-language"></small></span><span id="source-stat">מקור</span></div>
-            <div class="reading-content" id="source-text" dir="auto">עדיין לא נטען מסמך. בחרו PDF בספרייה כדי לראות כאן את טקסט המקור.</div>
-          </div>
-          <div class="reading-block translation-block">
-            <div class="reading-label"><span>TRANSLATION <small>HEBREW</small></span><span id="translation-stat">ממתין לתרגום</span></div>
-            <div class="reading-content target-text" id="translation-text" dir="rtl">טיוטת התרגום תופיע כאן לאחר בחירת מקטע והרצת שלב התרגום.</div>
-          </div>
-        </section>
-
-        <section class="operation" id="operation-section">
-          <div class="operation-heading">
-            <div><div class="section-kicker">WORKFLOW / תהליך עבודה</div><h2 id="step-title"></h2><p id="step-help"></p></div>
-            <select id="step-select" aria-label="בחר כלי עבודה"></select>
-          </div>
-          <div class="form-grid" id="step-form"></div>
-          <div class="field output-field" id="output-row"><label for="output">תיקיית פלט חדשה</label><input id="output" dir="ltr"></div>
-          <div class="operation-actions"><button id="run" class="button-primary">הפעל שלב</button><button id="open" class="button-secondary" disabled>פתח תוצאה</button><span id="status">מוכן</span></div>
-          <pre id="log" class="log" aria-live="polite"></pre>
-        </section>
-      </section>
-
-      <section id="settings-view" class="settings-view" hidden>
-        <div class="eyebrow">PREFERENCES / העדפות</div>
-        <h1>הגדרות</h1>
-        <p class="muted">בחירת ספק ומשאבים לעבודה המקומית. מפתח API נשמר בזיכרון רק עד סגירת השרת.</p>
-        <div class="settings-grid">
-          <div class="setting-card"><h2>ספק תרגום</h2>
-            <div class="field"><label for="setting-provider">ספק ברירת מחדל</label><select id="setting-provider"><option value="mock">Mock · ללא עלות</option><option value="openai">OpenAI · קריאה בתשלום</option></select></div>
-            <div class="field"><label for="setting-api-key">OpenAI API key</label><input id="setting-api-key" type="password" autocomplete="new-password" placeholder="יוזן לזיכרון של ההרצה בלבד" dir="ltr"></div>
-            <div class="inline-actions"><button id="save-key" class="button-primary">החל מפתח לסשן</button><button id="clear-key" class="button-plain">נקה מפתח</button></div>
-            <p id="key-status" class="setting-note"></p>
-          </div>
-          <div class="setting-card"><h2>תקציב ובקרה</h2>
-            <div class="field"><label for="setting-max-calls">קריאות מרביות למשימה</label><input id="setting-max-calls" type="number" min="1" step="1" value="3" dir="ltr"></div>
-            <div class="field"><label for="setting-hard-list-usd">תקרת מחירון בדולרים</label><input id="setting-hard-list-usd" type="number" min="0.0001" step="0.001" value="0.01" dir="ltr"></div>
-            <div class="field"><label for="setting-control-store">מאגר תקציב ומטמון</label><input id="setting-control-store" value="outputs/runtime_controls.sqlite3" dir="ltr"></div>
-            <p class="setting-note">העלות היא אומדן מחירון; החיוב בפועל תלוי בספק. שינוי מדיניות של משימה קיימת עשוי להיחסם.</p>
-          </div>
-          <div class="setting-card"><h2>מקור ו־OCR</h2>
-            <div class="field"><label for="setting-language">שפת מקור</label><select id="setting-language"><option value="en">אנגלית</option><option value="fr">צרפתית</option><option value="ja">יפנית</option></select></div>
-            <div class="field"><label for="setting-tesseract">נתיב Tesseract</label><input id="setting-tesseract" placeholder="C:\Program Files\Tesseract-OCR\tesseract.exe" dir="ltr"></div>
-            <div class="field"><label for="setting-tessdata">תיקיית tessdata</label><input id="setting-tessdata" placeholder="אופציונלי" dir="ltr"></div>
-          </div>
-        </div>
-        <p class="settings-footer">הממשק מאזין רק ל־127.0.0.1. אין להדביק מפתחות בצ'אט או לשמור אותם בקובצי הפרויקט. <a href="/help" target="_blank" rel="noopener">מדריך שימוש</a></p>
-      </section>
-    </main>
-  </div>
-  <script>window.UI_CONFIG = __CONFIG__;</script>
-  <script src="/ui.js"></script>
-</body>
-</html>
+<header class="app-header">
+<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h10M9 3v3M6 9c1 4 4 6 7 7M12 6c0 5-3 8-7 10M14 20l4-10 4 10m-6-3h4"/></svg></span><span>תרגום מסמכים</span></a>
+<button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">חיבור OpenAI</span></button>
+</header>
+<main class="workspace">
+<section id="start-panel" aria-labelledby="main-title">
+<div class="hero"><span class="eyebrow">PDF ו־EPUB · לעברית</span><h1 id="main-title">המסמך שלכם, <span>בעברית.</span></h1><p>מעלים קובץ, בוחרים איך לתרגם, ומורידים את התוצאה.<br class="desktop-break"> אפשר לעבור עליה ולערוך — אם רוצים.</p></div>
+<form id="translation-form" class="translate-card">
+<input id="document-file" class="visually-hidden" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" aria-label="בחרו PDF או EPUB">
+<div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="בחירת קובץ PDF או EPUB או גרירתו לכאן">
+<div id="upload-empty"><span class="file-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M13 5h15l9 9v28H13zM28 5v10h9M20 24h10M20 30h10M20 36h6"/></svg></span><h2>בחרו קובץ או גררו אותו לכאן</h2><span class="choose-file">בחירת קובץ <span aria-hidden="true">←</span></span><p class="upload-note">PDF עם טקסט או EPUB · עד 25 MB</p></div>
+<div id="upload-selected" class="selected-file" hidden><span class="selected-file-icon" aria-hidden="true">↥</span><div><strong id="filename" dir="auto"></strong><span id="file-size"></span></div><span class="change-file">החלפה</span></div>
+</div>
+<details id="translation-options" class="options">
+<summary><div class="option-summary"><span id="model-summary">GPT-6 Luna</span><span class="separator">·</span><span id="quality-summary">מאוזן</span><span class="separator">·</span><span>עברית</span></div><span class="options-label">אפשרויות <span class="chevron" aria-hidden="true">⌄</span></span></summary>
+<div class="settings-fields">
+<div class="field"><label for="model">מודל</label><select id="model"><option value="gpt-6-luna">GPT-6 Luna</option><option value="gpt-6.1-sol">GPT-6.1 Sol</option><option value="demo">תצוגת ניסיון — ללא תרגום</option></select><small>זמינות המודל תלויה בהרשאות חשבון OpenAI.</small></div>
+<div class="field"><label for="quality">רמת עיבוד</label><select id="quality"><option value="fast">מהיר</option><option value="balanced" selected>מאוזן</option><option value="careful">מעמיק</option></select><small id="quality-help">יותר זמן חשיבה למודל; אינו מבטיח דיוק מחקרי.</small></div>
+<div class="field"><label for="language">שפת המקור</label><select id="language"><option value="auto">זיהוי אוטומטי</option><option value="en">אנגלית</option><option value="fr">צרפתית</option><option value="ja">יפנית</option></select></div>
+<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" value="2" min="0.01" max="30" step="0.01" inputmode="decimal" dir="ltr"><small>מגבלת אומדן מחירון. החיוב בפועל נקבע בידי הספק.</small></div>
+</div></details>
+<p id="form-message" class="message" role="alert" hidden></p>
+<button id="translate-button" type="submit" class="primary-button translate-button" disabled><span id="translate-label">תרגום לעברית</span><span aria-hidden="true">←</span></button>
+<p id="send-note" class="send-note">לחיצה על תרגום תבקש אישור לשליחת הטקסט ל־OpenAI.</p>
+</form>
+<div class="below-card"><button id="sample-button" class="text-button">נסו עם מסמך דוגמה, ללא API</button><button id="recent-button" class="text-button" hidden></button></div>
+<p class="format-note">מתרגמים את הטקסט. עימוד מקורי ותמונות אינם משוחזרים.</p>
+</section>
+<section id="processing-panel" class="processing-panel" aria-live="polite" hidden>
+<div class="spinner" aria-hidden="true"></div><span class="eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p><progress id="translation-progress" max="1" aria-label="התקדמות התרגום"></progress><p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
+</section>
+<section id="result-panel" hidden aria-labelledby="result-title">
+<div class="result-heading"><span id="result-symbol" class="result-symbol" aria-hidden="true">✓</span><span class="eyebrow" id="result-eyebrow">התרגום שלכם</span><h1 id="result-title">התרגום מוכן.</h1><p id="result-filename" dir="auto"></p></div>
+<div class="result-card"><div class="result-file"><span class="result-file-icon" aria-hidden="true">↓</span><div><strong id="download-filename" dir="auto"></strong><span id="result-meta"></span></div><span class="draft-badge">טיוטה</span></div>
+<p id="result-notice" class="result-notice" hidden></p><div class="result-actions"><button id="download-html" class="primary-button">הורדת התרגום <span aria-hidden="true">↓</span></button><button id="download-text" class="secondary-button">קובץ טקסט</button></div>
+<div class="result-secondary"><button id="review-button" class="text-button">בדיקה ועריכה (לבחירתכם) <span aria-hidden="true">←</span></button><span id="cost-summary"></span></div></div>
+<div id="review-panel" class="review-panel" hidden>
+<div class="review-toolbar"><div><h2>מקור לצד תרגום</h2><p id="review-location"></p></div><select id="chunk-select" aria-label="בחירת מקטע לבדיקה"></select><button id="close-review" class="quiet-button" aria-label="סגירת הבדיקה">✕</button></div>
+<div class="review-columns"><section><h3>מקור</h3><div id="review-source" class="source-copy" dir="auto"></div></section><section><h3>תרגום · אפשר לערוך</h3><textarea id="review-target" dir="rtl" aria-label="עריכת התרגום"></textarea></section></div>
+<div id="review-findings" class="review-findings"></div><div class="review-actions"><button id="save-edit" class="primary-button">שמירת שינויים</button><span id="review-message" role="status"></span><span class="review-note">השמירה מעדכנת את הטיוטה להורדה.</span></div></div>
+<div class="result-bottom"><button id="new-document" class="text-button">← תרגום מסמך נוסף</button><p>טיוטה אוטומטית; אפשר להוריד מיד, ואפשר לבדוק קודם.</p></div>
+</section>
+</main>
+<footer class="app-footer"><span>הקובץ והתוצאה נשמרים במחשב שלכם.</span><a href="/help" target="_blank" rel="noopener">עזרה</a></footer>
+<dialog id="connection-dialog" aria-labelledby="connection-title">
+<div class="dialog-heading"><h2 id="connection-title">חיבור ל־OpenAI</h2><button id="close-connection" class="quiet-button" aria-label="סגירת הגדרות החיבור">✕</button></div><p>הזינו מפתח API כדי לתרגם. המפתח נשמר בזיכרון ההרצה בלבד.</p>
+<div class="field"><label for="api-key">מפתח OpenAI API</label><input id="api-key" type="password" autocomplete="new-password" dir="ltr" placeholder="sk-…"></div><p id="key-message" role="status" class="key-message"></p>
+<div class="dialog-actions"><button id="save-key" class="primary-button">שמירה וחיבור</button><button id="clear-key" class="text-button">ניקוי מפתח זמני</button></div><a class="help-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">פתיחת עמוד המפתחות ב־OpenAI ↗</a>
+</dialog>
+<script>window.UI_CONFIG = __CONFIG__;</script><script src="/ui.js"></script>
+</body></html>

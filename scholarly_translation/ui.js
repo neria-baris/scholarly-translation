@@ -1,329 +1,159 @@
-const {token,steps}=window.UI_CONFIG;
+const {token}=window.UI_CONFIG;
 const $=id=>document.getElementById(id);
-const stepByCommand=command=>steps.find(step=>step.command===command);
-const workflow=[['Import','extract-pdf'],['Parse','structure'],['Terms','terminology'],['Translate','translate-unit'],['Review','human-review-render'],['Export','human-review-export']];
-let saved={language:'en',provider:'mock',profile:'scholarly',control_store:'outputs/runtime_controls.sqlite3',max_calls:'3',hard_list_usd:'0.01'};
-let selected=stepByCommand('translate-unit'),view='translate',lastResult=null,working=false;
-let sourceData=null,termData=null;
-
-function node(tag,attributes={},content=''){
-  const element=document.createElement(tag);
-  for(const [key,value] of Object.entries(attributes))element.setAttribute(key,value);
-  element.textContent=content;
-  return element;
+let uploaded=null,currentJob=null,chunkIndex=0,busy=false,pollTimer=null,keyAvailable=false;
+const defaults={model:'gpt-6-luna',quality:'balanced',language:'auto',budget_usd:2};
+let preferences={...defaults};
+try{const stored=JSON.parse(localStorage.getItem('document-preferences')||'null');if(stored)preferences={...defaults,...stored}}catch(_){}
+function remember(key,value){try{localStorage.setItem(key,value)}catch(_){}}
+function forget(key){try{localStorage.removeItem(key)}catch(_){}}
+async function request(route,data={},binary=false){
+  const response=await fetch(route,{method:'POST',headers:{'Content-Type':'application/json','X-UI-Token':token},body:JSON.stringify(data)});
+  if(!response.ok){let result;try{result=await response.json()}catch(_){throw Error('לא ניתן להתחבר לשרת המקומי. הפעילו אותו שוב.')}
+    const error=Error(result.error||'הפעולה לא הושלמה');error.status=response.status;throw error}
+  return binary?response.blob():response.json();
 }
-function newOutput(command){
-  const directory='outputs/ui/'+command+'-'+new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14)+'-'+crypto.randomUUID().slice(0,6);
-  return command==='structure'?joined(directory,'structure.json'):directory;
+function message(text){$('form-message').textContent=text;$('form-message').hidden=!text}
+function show(panel){for(const id of ['start-panel','processing-panel','result-panel'])$(id).hidden=id!==panel}
+function setBusy(value){busy=value;updateSettings();$('sample-button').disabled=value}
+function settings(){return {model:$('model').value,quality:$('quality').value,language:$('language').value,budget_usd:Number($('budget').value)}}
+function updateSettings(){
+  preferences=settings();remember('document-preferences',JSON.stringify(preferences));
+  $('model-summary').textContent=$('model').selectedOptions[0].textContent;
+  $('quality-summary').textContent=$('quality').selectedOptions[0].textContent;
+  const demo=preferences.model==='demo';
+  $('translate-label').textContent=demo?'פתיחת תצוגת ניסיון':busy?'מעלה קובץ…':'תרגום לעברית';
+  $('translate-button').disabled=!uploaded||busy;
+  $('send-note').textContent=demo?'ללא API וללא עלות. יוצג המקור בלבד; זה אינו תרגום.':'לחיצה על תרגום תבקש אישור לשליחת הטקסט ל־OpenAI.';
+  $('quality').disabled=demo;$('budget').disabled=demo;
+  $('quality-help').textContent=preferences.quality==='fast'?'פחות זמן חשיבה ועיבוד קצר יותר.':
+    preferences.quality==='careful'?'יותר זמן חשיבה; עשוי להימשך זמן רב יותר ולעלות יותר.':'יותר זמן חשיבה למודל; אינו מבטיח דיוק מחקרי.';
 }
-function joined(directory,name){return directory.replace(/[\\/]+$/,'')+'/'+name}
-async function request(path,data){
-  const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-UI-Token':token},body:JSON.stringify(data)});
-  const result=await response.json();
-  if(!response.ok)throw Error(result.error||'הבקשה נכשלה');
-  return result;
+function setUploaded(file){
+  uploaded=file;$('upload-empty').hidden=!!file;$('upload-selected').hidden=!file;
+  if(file){$('filename').textContent=file.name;$('file-size').textContent=(file.size/1024/1024<1?Math.ceil(file.size/1024)+' KB':(file.size/1024/1024).toFixed(1)+' MB')+' · '+file.name.split('.').pop().toUpperCase()}
+  updateSettings();
 }
-function status(message){ $('status').textContent=message; }
-function collectForm(){
-  if(!selected)return;
-  for(const field of selected.fields){const input=$('field-'+field.key);if(input&&input.value.trim())saved[field.key]=input.value.trim()}
+async function uploadFile(file){
+  if(!file||busy)return;
+  if(!/\.(pdf|epub)$/i.test(file.name)||file.size===0||file.size>25*1024*1024){message('בחרו PDF או EPUB עד 25 MB.');return}
+  setBusy(true);message('');
+  try{const response=await fetch('/upload?name='+encodeURIComponent(file.name),{method:'POST',headers:{'X-UI-Token':token},body:file});
+    const result=await response.json();if(!response.ok)throw Error(result.error||'העלאת הקובץ נכשלה');
+    setUploaded({name:file.name,size:file.size,path:result.path});
+  }catch(error){message(error.message)}finally{setBusy(false)}
 }
-function chooseStep(command,preserveCurrent=true){
-  if(preserveCurrent)collectForm();selected=stepByCommand(command)||selected;renderForm();renderProgress();
+function showConnection(){if(!$('connection-dialog').open)$('connection-dialog').showModal();$('api-key').focus()}
+function renderConnection(){
+  $('connection-label').textContent=keyAvailable?'OpenAI מחובר':'חיבור OpenAI';
+  $('connection-dot').classList.toggle('connected',keyAvailable);
 }
-function renderProgress(){
-  $('progress').replaceChildren();
-  const current=workflow.findIndex(([,command])=>command===selected.command);
-  for(const [index,[label,command]] of workflow.entries()){
-    const button=node('button',{type:'button',class:index===current?'current':index<current?'complete':''},label);
-    button.onclick=()=>{if(command==='extract-pdf')navigate('library');else if(command==='structure')navigate('source');else if(command==='terminology')navigate('glossary');else if(command==='human-review-render')navigate('review');else navigate('translate');chooseStep(command)};
-    $('progress').append(button);
+async function saveKey(clear=false){
+  const key=clear?'':$('api-key').value.trim();if(!clear&&!key){$('key-message').textContent='יש להזין מפתח API.';return}
+  $('save-key').disabled=true;
+  try{const result=await request('/settings',{api_key:key});keyAvailable=result.api_key_available;$('api-key').value='';renderConnection();
+    $('key-message').textContent=keyAvailable?(clear?'המפתח הזמני נוקה; מפתח הסביבה עדיין זמין.':'החיבור נשמר להרצה הזו.'):'אין מפתח זמין להרצה.';
+    if(!clear)$('connection-dialog').close();
+  }catch(error){$('key-message').textContent=error.message}finally{$('save-key').disabled=false}
+}
+async function translate(event){
+  if(event)event.preventDefault();if(!uploaded||busy)return;message('');
+  const chosen=settings(),demo=chosen.model==='demo';
+  if(!demo&&!keyAvailable){message('חברו OpenAI כדי להתחיל בתרגום, או בחרו תצוגת ניסיון ללא API.');showConnection();return}
+  if(!Number.isFinite(chosen.budget_usd)||chosen.budget_usd<0.01||chosen.budget_usd>30){message('בחרו תקציב בין $0.01 ל־$30.');$('translation-options').open=true;$('budget').focus();return}
+  if(!demo&&!confirm('לשלוח את הטקסט של '+uploaded.name+' ל־OpenAI לתרגום?\nמודל: '+chosen.model+'\nמגבלת אומדן מחירון: $'+chosen.budget_usd+'\nרמת העיבוד: '+$('quality').selectedOptions[0].textContent))return;
+  setBusy(true);
+  try{const result=await request('/document-translate',{path:uploaded.path,settings:chosen,paid_confirm:!demo});remember('document-last-job',result.job_id);
+    currentJob={job_id:result.job_id,filename:uploaded.name,status:'queued',completed_chunks:0,total_chunks:0};show('processing-panel');renderProcessing();await poll(result.job_id);
+  }catch(error){show('start-panel');message(error.message);setBusy(false)}
+}
+function renderProcessing(){
+  $('processing-title').textContent=currentJob.status==='translating'?'מתרגמים את המסמך…':'קוראים את המסמך…';
+  $('processing-file').textContent=currentJob.filename;
+  const progress=$('translation-progress');
+  if(currentJob.total_chunks){progress.max=currentJob.total_chunks;progress.value=currentJob.completed_chunks;
+    $('processing-detail').textContent=currentJob.completed_chunks+' מתוך '+currentJob.total_chunks+' מקטעים הושלמו. אפשר לחזור לחלון הזה בהמשך.'}
+  else{progress.removeAttribute('value');$('processing-detail').textContent='מחלצים את הטקסט ומכינים את התרגום.'}
+}
+async function poll(jobId){
+  clearTimeout(pollTimer);
+  try{const result=await request('/document-job',{job_id:jobId});currentJob=result;
+    if(['queued','reading','translating'].includes(result.status)){show('processing-panel');renderProcessing();pollTimer=setTimeout(()=>poll(jobId),1400)}
+    else{setBusy(false);show('result-panel');renderResult();window.scrollTo({top:0,behavior:'smooth'})}
+  }catch(error){if(error.status===400){forget('document-last-job');currentJob=null;setBusy(false);show('start-panel');message(error.message);return}
+    $('processing-detail').textContent=error.message+' ננסה שוב לבדוק את מצב ההרצה.';pollTimer=setTimeout(()=>poll(jobId),5000)}
+}
+function renderResult(){
+  const demo=currentJob.status==='demo',complete=['completed','demo'].includes(currentJob.status),partial=!complete&&currentJob.completed_chunks>0;
+  $('result-title').textContent=demo?'תצוגת הניסיון מוכנה.':complete?'התרגום מוכן.':partial?'התרגום הושלם חלקית.':'התרגום לא הושלם.';
+  $('result-symbol').textContent=demo?'↗':complete?'✓':'!';$('result-eyebrow').textContent=demo?'ללא קריאת API':'המסמך שלכם';
+  $('result-filename').textContent=currentJob.filename;
+  $('download-filename').textContent=currentJob.filename.replace(/\.[^.]+$/,'')+'.he.html';
+  $('result-meta').textContent=(currentJob.settings.model==='demo'?'תצוגת ניסיון':currentJob.settings.model)+' · '+currentJob.completed_chunks+'/'+currentJob.total_chunks+' מקטעים';
+  const notice=demo?'זו תצוגת ניסיון של הממשק בלבד. הוצג טקסט המקור; לא בוצע תרגום.':currentJob.error||'';
+  $('result-notice').textContent=notice;$('result-notice').hidden=!notice;
+  $('download-html').disabled=$('download-text').disabled=!currentJob.completed_chunks;
+  $('review-button').disabled=!complete;$('download-html').firstChild.textContent=demo?'הורדת תצוגת הניסיון ':partial?'הורדת התרגום החלקי ':'הורדת התרגום ';
+  $('cost-summary').textContent=currentJob.estimated_cost_usd?'אומדן $'+currentJob.estimated_cost_usd.toFixed(4):demo?'ללא עלות API':'';
+  $('review-panel').hidden=true;$('chunk-select').replaceChildren();
+  for(const [index,chunk] of (currentJob.chunks||[]).entries()){
+    const option=document.createElement('option');option.value=index;option.textContent=(index+1)+' · '+chunk.location;$('chunk-select').append(option)}
+  chunkIndex=0;
+}
+function dirty(){return !$('review-panel').hidden&&currentJob?.chunks[chunkIndex]&&$('review-target').value!==currentJob.chunks[chunkIndex].target_text}
+function confirmDiscard(){return !dirty()||confirm('יש שינויים שלא נשמרו. לעבור בלי לשמור?')}
+function renderReview(){
+  const chunk=currentJob.chunks[chunkIndex];if(!chunk)return;
+  $('chunk-select').value=chunkIndex;$('review-location').textContent=chunk.location+' · מקטע '+(chunkIndex+1)+' מתוך '+currentJob.chunks.length;
+  $('review-source').textContent=chunk.source_text;$('review-source').dir=currentJob.language==='he'?'rtl':'ltr';
+  $('review-target').value=chunk.target_text;$('review-message').textContent='';
+  const labels={missing_number:'מספר חסר',missing_footnote_marker:'סימון הערה חסר',missing_citation_reference:'הפניה לבדיקה',missing_formula_token:'נוסחה לבדיקה',proper_name_candidate:'שם לבדיקה',missing_hebrew_script:'הטקסט אינו תרגום עברי'};
+  const findings=currentJob.settings.model==='demo'?[]:chunk.findings||[];
+  $('review-findings').textContent=findings.length?'נקודות לבדיקה: '+findings.map(f=>(labels[f.type]||'דורש בדיקה')+(f.source_token?' ('+f.source_token+')':'')).join(' · '):'';
+}
+async function saveEdit(showMessage=true){
+  $('save-edit').disabled=true;
+  try{currentJob=await request('/document-review',{job_id:currentJob.job_id,chunk_index:chunkIndex,target_text:$('review-target').value,expected_revision:currentJob.revision});
+    if(showMessage)$('review-message').textContent='השינויים נשמרו. ההורדה כוללת את הגרסה המעודכנת.';return true;
+  }catch(error){$('review-message').textContent=error.message;return false}finally{$('save-edit').disabled=false}
+}
+async function download(format){
+  if(dirty()&&!await saveEdit())return;
+  const button=$(format==='html'?'download-html':'download-text');button.disabled=true;
+  try{const blob=await request('/document-download',{job_id:currentJob.job_id,format},true);
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=currentJob.filename.replace(/\.[^.]+$/,'')+'.he.'+format;
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(error){$('result-notice').hidden=false;$('result-notice').textContent=error.message}finally{button.disabled=false}
+}
+async function sample(){
+  if(busy)return;setBusy(true);message('');
+  try{const file=await request('/document-sample');$('model').value='demo';setUploaded(file);setBusy(false);await translate();}
+  catch(error){message(error.message);setBusy(false)}
+}
+async function initialize(){
+  for(const [key,id] of Object.entries({model:'model',quality:'quality',language:'language',budget_usd:'budget'})){
+    $(id).value=preferences[key];if($(id).value==='')$(id).value=defaults[key];
+    $(id).addEventListener('change',updateSettings);
   }
+  updateSettings();
+  try{const config=await request('/document-config');keyAvailable=config.api_key_available;renderConnection()}catch(error){message(error.message)}
+  let last;try{last=localStorage.getItem('document-last-job')}catch(_){}
+  if(last){setBusy(true);show('processing-panel');currentJob={filename:'המסמך האחרון',status:'queued',total_chunks:0,completed_chunks:0};renderProcessing();await poll(last)}
+  else{try{const result=await request('/document-recent');if(result.job){$('recent-button').hidden=false;$('recent-button').textContent='חזרה ל־'+result.job.filename;
+    $('recent-button').onclick=()=>{remember('document-last-job',result.job.job_id);setBusy(true);show('processing-panel');poll(result.job.job_id)}}}catch(_){}}
 }
-function renderForm(){
-  $('step-title').textContent=selected.title;
-  $('step-help').textContent=selected.help;
-  $('step-select').replaceChildren();
-  for(const step of steps)$('step-select').append(node('option',{value:step.command},step.title));
-  $('step-select').value=selected.command;
-  $('step-form').replaceChildren();
-  for(const field of selected.fields){
-    const box=node('div',{class:'field'+(field.kind==='text'?' full':'')});
-    box.append(node('label',{for:'field-'+field.key},field.label+(field.required?' *':'')));
-    const row=node('div',{class:'fileline'});let input;
-    if(field.values.length){
-      input=node('select',{id:'field-'+field.key});
-      for(const value of field.values)input.append(node('option',{value},value));
-      input.value=saved[field.key]||field.values[0];
-    }else{
-      input=node('input',{id:'field-'+field.key,type:'text',dir:'ltr',autocomplete:'off'});
-      input.value=saved[field.key]||'';
-    }
-    input.onchange=()=>{saved[field.key]=input.value.trim()};
-    row.append(input);
-    if(field.kind==='file'){
-      const picker=node('input',{type:'file','aria-label':'בחר קובץ עבור '+field.label});
-      picker.onchange=async()=>{if(!picker.files[0])return;try{status('מעלה קובץ…');input.value=await upload(picker.files[0]);saved[field.key]=input.value;status('הקובץ נשמר מקומית')}catch(error){status('העלאה נכשלה: '+error.message)}};
-      row.append(picker);
-    }
-    box.append(row);$('step-form').append(box);
-  }
-  $('output-row').hidden=['inspect','inspect-structure','runtime-status'].includes(selected.command);
-  $('output-row').querySelector('label').textContent=selected.command==='structure'?'קובץ מבנה חדש':'תיקיית פלט חדשה';
-  $('output').value=newOutput(selected.command);
-}
-async function upload(file){
-  const response=await fetch('/upload?name='+encodeURIComponent(file.name),{method:'POST',headers:{'X-UI-Token':token},body:file});
-  const result=await response.json();
-  if(!response.ok)throw Error(result.error||'ההעלאה נכשלה');
-  return result.path;
-}
-function navigate(destination){
-  const previous=view;
-  view=destination;
-  document.querySelectorAll('[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===destination));
-  $('workspace-view').hidden=destination==='settings';
-  $('settings-view').hidden=destination!=='settings';
-  $('library-section').hidden=destination!=='library';
-  $('source-editor').hidden=destination!=='source';
-  $('glossary-editor').hidden=destination!=='glossary';
-  $('reader-section').hidden=destination==='library';
-  if(destination==='library'){chooseStep('extract-pdf',previous!=='settings');refreshLibrary()}
-  if(destination==='source'){chooseStep('structure',previous!=='settings');refreshSourceOptions()}
-  if(destination==='translate')chooseStep('translate-unit',previous!=='settings');
-  if(destination==='glossary'){chooseStep('terminology',previous!=='settings');refreshGlossaryOptions()}
-  if(destination==='review')chooseStep('human-review-render',previous!=='settings');
-  if(destination==='settings')refreshKeyStatus();
-}
-async function refreshLibrary(){
-  try{
-    const result=await request('/library',{});$('library-list').replaceChildren();
-    if(!result.documents.length){$('library-list').append(node('p',{class:'muted'},'עדיין אין מסמכים שיובאו דרך הממשק.'));return}
-    for(const document of result.documents){
-      const button=node('button',{class:'library-item',type:'button'});
-      button.append(node('strong',{},document.title),node('small',{},document.language+' · '+document.pages+' עמודים'));
-      button.onclick=()=>{
-        if(saved.document_json!==document.path){
-          for(const key of ['structure_json','structure_ocr','glossary','unit_id','draft','review','record','decisions','ocr'])delete saved[key];
-        }
-        saved.document_json=document.path;saved.document_path=document.path;navigate('source');refreshPreview();
-      };
-      $('library-list').append(button);
-    }
-  }catch(error){$('library-list').textContent=error.message}
-}
-async function refreshPreview(){
-  try{
-    const result=await request('/preview',{document_json:saved.document_json||'',structure_json:saved.structure_json||'',
-      draft:saved.draft||'',review:saved.review||'',unit_id:saved.unit_id||''});
-    if(!result.loaded)return;
-    $('document-title').textContent=result.title;
-    $('document-meta').textContent=(result.language||'מקור')+' → עברית · '+(result.document_id||'');
-    $('source-language').textContent=(result.language||'').toUpperCase();
-    $('source-text').textContent=result.source_text||'מקור נטען, אך אין טקסט שניתן להציג.';
-    $('source-text').dir=result.language==='he'?'rtl':'ltr';
-    $('translation-text').textContent=result.translation_text||'עדיין אין טיוטת תרגום למקטע זה.';
-    $('translation-stat').textContent=result.translation_status==='mock_placeholder'?'דוגמת mock · לא תרגום':
-      result.translation_status==='not_started'?'ממתין לתרגום':result.translation_status;
-    $('source-stat').textContent=result.source_status==='resolved'?'קריאה נבחרה · טעונה בדיקה':result.source_status;
-    $('unit-select').replaceChildren(node('option',{value:''},'מקטע מקור'));
-    for(const [index,unit] of result.units.entries())$('unit-select').append(node('option',{value:unit.unit_id},'מקטע '+(index+1)+(unit.page_number?' · עמוד '+unit.page_number:'')));
-    $('unit-select').value=result.unit_id||'';
-    if(result.unit_id)saved.unit_id=result.unit_id;
-  }catch(error){status('לא ניתן לטעון תצוגה: '+error.message)}
-}
-async function runCommand(step,values,output){
-  if(working)return;
-  if(values.provider==='openai'&&!confirm('שלב זה עשוי לבצע קריאה בתשלום ל־OpenAI. להמשיך?'))return false;
-  working=true;$('run').disabled=true;$('open').disabled=true;lastResult=null;status('מריץ…');$('log').textContent='';
-  try{
-    const result=await request('/run',{command:step.command,values,output,paid_confirm:values.provider==='openai'});
-    $('log').textContent=(result.stdout||'')+(result.stderr?'\n'+result.stderr:'');
-    status(result.code===0?'השלב הושלם':'השלב נכשל (קוד '+result.code+')');
-    if(result.code===0){
-      if(['demo','extract-pdf'].includes(step.command)){
-        for(const key of ['structure_json','structure_ocr','glossary','unit_id','draft','review','record','decisions','ocr'])delete saved[key];
-      }
-      if(step.command==='structure'){
-        for(const key of ['glossary','unit_id','draft','review','record'])delete saved[key];
-      }
-      if(step.command==='terminology'){
-        for(const key of ['draft','review','record'])delete saved[key];
-      }
-      Object.assign(saved,Object.fromEntries(Object.entries(values).filter(([,value])=>value)));
-      const map={demo:{document_json:'document.json',document_path:'document.json'},'extract-pdf':{document_json:'document.json',document_path:'document.json'},
-        'ocr-pdf':{ocr:'ocr.json'},structure:{structure_json:''},terminology:{glossary:'glossary.json'},'translate-unit':{draft:'translation_draft.json'},
-        'semantic-review':{review:'semantic_review.json'}};
-      for(const [key,name] of Object.entries(map[step.command]||{}))saved[key]=name?joined(output,name):output;
-      if(step.command==='structure')saved.structure_ocr=values.ocr||'';
-      const decision=(result.stdout||'').match(/Wrote decision record: (.+)/);
-      if(decision)saved.record=decision[1].trim();
-      lastResult=decision?decision[1].trim():step.command==='structure'?output:step.result?joined(output,step.result):
-        ['inspect','inspect-structure','runtime-status'].includes(step.command)?null:output;
-      $('open').disabled=!lastResult;
-      await refreshPreview();
-      if(view==='library')await refreshLibrary();
-      if(step.command==='structure')await refreshSourceOptions();
-      if(step.command==='terminology')await refreshGlossaryOptions();
-    }
-    return result.code===0;
-  }catch(error){status('שגיאה: '+error.message)}
-  finally{working=false;$('run').disabled=false}
-  return false;
-}
-function runSelected(){
-  collectForm();const values={};for(const field of selected.fields)values[field.key]=($('field-'+field.key)?.value||'').trim();
-  runCommand(selected,values,$('output').value.trim());
-}
-async function importPdf(){
-  const file=$('pdf-upload').files[0];if(!file){status('יש לבחור קובץ PDF');return}
-  try{
-    status('מעלה PDF מקומית…');const path=await upload(file);saved.input=path;
-    const step=stepByCommand('extract-pdf');chooseStep(step.command);
-    const succeeded=await runCommand(step,{input:path,language:saved.language||'en'},$('output').value.trim());
-    if(succeeded)navigate('source');
-  }catch(error){status('ייבוא נכשל: '+error.message)}
-}
-async function openResult(){
-  if(!lastResult)return;
-  try{await request('/open',{path:lastResult})}catch(error){status(error.message)}
-}
-async function refreshSourceOptions(){
-  sourceData=null;$('source-candidates').replaceChildren();$('source-page').replaceChildren();
-  if(!saved.structure_json){$('source-guidance').textContent='לחצו על הכנת מועמדים אחרי חילוץ PDF. הבחירה נבדקת מול טקסט המקור והראיות.';return}
-  try{
-    sourceData=await request('/source-options',{structure_json:saved.structure_json});
-    for(const reading of sourceData.readings){
-      const label='עמוד '+reading.page_number+' · '+(reading.status==='resolved'?'נבחרה קריאה':'ממתין להכרעה');
-      $('source-page').append(node('option',{value:reading.page_id},label));
-    }
-    $('source-guidance').textContent=sourceData.readings.length?'בחרו חלופת מקור אחרי בדיקה מול ה־PDF או תמונת העמוד.':'אין עמודים לבחירה.';
-    renderSourceCandidates();
-  }catch(error){$('source-guidance').textContent='לא ניתן לטעון מועמדים: '+error.message}
-}
-function renderSourceCandidates(){
-  $('source-candidates').replaceChildren();
-  const reading=sourceData?.readings.find(item=>item.page_id===$('source-page').value);
-  if(!reading)return;
-  for(const [index,candidate] of reading.alternatives.entries()){
-    const card=node('label',{class:'candidate-card'+(candidate.usable?'':' unusable')});
-    const radio=node('input',{type:'radio',name:'source-candidate',value:candidate.candidate_hash});
-    if(!candidate.usable)radio.disabled=true;
-    if(reading.selected?.candidate_hash===candidate.candidate_hash ||
-       (!reading.selected&&candidate.usable&&!reading.alternatives.slice(0,index).some(item=>item.usable)))radio.checked=true;
-    card.append(radio,node('strong',{},candidate.origin==='ocr'?'קריאת OCR':'חילוץ דיגיטלי'));
-    card.append(node('small',{},candidate.warnings.join(' · ')||'ללא אזהרות נוספות'));
-    card.append(node('pre',{},candidate.text||'לא נמצא טקסט קריא'));
-    $('source-candidates').append(card);
-  }
-}
-async function prepareSource(){
-  if(!saved.document_json){$('source-status').textContent='יש לייבא PDF תחילה';return}
-  if(saved.structure_json&&saved.structure_ocr===(saved.ocr||'')){
-    $('source-status').textContent='מועמדי המקור כבר מוכנים';await refreshSourceOptions();return;
-  }
-  const step=stepByCommand('structure');
-  const succeeded=await runCommand(step,{document_json:saved.document_json,ocr:saved.ocr||'',
-    decisions:saved.decisions||'',previous:saved.structure_json||''},joined(newOutput('source-options'),'structure.json'));
-  if(succeeded)await refreshSourceOptions();
-}
-async function saveSource(){
-  const candidate=document.querySelector('input[name="source-candidate"]:checked');
-  if(!sourceData||!candidate){$('source-status').textContent='יש לבחור קריאת מקור זמינה';return}
-  $('save-source').disabled=true;$('source-status').textContent='בודק ושומר…';
-  try{
-    const result=await request('/source-decide',{structure_json:saved.structure_json,document_json:saved.document_json,
-      ocr:saved.ocr||'',expected_revision:sourceData.revision,page_id:$('source-page').value,
-      candidate_hash:candidate.value,actor:$('source-actor').value.trim(),reason:$('source-reason').value.trim()});
-    saved.structure_json=result.structure_json;saved.decisions=result.decisions_json;
-    for(const key of ['glossary','unit_id','draft','review','record'])delete saved[key];
-    $('source-status').textContent='ההכרעה נשמרה כגרסת מבנה חדשה';
-    $('log').textContent=result.stdout||'';await refreshSourceOptions();await refreshPreview();renderForm();
-  }catch(error){$('source-status').textContent='ההכרעה לא נשמרה: '+error.message}
-  finally{$('save-source').disabled=false}
-}
-async function refreshGlossaryOptions(){
-  termData=null;$('term-unit').replaceChildren();$('term-rules').replaceChildren();
-  if(!saved.structure_json){$('term-guidance').textContent='יש לבחור קריאת מקור לפני הצעת מונחים.';return}
-  try{
-    termData=await request('/glossary-options',{structure_json:saved.structure_json,glossary:saved.glossary||''});
-    for(const [index,unit] of termData.units.entries())$('term-unit').append(node('option',{value:unit.unit_id},'מקטע '+(index+1)+' · '+unit.language));
-    if(saved.unit_id&&termData.units.some(unit=>unit.unit_id===saved.unit_id))$('term-unit').value=saved.unit_id;
-    $('term-guidance').textContent=termData.units.length?'העתיקו מונח מדויק מהמקטע. תחולת ברירת המחדל היא המקטע הזה.':'אין מקטע מקור פתור; יש להכריע את המקור תחילה.';
-    renderTermSource();renderRules();
-  }catch(error){$('term-guidance').textContent='לא ניתן לטעון מילון: '+error.message}
-}
-function renderTermSource(){
-  const unit=termData?.units.find(item=>item.unit_id===$('term-unit').value);
-  $('term-source').textContent=unit?.text||'';
-  if(unit){saved.unit_id=unit.unit_id;refreshPreview()}
-}
-function renderRules(){
-  $('term-rules').replaceChildren();
-  if(!termData?.rules.length){$('term-rules').append(node('p',{class:'muted'},'אין עדיין מונחים במילון.'));return}
-  for(const rule of termData.rules){
-    const card=node('div',{class:'rule-card'}),description=node('div');
-    description.append(node('strong',{},rule.source_term+' → '+rule.target_term));
-    description.append(node('small',{},rule.status+' · גרסה '+rule.version+(rule.loaded?' · מונח טעון':'')));
-    const target=node('input',{type:'text','aria-label':'תרגום מעודכן עבור '+rule.source_term,dir:'rtl'});
-    target.value=rule.target_term;
-    const actions=node('div',{class:'rule-actions'});
-    const approve=node('button',{type:'button'},'אשר');approve.onclick=()=>reviewTerm(rule,'approved',target.value);
-    const reject=node('button',{type:'button'},'דחה');reject.onclick=()=>reviewTerm(rule,'rejected',target.value);
-    actions.append(approve,reject);card.append(description,target,actions);$('term-rules').append(card);
-  }
-}
-async function proposeTerm(){
-  if(!termData){$('term-status').textContent='יש לטעון מבנה מקור קודם';return}
-  const occurrence=Number($('term-occurrence').value);
-  $('propose-term').disabled=true;$('term-status').textContent='שומר הצעה…';
-  try{
-    const result=await request('/glossary-action',{kind:'propose',structure_json:saved.structure_json,
-      glossary:saved.glossary||'',unit_id:$('term-unit').value,source_term:$('term-source-term').value,
-      target_term:$('term-target').value,occurrence,scope:$('term-scope').value,loaded:$('term-loaded').checked});
-    saved.glossary=result.glossary;$('term-status').textContent='המונח נוסף כהצעה ממתינה לאישור';
-    $('log').textContent=result.stdout||'';await refreshGlossaryOptions();renderForm();
-  }catch(error){$('term-status').textContent='ההצעה לא נשמרה: '+error.message}
-  finally{$('propose-term').disabled=false}
-}
-async function reviewTerm(rule,decision,target){
-  $('term-status').textContent='שומר החלטת מילון…';
-  try{
-    const result=await request('/glossary-action',{kind:'review',structure_json:saved.structure_json,
-      glossary:saved.glossary,rule_id:rule.rule_id,expected_version:rule.version,
-      expected_fingerprint:rule.fingerprint,actor:$('term-actor').value.trim(),
-      reason:$('term-reason').value.trim(),status:decision,target_term:target});
-    saved.glossary=result.glossary;$('term-status').textContent=decision==='approved'?'המונח אושר בידי הבודק/ת':'המונח נדחה בידי הבודק/ת';
-    $('log').textContent=result.stdout||'';await refreshGlossaryOptions();renderForm();
-  }catch(error){$('term-status').textContent='ההחלטה לא נשמרה: '+error.message}
-}
-async function refreshKeyStatus(){
-  try{const result=await request('/settings',{});$('key-status').textContent=result.api_key_available?'מפתח זמין להרצה המקומית':'אין מפתח זמין לסשן'}
-  catch(error){$('key-status').textContent=error.message}
-}
-async function setKey(clear=false){
-  const key=clear?'':$('setting-api-key').value.trim();
-  try{const result=await request('/settings',{api_key:key});$('setting-api-key').value='';
-    $('key-status').textContent=result.api_key_available?'מפתח זמין להרצה המקומית':'המפתח נוקה מהסשן'}
-  catch(error){$('key-status').textContent=error.message}
-}
-function bindSettings(){
-  const inputs={provider:'setting-provider',language:'setting-language',max_calls:'setting-max-calls',hard_list_usd:'setting-hard-list-usd',
-    control_store:'setting-control-store',tesseract:'setting-tesseract',tessdata_dir:'setting-tessdata'};
-  for(const [key,id] of Object.entries(inputs)){
-    $(id).value=saved[key]||'';
-    $(id).onchange=()=>{saved[key]=$(id).value.trim();if(key==='provider')renderForm()};
-  }
-  $('save-key').onclick=()=>setKey(false);$('clear-key').onclick=()=>setKey(true);
-}
-function start(){
-  document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>navigate(button.dataset.view));
-  $('step-select').onchange=()=>chooseStep($('step-select').value);
-  $('unit-select').onchange=()=>{saved.unit_id=$('unit-select').value;refreshPreview()};
-  $('run').onclick=runSelected;$('open').onclick=openResult;$('import-button').onclick=importPdf;
-  $('prepare-source').onclick=prepareSource;$('source-page').onchange=renderSourceCandidates;
-  $('save-source').onclick=saveSource;$('term-unit').onchange=renderTermSource;
-  $('propose-term').onclick=proposeTerm;
-  bindSettings();renderForm();renderProgress();refreshPreview();
-}
-start();
+$('drop-zone').onclick=()=>{if(!busy)$('document-file').click()};
+$('drop-zone').onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(!busy)$('document-file').click()}};
+$('document-file').onchange=()=>uploadFile($('document-file').files[0]);
+for(const kind of ['dragenter','dragover'])$('drop-zone').addEventListener(kind,event=>{event.preventDefault();$('drop-zone').classList.add('dragging')});
+for(const kind of ['dragleave','drop'])$('drop-zone').addEventListener(kind,event=>{event.preventDefault();$('drop-zone').classList.remove('dragging');if(kind==='drop')uploadFile(event.dataTransfer.files[0])});
+$('translation-form').onsubmit=translate;$('connection-button').onclick=showConnection;
+$('close-connection').onclick=()=>{$('api-key').value='';$('connection-dialog').close()};
+$('connection-dialog').addEventListener('cancel',()=>{$('api-key').value=''});
+$('save-key').onclick=()=>saveKey();$('clear-key').onclick=()=>saveKey(true);
+$('sample-button').onclick=sample;$('download-html').onclick=()=>download('html');$('download-text').onclick=()=>download('txt');
+$('review-button').onclick=()=>{if($('review-panel').hidden){$('review-panel').hidden=false;renderReview();$('review-panel').scrollIntoView({behavior:'smooth',block:'start'})}else if(confirmDiscard())$('review-panel').hidden=true};
+$('close-review').onclick=()=>{if(confirmDiscard())$('review-panel').hidden=true};
+$('chunk-select').onchange=()=>{if(confirmDiscard()){chunkIndex=Number($('chunk-select').value);renderReview()}else $('chunk-select').value=chunkIndex};
+$('save-edit').onclick=()=>saveEdit();
+$('new-document').onclick=()=>{if(!confirmDiscard())return;clearTimeout(pollTimer);forget('document-last-job');currentJob=null;uploaded=null;$('document-file').value='';$('review-panel').hidden=true;if($('model').value==='demo')$('model').value=defaults.model;show('start-panel');setUploaded(null);setBusy(false);message('');window.scrollTo({top:0,behavior:'smooth'})};
+initialize();

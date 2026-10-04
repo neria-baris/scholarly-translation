@@ -1,4 +1,21 @@
-# Gate 1 offline skeleton
+# Scholarly translation
+
+## Simple local document UI
+
+Run `./run-ui.ps1` on Windows to upload a PDF with embedded text or an EPUB,
+choose an OpenAI model and processing level, and download an automatic Hebrew
+draft as readable HTML or plain text. Source/translation review and editing are
+optional. The sample is explicitly a UI demo, not a translation. See
+[the Hebrew UI guide](UI_README_HE.md) for setup, limits and storage.
+
+This user-directed document flow uses separate `document-draft@1` records:
+source remains unreviewed and all drafts remain unapproved, including human
+edits. It does not bypass scholarly approval or establish Gate-10 quality.
+Persistent budget reservations/cache come from Gate 11. Model/effort/pricing
+choices were checked against official OpenAI documentation on 2026-10-04;
+account availability and actual billing are separate from local estimates.
+
+## Gate 1 offline skeleton
 
 Standard library only, Python 3.9+. No network calls, no dependency installation.
 
@@ -341,6 +358,62 @@ CLI refuses to overwrite an existing draft, to write into the source/test tree, 
 collide its output with the structure/glossary/source evidence, and prints summary
 metadata only. The draft is schema-1 `translation-draft@1`: it is not approved memory, a
 final translation, or a review/export artifact.
+
+## Gate 11: persistent budget, cache and usage controls
+
+`runtime_controls.py` is a small, SQLite-backed call boundary shared by
+`translate-unit` and `semantic-review`: it durably reserves a conservative
+list-price amount and call slot before any live provider request, records
+observed usage (never prompt/source/output text), and lets a bounded cache
+reuse a prior successful raw adapter result instead of dispatching again.
+It never grants approval. Every public translation/review invocation uses
+persistent controls, including mock dispatches. Direct Python callers without
+controls retain the legacy process-local `TranslationBudget`.
+
+```
+python -B -m scholarly_translation translate-unit STRUCTURE_JSON --glossary GLOSSARY_JSON --unit-id UNIT_ID \
+    --profile scholarly --provider openai --output outputs/gate11 \
+    --control-store outputs/runtime_controls.sqlite3 --task-id my-document --max-calls 3 --hard-list-usd 0.01
+python -B -m scholarly_translation semantic-review STRUCTURE_JSON --glossary GLOSSARY_JSON --draft DRAFT_JSON \
+    --provider openai --output outputs/gate11-review --control-store outputs/runtime_controls.sqlite3 --task-id my-document
+python -B -m scholarly_translation runtime-status --control-store outputs/runtime_controls.sqlite3 --task-id my-document
+```
+
+`--control-store`, `--task-id`, `--max-calls` (default 3) and `--hard-list-usd`
+(default 0.01) are optional on `translate-unit`/`semantic-review`; omitting
+`--control-store` uses `outputs/runtime_controls.sqlite3`.
+The database at `--control-store` is created if missing
+(parent directories too) and reused across invocations; a task's policy
+(`max_calls`, `hard_list_usd`, pricing version, output cap) is fixed the
+first time the task is created and a later mismatched policy is refused
+rather than silently reset. `--task-id` defaults to the unit's
+`document_id`, so translation and review share one budget per document.
+`runtime-status --control-store PATH --task-id ID` is read-only and never
+creates a missing store; it reports the task's cap, attempted/settled call
+counts, held and list-estimated amounts, a stopped flag, cache-hit/miss counts
+and a privacy-safe per-event log (stage, outcome, reserved/observed
+amounts, actual-charge placeholder, timestamp) with no prompt, source or
+output text. Usage events are append-only and cache hits link to their original
+completed event. A control-store path may not be inside the package/tests,
+Git, configuration or audit trees, occupy a repository root file, or alias
+protected source evidence (including SQLite sidecars). Missing, empty, unrecognized-schema or
+tampered cache/task rows fail closed (an explicit error) rather than being
+auto-repaired or reset. A cache hit (same exact source/policy/provider/
+config identity and stage) skips the provider dispatch and its cost
+entirely; translation/semantic-review formal and grounding checks are
+always rerun against the cache-derived text regardless of its origin. The exact
+prompt, stage, actual requested model and gateway output cap are also bound.
+Current cache-hit usage/cost is zero; historical token usage is separate provenance.
+Atomic claims prevent duplicate in-flight dispatches across processes. Unknown or
+failed potentially started calls retain their reservation and freeze the task;
+usage above a reservation also freezes it. There are no automatic retries.
+
+This gate reuses Gate 6/7's rate constants and output-token cap for its
+offline worst-case reservation math; these remain dated list-price
+estimates, not a verified account-billing cap, and the actual charge is
+recorded as `unknown` for live calls, `no_provider_call` for cache reuse, and
+`synthetic_non_billed` for mock events. Reverify pricing before a new live request.
+Acceptance uses fake/mock adapters and makes no paid runtime provider call.
 
 ## Gate 10: offline evidence-based quality pilot evaluation
 

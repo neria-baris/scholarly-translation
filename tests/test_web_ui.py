@@ -2,6 +2,7 @@ import json
 import hashlib
 import tempfile
 import threading
+import time
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -88,6 +89,67 @@ class BrowserShellTests(unittest.TestCase):
             draft["source_text_hash"] = "stale"
             (folder / "draft.json").write_text(json.dumps(draft), encoding="utf-8")
             self.assertEqual(web_ui.preview_artifacts(paths)["translation_text"], "")
+
+
+class DocumentFlowHTTPTests(unittest.TestCase):
+    post = BrowserShellTests.post
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.output_patch = patch.object(web_ui, "OUTPUT_ROOT", Path(self.temp.name))
+        self.output_patch.start()
+        BrowserShellTests.setUp(self)
+
+    def tearDown(self):
+        BrowserShellTests.tearDown(self)
+        self.output_patch.stop()
+        self.temp.cleanup()
+
+    def test_document_lifecycle_download_and_optional_review(self):
+        sample = self.post("/document-sample", {})
+        request = Request(self.url + "/upload?name=uploaded.epub",
+                          data=Path(sample["path"]).read_bytes(),
+                          headers={"X-UI-Token": "test-token", "Origin": self.url}, method="POST")
+        with urlopen(request) as response:
+            uploaded = json.load(response)
+        started = self.post("/document-translate", {"path": uploaded["path"],
+                            "settings": {"model": "demo", "quality": "balanced", "language": "auto", "budget_usd": 2}})
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            job = self.post("/document-job", started)
+            if job["status"] not in ("queued", "reading", "translating"):
+                break
+            time.sleep(.02)
+        self.assertEqual(job["status"], "demo")
+        self.assertFalse(job["approved"])
+        self.assertFalse(job["source_reviewed"])
+        self.assertEqual(self.post("/document-recent", {})["job"]["job_id"], job["job_id"])
+        for kind in ("html", "txt"):
+            request = Request(self.url + "/document-download", data=json.dumps({**started, "format": kind}).encode(),
+                              headers={"X-UI-Token": "test-token", "Origin": self.url}, method="POST")
+            with urlopen(request) as response:
+                self.assertIn("attachment", response.headers["Content-Disposition"])
+                self.assertIn("Some scholars", response.read().decode("utf-8"))
+        edit = {**started, "chunk_index": 0, "target_text": "An edited draft <script>bad()</script>", "expected_revision": 0}
+        revised = self.post("/document-review", edit)
+        self.assertEqual(revised["revision"], 1)
+        self.assertFalse(revised["approved"])
+        with self.assertRaises(HTTPError) as caught:
+            self.post("/document-review", edit)
+        self.assertEqual(caught.exception.code, 400)
+
+    def test_document_guards_and_live_consent(self):
+        with self.assertRaises(HTTPError) as caught:
+            self.post("/document-config", {}, token="bad")
+        self.assertEqual(caught.exception.code, 403)
+        for path in (str(Path(__file__).resolve()), "../outside.epub"):
+            with self.assertRaises(HTTPError) as caught:
+                self.post("/document-translate", {"path": path, "settings": {"model": "demo"}})
+            self.assertEqual(caught.exception.code, 400)
+        sample = self.post("/document-sample", {})
+        with self.assertRaises(HTTPError) as caught:
+            self.post("/document-translate", {"path": sample["path"], "settings": {
+                      "model": "gpt-6-luna", "quality": "balanced", "language": "auto", "budget_usd": 2}})
+        self.assertEqual(caught.exception.code, 400)
 
 
 if __name__ == "__main__":
