@@ -16,6 +16,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from . import context_strategy
 from .formal_checks import run_formal_checks
 from .glossary import GlossaryError, effective_fingerprint, resolve_applicable, validate_glossary
 from .model_adapter import (
@@ -29,6 +30,7 @@ from .model_adapter import (
 from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
 from .segmentation import validate_structure
 from .source_reading import StructureError, fingerprint, text_hash
+from .store import deterministic_id
 from .translation_profiles import (
     CONFIG_VERSIONS,
     PROMPT_VERSIONS,
@@ -138,41 +140,37 @@ def _require(condition, message):
         raise TranslationRequestError(message)
 
 
-def _neighbors(structure, unit):
-    same_reading = sorted(
-        (u for u in structure["units"] if u["reading_id"] == unit["reading_id"]),
-        key=lambda u: u["source_char_start"],
+def _build_context_and_decision(structure, unit, capabilities, headroom_fraction):
+    """Shared Session D context resolution for ``build_context`` and
+    ``build_translation_request``. With no model capabilities, this enforces
+    the exact historical MAX_NEIGHBOR_CHARS-bounded one-previous/one-next
+    behavior; with capabilities, it defers to the chapter-aware policy in
+    ``context_strategy``."""
+    decision, segments = context_strategy.plan_context(
+        structure, unit, capabilities, headroom_fraction=headroom_fraction,
     )
-    index = next(i for i, u in enumerate(same_reading) if u["unit_id"] == unit["unit_id"])
-    previous_unit = same_reading[index - 1] if index > 0 else None
-    next_unit = same_reading[index + 1] if index + 1 < len(same_reading) else None
-    return previous_unit, next_unit
+    if capabilities is None:
+        for segment in segments:
+            _require(len(segment["text"]) <= MAX_NEIGHBOR_CHARS, "oversized neighbor context")
+    return decision, segments
 
 
-def _context_segment(unit, role):
-    text = unit["text"]
-    _require(len(text) <= MAX_NEIGHBOR_CHARS, "oversized neighbor context")
-    return {
-        "role": role,
-        "unit_id": unit["unit_id"],
-        "unit_version": unit["unit_version"],
-        "text": text,
-        "text_hash": text_hash(text),
-    }
+def build_context(structure, unit, capabilities=None, headroom_fraction=None):
+    """Session D context selection for ``unit``.
 
+    With ``capabilities=None`` (the default, for backward compatibility),
+    this is exactly the historical target unit plus at most one previous/one
+    next unit from the same reading, each bounded by MAX_NEIGHBOR_CHARS --
+    never crossing page/document/readings and never sending a whole chapter.
 
-def build_context(structure, unit):
-    """Target unit plus at most one previous/next unit from the same reading.
-
-    Never crosses page/document/readings and never sends a whole PDF.
+    With model capabilities supplied, this instead returns the semantic-
+    unit, chapter-aware context described in
+    ``audit/contracts/session_d_context_strategy.md``: the whole enclosing
+    chapter (exact target span marked) when it fits the model's usable
+    context budget, else the target plus as much bounded original source as
+    fits. Never a generated summary.
     """
-    previous_unit, next_unit = _neighbors(structure, unit)
-    segments = []
-    if previous_unit is not None:
-        segments.append(_context_segment(previous_unit, "previous"))
-    segments.append(_context_segment(unit, "target"))
-    if next_unit is not None:
-        segments.append(_context_segment(next_unit, "next"))
+    _, segments = _build_context_and_decision(structure, unit, capabilities, headroom_fraction)
     return segments
 
 
@@ -218,12 +216,23 @@ def compute_cache_key(
     reading_text_hash, unit_id, unit_version, source_char_start, source_char_end,
     unit_text_hash, neighbor_fingerprint, policy_fingerprint, provider, model,
     prompt_version, config_version, decoding_params, caller_context_fingerprint="",
+    context_policy_version=context_strategy.CONTEXT_POLICY_VERSION, context_mode="bounded_fallback",
 ):
     """Deterministic cache identity bound to exact source/policy/provider/config.
 
     `caller_context_fingerprint` binds caller-supplied approved decisions,
     local state and source context (Gate 12); it defaults to the empty
     string so pre-Gate-12 callers keep their existing cache identity.
+
+    `context_policy_version`/`context_mode` (Session D) default to the
+    current chapter-aware policy and the legacy-equivalent mode name, so
+    pre-Session-D callers that omit them keep calling this with the same
+    shape; the computed key value still changes once these fields exist,
+    which is the deliberate Session D invalidation behavior documented in
+    `audit/contracts/session_d_context_strategy.md`: a unit's cache identity
+    depends only on the exact text actually sent to the model (the target
+    unit plus whichever context segments were actually included), never on
+    unrelated text elsewhere in the same chapter that was not sent.
     """
     payload = {
         "profile_id": profile_id, "pdf_hash": pdf_hash, "source_uri": source_uri,
@@ -234,6 +243,7 @@ def compute_cache_key(
         "policy_fingerprint": policy_fingerprint, "provider": provider, "model": model,
         "prompt_version": prompt_version, "config_version": config_version,
         "decoding_params": decoding_params, "caller_context_fingerprint": caller_context_fingerprint,
+        "context_policy_version": context_policy_version, "context_mode": context_mode,
     }
     return fingerprint(payload)
 
@@ -264,6 +274,22 @@ class TranslationRequest:
     cache_key: str
     provider_definition: ProviderDefinition | None = None
     capabilities: ModelCapabilities | None = None
+    # Session D: distinguishes "what exact text was translated" (target_text/
+    # target_unit_ids) from "what source/stored context did the model see"
+    # (context_segments). All default so pre-Session-D construction keeps
+    # working; build_translation_request/build_whole_chapter_translation_request
+    # always set them explicitly.
+    target_text: str = ""
+    target_unit_ids: tuple = ()
+    context_mode: str = "bounded_fallback"
+    context_policy_version: str = context_strategy.CONTEXT_POLICY_VERSION
+    chapter_node_id: str | None = None
+    crosses_page_boundary: bool = False
+    # Resolved (never None) headroom fraction actually used for the context
+    # decision above; stored so run_translation's canonical re-derivation
+    # reproduces the exact same decision rather than silently falling back
+    # to the default fraction.
+    context_headroom_fraction: float = context_strategy.DEFAULT_HEADROOM_FRACTION
 
     def to_metadata_dict(self) -> dict:
         return {
@@ -288,7 +314,7 @@ class TranslationRequest:
             "unit_version": self.unit["unit_version"],
             "source_char_start": self.unit["source_char_start"],
             "source_char_end": self.unit["source_char_end"],
-            "source_text_hash": text_hash(self.unit["text"]),
+            "source_text_hash": text_hash(self.target_text),
             "reading_text_hash": self.unit["reading_text_hash"],
             "neighbor_fingerprint": fingerprint(self.context_segments),
             "policy_fingerprint": self.policy_fingerprint,
@@ -303,6 +329,26 @@ class TranslationRequest:
             "prompt_hash": text_hash(self.prompt_text),
             "cache_key": self.cache_key,
             "model_capabilities": self.capabilities.to_dict() if self.capabilities else None,
+            # Session D: independently recoverable target-vs-context provenance.
+            "context_policy_version": self.context_policy_version,
+            "context_mode": self.context_mode,
+            "chapter_node_id": self.chapter_node_id,
+            "crosses_page_boundary": self.crosses_page_boundary,
+            "target_source": {
+                "unit_ids": list(self.target_unit_ids),
+                "source_char_start": self.unit["source_char_start"],
+                "source_char_end": self.unit["source_char_end"],
+                "text_hash": text_hash(self.target_text),
+            },
+            "context_source": {
+                "mode": self.context_mode,
+                "chapter_node_id": self.chapter_node_id,
+                "segments": [
+                    {"role": s["role"], "unit_id": s.get("unit_id"), "node_ids": s.get("node_ids", [])}
+                    for s in self.context_segments if s["role"] not in ("target", "target_marker")
+                ],
+                "fingerprint": fingerprint(self.context_segments),
+            },
         }
 
 
@@ -310,6 +356,7 @@ def build_translation_request(
     structure, glossary, unit_id, profile_id, provider, model,
     provider_definition=None, capabilities=None,
     approved_decisions=None, local_state=None, source_context=None,
+    context_headroom_fraction=None,
 ) -> TranslationRequest:
     """Validate and resolve a translation job before any network call.
 
@@ -321,6 +368,14 @@ def build_translation_request(
     `approved_decisions`/`local_state`/`source_context` are optional, bounded,
     caller-supplied layered context (Gate 12): this builder never selects that
     context itself, only validates, renders and fingerprints it.
+
+    Session D: when `capabilities` is supplied, context selection becomes
+    chapter-aware (see `context_strategy.plan_context`); `context_headroom_fraction`
+    overrides the fraction of the model's usable context reserved for
+    instructions/glossary/local-state/output/review metadata before chapter
+    source text is considered (default `context_strategy.DEFAULT_HEADROOM_FRACTION`).
+    With `capabilities=None` this builder's context selection is unchanged
+    from before Session D.
     """
     try:
         if profile_id not in SUPPORTED_PROFILE_IDS:
@@ -366,7 +421,13 @@ def build_translation_request(
         "glossary policy fingerprint mismatch",
     )
 
-    context_segments = build_context(structure, unit)
+    effective_headroom = (
+        context_strategy.DEFAULT_HEADROOM_FRACTION if context_headroom_fraction is None else context_headroom_fraction
+    )
+    decision, context_segments = _build_context_and_decision(
+        structure, unit, capabilities, effective_headroom,
+    )
+    target_text = unit["text"]
     prompt_version = PROMPT_VERSIONS[profile_id]
     config_version = CONFIG_VERSIONS[profile_id]
     prompt_text = _render_prompt(
@@ -384,7 +445,7 @@ def build_translation_request(
         document_id=unit["document_id"], reading_id=unit["reading_id"], reading_version=unit["reading_version"],
         reading_text_hash=unit["reading_text_hash"], unit_id=unit["unit_id"], unit_version=unit["unit_version"],
         source_char_start=unit["source_char_start"], source_char_end=unit["source_char_end"],
-        unit_text_hash=text_hash(unit["text"]), neighbor_fingerprint=fingerprint(context_segments),
+        unit_text_hash=text_hash(target_text), neighbor_fingerprint=fingerprint(context_segments),
         policy_fingerprint=policy_fingerprint, provider=provider, model=model,
         prompt_version=prompt_version, config_version=config_version,
         decoding_params={
@@ -393,6 +454,8 @@ def build_translation_request(
             "capabilities": capabilities.to_dict() if capabilities else None,
         },
         caller_context_fingerprint=caller_context_fingerprint,
+        context_policy_version=context_strategy.CONTEXT_POLICY_VERSION,
+        context_mode=decision["context_mode"],
     )
 
     return TranslationRequest(
@@ -406,19 +469,170 @@ def build_translation_request(
         prompt_version=prompt_version, config_version=config_version,
         prompt_text=prompt_text, cache_key=cache_key,
         provider_definition=provider_definition, capabilities=capabilities,
+        target_text=target_text, target_unit_ids=(unit["unit_id"],),
+        context_mode=decision["context_mode"], context_policy_version=context_strategy.CONTEXT_POLICY_VERSION,
+        chapter_node_id=decision["chapter_node_id"], crosses_page_boundary=decision["crosses_page_boundary"],
+        context_headroom_fraction=effective_headroom,
     )
 
 
 def build_translation_request_for_role(structure, glossary, unit_id, profile_id,
                                        configuration: ModelConfiguration,
-                                       role="translator") -> TranslationRequest:
-    """Resolve an explicit role selection before constructing the core request."""
+                                       role="translator", context_headroom_fraction=None) -> TranslationRequest:
+    """Resolve an explicit role selection before constructing the core request.
+
+    The resolved role's `ModelCapabilities` automatically activates the
+    Session D chapter-aware context strategy (see `build_translation_request`).
+    """
     if not isinstance(configuration, ModelConfiguration):
         raise TranslationRequestError("configuration must be a validated ModelConfiguration")
     selection, definition = configuration.resolve(role)
     return build_translation_request(
         structure, glossary, unit_id, profile_id, selection.provider, selection.model,
         provider_definition=definition, capabilities=selection.capabilities,
+        context_headroom_fraction=context_headroom_fraction,
+    )
+
+
+def build_whole_chapter_translation_request(
+    structure, glossary, unit_id, profile_id, provider, model,
+    provider_definition=None, capabilities=None,
+    approved_decisions=None, local_state=None, source_context=None,
+    context_headroom_fraction=None,
+) -> TranslationRequest:
+    """Session D whole-chapter comparison mode (spec section 7): translate an
+    entire enclosing chapter as one target in a single request, instead of
+    per semantic unit with chapter context. Never the default: callers opt
+    in explicitly, e.g. to compare against `build_translation_request` on
+    the same chapter for quality/completeness/runtime/cost.
+
+    `unit_id` only anchors which chapter to resolve (any real unit inside
+    it); the actual target becomes every unit in that chapter concatenated
+    in document order. Requires `capabilities` so the chapter can be
+    checked against the same budget used by the default per-unit context
+    decision; refuses (raises `TranslationRequestError`) rather than
+    silently truncating or summarizing a chapter that does not fit
+    comfortably, and refuses a flat/short document with no enclosing
+    chapter/part node at all.
+    """
+    try:
+        if profile_id not in SUPPORTED_PROFILE_IDS:
+            raise ProfileError(f"profile_id must be one of {SUPPORTED_PROFILE_IDS}; no fallback profile")
+        approved_decisions = validate_approved_decisions(approved_decisions)
+        local_state = validate_local_state(local_state)
+        source_context = validate_source_context(source_context)
+    except ProfileError as exc:
+        raise TranslationRequestError(str(exc)) from None
+    try:
+        validate_structure(structure)
+        validate_glossary(glossary)
+    except (StructureError, GlossaryError):
+        raise TranslationRequestError("invalid source or glossary for translation") from None
+    _require(not structure["continuity"], "structure has unresolved continuity findings")
+    _require(isinstance(provider, str) and bool(provider.strip()), "unsupported provider")
+    _require(isinstance(model, str) and bool(model.strip()), "unsupported model for provider")
+    if provider == "mock":
+        _require(model == "mock-translation-1", "unsupported model for mock provider")
+    elif provider_definition is None:
+        _require(provider in {"openai", "anthropic", "deepseek"},
+                 "custom provider requires an explicit provider definition")
+    else:
+        _require(isinstance(provider_definition, ProviderDefinition)
+                 and provider_definition.provider_id == provider,
+                 "provider definition does not match selected provider")
+    _require(isinstance(capabilities, ModelCapabilities),
+             "whole-chapter mode requires model capability metadata to check the chapter fits")
+
+    unit = next((u for u in structure["units"] if u["unit_id"] == unit_id), None)
+    _require(unit is not None, "unknown or missing unit for translation job")
+    source_language = unit["language"]
+    _require(source_language in SUPPORTED_SOURCE_LANGUAGES, "unsupported source language")
+
+    effective_headroom = (
+        context_strategy.DEFAULT_HEADROOM_FRACTION if context_headroom_fraction is None else context_headroom_fraction
+    )
+    chapter_node = context_strategy.find_enclosing_chapter_node(structure, unit)
+    _require(chapter_node is not None, "whole-chapter mode requires an enclosing chapter/part node")
+    span_nodes = context_strategy.chapter_node_span(structure, chapter_node)
+    budget = context_strategy.available_chapter_token_budget(capabilities, effective_headroom)
+    estimated = sum(context_strategy.estimate_tokens(n["text"]) for n in span_nodes)
+    _require(estimated <= budget,
+             "chapter too large for whole-chapter mode within the model's usable context budget")
+
+    target_unit_ids = tuple(context_strategy.chapter_unit_ids(structure, span_nodes))
+    _require(target_unit_ids, "no translation units found in enclosing chapter")
+    units_by_id = {u["unit_id"]: u for u in structure["units"]}
+    member_units = [units_by_id[uid] for uid in target_unit_ids if uid in units_by_id]
+    _require(len(member_units) == len(target_unit_ids), "chapter contains units outside the resolved structure")
+    target_text = "\n\n".join(u["text"] for u in member_units)
+
+    approved_by_id, proposed_loaded_by_id = {}, {}
+    for uid in target_unit_ids:
+        resolution = resolve_applicable(glossary, structure, uid)
+        _require(resolution["status"] != "needs_human", "conflicting glossary resolution for unit in chapter")
+        for rule in resolution["approved_rules"]:
+            approved_by_id[rule["rule_id"]] = rule
+        for rule in resolution["proposed_rules"]:
+            if rule["loaded"]:
+                proposed_loaded_by_id[rule["rule_id"]] = rule
+    applicable_rules = sorted(approved_by_id.values(), key=lambda r: r["rule_id"])
+    proposed_loaded_rules = sorted(proposed_loaded_by_id.values(), key=lambda r: r["rule_id"])
+    policy_fingerprint = effective_fingerprint(applicable_rules)
+
+    anchor_unit = member_units[0]
+    context_segments = [{
+        "role": "target", "unit_id": None, "unit_version": None,
+        "node_ids": [n["node_id"] for n in span_nodes], "text": target_text, "text_hash": text_hash(target_text),
+    }]
+    prompt_version = PROMPT_VERSIONS[profile_id]
+    config_version = CONFIG_VERSIONS[profile_id]
+    prompt_text = _render_prompt(
+        profile_id, context_segments, source_language, applicable_rules,
+        approved_decisions, local_state, source_context,
+    )
+    _require(len(prompt_text.encode("utf-8")) <= MAX_PROMPT_BYTES, "oversized translation prompt")
+
+    caller_context_fingerprint = fingerprint({
+        "approved_decisions": approved_decisions, "local_state": local_state, "source_context": source_context,
+    })
+    composite_unit_id = deterministic_id(
+        "chapter-translation-target", chapter_node["node_id"], *sorted(target_unit_ids),
+    )
+    cache_key = compute_cache_key(
+        profile_id=profile_id, pdf_hash=structure["pdf_hash"], source_uri=structure["source_uri"],
+        document_id=anchor_unit["document_id"], reading_id=anchor_unit["reading_id"],
+        reading_version=anchor_unit["reading_version"], reading_text_hash=anchor_unit["reading_text_hash"],
+        unit_id=composite_unit_id, unit_version=1,
+        source_char_start=anchor_unit["source_char_start"], source_char_end=member_units[-1]["source_char_end"],
+        unit_text_hash=text_hash(target_text), neighbor_fingerprint=fingerprint(context_segments),
+        policy_fingerprint=policy_fingerprint, provider=provider, model=model,
+        prompt_version=prompt_version, config_version=config_version,
+        decoding_params={
+            **DECODING_PARAMS,
+            "provider_definition": provider_definition.to_dict() if provider_definition else None,
+            "capabilities": capabilities.to_dict() if capabilities else None,
+        },
+        caller_context_fingerprint=caller_context_fingerprint,
+        context_policy_version=context_strategy.CONTEXT_POLICY_VERSION,
+        context_mode="whole_chapter_translation",
+    )
+
+    return TranslationRequest(
+        profile_id=profile_id, provider=provider, model=model, source_language=source_language,
+        target_language=TARGET_LANGUAGE, structure=structure, glossary_store=glossary,
+        unit=anchor_unit, context_segments=context_segments,
+        applicable_rules=applicable_rules, proposed_loaded_rules=proposed_loaded_rules,
+        policy_fingerprint=policy_fingerprint,
+        approved_decisions=tuple(approved_decisions), local_state=local_state, source_context=source_context,
+        caller_context_fingerprint=caller_context_fingerprint,
+        prompt_version=prompt_version, config_version=config_version,
+        prompt_text=prompt_text, cache_key=cache_key,
+        provider_definition=provider_definition, capabilities=capabilities,
+        target_text=target_text, target_unit_ids=target_unit_ids,
+        context_mode="whole_chapter_translation", context_policy_version=context_strategy.CONTEXT_POLICY_VERSION,
+        chapter_node_id=chapter_node["node_id"],
+        crosses_page_boundary=len({n["page_id"] for n in span_nodes}) > 1,
+        context_headroom_fraction=effective_headroom,
     )
 
 
@@ -435,13 +649,24 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
     """
     if not isinstance(request, TranslationRequest):
         raise TranslationRequestError("run_translation requires a resolved TranslationRequest")
-    canonical = build_translation_request(
-        request.structure, request.glossary_store, request.unit["unit_id"],
-        request.profile_id, request.provider, request.model,
-        provider_definition=request.provider_definition, capabilities=request.capabilities,
-        approved_decisions=list(request.approved_decisions),
-        local_state=request.local_state, source_context=request.source_context,
-    )
+    if request.context_mode == "whole_chapter_translation":
+        canonical = build_whole_chapter_translation_request(
+            request.structure, request.glossary_store, request.target_unit_ids[0],
+            request.profile_id, request.provider, request.model,
+            provider_definition=request.provider_definition, capabilities=request.capabilities,
+            approved_decisions=list(request.approved_decisions),
+            local_state=request.local_state, source_context=request.source_context,
+            context_headroom_fraction=request.context_headroom_fraction,
+        )
+    else:
+        canonical = build_translation_request(
+            request.structure, request.glossary_store, request.unit["unit_id"],
+            request.profile_id, request.provider, request.model,
+            provider_definition=request.provider_definition, capabilities=request.capabilities,
+            approved_decisions=list(request.approved_decisions),
+            local_state=request.local_state, source_context=request.source_context,
+            context_headroom_fraction=request.context_headroom_fraction,
+        )
     _require(request == canonical, "translation request changed after source/policy resolution")
 
     notices = []
@@ -490,10 +715,10 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
     raw_text = result.text if result.status in ("completed", "mock_placeholder") else None
     draft_text, translation_note = _parse_structured_output(raw_text)
 
-    findings = run_formal_checks(request.unit["text"], draft_text, request.source_language)
+    findings = run_formal_checks(request.target_text, draft_text, request.source_language)
     for rule in request.proposed_loaded_rules:
         term = rule["source_term"]
-        start_offset = request.unit["text"].find(term)
+        start_offset = request.target_text.find(term)
         findings.append({
             "type": "unapproved_loaded_term", "source_token": term,
             "source_char_start": start_offset, "source_char_end": start_offset + len(term),
