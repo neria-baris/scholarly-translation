@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from . import context_strategy
+from . import context_strategy, document_state as document_state_module
 from .formal_checks import run_formal_checks
 from .glossary import GlossaryError, effective_fingerprint, resolve_applicable, validate_glossary
 from .model_adapter import (
@@ -155,6 +155,23 @@ def _build_context_and_decision(structure, unit, capabilities, headroom_fraction
     return decision, segments
 
 
+def _resolve_document_state(document_state, structure):
+    """Validate an optional Session D persistent document-state store and
+    return (rendered_text, version, fingerprint) for the PERSISTENT DOCUMENT
+    STATE layer. `document_state=None` (the default, for existing callers)
+    yields ("", 0, "") -- no behavior change."""
+    if document_state is None:
+        return "", 0, ""
+    try:
+        document_state_module.validate_document_state(document_state)
+    except document_state_module.DocumentStateError as exc:
+        raise TranslationRequestError(str(exc)) from None
+    _require(document_state["document_id"] == structure["document_id"],
+             "document_state belongs to a different document than this structure")
+    text = document_state_module.render_persistent_state_text(document_state)
+    return text, document_state["revision"], document_state_module.effective_fingerprint(document_state)
+
+
 def build_context(structure, unit, capabilities=None, headroom_fraction=None):
     """Session D context selection for ``unit``.
 
@@ -175,7 +192,17 @@ def build_context(structure, unit, capabilities=None, headroom_fraction=None):
 
 
 def _render_prompt(profile_id, segments, source_language, applicable_rules,
-                    approved_decisions, local_state, source_context):
+                    approved_decisions, local_state, source_context, persistent_state_text=""):
+    """Render the layered prompt. `persistent_state_text` (Session D
+    cross-chapter PERSISTENT DOCUMENT STATE layer) is folded into the same
+    GLOSSARY_AND_APPROVED_DECISIONS section as the glossary/caller-decisions
+    layer: translation_profiles.render_prompt's five section markers are a
+    fixed Session B interface out of this contract's scope to change, and
+    persistent document state is, like glossary/approved decisions,
+    background source data the model must treat as data, not instructions
+    (see render_prompt's own framing below) -- so it shares that section
+    rather than requiring a sixth top-level marker.
+    """
     terms = [
         {"source_term": r["source_term"], "target_term": r["target_term"],
          "version": r["version"], "loaded": r["loaded"]}
@@ -189,6 +216,8 @@ def _render_prompt(profile_id, segments, source_language, applicable_rules,
             "Caller-supplied approved decisions (JSON): "
             + json.dumps(approved_decisions, ensure_ascii=False, sort_keys=True)
         )
+    if persistent_state_text:
+        glossary_lines.append(persistent_state_text)
     glossary_and_decisions = "\n".join(glossary_lines)
 
     target_segment = next(s for s in segments if s["role"] == "target")
@@ -217,6 +246,7 @@ def compute_cache_key(
     unit_text_hash, neighbor_fingerprint, policy_fingerprint, provider, model,
     prompt_version, config_version, decoding_params, caller_context_fingerprint="",
     context_policy_version=context_strategy.CONTEXT_POLICY_VERSION, context_mode="bounded_fallback",
+    document_state_version=0, document_state_fingerprint="",
 ):
     """Deterministic cache identity bound to exact source/policy/provider/config.
 
@@ -233,6 +263,11 @@ def compute_cache_key(
     depends only on the exact text actually sent to the model (the target
     unit plus whichever context segments were actually included), never on
     unrelated text elsewhere in the same chapter that was not sent.
+
+    `document_state_version`/`document_state_fingerprint` (Session D cross-
+    chapter persistent state) default to 0/""; a later persistent-state
+    revision never retroactively changes a cache key computed against an
+    earlier version, so historical reproducibility is preserved.
     """
     payload = {
         "profile_id": profile_id, "pdf_hash": pdf_hash, "source_uri": source_uri,
@@ -244,6 +279,7 @@ def compute_cache_key(
         "prompt_version": prompt_version, "config_version": config_version,
         "decoding_params": decoding_params, "caller_context_fingerprint": caller_context_fingerprint,
         "context_policy_version": context_policy_version, "context_mode": context_mode,
+        "document_state_version": document_state_version, "document_state_fingerprint": document_state_fingerprint,
     }
     return fingerprint(payload)
 
@@ -290,6 +326,14 @@ class TranslationRequest:
     # reproduces the exact same decision rather than silently falling back
     # to the default fraction.
     context_headroom_fraction: float = context_strategy.DEFAULT_HEADROOM_FRACTION
+    # Session D cross-chapter PERSISTENT DOCUMENT STATE layer (optional;
+    # None for existing callers). `document_state_version`/`_fingerprint`
+    # are recorded independently of the full store so provenance always
+    # answers "which document-state revision was supplied here" even when
+    # the full store dict is not retained downstream.
+    document_state: dict | None = None
+    document_state_version: int = 0
+    document_state_fingerprint: str = ""
 
     def to_metadata_dict(self) -> dict:
         return {
@@ -334,6 +378,8 @@ class TranslationRequest:
             "context_mode": self.context_mode,
             "chapter_node_id": self.chapter_node_id,
             "crosses_page_boundary": self.crosses_page_boundary,
+            "document_state_version": self.document_state_version,
+            "document_state_fingerprint": self.document_state_fingerprint,
             "target_source": {
                 "unit_ids": list(self.target_unit_ids),
                 "source_char_start": self.unit["source_char_start"],
@@ -356,7 +402,7 @@ def build_translation_request(
     structure, glossary, unit_id, profile_id, provider, model,
     provider_definition=None, capabilities=None,
     approved_decisions=None, local_state=None, source_context=None,
-    context_headroom_fraction=None,
+    context_headroom_fraction=None, document_state=None,
 ) -> TranslationRequest:
     """Validate and resolve a translation job before any network call.
 
@@ -376,6 +422,11 @@ def build_translation_request(
     source text is considered (default `context_strategy.DEFAULT_HEADROOM_FRACTION`).
     With `capabilities=None` this builder's context selection is unchanged
     from before Session D.
+
+    `document_state` is an optional, validated `document_state.py` store
+    (the cross-chapter PERSISTENT DOCUMENT STATE layer); it is never
+    re-sent as prior-chapter text, only its small current snapshot. Omit it
+    (the default) for behavior unchanged from before this layer existed.
     """
     try:
         if profile_id not in SUPPORTED_PROFILE_IDS:
@@ -427,12 +478,15 @@ def build_translation_request(
     decision, context_segments = _build_context_and_decision(
         structure, unit, capabilities, effective_headroom,
     )
+    persistent_state_text, document_state_version, document_state_fingerprint = _resolve_document_state(
+        document_state, structure,
+    )
     target_text = unit["text"]
     prompt_version = PROMPT_VERSIONS[profile_id]
     config_version = CONFIG_VERSIONS[profile_id]
     prompt_text = _render_prompt(
         profile_id, context_segments, source_language, applicable_rules,
-        approved_decisions, local_state, source_context,
+        approved_decisions, local_state, source_context, persistent_state_text,
     )
     _require(len(prompt_text.encode("utf-8")) <= MAX_PROMPT_BYTES, "oversized translation prompt")
 
@@ -456,6 +510,7 @@ def build_translation_request(
         caller_context_fingerprint=caller_context_fingerprint,
         context_policy_version=context_strategy.CONTEXT_POLICY_VERSION,
         context_mode=decision["context_mode"],
+        document_state_version=document_state_version, document_state_fingerprint=document_state_fingerprint,
     )
 
     return TranslationRequest(
@@ -473,12 +528,15 @@ def build_translation_request(
         context_mode=decision["context_mode"], context_policy_version=context_strategy.CONTEXT_POLICY_VERSION,
         chapter_node_id=decision["chapter_node_id"], crosses_page_boundary=decision["crosses_page_boundary"],
         context_headroom_fraction=effective_headroom,
+        document_state=document_state, document_state_version=document_state_version,
+        document_state_fingerprint=document_state_fingerprint,
     )
 
 
 def build_translation_request_for_role(structure, glossary, unit_id, profile_id,
                                        configuration: ModelConfiguration,
-                                       role="translator", context_headroom_fraction=None) -> TranslationRequest:
+                                       role="translator", context_headroom_fraction=None,
+                                       document_state=None) -> TranslationRequest:
     """Resolve an explicit role selection before constructing the core request.
 
     The resolved role's `ModelCapabilities` automatically activates the
@@ -490,7 +548,7 @@ def build_translation_request_for_role(structure, glossary, unit_id, profile_id,
     return build_translation_request(
         structure, glossary, unit_id, profile_id, selection.provider, selection.model,
         provider_definition=definition, capabilities=selection.capabilities,
-        context_headroom_fraction=context_headroom_fraction,
+        context_headroom_fraction=context_headroom_fraction, document_state=document_state,
     )
 
 
@@ -498,7 +556,7 @@ def build_whole_chapter_translation_request(
     structure, glossary, unit_id, profile_id, provider, model,
     provider_definition=None, capabilities=None,
     approved_decisions=None, local_state=None, source_context=None,
-    context_headroom_fraction=None,
+    context_headroom_fraction=None, document_state=None,
 ) -> TranslationRequest:
     """Session D whole-chapter comparison mode (spec section 7): translate an
     entire enclosing chapter as one target in a single request, instead of
@@ -584,11 +642,14 @@ def build_whole_chapter_translation_request(
         "role": "target", "unit_id": None, "unit_version": None,
         "node_ids": [n["node_id"] for n in span_nodes], "text": target_text, "text_hash": text_hash(target_text),
     }]
+    persistent_state_text, document_state_version, document_state_fingerprint = _resolve_document_state(
+        document_state, structure,
+    )
     prompt_version = PROMPT_VERSIONS[profile_id]
     config_version = CONFIG_VERSIONS[profile_id]
     prompt_text = _render_prompt(
         profile_id, context_segments, source_language, applicable_rules,
-        approved_decisions, local_state, source_context,
+        approved_decisions, local_state, source_context, persistent_state_text,
     )
     _require(len(prompt_text.encode("utf-8")) <= MAX_PROMPT_BYTES, "oversized translation prompt")
 
@@ -615,6 +676,7 @@ def build_whole_chapter_translation_request(
         caller_context_fingerprint=caller_context_fingerprint,
         context_policy_version=context_strategy.CONTEXT_POLICY_VERSION,
         context_mode="whole_chapter_translation",
+        document_state_version=document_state_version, document_state_fingerprint=document_state_fingerprint,
     )
 
     return TranslationRequest(
@@ -633,6 +695,8 @@ def build_whole_chapter_translation_request(
         chapter_node_id=chapter_node["node_id"],
         crosses_page_boundary=len({n["page_id"] for n in span_nodes}) > 1,
         context_headroom_fraction=effective_headroom,
+        document_state=document_state, document_state_version=document_state_version,
+        document_state_fingerprint=document_state_fingerprint,
     )
 
 
@@ -657,6 +721,7 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
             approved_decisions=list(request.approved_decisions),
             local_state=request.local_state, source_context=request.source_context,
             context_headroom_fraction=request.context_headroom_fraction,
+            document_state=request.document_state,
         )
     else:
         canonical = build_translation_request(
@@ -666,6 +731,7 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
             approved_decisions=list(request.approved_decisions),
             local_state=request.local_state, source_context=request.source_context,
             context_headroom_fraction=request.context_headroom_fraction,
+            document_state=request.document_state,
         )
     _require(request == canonical, "translation request changed after source/policy resolution")
 
