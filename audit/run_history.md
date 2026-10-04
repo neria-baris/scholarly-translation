@@ -448,3 +448,41 @@ main: 475 tests, 1 skip, 26.2s, OK. Fetched origin/main, verified ancestry,
 pushed; post-push fetch confirmed main == origin/main == 8759b611. No
 runtime provider calls; mock-only. Session X (PDF/EPUB export) remains
 running in a separate isolated worktree, disjoint files, unaffected.
+
+## SESSION-X | 2026-10-05T00:20:00+00:00 | PDF/EPUB export, integrated and pushed
+
+Claude acting as temporary integration conductor launched Session X as an isolated
+worktree/branch sub-agent (worktree-agent-a265740e1a350b35a) off checked common base
+6741f65, per audit/contracts/session_x_export.md, running in parallel with Session D
+(disjoint files: export_common.py/export_pdf.py/export_epub.py vs
+translation.py/context_strategy.py/document_state.py). The builder added a
+PDF exporter (reportlab-based, reflow not pixel-fidelity, a small documented
+word-token Hebrew/RTL bidi routine since no rlbidi package is installed,
+verified against physical glyph positions via pdfplumber) and an EPUB
+exporter. For EPUB it found no canonical document_structure producer exists
+yet (segmentation.build_readings requires source_kind=="pdf") and, rather than
+inventing a second PDF-style heuristic classifier (forbidden by the contract),
+treated the EPUB's own XHTML block structure as ground truth under a new,
+clearly-labelled epub-structure@1 schema distinct from document_structure
+schema 2 - flagged as a transparency note, not an escalation. Archive
+rebuilding copies all non-chapter files byte-for-byte unchanged. 34 new tests;
+requirements.txt pins Pillow==12.3.0 (already installed transitively via
+reportlab, not a new dependency).
+
+Conductor review: read export_common.py/export_pdf.py/export_epub.py in full;
+confirmed the change is purely additive (only requirements.txt touches an
+existing file, avoiding any conflict with Session D's translation.py/
+context_strategy.py/document_state.py changes) and that per-unit manifests
+plus explicit limitations lists avoid silent drops/mis-rendering anywhere.
+Independently reran the suite in the isolated worktree (470 tests, 1 skip,
+25.6s, matching the builder's report) before merging via --no-ff merge
+commit 9506352e (no conflicts). Reran full suite on merged main: 509 tests,
+0 skips, 29.2s, OK (D's 475 + X's 34). Fetched origin/main, verified
+ancestry, pushed; post-push fetch confirmed main == origin/main == 9506352e.
+No runtime provider calls; mock/fixture-only.
+
+A/B/C/D(+addendum)/E/X are now all integrated on main. Per
+audit/claude_integration_conductor.md Phase 4/5, F (UI) is next, then G
+(final integration review, which per the user's 2026-10-05 addendum also
+owns wiring Session C's chapter QA into Session D's document_state.py - see
+audit/raw/addendum_2026-10-05_persistent_state.md).

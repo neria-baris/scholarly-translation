@@ -1,51 +1,52 @@
 # Current state
-Updated: 2026-10-05T00:05:00+00:00 (Claude conductor)
+Updated: 2026-10-05T00:20:00+00:00 (Claude conductor)
 
-Phase: A/B/C/E/D (incl. persistent cross-chapter state addendum) integrated,
-tested and pushed. X still in progress (parallel isolated sub-agent,
-worktree-agent-a265740e1a350b35a, off checked common base 6741f65 per
-audit/contracts/session_x_export.md). `origin/main` == `main` ==
-`8759b61` ("Integrate Session D addendum: cross-chapter persistent
-document state"). Independent full-suite rerun on merged main: 475 tests
-pass, 1 skip (26.2s), bundled runtime
+Phase: A/B/C/D(+persistent-state addendum)/E/X all integrated, tested and
+pushed. `origin/main` == `main` == `9506352` ("Integrate Session X:
+PDF/EPUB format-preserving export"). Independent full-suite rerun on
+merged main: 509 tests pass, 0 skips (29.2s), bundled runtime
 `C:/Users/pc2/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`.
 
-A (8bc29b2/d7b6723, merged a35d3ab) = document structure/segmentation
-schema 2. B (64f7ca6/7b43494, merged e7e1173) = scholarly+literary profiles
-(Gate 12). C (fd5c852/4bf8482) and E (a705e0a/633c33d) = optional
-review/chapter QA and role-based provider/model selection (committed
-directly to main). D (worktree-agent-ac188145aaddcd523, merged 89adbd76
-then 8759b61) = (1) chapter-aware, model-budget translation context
-strategy (scholarly_translation/context_strategy.py), and (2), per the
-user's 2026-10-05 addendum (audit/raw/addendum_2026-10-05_persistent_state.md,
-contract audit/contracts/session_d2_persistent_document_state.md), a
-versioned, source-backed cross-chapter persistent-document-state store
-(scholarly_translation/document_state.py). Both are backward compatible
-(capabilities=None / document_state=None reproduce prior behavior exactly).
-Gate 10 human quality remains preliminary/BLOCKED; unaffected.
+A = document structure/segmentation schema 2. B = scholarly+literary
+profiles (Gate 12). C = optional review/chapter QA
+(scholarly_translation/review_qa.py, chapter QA at lines ~593-761,
+verdict/issues/chapter_level_notes, categories {completeness, consistency,
+continuity, hebrew_quality}). D = (1) chapter-aware, model-budget
+translation context strategy (context_strategy.py), (2) per the user's
+2026-10-05 addendum, a versioned, source-backed cross-chapter persistent
+document-state store (document_state.py: propose_item/find_conflicts/
+commit_update, certainty established/likely/unresolved, model-authored
+items barred from "established", document_state_version in cache key).
+E = role-based provider/model selection. X = PDF export (export_pdf.py,
+reportlab + a small documented Hebrew/RTL bidi routine since no rlbidi
+package is installed) and EPUB export (export_epub.py, using the EPUB's
+own XHTML structure as ground truth under a new epub-structure@1 schema,
+since no canonical document_structure producer exists yet for EPUB).
 
-IMPORTANT for Session G (not yet launched): document_state.py is
-deliberately NOT wired to review_qa.py/semantic_review.py's existing
-chapter-QA output (Session C). Per the addendum, Session G owns connecting
-chapter QA's `issues`/`chapter_level_notes` (review_qa.py:593-761,
-categories {completeness, consistency, continuity, hebrew_quality}) to
-document_state.py's `propose_item`/`find_conflicts`/`commit_update` via
-the smallest adapter necessary — extending review_qa.py's structured
-output only if required, never rewriting it. G must also add the ten
-addendum test scenarios end-to-end (see the addendum file) and confirm
-historical reproducibility across a state-version bump.
+IMPORTANT for Session G (not yet launched), per the addendum
+(audit/raw/addendum_2026-10-05_persistent_state.md, contract
+audit/contracts/session_d2_persistent_document_state.md): document_state.py
+is deliberately NOT wired to review_qa.py's chapter QA output yet. G must
+connect them with the smallest clean adapter (extending review_qa.py's
+structured output only if required, never rewriting it), add the ten
+addendum test scenarios end-to-end, and confirm historical reproducibility
+across a state-version bump. G should also check export_epub.py's new
+epub-structure@1 schema is clearly documented as EPUB-specific (not
+confused with document_structure schema 2) as part of its cross-component
+consistency check.
 
 Original clean worktrees preserved at sibling scholarly-translation.worktrees/
 (A/B/C/E, fully merged, kept per no-unnecessary-cleanup policy) and
-.claude/worktrees/ (untracked, harness-managed: D's is done and may be
-pruned once confirmed with the user; X's is still active/locked).
+.claude/worktrees/ (untracked, harness-managed: both D's and X's are done
+and may be pruned once confirmed with the user).
 
 Quota and actual subscription charges unknown. No new external paid
-model/provider calls this session (mock adapters only).
+model/provider calls this session (mock/fixture-only).
 
-Exact next action: wait for Session X (PDF/EPUB export) to complete,
-independently review its diff and rerun tests in its worktree, merge into
-main (additive only, no expected conflict with D), run the combined suite,
-push, then proceed to F (UI integration) and G (final integration review,
-including the Session C/D persistent-state wiring above) per
-audit/claude_integration_conductor.md plus this addendum.
+Exact next action: launch F (simple UI integration) per
+audit/claude_integration_conductor.md, wiring Academic/Literary profile
+selection, Auto/explicit model choice, Fast/Checked/Thorough quality
+modes, and the new export_pdf/export_epub output into the existing simple
+upload/download UI (web_ui.py/ui.html/ui.js) without exposing internal
+pipeline/provenance/cache details. Then G (final integration review,
+including the Session C/D persistent-state wiring above).
