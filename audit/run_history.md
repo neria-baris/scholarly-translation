@@ -413,3 +413,38 @@ into main via --no-ff merge commit 89adbd76 (no conflicts; D and X have disjoint
 file ownership). Reran full suite on merged main: 456 tests, 1 skip, 26.4s, OK.
 Fetched origin/main, verified ancestry, pushed; post-push fetch confirmed
 main == origin/main == 89adbd76. No runtime provider calls; mock-only.
+
+## SESSION-D-ADDENDUM | 2026-10-05T00:00:00+00:00 | persistent cross-chapter state, integrated and pushed
+
+User supplied a mid-session addendum (audit/raw/addendum_2026-10-05_persistent_state.md)
+requiring a persistent, versioned, cross-chapter document-state mechanism
+(terminology/definitions/notation/character/register/names/unresolved-
+ambiguity continuity), explicitly deferring the chapter-QA-to-state wiring
+to Session G and forbidding a Session C rerun. The conductor noted that the
+already-merged Session D work (89adbd76) implemented only chapter-aware
+context sizing, not persistence, and drafted a scoping contract
+(audit/contracts/session_d2_persistent_document_state.md) intending to
+launch a separate D2 sub-agent. Before that launch, the still-resumable
+Session D builder (worktree-agent-ac188145aaddcd523) was itself resumed
+with the addendum and implemented the scope directly, stacked on its own
+prior commit: new scholarly_translation/document_state.py (versioned
+propose/find_conflicts/commit_update, certainty levels, mandatory source
+provenance, model-authored items barred from "established") plus
+translation.py wiring (document_state parameter, PERSISTENT DOCUMENT STATE
+prompt layer folded into the existing glossary/approved-decisions section,
+document_state_version/fingerprint in compute_cache_key/to_metadata_dict).
+19 new tests in tests/test_document_state.py. No separate D2 sub-agent was
+launched; the drafted contract was annotated "fulfilled" and kept as the
+record this work is judged against.
+
+Conductor review: read document_state.py in full and the translation.py
+diff; confirmed the module does not duplicate glossary.py, does not wire
+into review_qa.py/semantic_review.py (left for Session G per the
+addendum), and that omitting document_state leaves every existing caller
+unchanged. Independently reran the suite in the isolated worktree (475
+tests, 1 skip, 23.0s, matching the builder's report) before merging via
+--no-ff merge commit 8759b611 (no conflicts). Reran full suite on merged
+main: 475 tests, 1 skip, 26.2s, OK. Fetched origin/main, verified ancestry,
+pushed; post-push fetch confirmed main == origin/main == 8759b611. No
+runtime provider calls; mock-only. Session X (PDF/EPUB export) remains
+running in a separate isolated worktree, disjoint files, unaffected.
