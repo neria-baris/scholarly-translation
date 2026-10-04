@@ -1233,7 +1233,7 @@ def main(argv=None) -> int:
     translate_unit_parser.add_argument("structure_json")
     translate_unit_parser.add_argument("--glossary", required=True)
     translate_unit_parser.add_argument("--unit-id", required=True)
-    translate_unit_parser.add_argument("--profile", required=True, choices=["scholarly"])
+    translate_unit_parser.add_argument("--profile", required=True, choices=["scholarly", "literary"])
     translate_unit_parser.add_argument("--provider", choices=["mock", "openai"])
     translate_unit_parser.add_argument("--model-config", default=None,
                                        help="Role-based model configuration JSON; resolves translator")
