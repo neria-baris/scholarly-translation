@@ -8,31 +8,33 @@
 <body>
 <header class="app-header">
 <a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h10M9 3v3M6 9c1 4 4 6 7 7M12 6c0 5-3 8-7 10M14 20l4-10 4 10m-6-3h4"/></svg></span><span>תרגום מסמכים</span></a>
-<button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">חיבור OpenAI</span></button>
+<button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">מודל: Auto</span></button>
 </header>
 <main class="workspace">
 <section id="start-panel" aria-labelledby="main-title">
-<div class="hero"><span class="eyebrow">PDF ו־EPUB · לעברית</span><h1 id="main-title">המסמך שלכם, <span>בעברית.</span></h1><p>מעלים קובץ, בוחרים איך לתרגם, ומורידים את התוצאה.<br class="desktop-break"> אפשר לעבור עליה ולערוך — אם רוצים.</p></div>
+<div class="hero"><span class="eyebrow">PDF · לעברית</span><h1 id="main-title">המסמך שלכם, <span>בעברית.</span></h1><p>מעלים קובץ PDF, בוחרים איך לתרגם, ומורידים PDF מתורגם.<br class="desktop-break"> אפשר לעבור עליו ולערוך — אם רוצים.</p></div>
 <form id="translation-form" class="translate-card">
-<input id="document-file" class="visually-hidden" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" aria-label="בחרו PDF או EPUB">
-<div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="בחירת קובץ PDF או EPUB או גרירתו לכאן">
-<div id="upload-empty"><span class="file-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M13 5h15l9 9v28H13zM28 5v10h9M20 24h10M20 30h10M20 36h6"/></svg></span><h2>בחרו קובץ או גררו אותו לכאן</h2><span class="choose-file">בחירת קובץ <span aria-hidden="true">←</span></span><p class="upload-note">PDF עם טקסט או EPUB · עד 25 MB</p></div>
+<input id="document-file" class="visually-hidden" type="file" accept=".pdf,application/pdf" aria-label="בחרו PDF">
+<div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="בחירת קובץ PDF או גרירתו לכאן">
+<div id="upload-empty"><span class="file-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M13 5h15l9 9v28H13zM28 5v10h9M20 24h10M20 30h10M20 36h6"/></svg></span><h2>בחרו קובץ או גררו אותו לכאן</h2><span class="choose-file">בחירת קובץ <span aria-hidden="true">←</span></span><p class="upload-note">PDF עם טקסט · עד 25 MB · EPUB עדיין לא נתמך בזרימה זו</p></div>
 <div id="upload-selected" class="selected-file" hidden><span class="selected-file-icon" aria-hidden="true">↥</span><div><strong id="filename" dir="auto"></strong><span id="file-size"></span></div><span class="change-file">החלפה</span></div>
 </div>
 <details id="translation-options" class="options">
-<summary><div class="option-summary"><span id="model-summary">GPT-6 Luna</span><span class="separator">·</span><span id="quality-summary">מאוזן</span><span class="separator">·</span><span>עברית</span></div><span class="options-label">אפשרויות <span class="chevron" aria-hidden="true">⌄</span></span></summary>
+<summary><div class="option-summary"><span id="profile-summary">אקדמי</span><span class="separator">·</span><span id="quality-summary">מהיר</span><span class="separator">·</span><span id="model-summary">Auto</span></div><span class="options-label">אפשרויות <span class="chevron" aria-hidden="true">⌄</span></span></summary>
 <div class="settings-fields">
-<div class="field"><label for="model">מודל</label><select id="model"><option value="gpt-6-luna">GPT-6 Luna</option><option value="gpt-6.1-sol">GPT-6.1 Sol</option><option value="demo">תצוגת ניסיון — ללא תרגום</option></select><small>זמינות המודל תלויה בהרשאות חשבון OpenAI.</small></div>
-<div class="field"><label for="quality">רמת עיבוד</label><select id="quality"><option value="fast">מהיר</option><option value="balanced" selected>מאוזן</option><option value="careful">מעמיק</option></select><small id="quality-help">יותר זמן חשיבה למודל; אינו מבטיח דיוק מחקרי.</small></div>
+<div class="field"><label for="profile">פרופיל תרגום</label><select id="profile"><option value="scholarly">אקדמי (מדויק, הערות ומינוח נשמרים)</option><option value="literary">ספרותי (זורם, נאמן לסגנון)</option></select></div>
+<div class="field"><label for="quality">רמת בדיקה</label><select id="quality"><option value="fast">מהיר — ללא בדיקה נוספת</option><option value="checked">נבדק — בדיקת מקטעים מסוכנים + בדיקת פרקים</option><option value="thorough">מעמיק — בדיקת כל מקטע + בדיקת פרקים</option></select><small id="quality-help">מהיר אינו שולח קריאות בדיקה נוספות; נבדק ומעמיק דורשים מודל מוגדר.</small></div>
+<div class="field"><label for="model">מודל</label><select id="model"><option value="auto">Auto — תצוגת ניסיון, ללא עלות</option><option value="configured">מודל מוגדר בשרת</option></select><small id="model-help">Auto אינו מבצע תרגום אמיתי ואינו מצריך מפתח API.</small></div>
 <div class="field"><label for="language">שפת המקור</label><select id="language"><option value="auto">זיהוי אוטומטי</option><option value="en">אנגלית</option><option value="fr">צרפתית</option><option value="ja">יפנית</option></select></div>
-<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" value="2" min="0.01" max="30" step="0.01" inputmode="decimal" dir="ltr"><small>מגבלת אומדן מחירון. החיוב בפועל נקבע בידי הספק.</small></div>
+<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" value="2" min="0.01" max="30" step="0.01" inputmode="decimal" dir="ltr"><small>מגבלת אומדן מחירון. רלוונטי רק למודל מוגדר.</small></div>
+<details id="advanced-roles"><summary>בחירת תפקידים מתקדמת (translator / semantic_reviewer / chapter_qa)</summary><p class="advanced-note">שימוש רגיל אינו דורש זאת: המודל המוגדר בשרת קובע את כל התפקידים.</p></details>
 </div></details>
 <p id="form-message" class="message" role="alert" hidden></p>
 <button id="translate-button" type="submit" class="primary-button translate-button" disabled><span id="translate-label">תרגום לעברית</span><span aria-hidden="true">←</span></button>
-<p id="send-note" class="send-note">לחיצה על תרגום תבקש אישור לשליחת הטקסט ל־OpenAI.</p>
+<p id="send-note" class="send-note">Auto: ללא עלות, ללא תרגום אמיתי. מודל מוגדר: לחיצה על תרגום תבקש אישור לשליחה לספק המודל.</p>
 </form>
-<div class="below-card"><button id="sample-button" class="text-button">נסו עם מסמך דוגמה, ללא API</button><button id="recent-button" class="text-button" hidden></button></div>
-<p class="format-note">מתרגמים את הטקסט. עימוד מקורי ותמונות אינם משוחזרים.</p>
+<div class="below-card"><button id="sample-button" class="text-button">נסו עם PDF דוגמה, ללא עלות</button><button id="recent-button" class="text-button" hidden></button></div>
+<p class="format-note">מתרגמים את מבנה המסמך (פסקאות, כותרות). התוצאה היא PDF מחדש, לא עימוד מקורי זהה.</p>
 </section>
 <section id="processing-panel" class="processing-panel" aria-live="polite" hidden>
 <div class="spinner" aria-hidden="true"></div><span class="eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p><progress id="translation-progress" max="1" aria-label="התקדמות התרגום"></progress><p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
@@ -40,20 +42,22 @@
 <section id="result-panel" hidden aria-labelledby="result-title">
 <div class="result-heading"><span id="result-symbol" class="result-symbol" aria-hidden="true">✓</span><span class="eyebrow" id="result-eyebrow">התרגום שלכם</span><h1 id="result-title">התרגום מוכן.</h1><p id="result-filename" dir="auto"></p></div>
 <div class="result-card"><div class="result-file"><span class="result-file-icon" aria-hidden="true">↓</span><div><strong id="download-filename" dir="auto"></strong><span id="result-meta"></span></div><span class="draft-badge">טיוטה</span></div>
-<p id="result-notice" class="result-notice" hidden></p><div class="result-actions"><button id="download-html" class="primary-button">הורדת התרגום <span aria-hidden="true">↓</span></button><button id="download-text" class="secondary-button">קובץ טקסט</button></div>
+<p id="result-notice" class="result-notice" hidden></p>
+<p id="result-limitations" class="result-notice" hidden></p>
+<div class="result-actions"><button id="download-pdf" class="primary-button">הורדת ה-PDF המתורגם <span aria-hidden="true">↓</span></button></div>
 <div class="result-secondary"><button id="review-button" class="text-button">בדיקה ועריכה (לבחירתכם) <span aria-hidden="true">←</span></button><span id="cost-summary"></span></div></div>
 <div id="review-panel" class="review-panel" hidden>
-<div class="review-toolbar"><div><h2>מקור לצד תרגום</h2><p id="review-location"></p></div><select id="chunk-select" aria-label="בחירת מקטע לבדיקה"></select><button id="close-review" class="quiet-button" aria-label="סגירת הבדיקה">✕</button></div>
+<div class="review-toolbar"><div><h2>מקור לצד תרגום</h2><p id="review-location"></p></div><select id="unit-select" aria-label="בחירת מקטע לבדיקה"></select><button id="close-review" class="quiet-button" aria-label="סגירת הבדיקה">✕</button></div>
 <div class="review-columns"><section><h3>מקור</h3><div id="review-source" class="source-copy" dir="auto"></div></section><section><h3>תרגום · אפשר לערוך</h3><textarea id="review-target" dir="rtl" aria-label="עריכת התרגום"></textarea></section></div>
-<div id="review-findings" class="review-findings"></div><div class="review-actions"><button id="save-edit" class="primary-button">שמירת שינויים</button><span id="review-message" role="status"></span><span class="review-note">השמירה מעדכנת את הטיוטה להורדה.</span></div></div>
+<div id="review-findings" class="review-findings"></div><div class="review-actions"><button id="save-edit" class="primary-button">שמירת שינויים</button><span id="review-message" role="status"></span><span class="review-note">השמירה מעדכנת את ה-PDF להורדה.</span></div></div>
 <div class="result-bottom"><button id="new-document" class="text-button">← תרגום מסמך נוסף</button><p>טיוטה אוטומטית; אפשר להוריד מיד, ואפשר לבדוק קודם.</p></div>
 </section>
 </main>
 <footer class="app-footer"><span>הקובץ והתוצאה נשמרים במחשב שלכם.</span><a href="/help" target="_blank" rel="noopener">עזרה</a></footer>
 <dialog id="connection-dialog" aria-labelledby="connection-title">
-<div class="dialog-heading"><h2 id="connection-title">חיבור ל־OpenAI</h2><button id="close-connection" class="quiet-button" aria-label="סגירת הגדרות החיבור">✕</button></div><p>הזינו מפתח API כדי לתרגם. המפתח נשמר בזיכרון ההרצה בלבד.</p>
-<div class="field"><label for="api-key">מפתח OpenAI API</label><input id="api-key" type="password" autocomplete="new-password" dir="ltr" placeholder="sk-…"></div><p id="key-message" role="status" class="key-message"></p>
-<div class="dialog-actions"><button id="save-key" class="primary-button">שמירה וחיבור</button><button id="clear-key" class="text-button">ניקוי מפתח זמני</button></div><a class="help-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">פתיחת עמוד המפתחות ב־OpenAI ↗</a>
+<div class="dialog-heading"><h2 id="connection-title">מודל תרגום</h2><button id="close-connection" class="quiet-button" aria-label="סגירה">✕</button></div>
+<p id="connection-detail">Auto הוא מצב תצוגת ניסיון בלבד, ללא עלות וללא תרגום אמיתי.</p>
+<div class="dialog-actions"><button id="close-connection-ok" class="primary-button">סגירה</button></div>
 </dialog>
 <script>window.UI_CONFIG = __CONFIG__;</script><script src="/ui.js"></script>
 </body></html>
