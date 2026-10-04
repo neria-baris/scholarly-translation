@@ -128,6 +128,10 @@ Retain one owner and at most one targeted fix/retest per failed implementation a
 
 רק אחרי שהנתיב עובד, הרץ את ניסוי המתרגמים המתואר באסטרטגיה: gold set ראשוני של כ־72 מקטעים, 24 לכל שפה, עם ניקוד שגיאות משמעות וזמן תיקון אנושי. בדוק גם מבקר מול היעדר מבקר, והקשר קצר מול הקשר מורחב. אין לשנות את שערי ההכרעה אחרי שראית תוצאות בלי לדווח על כך. **תנאי מעבר:** טבלה לפי שפה וסוגה של שגיאות קריטיות, דקות תיקון, עלות/עמוד והשהיה; המלצה על מתרגם וברירת ניתוב, עם אי־ודאות מפורשת. אם אין מספיק דוגמאות מאושרות, סמן את התוצאה preliminary ואל תטען לאמינות מוכחת.
 
+## Gate 11 — persistent budget, cache and usage controls
+
+User-authorized extension, 2026-10-01. Implement the existing budget/cache/log requirements as a local persistent call boundary shared by translation and conditional review, with durable preflight reservations, bounded attempts, exact versioned cache identity and inspectable metadata-only usage/status. Verify using fake/mock adapters and the public CLI; no paid runtime request is required. Contract: `audit/contracts/gate_11.md`. Gate 10 remains preliminary/BLOCKED for human quality evidence; Gate 11 may pass only independent software acceptance and does not grant quality/release approval or a model recommendation.
+
 ## תקציב, cache ועצירה
 
 הפרד בין עלות **הפיתוח** לעלות **תרגום בזמן ריצה**. אכוף gateway לקריאות מודלים עם תקרה קשה, התראות 50%/80%, מפתח cache המבוסס על קלט וגרסאות רלוונטיות, ולוג reason/usage. התחל בערכי ה־stop-loss במסמך מדיניות הפיתוח ($2/$10/$30 למשימה זעירה/רגילה/מורכבת כאשר API מחויב לפי שימוש), ובתקרות הפיילוט למסמך תרגום שבאסטרטגיה; הצג אותן בתחילת כל שער והתאם לפי מדידה או הוראה שלי. אם אין דרך לאכוף תקרה באופן מכני, אמור זאת והגבל את מספר הקריאות עד שתהיה אכיפה. כשמגיעים לתקרה, שמור checkpoint ו־diff, הצג מה נותר והמתן; אל תמשיך לצרוך שירות בתשלום. אל תקנה חומרה, תפתח שירות בתשלום נוסף או תבנה רכיב אופציונלי בלי ראיות שדרוש לו מקום.

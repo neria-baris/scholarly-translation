@@ -581,11 +581,45 @@ def cmd_probe_provider(provider: str, output_dir: str) -> int:
 TRANSLATE_MODELS = {"mock": "mock-translation-1", "openai": "gpt-6-luna"}
 
 
+def _open_runtime_controls(
+    control_store_path, task_id, max_calls, hard_list_usd, *, stage, provider, model,
+    document_id, unit_id, protected_paths,
+):
+    """Open (or create) a control store and build its budget/cache for one call site.
+
+    Returns one shared persistent store, task budget and raw-result cache.
+    Omitted path uses the ignored default store. Mock dispatches are recorded
+    as synthetic and non-billed; their usage is never a paid-provider charge.
+    """
+    from .model_adapter import OPENAI_MAX_OUTPUT_TOKENS, PRICING_VERSION
+    from .runtime_controls import ControlStore, PersistentBudget, RuntimeCache, RuntimeControlsError, validate_store_path, DEFAULT_CONTROL_STORE
+
+    control_store_path = DEFAULT_CONTROL_STORE if control_store_path is None else control_store_path
+    resolved = validate_store_path(control_store_path, protected_paths=protected_paths)
+    resolved_task_id = document_id if task_id is None else task_id
+    from .runtime_controls import _identifier
+    if not _identifier(resolved_task_id) or not ControlStore._valid_policy(max_calls, hard_list_usd, PRICING_VERSION, OPENAI_MAX_OUTPUT_TOKENS):
+        raise RuntimeControlsError("invalid task identity or control policy")
+    control_store = ControlStore(resolved, create=True)
+    try:
+        budget = PersistentBudget(
+            control_store, resolved_task_id, max_calls=max_calls, hard_list_usd=hard_list_usd,
+            stage=stage, provider=provider, model=model, document_id=document_id, unit_id=unit_id,
+        )
+        cache = RuntimeCache(control_store, stage=stage, provider=provider, model=model)
+    except Exception:
+        control_store.close()
+        raise
+    return control_store, budget, cache
+
+
 def cmd_translate_unit(
     structure_path: str, glossary_path: str, unit_id: str, profile: str, provider: str, output_dir: str,
+    control_store: str = None, task_id: str = None, max_calls: int = 3, hard_list_usd: float = 0.01,
 ) -> int:
     from .glossary import GlossaryError, validate_glossary
     from .model_adapter import OpenAIConfigurationError, RequestValidationError
+    from .runtime_controls import RuntimeControlsError
     from .segmentation import validate_structure
     from .source_reading import StructureError
     from .translation import TranslationRequestError, build_translation_request, run_translation
@@ -654,13 +688,30 @@ def cmd_translate_unit(
         )
 
     try:
-        draft = run_translation(request)
+        store, budget, cache = _open_runtime_controls(
+            control_store, task_id, max_calls, hard_list_usd, stage="translate",
+            provider=provider, model=TRANSLATE_MODELS[provider],
+            document_id=structure["document_id"], unit_id=unit_id,
+            protected_paths=protected,
+        )
+    except RuntimeControlsError as exc:
+        print(f"Control store refused: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        draft = run_translation(request, budget=budget, cache=cache)
     except OpenAIConfigurationError as exc:
         print(f"OpenAI translation not configured: {exc}", file=sys.stderr)
         return 1
     except TranslationRequestError as exc:
         print(f"Translation refused: {exc}", file=sys.stderr)
         return 1
+    except RuntimeControlsError as exc:
+        print(f"Control store refused: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        if store is not None:
+            store.close()
 
     try:
         out_path.mkdir(parents=True, exist_ok=True)
@@ -679,9 +730,11 @@ def cmd_translate_unit(
 
 def cmd_semantic_review(
     structure_path: str, glossary_path: str, draft_path: str, provider: str, output_dir: str,
+    control_store: str = None, task_id: str = None, max_calls: int = 3, hard_list_usd: float = 0.01,
 ) -> int:
     from .glossary import GlossaryError, validate_glossary
     from .model_adapter import OpenAIConfigurationError
+    from .runtime_controls import RuntimeControlsError
     from .segmentation import validate_structure
     from .semantic_review import (
         SEMANTIC_REVIEW_MODELS, SemanticReviewRequestError,
@@ -757,13 +810,30 @@ def cmd_semantic_review(
         )
 
     try:
-        review = run_semantic_review(request)
+        store, budget, cache = _open_runtime_controls(
+            control_store, task_id, max_calls, hard_list_usd, stage="semantic_review",
+            provider=provider, model=SEMANTIC_REVIEW_MODELS[provider]["critic"],
+            document_id=request.unit["document_id"], unit_id=request.unit["unit_id"],
+            protected_paths=protected,
+        )
+    except RuntimeControlsError as exc:
+        print(f"Control store refused: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        review = run_semantic_review(request, budget=budget, cache=cache)
     except OpenAIConfigurationError as exc:
         print(f"OpenAI semantic review not configured: {exc}", file=sys.stderr)
         return 1
     except SemanticReviewRequestError as exc:
         print(f"Semantic review refused: {exc}", file=sys.stderr)
         return 1
+    except RuntimeControlsError as exc:
+        print(f"Control store refused: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        if store is not None:
+            store.close()
 
     try:
         out_path.mkdir(parents=True, exist_ok=True)
@@ -1043,6 +1113,36 @@ def cmd_evaluate_pilot(manifest_path: str, output_dir: str) -> int:
     return 0
 
 
+def cmd_runtime_status(control_store_path: str, task_id: str) -> int:
+    from .runtime_controls import ControlStore, RuntimeControlsError, validate_store_path
+
+    try:
+        store = ControlStore(validate_store_path(control_store_path), create=False)
+    except RuntimeControlsError as exc:
+        print(f"Control store refused: {exc}", file=sys.stderr)
+        return 1
+    try:
+        status = store.status(task_id)
+    except RuntimeControlsError as exc:
+        print(f"Control store refused: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        store.close()
+
+    print(f"task_id: {status['task_id']}")
+    print(f"max_calls: {status['max_calls']} hard_list_usd: {status['hard_list_usd']}")
+    print(f"attempted_calls: {status['attempted_calls']} settled_calls: {status['settled_calls']}")
+    print(f"held_usd: {status['held_usd']} list_estimated_spent_usd: {status['list_estimated_spent_usd']}")
+    print(f"stopped: {status['stopped']} cache_hits: {status['cache_hits']} cache_misses: {status['cache_misses']}")
+    for event in status["events"]:
+        print(
+            f"  event_id: {event['event_id']} stage: {event['stage']} outcome: {event['outcome']} "
+            f"reserved_usd: {event['reserved_usd']} observed_usd: {event['observed_usd']} "
+            f"actual_charge: {event['actual_charge']} timestamp: {event['timestamp']}"
+        )
+    return 0
+
+
 def main(argv=None) -> int:
     _ensure_utf8_stdio()
     parser = argparse.ArgumentParser(prog="scholarly_translation")
@@ -1104,6 +1204,10 @@ def main(argv=None) -> int:
     translate_unit_parser.add_argument("--profile", required=True, choices=["scholarly"])
     translate_unit_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
     translate_unit_parser.add_argument("--output", required=True)
+    translate_unit_parser.add_argument("--control-store", default=None)
+    translate_unit_parser.add_argument("--task-id", default=None)
+    translate_unit_parser.add_argument("--max-calls", type=int, default=3)
+    translate_unit_parser.add_argument("--hard-list-usd", type=float, default=0.01)
 
     semantic_review_parser = subparsers.add_parser("semantic-review")
     semantic_review_parser.add_argument("structure_json")
@@ -1111,6 +1215,10 @@ def main(argv=None) -> int:
     semantic_review_parser.add_argument("--draft", required=True)
     semantic_review_parser.add_argument("--provider", required=True, choices=["mock", "openai"])
     semantic_review_parser.add_argument("--output", required=True)
+    semantic_review_parser.add_argument("--control-store", default=None)
+    semantic_review_parser.add_argument("--task-id", default=None)
+    semantic_review_parser.add_argument("--max-calls", type=int, default=3)
+    semantic_review_parser.add_argument("--hard-list-usd", type=float, default=0.01)
 
     hr_render_parser = subparsers.add_parser("human-review-render")
     hr_render_parser.add_argument("structure_json")
@@ -1139,6 +1247,10 @@ def main(argv=None) -> int:
     evaluate_pilot_parser = subparsers.add_parser("evaluate-pilot")
     evaluate_pilot_parser.add_argument("manifest_json")
     evaluate_pilot_parser.add_argument("--output", required=True)
+
+    runtime_status_parser = subparsers.add_parser("runtime-status")
+    runtime_status_parser.add_argument("--control-store", required=True)
+    runtime_status_parser.add_argument("--task-id", required=True)
 
     args = parser.parse_args(argv)
 
@@ -1169,10 +1281,12 @@ def main(argv=None) -> int:
     if args.command == "translate-unit":
         return cmd_translate_unit(
             args.structure_json, args.glossary, args.unit_id, args.profile, args.provider, args.output,
+            args.control_store, args.task_id, args.max_calls, args.hard_list_usd,
         )
     if args.command == "semantic-review":
         return cmd_semantic_review(
             args.structure_json, args.glossary, args.draft, args.provider, args.output,
+            args.control_store, args.task_id, args.max_calls, args.hard_list_usd,
         )
     if args.command == "human-review-render":
         return cmd_human_review_render(
@@ -1189,6 +1303,8 @@ def main(argv=None) -> int:
         )
     if args.command == "evaluate-pilot":
         return cmd_evaluate_pilot(args.manifest_json, args.output)
+    if args.command == "runtime-status":
+        return cmd_runtime_status(args.control_store, args.task_id)
     return 1
 
 

@@ -1,0 +1,75 @@
+{
+  "gate": 11,
+  "purpose": "scoped persistent budget/cache/usage software implementation",
+  "destination": "Anthropic via Claude Code Sonnet CLI",
+  "status": "not_sent_auto_review_rejected",
+  "contract": "audit/contracts/gate_11.md",
+  "permitted_input_files": [
+    {
+      "path": "audit/contracts/gate_11.md",
+      "bytes": 7203,
+      "sha256": "34b46b941806e5561ae1a7b0c77e7406920a65ba4a30beb1c815fe3263615eb3"
+    },
+    {
+      "path": "scholarly_translation/translation.py",
+      "bytes": 16330,
+      "sha256": "86d4524c4583de524a4bbe14eda552dd39f68189351165b66bb0fab143154706"
+    },
+    {
+      "path": "scholarly_translation/semantic_review.py",
+      "bytes": 24426,
+      "sha256": "257ebee573a3d59127e22cf5e0a06fb626c4450f442819ec5ea622cf218264fe"
+    },
+    {
+      "path": "scholarly_translation/__main__.py",
+      "bytes": 48642,
+      "sha256": "8b4f3e6f7f8311256565136de353fd2b8bd755d06b09c76bfee0584802013392"
+    },
+    {
+      "path": "scholarly_translation/model_adapter.py",
+      "bytes": 20797,
+      "sha256": "c95773d15fc7483e9bfa837294b1396763b7ef725b1a03325c7cdef221bbcdb5"
+    },
+    {
+      "path": "scholarly_translation/source_reading.py",
+      "bytes": 14689,
+      "sha256": "114aa65485915e3992143cf3f2457163d9c44897cf149eda12c4c642f017b411"
+    },
+    {
+      "path": "tests/test_translation.py",
+      "bytes": 28701,
+      "sha256": "77f17e5b31e0be19c624012c19d4a502b3d7eeb76192c16e03f64bdfc551b98d"
+    },
+    {
+      "path": "tests/test_semantic_review.py",
+      "bytes": 21353,
+      "sha256": "b92ad4f6ec66a1038cddd86884f92cb5f2a56b515776bba2dff91d6bb112d0e9"
+    },
+    {
+      "path": "tests/test_human_review.py",
+      "bytes": 24653,
+      "sha256": "7443986f211f65573e289079b4066e83731e42fcbfda1d414237c7fd5bde2beb"
+    },
+    {
+      "path": "README.md",
+      "bytes": 25147,
+      "sha256": "340bdce8e22f0bd0874e8ae6ab6c9fc4dded750f790f0afaec58b0b3418d53c1"
+    }
+  ],
+  "excluded": "ignored outputs, PDFs, source excerpts, references, credentials, environment values and unrelated repository files",
+  "requested_model": "sonnet",
+  "reported_list_estimate_ceiling_usd": 3.0,
+  "timeout_seconds": 600,
+  "builder_tools": "Read/Write/Edit only; no shell/Git/web/subagents",
+  "new_outputs": [
+    "scholarly_translation/runtime_controls.py",
+    "tests/test_runtime_controls.py"
+  ],
+  "edits": [
+    "scholarly_translation/translation.py",
+    "scholarly_translation/semantic_review.py",
+    "scholarly_translation/__main__.py",
+    "README.md",
+    "narrowly related regression tests"
+  ]
+}

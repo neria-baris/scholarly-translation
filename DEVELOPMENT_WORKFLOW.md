@@ -2,6 +2,8 @@
 
 User-authorized development update, 2026-09-30. This supplements the central gate specification and development policy; the product's runtime quality/routing strategy is unchanged. Historical audit cards are never rewritten.
 
+Gate-11 extension authorized by user on 2026-10-01: persistent budget, cache and usage controls may proceed and receive scoped software acceptance independently while Gate-10 human quality evaluation remains preliminary/BLOCKED. Contract: `audit/contracts/gate_11.md`. This does not establish quality, choose a model or authorize release. The earlier gate-order rule remains for dependent work; this explicit independent extension is the exception.
+
 ## Ownership and progression
 
 Sol (normally gpt-6.1-sol) owns gates, contracts, verification, integration, audit and routine Git. Small direct fixes are allowed when delegation adds no value. Claude Code Sonnet is the scoped builder; Opus is for demonstrated implementation difficulty under a settled contract. No recursive delegation or model debate; one owner, one focused fix by default, at most one evidence-backed rebuttal.

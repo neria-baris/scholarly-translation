@@ -388,24 +388,53 @@ def _provider_call(call, request, prompt_text, model, budget, notices):
     return result
 
 
-def _call_record(result, prompt_text):
+def _stage_cache_key(request, suffix):
+    return fingerprint({"review_cache_key": request.review_cache_key, "stage": suffix})
+
+
+def _cached_provider_call(cache, suffix, call, request, prompt_text, model, budget, notices):
+    """Reuse a prior successful raw result for this review/stage, or dispatch and cache it.
+
+    A hit skips the adapter call and any budget reservation/cost entirely.
+    """
+    if cache is None:
+        return _provider_call(call, request, prompt_text, model, budget, notices), False
+    cache_key = _stage_cache_key(request, suffix)
+    result, hit, control_notices = cache.execute(
+        cache_key, prompt_text, model, call, stage=suffix,
+        metadata=request.draft, budget=budget,
+    )
+    notices.extend(control_notices)
+    return result, hit
+
+
+def _call_record(result, prompt_text, cache_hit=False):
     estimate = compute_estimate(result.token_usage)
     return {
         "prompt_hash": text_hash(prompt_text), "model": result.observed_model,
         "token_usage": result.token_usage, "pricing_version": PRICING_VERSION,
         "estimated_cost_usd": estimate, "status": result.status, "error": result.error,
-        "actual_charge": "unknown",
+        "actual_charge": "no_provider_call" if cache_hit else "unknown",
     }
 
 
-def run_semantic_review(request: SemanticReviewRequest, critic=None, corrector=None, budget=None) -> dict:
-    """Run the conditional review workflow. Returns an unapproved schema-1 `semantic-review@1` dict."""
+def run_semantic_review(
+    request: SemanticReviewRequest, critic=None, corrector=None, budget=None, cache=None,
+) -> dict:
+    """Run the conditional review workflow. Returns an unapproved schema-1 `semantic-review@1` dict.
+
+    An optional `cache` (e.g. `runtime_controls.RuntimeCache`) may supply a
+    prior successful raw critic/corrector result keyed to this review and
+    stage, skipping that call and any budget reservation/cost; grounding,
+    formal rechecks and claim validation below always rerun regardless.
+    """
     if not isinstance(request, SemanticReviewRequest):
         raise SemanticReviewRequestError("run_semantic_review requires a resolved SemanticReviewRequest")
     canonical = build_semantic_review_request(
         request.structure, request.glossary_store, request.draft, request.provider,
     )
     _require(request == canonical, "review request changed after source/policy resolution")
+    control_start = len(cache.provenance) if cache is not None else 0
 
     base = {
         "schema_version": SCHEMA_VERSION,
@@ -439,6 +468,7 @@ def run_semantic_review(request: SemanticReviewRequest, critic=None, corrector=N
         "critic": None,
         "corrector": None,
         "budget_notices": [],
+        "cache_hit": False,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "approved": False,
         "error": None,
@@ -447,6 +477,8 @@ def run_semantic_review(request: SemanticReviewRequest, critic=None, corrector=N
     def finish(status, disposition, **extra):
         record = dict(base, status=status, review_disposition=disposition)
         record.update(extra)
+        if cache is not None:
+            record["control_provenance"] = [dict(p) for p in cache.provenance[control_start:]]
         return record
 
     if not request.risk_triggers:
@@ -457,14 +489,20 @@ def run_semantic_review(request: SemanticReviewRequest, critic=None, corrector=N
         return finish("needs_human", "bypass_" + bypass[0]["type"])
 
     notices = []
-    budget = budget or (TranslationBudget(max_calls=2, hard_list_usd=0.01) if request.provider == "openai" else None)
+    if cache is None:
+        budget = budget or (TranslationBudget(max_calls=2, hard_list_usd=0.01) if request.provider == "openai" else None)
     critic = critic or _build_critic_adapter(request)
     critic_prompt = _render_critic_prompt(request)
     try:
-        critic_result = _provider_call(critic.generate, request, critic_prompt, SEMANTIC_REVIEW_MODELS[request.provider]["critic"], budget, notices)
+        critic_result, critic_cache_hit = _cached_provider_call(
+            cache, "critic", critic.generate, request, critic_prompt,
+            SEMANTIC_REVIEW_MODELS[request.provider]["critic"], budget, notices,
+        )
     except TranslationBudgetError:
         return finish("needs_human_or_budget", "budget_exhausted_before_critic_call", budget_notices=notices)
-    critic_record = _call_record(critic_result, critic_prompt)
+    if critic_cache_hit:
+        base["cache_hit"] = True
+    critic_record = _call_record(critic_result, critic_prompt, critic_cache_hit)
 
     if critic_result.status not in ("completed", "mock_placeholder"):
         return finish(critic_result.status, "critic_call_failed", critic=critic_record, budget_notices=notices)
@@ -491,13 +529,18 @@ def run_semantic_review(request: SemanticReviewRequest, critic=None, corrector=N
     corrector = corrector or _build_corrector_adapter(request, chosen)
     corrector_prompt = _render_corrector_prompt(request, chosen)
     try:
-        correction_result = _provider_call(corrector.generate, request, corrector_prompt, SEMANTIC_REVIEW_MODELS[request.provider]["corrector"], budget, notices)
+        correction_result, corrector_cache_hit = _cached_provider_call(
+            cache, "corrector", corrector.generate, request, corrector_prompt,
+            SEMANTIC_REVIEW_MODELS[request.provider]["corrector"], budget, notices,
+        )
     except TranslationBudgetError:
         return finish(
             "needs_human_or_budget", "budget_exhausted_before_correction_call",
             claims=claims, false_positives=false_positives, critic=critic_record, budget_notices=notices,
         )
-    corrector_record = _call_record(correction_result, corrector_prompt)
+    if corrector_cache_hit:
+        base["cache_hit"] = True
+    corrector_record = _call_record(correction_result, corrector_prompt, corrector_cache_hit)
 
     if correction_result.status not in ("completed", "mock_placeholder"):
         return finish(

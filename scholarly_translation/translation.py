@@ -295,12 +295,16 @@ def build_translation_request(structure, glossary, unit_id, profile_id, provider
     )
 
 
-def run_translation(request: TranslationRequest, adapter=None, budget=None) -> dict:
+def run_translation(request: TranslationRequest, adapter=None, budget=None, cache=None) -> dict:
     """Run the resolved request through a text-generation adapter and formal checks.
 
     Returns a schema-1 `translation-draft@1` dict with `approved` always
     False. A formal-check failure never sets approval; a formally clean draft
-    remains `draft_unapproved`, not approved.
+    remains `draft_unapproved`, not approved. An optional `cache` (e.g.
+    `runtime_controls.RuntimeCache`) may supply a prior successful raw
+    result for `request.cache_key`, skipping the adapter call and any
+    budget reservation/cost entirely; formal checks below always rerun
+    against the resulting text regardless of its origin.
     """
     if not isinstance(request, TranslationRequest):
         raise TranslationRequestError("run_translation requires a resolved TranslationRequest")
@@ -309,26 +313,36 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None) -> d
         request.profile_id, request.provider, request.model,
     )
     _require(request == canonical, "translation request changed after source/policy resolution")
-    if adapter is None:
-        adapter = build_translation_adapter(request.provider, request.model)
 
     notices = []
-    if request.provider == "openai":
-        budget = budget or TranslationBudget(max_calls=1)
-        notices.extend(budget.reserve(request.prompt_text))
-
-    start = time.monotonic()
-    try:
-        result = adapter.generate(request.prompt_text, request.model)
-    except OpenAIConfigurationError:
+    cache_hit = False
+    if cache is not None:
+        adapter = adapter or build_translation_adapter(request.provider, request.model)
+        result, cache_hit, control_notices = cache.execute(
+            request.cache_key, request.prompt_text, request.model, adapter.generate,
+            stage="translate", metadata=request.to_metadata_dict(), budget=budget,
+        )
+        notices.extend(control_notices)
+        duration = result.duration_seconds
+    else:
+        if adapter is None:
+            adapter = build_translation_adapter(request.provider, request.model)
         if request.provider == "openai":
-            budget.release_unstarted()
-        raise
-    duration = getattr(result, "duration_seconds", time.monotonic() - start)
+            budget = budget or TranslationBudget(max_calls=1)
+            notices.extend(budget.reserve(request.prompt_text))
+
+        start = time.monotonic()
+        try:
+            result = adapter.generate(request.prompt_text, request.model)
+        except OpenAIConfigurationError:
+            if request.provider == "openai":
+                budget.release_unstarted()
+            raise
+        duration = getattr(result, "duration_seconds", time.monotonic() - start)
 
     token_usage = result.token_usage
     estimate = compute_estimate(token_usage)
-    if request.provider == "openai":
+    if request.provider == "openai" and cache is None:
         notices.extend(budget.record(token_usage))
     draft_text = result.text if result.status in ("completed", "mock_placeholder") else None
 
@@ -363,11 +377,16 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None) -> d
         "pricing_version": PRICING_VERSION,
         "estimated_cost_usd": estimate,
         "budget_notices": notices,
-        "actual_charge": "unknown" if request.provider == "openai" else "not_metered",
+        "actual_charge": "not_metered" if cache_hit else (
+            "unknown" if request.provider == "openai" else "not_metered"
+        ),
         "duration_seconds": duration,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "findings": findings,
         "error": result.error,
         "approved": False,
+        "cache_hit": cache_hit,
     })
+    if cache is not None:
+        draft["control_provenance"] = dict(cache.provenance[-1])
     return draft
