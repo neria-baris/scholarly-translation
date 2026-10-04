@@ -337,3 +337,7 @@ Schema/version summary: `translation-draft@1` and schema 1 remain; `translation_
 ## Gate 12 | 2026-10-04T17:35:56.2045346Z | branch commit receipt
 
 Staged exactly eleven reviewed paths; no unstaged or unexpected path remained. Staged stat was 557 insertions/40 deletions. Staged whitespace, JSONL, append-only-history and credential-pattern checks passed. Commit `64f7ca6f77677add0c6943d25eba871f4be5cf83` (`Add versioned scholarly and literary translation profiles`) succeeded with hooks enabled; post-commit tree was clean. No push was attempted because the isolated `agents/run-it-de649c23` branch has no upstream and the task requested a commit to this branch. The receipt commit follows; its own hash is not self-recorded.
+
+## Gate 12 | 2026-10-04T17:38:28.8541358Z | final remote check correction
+
+Receipt commit `fcf0ca77e37b450bcd798797be146892d62a65bd` succeeded. The subsequent required ancestry check detected that `origin/main` had moved from starting base 36fbbf0 to Session-C receipt 4bf8482 through pushes recorded locally at 20:31–20:34 Asia/Jerusalem. Graph count is two branch-only and two origin-only commits; ancestry check fails in both integration directions. No branch content changed externally and the tree remained clean. Stopped without fetch-side reconciliation, merge, rebase or push; record this correction because the immediately preceding receipt used the now-stale base statement.
