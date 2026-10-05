@@ -881,12 +881,39 @@ def _correction_issue_limit(record, selection, cap):
     return min(8000, int(available / 4.6))
 
 
-def parse_batch_translation_response(raw_text, expected_unit_ids):
+_URL_RE = re.compile(r'^(?:[a-z][a-z0-9+.-]*://|www\.)\S+$', re.IGNORECASE)
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[a-z]{2,}$', re.IGNORECASE)
+_DOMAIN_RE = re.compile(r'^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:/\S*)?$', re.IGNORECASE)
+_TOKEN_EDGE = '()[]{}<>"\'.,;:!?‘’“”'
+
+
+def _has_translatable_words(text):
+    """True when ``text`` contains a word a translator should render in Hebrew.
+    URLs, e-mail addresses, domain names, tokens containing a digit (ISBNs,
+    dates, codes) and letterless tokens are not translatable words."""
+    for token in text.split():
+        token = token.strip(_TOKEN_EDGE)
+        if not any(ch.isalpha() for ch in token):
+            continue
+        if any(ch.isdigit() for ch in token):
+            continue
+        if _URL_RE.match(token) or _EMAIL_RE.match(token) or _DOMAIN_RE.match(token):
+            continue
+        return True
+    return False
+
+
+def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=None):
     """Strict JSON-array parse: rejects missing/duplicate/unknown/out-of-order
     ids and empty/non-Hebrew targets. Never returns source text as a
     translation. Raises ``ChapterPipelineError`` (never a partial/best-effort
-    result) on any violation, including JSON truncation."""
+    result) on any violation, including JSON truncation.
+
+    ``source_texts`` (unit_id -> source text) enables one narrow exemption: a
+    target without Hebrew is accepted only when neither the source nor the
+    target contains a translatable word (e.g. a unit that is only URLs)."""
     expected = list(expected_unit_ids)
+    source_texts = source_texts or {}
     if not isinstance(raw_text, str) or not raw_text.strip():
         raise ChapterPipelineError("translation response was empty")
     try:
@@ -913,7 +940,10 @@ def parse_batch_translation_response(raw_text, expected_unit_ids):
         if not isinstance(translation, str) or not translation.strip():
             raise ChapterPipelineError("translation response contains an empty translation")
         if not _HEBREW_RE.search(translation):
-            raise ChapterPipelineError("translation response target is not Hebrew")
+            source = source_texts.get(unit_id)
+            if (not isinstance(source, str) or _has_translatable_words(source)
+                    or _has_translatable_words(translation)):
+                raise ChapterPipelineError("translation response target is not Hebrew")
         note = item.get("translation_note")
         if note is not None and (not isinstance(note, str) or not note.strip()):
             raise ChapterPipelineError("translation_note must be a nonempty string or null")
@@ -983,7 +1013,24 @@ def _controlled(job_id, role, stage, prompt, configuration, cap, store, journal,
         if row['status'] == 'validated':
             journal.mark_completed(identity)
         return journal.read_validated(identity), True
-    if row['status'] in ('unknown', 'dispatched', 'failed'):
+    if row['status'] == 'failed':
+        # Re-validate a preserved response (the validator may have been fixed);
+        # the provider is never called again for this identity.
+        raw = journal.read_raw(identity)
+        parsed = None
+        if (raw is not None and raw['status'] in ('completed', 'mock_placeholder')
+                and not store.status(job_id)['stopped']):
+            try:
+                parsed = validator(TextGenerationResult(**raw, duration_seconds=0))
+            except Exception:
+                parsed = None
+        if parsed is None:
+            raise ChapterPipelineError(f"previous call failed ({row['error']}); automatic resend refused")
+        journal.reopen_failed_received(identity)
+        journal.mark_validated(identity, parsed)
+        journal.mark_completed(identity)
+        return parsed, True
+    if row['status'] in ('unknown', 'dispatched'):
         raise ChapterPipelineError('previous call is failed or its dispatched outcome is unknown; automatic resend refused')
     budget = PersistentBudget(store, job_id, max_calls=max_calls, hard_list_usd=hard_list_usd,
         stage=stage, provider=selection.provider, model=selection.model, pricing_provider=definition.provider_type,
@@ -1029,8 +1076,8 @@ def _controlled(job_id, role, stage, prompt, configuration, cap, store, journal,
         raise ChapterPipelineError('provider response failed, truncated, or usage is uncertain; raw result preserved')
     try:
         parsed = validator(result)
-    except Exception:
-        journal.mark_failed(identity, 'response validation failed; raw result preserved')
+    except Exception as exc:
+        journal.mark_failed(identity, f'response validation failed: {exc}; raw result preserved')
         raise
     journal.mark_validated(identity, parsed)
     journal.mark_completed(identity)
@@ -1041,9 +1088,11 @@ def dispatch_batch_translation(job_id, structure, glossary, unit_ids, profile_id
         document_state=None, adapter_factory=None, source_unit_ids=None):
     prompt = build_batch_translation_prompt(structure, glossary, unit_ids, profile_id,
                                            document_state, source_unit_ids)
+    units = _units_by_id(structure)
     return _controlled(job_id, 'translator', 'chapter-translate', prompt, configuration, call_output_cap,
         store, journal, hard_list_usd, max_calls, shared_output_cap,
-        lambda result: parse_batch_translation_response(result.text, unit_ids),
+        lambda result: parse_batch_translation_response(result.text, unit_ids,
+            {uid: units[uid]['text'] for uid in unit_ids}),
         {'ids': list(unit_ids), 'source': fingerprint(structure), 'glossary': fingerprint(glossary), 'profile': profile_id},
         adapter_factory, qa_tail_usd)
 
@@ -1308,7 +1357,8 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                             continue
                         corrected, replay = _controlled(job_id, 'translator', 'local-correction',
                             _correction_prompt(record, material), configuration, cap, store, journal, hard, max_calls,
-                            shared_cap, lambda raw: parse_batch_translation_response(raw.text, [record['unit_id']]),
+                            shared_cap, lambda raw: parse_batch_translation_response(raw.text, [record['unit_id']],
+                                {record['unit_id']: record['source_text']}),
                             {'unit_id': record['unit_id'], 'issues': material}, adapter_factory, tail('correct:'+record['unit_id']))
                         pending.pop('correct:'+record['unit_id'], None)
                         record['target_versions'].append({'text': record['target_text'], 'reason': 'bounded_model_correction'})

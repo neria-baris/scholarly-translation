@@ -125,6 +125,30 @@ class ChapterPipelineTests(unittest.TestCase):
         with self.assertRaises(ChapterPipelineError):
             parse_batch_translation_response(raw, ["u1"])
 
+    def test_accepts_untranslatable_unit_kept_verbatim(self):
+        source = "orbitbooks.net\norbitshortfiction.com"
+        raw = json.dumps([{"unit_id": "u1", "translation": source, "translation_note": None}])
+        result = parse_batch_translation_response(raw, ["u1"], {"u1": source})
+        self.assertEqual(result["u1"]["translation"], source)
+        for source in ("978-0-316-44086-8", "(866) 376-6591", "permissions@hbgusa.com", "https://example.org/a"):
+            raw = json.dumps([{"unit_id": "u1", "translation": source}])
+            self.assertIn("u1", parse_batch_translation_response(raw, ["u1"], {"u1": source}))
+
+    def test_untranslatable_exemption_requires_source_and_no_words(self):
+        urls = "orbitbooks.net"
+        raw = json.dumps([{"unit_id": "u1", "translation": urls}])
+        with self.assertRaises(ChapterPipelineError):
+            parse_batch_translation_response(raw, ["u1"])
+        with self.assertRaises(ChapterPipelineError):
+            parse_batch_translation_response(raw, ["u1"], {"u1": "Visit orbitbooks.net"})
+        raw = json.dumps([{"unit_id": "u1", "translation": "orbitbooks.net website"}])
+        with self.assertRaises(ChapterPipelineError):
+            parse_batch_translation_response(raw, ["u1"], {"u1": urls})
+        source = "Some scholars argue that the point holds."
+        raw = json.dumps([{"unit_id": "u1", "translation": source}])
+        with self.assertRaises(ChapterPipelineError):
+            parse_batch_translation_response(raw, ["u1"], {"u1": source})
+
     # --- output cap estimation --------------------------------------------
 
     def test_output_token_cap_is_deterministic_and_monotonic(self):

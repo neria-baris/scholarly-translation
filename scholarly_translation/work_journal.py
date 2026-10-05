@@ -208,7 +208,7 @@ class WorkJournal:
 
     def read_raw(self, identity):
         row = self._conn.execute(
-            "SELECT raw_json, raw_hash FROM steps WHERE identity=? AND status IN ('received','validated','completed')",
+            "SELECT raw_json, raw_hash FROM steps WHERE identity=? AND status IN ('received','validated','completed','failed')",
             (identity,),
         ).fetchone()
         if row is None or row["raw_json"] is None:
@@ -237,6 +237,16 @@ class WorkJournal:
         with self._transaction():
             self._require_status(identity, ("validated", "completed"))
             self._conn.execute("UPDATE steps SET status='completed', updated_at=? WHERE identity=?", (_now(), identity))
+
+    def reopen_failed_received(self, identity):
+        """A failed step whose provider response was preserved returns to
+        'received' so that response can be validated again without resending."""
+        with self._transaction():
+            row = self._require_status(identity, ("failed",))
+            if row["raw_json"] is None:
+                raise WorkJournalError("failed step has no preserved raw result")
+            self._conn.execute("UPDATE steps SET status='received', error=NULL, updated_at=? WHERE identity=?",
+                               (_now(), identity))
 
     def mark_failed(self, identity, error):
         with self._transaction():

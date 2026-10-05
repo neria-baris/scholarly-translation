@@ -109,6 +109,38 @@ class PipelineRecoveryAcceptanceTests(unittest.TestCase):
             self.assertTrue(store.status("recovery-job")["stopped"])
         self.assertEqual(len(self.calls), 1)
 
+    def test_failed_validation_revalidates_preserved_raw_without_resend(self):
+        def strict(raw):
+            raise ValueError("old validator rejects")
+        with ControlStore(self.folder / "controls.sqlite3") as store, WorkJournal(self.folder / "journal.sqlite3") as journal:
+            with self.assertRaises(ValueError):
+                self.control(store, journal, self.factory, validator=strict)
+            row = journal.job_steps("recovery-job")[0]
+            self.assertEqual(row["status"], "failed")
+            self.assertIn("old validator rejects", row["error"])
+            with self.assertRaisesRegex(pipeline.ChapterPipelineError, "old validator rejects"):
+                self.control(store, journal, self.factory, validator=strict)
+            actual, replayed = self.control(store, journal, self.factory)
+            self.assertEqual(actual, {"target": "עברית"})
+            self.assertTrue(replayed)
+            self.assertEqual(journal.job_steps("recovery-job")[0]["status"], "completed")
+            self.assertEqual(store.status("recovery-job")["settled_calls"], 1)
+        self.assertEqual(len(self.calls), 1)
+
+    def test_failed_provider_outcome_is_never_revalidated(self):
+        def factory(role, descriptor):
+            def generate(prompt, model):
+                self.calls.append(role)
+                return TextGenerationResult("truncated", '{"target":"עברית"}', {"input": 100, "output": 10}, model, 0)
+            return SimpleNamespace(generate=generate)
+        with ControlStore(self.folder / "controls.sqlite3") as store, WorkJournal(self.folder / "journal.sqlite3") as journal:
+            with self.assertRaises(pipeline.ChapterPipelineError):
+                self.control(store, journal, factory)
+            with self.assertRaisesRegex(pipeline.ChapterPipelineError, "automatic resend refused"):
+                self.control(store, journal, factory)
+            self.assertEqual(journal.job_steps("recovery-job")[0]["status"], "failed")
+        self.assertEqual(len(self.calls), 1)
+
     def test_protected_tail_rejection_never_dispatches_or_consumes_call_limit(self):
         with ControlStore(self.folder / "controls.sqlite3") as store, WorkJournal(self.folder / "journal.sqlite3") as journal:
             with self.assertRaises(TranslationBudgetError):
