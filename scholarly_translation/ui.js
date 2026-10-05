@@ -27,7 +27,7 @@ async function request(route,data={},binary=false){
 function message(text){$('form-message').textContent=text;$('form-message').hidden=!text}
 function show(panel){
   const changed=$(panel).hidden;
-  for(const id of ['start-panel','processing-panel','result-panel'])$(id).hidden=id!==panel;
+  for(const id of ['start-panel','processing-panel','result-panel','library-panel'])$(id).hidden=id!==panel;
   if(changed&&panel==='processing-panel')window.scrollTo({top:0,behavior:'auto'});
 }
 function setBusy(value){busy=value;updateSettings();$('sample-button').disabled=value}
@@ -387,11 +387,11 @@ async function resumeJob(){
 }
 async function poll(jobId){
   clearTimeout(pollTimer);
-  try{const result=await request('/document-job',{job_id:jobId});currentJob={...result,settings:result.settings||currentJob?.settings};
+  try{const result=await request('/document-job',{job_id:jobId});if(!$('library-panel').hidden)return;currentJob={...result,settings:result.settings||currentJob?.settings};
     if(['queued','reading','translating','reviewing','rebuilding'].includes(result.status)){show('processing-panel');renderProcessing();pollTimer=setTimeout(()=>poll(jobId),1400)}
     else if(['paused','interrupted','failed'].includes(result.status)&&result.settings?.automation){show('processing-panel');renderProcessing()}
     else{setBusy(false);show('result-panel');renderResult();window.scrollTo({top:0,behavior:'smooth'})}
-  }catch(error){if(error.status===400){forget('document-last-job');currentJob=null;setBusy(false);show('start-panel');message(error.message);return}
+  }catch(error){if(!$('library-panel').hidden)return;if(error.status===400){forget('document-last-job');currentJob=null;setBusy(false);show('start-panel');message(error.message);return}
     $('processing-detail').textContent=error.message+' ננסה שוב לבדוק את מצב ההרצה.';pollTimer=setTimeout(()=>poll(jobId),5000)}
 }
 function sourceExt(){return (currentJob.source_kind||'pdf').toLowerCase()}
@@ -506,6 +506,77 @@ async function download(){
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(error){$('result-notice').hidden=false;$('result-notice').textContent=error.message}finally{$('download-pdf').disabled=false}
 }
+// ---- library: all completed translations ----
+let libraryReturn='start-panel',libraryCounter=0;
+function visiblePanel(){return ['start-panel','processing-panel','result-panel','library-panel'].find(id=>!$(id).hidden)||'start-panel'}
+function libraryDate(seconds){
+  const date=new Date(Number(seconds)*1000);if(!Number.isFinite(date.getTime()))return'';
+  try{return date.toLocaleString('he-IL',{dateStyle:'medium',timeStyle:'short'})}catch(_){return date.toLocaleString()}
+}
+function libraryStem(filename){return String(filename||'document').replace(/\.[^.]+$/,'')}
+function libraryFontOptions(selected){
+  const fonts=pdfFonts.filter(f=>f.available);
+  const chosen=fonts.some(f=>f.id===selected)?selected:'';
+  return '<option value="">גופן ברירת המחדל</option>'+fonts.map(f=>`<option value="${esc(f.id)}"${f.id===chosen?' selected':''}>${esc(f.name)}</option>`).join('');
+}
+function renderLibrary(documents){
+  const list=$('library-list');list.replaceChildren();
+  $('library-empty').hidden=documents.length>0;
+  documents.forEach((doc,index)=>{
+    const kind=doc.source_kind==='epub'?'epub':'pdf',detailId='library-detail-'+index;
+    const item=document.createElement('li');item.className='library-item';item.dataset.jobId=doc.job_id;
+    const fontField=kind==='pdf'?`<div class="field library-font"><label for="library-font-${index}">גופן להורדה</label><select id="library-font-${index}" class="library-font-select">${libraryFontOptions(doc.font_id)}</select></div>`:'';
+    item.innerHTML=`<button type="button" class="library-entry" aria-expanded="false" aria-controls="${detailId}">
+      <span class="library-kind" data-kind="${kind}">${kind.toUpperCase()}</span>
+      <span class="library-entry-text"><strong dir="auto">${esc(doc.filename)}</strong><span class="library-meta">${esc(libraryDate(doc.completed_at))}${doc.unit_count!=null?' · '+esc(doc.unit_count)+' מקטעים':''}</span></span>
+      <span class="chevron" aria-hidden="true">⌄</span></button>
+      <div id="${detailId}" class="library-detail" hidden>${fontField}
+      <div class="library-actions"><button type="button" class="primary-button library-download" data-format="${kind}">הורדת ${kind.toUpperCase()} <span aria-hidden="true">↓</span></button>
+      <button type="button" class="secondary-button library-download" data-format="html">הורדת HTML <span aria-hidden="true">↓</span></button>
+      <button type="button" class="text-button library-open">פתיחה <span aria-hidden="true">←</span></button></div>
+      <p class="message library-error" role="alert" hidden></p></div>`;
+    const entry=item.querySelector('.library-entry'),detail=item.querySelector('.library-detail');
+    entry.onclick=()=>{const open=entry.getAttribute('aria-expanded')!=='true';entry.setAttribute('aria-expanded',String(open));detail.hidden=!open;item.classList.toggle('open',open)};
+    item.querySelectorAll('.library-download').forEach(button=>button.onclick=()=>libraryDownload(doc,button,item));
+    item.querySelector('.library-open').onclick=()=>libraryOpen(doc);
+    list.append(item);
+  });
+}
+async function loadLibrary(){
+  const id=++libraryCounter;
+  $('library-message').hidden=true;$('library-empty').hidden=true;$('library-list').replaceChildren();
+  $('library-status').textContent='טוען את הספרייה…';
+  try{const result=await request('/document-library',{});if(id!==libraryCounter)return;
+    $('library-status').textContent='';renderLibrary(Array.isArray(result.documents)?result.documents:[]);
+  }catch(error){if(id!==libraryCounter)return;$('library-status').textContent='';$('library-message').textContent=error.message;$('library-message').hidden=false}
+}
+function openLibrary(){
+  const current=visiblePanel();
+  if(current==='library-panel'){loadLibrary();return}
+  if(current==='result-panel'&&!confirmDiscard())return;
+  libraryReturn=current;clearTimeout(pollTimer);
+  show('library-panel');window.scrollTo({top:0,behavior:'auto'});$('library-title').focus?.();loadLibrary();
+}
+function closeLibrary(){
+  if(libraryReturn==='processing-panel'&&currentJob?.job_id){show('processing-panel');poll(currentJob.job_id);return}
+  if(libraryReturn==='result-panel'&&currentJob){show('result-panel');return}
+  show('start-panel');
+}
+async function libraryDownload(doc,button,item){
+  const format=button.dataset.format,error=item.querySelector('.library-error'),select=item.querySelector('.library-font-select');
+  error.hidden=true;button.disabled=true;
+  try{const payload={job_id:doc.job_id,format};
+    if(doc.source_kind!=='epub'&&select&&select.value)payload.font_id=select.value;
+    const blob=await request('/document-download',payload,true);
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=libraryStem(doc.filename)+'.he.'+format;
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(caught){error.textContent=caught.message;error.hidden=false}finally{button.disabled=false}
+}
+function libraryOpen(doc){
+  clearTimeout(pollTimer);remember('document-last-job',doc.job_id);
+  currentJob={job_id:doc.job_id,filename:doc.filename,status:'queued',stage_label:'',total_units:0,completed_units:0};
+  $('review-panel').hidden=true;setBusy(true);show('processing-panel');renderProcessing();poll(doc.job_id);
+}
 async function sample(){
   if(busy)return;setBusy(true);message('');
   try{const file=await request('/document-sample');$('model').value='auto';setUploaded(file);setBusy(false);await translate();}
@@ -544,6 +615,7 @@ $('close-connection-ok').onclick=()=>$('connection-dialog').close();
 $('sample-button').onclick=sample;$('download-pdf').onclick=download;$('download-notebook').onclick=downloadNotebook;
 $('save-keys').onclick=saveKeys;$('pause-button').onclick=pauseJob;$('resume-button').onclick=resumeJob;
 $('resume-save-keys').onclick=saveResumeKeys;
+$('library-button').onclick=openLibrary;$('library-start-button').onclick=openLibrary;$('library-back').onclick=closeLibrary;
 $('font-before').addEventListener('change',schedulePreview);
 $('review-button').onclick=()=>{if($('review-panel').hidden){$('review-panel').hidden=false;renderReview();$('review-panel').scrollIntoView({behavior:'smooth',block:'start'})}else if(confirmDiscard())$('review-panel').hidden=true};
 $('close-review').onclick=()=>{if(confirmDiscard())$('review-panel').hidden=true};
