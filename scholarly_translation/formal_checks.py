@@ -27,6 +27,28 @@ _FORMULA_RE = re.compile(
 _HEBREW_RE = re.compile(r"[֐-׿]")
 
 
+_URL_RE = re.compile(r'^(?:[a-z][a-z0-9+.-]*://|www\.)\S+$', re.IGNORECASE)
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[a-z]{2,}$', re.IGNORECASE)
+_DOMAIN_RE = re.compile(r'^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:/\S*)?$', re.IGNORECASE)
+_TOKEN_EDGE = '()[]{}<>"\'.,;:!?‘’“”'
+
+
+def has_translatable_words(text):
+    """True when ``text`` contains a word a translator should render in Hebrew.
+    URLs, e-mail addresses, domain names, tokens containing a digit (ISBNs,
+    dates, codes) and letterless tokens are not translatable words."""
+    for token in text.split():
+        token = token.strip(_TOKEN_EDGE)
+        if not any(ch.isalpha() for ch in token):
+            continue
+        if any(ch.isdigit() for ch in token):
+            continue
+        if _URL_RE.match(token) or _EMAIL_RE.match(token) or _DOMAIN_RE.match(token):
+            continue
+        return True
+    return False
+
+
 class FormalCheckError(ValueError):
     """Invalid input to the formal checker."""
 
@@ -91,7 +113,8 @@ def run_formal_checks(source_text, target_text, source_language):
                 "severity": "needs_human",
             })
 
-    if target_text is not None and target_text.strip() and not _HEBREW_RE.search(target_text):
+    if (target_text is not None and target_text.strip() and not _HEBREW_RE.search(target_text)
+            and has_translatable_words(source_text)):
         findings.append({
             "type": "missing_hebrew_script",
             "source_token": None,

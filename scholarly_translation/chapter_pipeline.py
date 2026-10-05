@@ -6,7 +6,7 @@ import re
 from collections import deque
 from dataclasses import dataclass, replace
 from . import book_notebook as bn, context_strategy, document_state as document_state_module, review_qa as rq
-from .formal_checks import run_formal_checks
+from .formal_checks import has_translatable_words, run_formal_checks
 from .semantic_review import detect_risk_triggers as semantic_risks
 from .glossary import validate_glossary
 from .segmentation import validate_structure
@@ -881,26 +881,9 @@ def _correction_issue_limit(record, selection, cap):
     return min(8000, int(available / 4.6))
 
 
-_URL_RE = re.compile(r'^(?:[a-z][a-z0-9+.-]*://|www\.)\S+$', re.IGNORECASE)
-_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[a-z]{2,}$', re.IGNORECASE)
-_DOMAIN_RE = re.compile(r'^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:/\S*)?$', re.IGNORECASE)
-_TOKEN_EDGE = '()[]{}<>"\'.,;:!?‘’“”'
-
-
-def _has_translatable_words(text):
-    """True when ``text`` contains a word a translator should render in Hebrew.
-    URLs, e-mail addresses, domain names, tokens containing a digit (ISBNs,
-    dates, codes) and letterless tokens are not translatable words."""
-    for token in text.split():
-        token = token.strip(_TOKEN_EDGE)
-        if not any(ch.isalpha() for ch in token):
-            continue
-        if any(ch.isdigit() for ch in token):
-            continue
-        if _URL_RE.match(token) or _EMAIL_RE.match(token) or _DOMAIN_RE.match(token):
-            continue
-        return True
-    return False
+def _untranslatable_passthrough(record):
+    return (not _HEBREW_RE.search(record['target_text'] or '')
+            and not has_translatable_words(record['source_text']))
 
 
 def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=None):
@@ -941,8 +924,8 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
             raise ChapterPipelineError("translation response contains an empty translation")
         if not _HEBREW_RE.search(translation):
             source = source_texts.get(unit_id)
-            if (not isinstance(source, str) or _has_translatable_words(source)
-                    or _has_translatable_words(translation)):
+            if (not isinstance(source, str) or has_translatable_words(source)
+                    or has_translatable_words(translation)):
                 raise ChapterPipelineError("translation response target is not Hebrew")
         note = item.get("translation_note")
         if note is not None and (not isinstance(note, str) or not note.strip()):
@@ -1259,6 +1242,13 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 save()
             qa_notebook = job.get('qa_notebooks', {}).get(key, '') if notebook_mode else ''
             if quality != 'fast':
+                # Units kept verbatim because they hold nothing translatable
+                # (e.g. only URLs) have no Hebrew to review: skip review/QA.
+                for record in records:
+                    if _untranslatable_passthrough(record) and record['review'] is None:
+                        record['review'] = {'status': 'skipped', 'skip_reason': 'untranslatable_passthrough',
+                                            'verdict': None, 'issues': []}
+                records = [r for r in records if not _untranslatable_passthrough(r)]
                 prefix = _prefix(structure, glossary, ids, profile)
                 qa_selection, qa_definition = configuration.resolve('chapter_qa')
                 qa_groups = repartition_qa_groups(records, qa_selection.capabilities)

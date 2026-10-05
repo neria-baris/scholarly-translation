@@ -239,6 +239,43 @@ class PipelineRecoveryAcceptanceTests(unittest.TestCase):
         self.assertTrue(job["chapter_completion"]["0"])
         self.assertFalse(job["units"][0]["approved"])
 
+    def test_untranslatable_unit_passes_through_without_review(self):
+        path = self.folder / "source.pdf"
+        pdf = Canvas(str(path))
+        for line in ("orbitbooks.net", "Some scholars do not accept all claims."):
+            pdf.drawString(72, 700, line)
+            pdf.showPage()
+        pdf.save()
+        structure = extract_structure(path, "en")
+        texts = {u["unit_id"]: u["text"] for u in structure["units"]}
+        url_id = next(uid for uid, text in texts.items() if "orbitbooks" in text)
+        job = {"job_id": "document-job", "settings": {"quality": "checked", "profile": "scholarly", "budget_usd": 10},
+            "units": [], "revision": 0, "chapter_qa_results": [], "completed_units": 0}
+        def factory(role, descriptor):
+            def generate(prompt, model):
+                self.calls.append((role, prompt))
+                if role == "translator":
+                    ids = json.loads(re.search(r"TARGET_UNIT_IDS[^\n]*?: (\[[^\n]*\])", prompt).group(1))
+                    text = json.dumps([{"unit_id": uid, "translation_note": None, "translation":
+                        texts[uid] if uid == url_id else "חלק מהחוקרים אינם מקבלים את כל הטענות."} for uid in ids],
+                        ensure_ascii=False)
+                elif role == "chapter_qa":
+                    text = "VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: none\nSTATE_UPDATES: none"
+                else:
+                    text = "VERDICT: PASS\nISSUES: none"
+                return result(text, model)
+            return SimpleNamespace(generate=generate)
+        self.execute(job, structure, factory)
+        self.assertTrue(all(job["chapter_completion"].values()))
+        record = next(r for r in job["units"] if r["unit_id"] == url_id)
+        self.assertEqual(record["target_text"], texts[url_id])
+        self.assertEqual(record["review"]["skip_reason"], "untranslatable_passthrough")
+        self.assertEqual(record["findings"], [])
+        other = next(r for r in job["units"] if r["unit_id"] != url_id)
+        self.assertNotEqual(other["review"].get("skip_reason"), "untranslatable_passthrough")
+        roles = [role for role, _ in self.calls]
+        self.assertLessEqual(roles.count("semantic_reviewer"), 1)
+
     def test_provider_usage_excludes_verified_local_cache_hit(self):
         with ControlStore(self.folder / "controls.sqlite3") as store, WorkJournal(self.folder / "journal.sqlite3") as journal:
             self.control(store, journal, self.factory)
