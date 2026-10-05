@@ -127,6 +127,58 @@ def local_library() -> list[dict]:
     return sorted(entries, key=lambda item: item["modified"], reverse=True)
 
 
+MAX_LIBRARY_DOCUMENTS = 200
+
+
+def _document_library(document_jobs) -> list[dict]:
+    """Completed document jobs, newest first, without source text or local
+    paths. Unreadable or corrupt job folders are skipped, never fatal."""
+    stamped = []
+    try:
+        candidates = list(document_jobs.root.glob("*/job.json"))
+    except OSError:
+        return []
+    for candidate in candidates:
+        try:
+            stamped.append((candidate.stat().st_mtime, candidate))
+        except OSError:
+            continue
+    stamped.sort(key=lambda item: item[0], reverse=True)
+    documents = []
+    for mtime, candidate in stamped:
+        if len(documents) >= MAX_LIBRARY_DOCUMENTS:
+            break
+        try:
+            job = document_jobs.get(candidate.parent.name)
+            if not isinstance(job, dict) or job.get("status") != "completed":
+                continue
+            source_kind = job.get("source_kind", "pdf")
+            units = job.get("units")
+            filename = job.get("filename")
+            if source_kind not in ("pdf", "epub") or not isinstance(units, list) or not units:
+                continue
+            if not isinstance(filename, str) or not Path(filename).name:
+                continue
+            settings = job.get("settings") if isinstance(job.get("settings"), dict) else {}
+            font_id = settings.get("font_id")
+            completed_at = job.get("completed_at")
+            if isinstance(completed_at, bool) or not isinstance(completed_at, (int, float)):
+                completed_at = mtime
+            documents.append({
+                "job_id": candidate.parent.name,
+                "filename": Path(filename).name,
+                "source_kind": source_kind,
+                "completed_at": float(completed_at),
+                "unit_count": len(units),
+                "font_id": font_id if isinstance(font_id, str) else None,
+                "formats": [source_kind, "html"],
+            })
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
+            continue
+    documents.sort(key=lambda item: item["completed_at"], reverse=True)
+    return documents
+
+
 def make_handler(token: str, model_config_path: str | None = None):
     from .document_draft import (
         DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download, validate_settings,
@@ -499,6 +551,8 @@ def make_handler(token: str, model_config_path: str | None = None):
                         except (ValueError, OSError):
                             continue
                     self._json(200, {"job": recent})
+                elif route.path == "/document-library":
+                    self._json(200, {"documents": _document_library(document_jobs)})
                 elif route.path == "/document-review":
                     self._json(200, document_jobs.review(data.get("job_id"), data.get("unit_index"),
                                data.get("target_text"), data.get("expected_revision")))
@@ -506,16 +560,23 @@ def make_handler(token: str, model_config_path: str | None = None):
                     job = document_jobs.get(data.get("job_id"))
                     if job["status"] != "completed":
                         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
-                    kind = job.get("source_kind", "pdf")
+                    source_kind = job.get("source_kind", "pdf")
+                    requested = data.get("format")
+                    if requested is None or requested == source_kind:
+                        kind = source_kind
+                    elif requested == "html":
+                        kind = "html"
+                    else:
+                        raise DocumentDraftError("פורמט ההורדה אינו נתמך.")
                     font_id = data.get("font_id")
                     if font_id is not None:
-                        if kind != "pdf" or not isinstance(font_id, str) or font_id not in {
+                        if kind == "epub" or not isinstance(font_id, str) or font_id not in {
                             f["id"] for f in list_pdf_fonts() if f["available"]
                         }:
                             raise DocumentDraftError("בחרו פונט PDF זמין מהרשימה.")
                     source_path = document_jobs.source_path(job["job_id"], "epub") if kind == "epub" else None
                     body = render_download(job, kind, source_path=source_path, font_id=font_id)
-                    content_type = "application/epub+zip" if kind == "epub" else "application/pdf"
+                    content_type = {"epub": "application/epub+zip", "html": "text/html; charset=utf-8"}.get(kind, "application/pdf")
                     self.send_response(200)
                     self.send_header("Content-Type", content_type)
                     self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + f".he.{kind}"))

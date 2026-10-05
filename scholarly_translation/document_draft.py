@@ -412,12 +412,24 @@ def render_download(job, kind, source_path=None, font_id=None):
     translated text, so it needs the original upload's bytes; callers
     must pass ``source_path`` (the job folder's persisted ``source.epub``)
     for an EPUB job.
+
+    ``kind="html"`` is accepted for any completed job (PDF or EPUB source)
+    and renders a self-contained HTML page from the same structure and
+    translations mapping; an explicit ``font_id`` (else the job's stored
+    PDF font) is embedded, ``None`` uses a system font stack.
     """
-    if kind != job.get("source_kind", "pdf"):
+    if kind != "html" and kind != job.get("source_kind", "pdf"):
         raise DocumentDraftError("סוג הורדה לא תואם את קובץ המקור.")
     if job["status"] not in ("completed",) or not job.get("units"):
         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
     translations = _build_translations_mapping(job["units"])
+    if kind == "html":
+        from .export_html import export_html as _export_html
+        try:
+            return _export_html(job["structure"], translations, title=job["filename"],
+                                font_id=font_id if font_id is not None else job.get('settings', {}).get('font_id'))
+        except ExportError as exc:
+            raise DocumentDraftError(f"בניית ה-HTML נכשלה: {exc}") from None
     if kind == "epub":
         if source_path is None:
             raise DocumentDraftError("קובץ ה־EPUB המקורי אינו זמין להורדה.")
