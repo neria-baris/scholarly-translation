@@ -633,7 +633,9 @@ UNIT_POLICY_CHARS_PER_WORD = 8   # conservative ceiling for spaced scripts; CJK 
 def unit_policy_for(configuration):
     """``None`` when the default unit size keeps a worst-case unit's output cap
     within half the translator's output limit (structures stay unchanged);
-    otherwise ``{"max_unit_words": w}`` with the largest fitting ``w``."""
+    otherwise ``{"max_unit_words": w}`` with the largest fitting ``w``, never
+    below ``MIN_UNIT_POLICY_WORDS`` (a unit that still cannot fit is reported
+    by the planner against the real text, not refused here in advance)."""
     from .document_structure import DEFAULT_MAX_UNIT_WORDS
     selection, _ = configuration.resolve('translator')
     limit = (selection.capabilities.max_output_tokens or 128000) // 2
@@ -649,9 +651,15 @@ def unit_policy_for(configuration):
             low = middle
         else:
             high = middle - 1
-    _require(low >= MIN_UNIT_POLICY_WORDS,
-             'the translator output limit is too small to translate even short semantic units; choose a model with a larger output limit')
-    return {'max_unit_words': low}
+    return {'max_unit_words': max(low, MIN_UNIT_POLICY_WORDS)}
+
+def units_fit_translator(structure, configuration):
+    """True when every actual unit's worst-case output stays within half the
+    translator's output limit -- the same bound ``unit_policy_for`` uses."""
+    selection, _ = configuration.resolve('translator')
+    limit = (selection.capabilities.max_output_tokens or 128000) // 2
+    envelope = _envelope_tokens('u' * 32) + 64 + 1
+    return all(estimate_output_token_cap(len(u['text'])) + envelope <= limit for u in structure['units'])
 
 def repartition_qa_groups(unit_records, capabilities, headroom_fraction=None):
     # Compatibility API uses the actual complete existing QA prompt. Execution
@@ -904,10 +912,25 @@ def _issue_unit(issue, records):
                   (span and (span in r['source_text'] or span in r['target_text']))]
     return candidates[0] if len(candidates) == 1 else None
 
+def _job_chapter_groups(job, structure, glossary, units, configuration, quality, profile):
+    """Chapter groups for this job. Once planned, a job's grouping is fixed:
+    persisted ``chapter_groups`` win; jobs planned before groups were
+    persisted rebuild them from their own persisted plans; only a job with
+    no plans yet is grouped (structural chapters, then size-fitted)."""
+    by_id = {u['unit_id']: u for u in units}
+    persisted = job.get('chapter_groups')
+    if persisted is None and job.get('chapter_plans'):
+        persisted = [[uid for batch in plan['batches'] for uid in batch['unit_ids']] for plan in job['chapter_plans']]
+    if persisted is not None:
+        _require(sorted(uid for group in persisted for uid in group) == sorted(by_id),
+                 'persisted chapter groups do not match the document units')
+        return [[by_id[uid] for uid in group] for group in persisted]
+    from .document_draft import chapter_groups
+    return fit_chapter_groups(structure, glossary, chapter_groups(structure, units), configuration, quality, profile)
+
 def execute_document_chapters(job, structure, glossary, units, configuration, store, folder, persist, adapter_factory=None):
-    from .document_draft import DocumentJobs
-    groups = DocumentJobs._chapter_groups(None, structure, units)
     job_id, quality, profile = job['job_id'], job['settings']['quality'], job['settings']['profile']
+    groups = _job_chapter_groups(job, structure, glossary, units, configuration, quality, profile)
     hard, max_calls = job['settings']['budget_usd'], len(units)*8+16
     shared_cap = max(sel.capabilities.max_output_tokens or 4096 for sel in configuration.models.values())
     # Persist plans before sending anything. Preview assumptions are revisited
@@ -918,6 +941,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         _require(sum(p['conservative_total_ceiling_usd'] for p in plans) <= hard,
                  'planned translation, QA, correction and recheck exceed the document budget')
         job['chapter_plans'] = plans
+        job['chapter_groups'] = [[u['unit_id'] for u in group] for group in groups]
         job['chapter_states'] = {}
         job['chapter_completion'] = {}
         job['document_state'] = document_state_module.new_document_state(structure['document_id'])

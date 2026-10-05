@@ -276,6 +276,16 @@ def _spine_groups(units):
     return groups
 
 
+def _planned_structure(path, language, configuration):
+    """Structure for a planned run: default units unless an actual unit is too
+    large for the configured translator's output; only then re-segment with
+    the narrower unit policy (default structures stay byte-identical)."""
+    structure = extract_structure(path, language)
+    if chapter_pipeline.units_fit_translator(structure, configuration):
+        return structure
+    return extract_structure(path, language, unit_policy=chapter_pipeline.unit_policy_for(configuration))
+
+
 def extract_structure(path, language="auto", unit_policy=None):
     """Extract a PDF or EPUB into the canonical schema-2 document_structure,
     with every resolvable page's sole candidate auto-accepted. Raises
@@ -594,7 +604,11 @@ class DocumentJobs:
         try:
             job["status"], job["stage_label"] = "reading", "קריאת המסמך"
             self._persist(job)
-            structure = extract_structure(path, job["settings"]["language"])
+            if job["settings"]["model"] == "configured" and job["settings"].get("automation"):
+                structure = _planned_structure(path, job["settings"]["language"],
+                                               ModelConfiguration.from_dict(job["settings"]["model_config"]))
+            else:
+                structure = extract_structure(path, job["settings"]["language"])
             job["structure"] = structure
             page_number_by_id = {r["page_id"]: r["page_number"] for r in structure["readings"]}
             units = sorted(
@@ -982,13 +996,19 @@ class DocumentJobs:
         if settings["model"] != "configured":
             raise DocumentDraftError("תצוגה מקדימה של עלות דורשת מודל מוגדר.")
         configuration = ModelConfiguration.from_dict(settings["model_config"])
-        structure = extract_structure(path, settings["language"])
+        structure = _planned_structure(path, settings["language"], configuration)
         glossary = _new_glossary_store()
         page_number_by_id = {r["page_id"]: r["page_number"] for r in structure["readings"]}
         units = sorted(
             structure["units"], key=lambda u: (page_number_by_id[u["page_id"]], u["source_char_start"]),
         )
-        groups = self._chapter_groups(structure, units)
+        try:
+            groups = chapter_pipeline.fit_chapter_groups(
+                structure, glossary, chapter_groups(structure, units), configuration,
+                settings["quality"], settings["profile"],
+            )
+        except chapter_pipeline.ChapterPipelineError as exc:
+            raise DocumentDraftError(f"לא ניתן לתכנן את התרגום עם המודלים שנבחרו: {exc}") from None
         chapters = []
         total_expected, total_conservative = 0.0, 0.0
         for group in groups:

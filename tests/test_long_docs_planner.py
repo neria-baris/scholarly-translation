@@ -384,9 +384,9 @@ class UnitPolicyTests(unittest.TestCase):
         b = synthetic_structure(chapters=2, chars_per_chapter=3000, unit_policy=unit_policy_for(configuration()))
         self.assertEqual(a, b)
 
-    def test_output_limit_too_small_for_any_sane_unit_is_a_clear_error(self):
-        with self.assertRaisesRegex(ChapterPipelineError, 'output limit'):
-            unit_policy_for(configuration(translator_output=2048))
+    def test_tiny_output_limit_gets_floor_policy_not_an_advance_refusal(self):
+        policy = unit_policy_for(configuration(translator_output=2048))
+        self.assertEqual(policy, {'max_unit_words': pipeline.MIN_UNIT_POLICY_WORDS})
 
 
 if __name__ == '__main__':

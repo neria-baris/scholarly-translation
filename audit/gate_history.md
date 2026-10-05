@@ -382,3 +382,12 @@ Implementation `d695978e93e853b464cec691ebcc32e988463aaf` passed22 focused HTTP 
 ## 2026-10-05T12:00:00+00:00 | BOOK-REFERENCE-2 + GOLD-THEME | verified push receipt
 
 Implementations `3b4cdaa` (BOOK-REFERENCE-2) and `0445bde` (GOLD-THEME) passed 659 offline tests and the browser checks recorded above. Explicit-path staging, diff check and JSONL validity reviewed. Normal fast-forward push 9753e61..0445bde to origin/main per user authorization; post-push fetch confirms main==origin/main and a clean tree. No force, secrets, source documents or ignored screenshots committed. Gate10 status unchanged.
+
+## 2026-10-05T14:20:00+00:00 | LONG-DOCS | PASS scoped software
+
+- Contract `audit/contracts/long_documents_chapters.md` (afc6b2d). Builders A `044e473`, B `4973809`->`01e7042`; conductor integration follows.
+- Diagnosis: failing EPUB is a damaged third-party file (empty spine, 0-byte chapters; no text). Valid 730k-char novel was one chapter group (EPUB never produced chapter nodes); units up to 11.7k chars; preview >10 min; 150k/200-page caps arbitrary.
+- Change: EPUB error codes + Hebrew messages, NCX/nav/manifest fallback; spine-document chapters (tiny merged); size fitting (60k chars / role context) at unit boundaries; unit policy only when actual units exceed translator output; caps 3M chars / 2000 pages; planner validates structure once per plan; groups persisted, legacy plans never regrouped.
+- Acceptance: LONG-DOCS-INTEGRATE; 709 offline tests OK 276.7 s; real novel 38 chapters, preview 7-25 s per mode.
+- Cost (no calls): LONG-DOCS-COST. Sol 6.1 checked reserve $71.63 > MAX_BUDGET_USD $30: user decision pending. Builder usage subscription not_metered; external API calls 0.
+- Next: user budget ceiling; literary continuity/quality design (separate contract) awaiting approval.
