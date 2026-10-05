@@ -625,3 +625,7 @@ Implementation `59a06d6d06320ca600b42dc38da6c099b18be3bb` passed659 offline test
 - Cost/calls: Sol internal not_metered; external Sonnet0/Opus0/Astra0/runtime0, added billed API cost0. Verification tests16.107s; conductor/browser wall time not_metered. Small deterministic correction needs no delegated builder. Prior cumulative builder estimate$14.2851749 unchanged, actual subscription charge unknown.
 - Git: complete diff/asset/source/privacy/whitespace review; explicit stage and normal authorized commit/push follow; separate receipt records known sync. Screenshots and local fixture server stay ignored. No key, source document or unrelated worktree staged.
 - Limits/next: visual update only, not scholarly acceptance; Gate10 and previously documented plan gaps unchanged. Existing job results rerender without paid work. Finish verified Git receipt.
+
+## 2026-10-05T10:20:42.387338+00:00 | BOOK-REFERENCE | verified push receipt
+
+Implementation `d695978e93e853b464cec691ebcc32e988463aaf` passed22 focused HTTP tests, reproducible40-frame XML/pixel bounds/mirrored endpoints and served asset checks, plus documented Edge visual acceptance. Reviewed complete and staged diffs, ten intended paths and exact staged bytes; no source documents, secrets, output screenshots or local fixture server committed. Normal authorized fast-forward push succeeded; post-push fetch confirms main==origin/main and clean tree. This separate receipt records the verified implementation hash; quality/pilot status unchanged.
