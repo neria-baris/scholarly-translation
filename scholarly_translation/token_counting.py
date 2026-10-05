@@ -20,6 +20,8 @@ import types
 from pathlib import Path
 
 _ENCODING_CACHE = {}
+# A missing optional tiktoken dependency is process-stable; do not rescan sys.path per call.
+_TIKTOKEN_MISSING = [False]
 
 # Models this project targets that tiktoken has never published a mapping
 # for; forcing the fallback encoding instead of attempting (and silently
@@ -52,10 +54,13 @@ def _load_encoding(name):
         return None
     if name in _ENCODING_CACHE:
         return _ENCODING_CACHE[name]
+    if _TIKTOKEN_MISSING[0]:
+        return None
     try:
         import tiktoken
         from tiktoken_ext.openai_public import ENCODING_CONSTRUCTORS
     except ImportError:
+        _TIKTOKEN_MISSING[0] = True
         return None
     try:
         constructor = ENCODING_CONSTRUCTORS.get(name)
@@ -105,9 +110,12 @@ def _read_local_bpe(url, expected_hash=None):
 
 
 def _load_encoding_for_model(model):
+    if _TIKTOKEN_MISSING[0]:
+        return None
     try:
         import tiktoken
     except ImportError:
+        _TIKTOKEN_MISSING[0] = True
         return None
     try:
         return _load_encoding(tiktoken.encoding_name_for_model(model))
