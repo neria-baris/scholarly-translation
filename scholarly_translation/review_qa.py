@@ -130,6 +130,8 @@ def _render(prompt_id: str, substitutions: dict) -> str:
         _require(token in text, "runtime prompt is missing a required input placeholder")
     pattern = re.compile(r"\{\{(" + "|".join(re.escape(key) for key in substitutions) + r")\}\}")
     text = pattern.sub(lambda match: substitutions[match.group(1)], text)
+    # Optional placeholder: callers that do not supply a notebook render "(none)".
+    text = text.replace("{{book_notebook}}", "(none)")
     return text + _OUTPUT_CONTRACTS.get(prompt_id, "")
 
 
@@ -630,16 +632,18 @@ class ChapterQARequest:
     model: str
     provider_definition: ProviderDefinition | None = None
     capabilities: ModelCapabilities | None = None
+    book_notebook: str = ""
 
 
 def build_chapter_qa_request(
     source_chapter, hebrew_chapter, profile="", glossary_decisions=(),
     policy="off", provider="mock", model="mock-review-1",
-    provider_definition=None, capabilities=None,
+    provider_definition=None, capabilities=None, book_notebook="",
 ) -> ChapterQARequest:
     _require_nonempty_str(source_chapter, "source_chapter must be a nonempty string")
     _require_hebrew(hebrew_chapter, "hebrew_chapter must be a nonempty Hebrew string")
     _require(isinstance(profile, str), "profile must be a string")
+    _require(isinstance(book_notebook, str), "book_notebook must be a string")
     _require_string_sequence(glossary_decisions, "glossary_decisions must contain only nonempty strings")
     _require(policy in CHAPTER_QA_POLICIES, "chapter QA policy must be off or on")
     _require_nonempty_str(provider, "provider must be a nonempty string")
@@ -655,12 +659,13 @@ def build_chapter_qa_request(
         source_chapter=source_chapter, hebrew_chapter=hebrew_chapter, profile=profile,
         glossary_decisions=tuple(glossary_decisions), policy=policy, provider=provider, model=model,
         provider_definition=provider_definition, capabilities=capabilities,
+        book_notebook=book_notebook,
     )
 
 
 def build_chapter_qa_request_for_role(
     source_chapter, hebrew_chapter, configuration: ModelConfiguration,
-    profile="", glossary_decisions=(), policy="off",
+    profile="", glossary_decisions=(), policy="off", book_notebook="",
 ) -> ChapterQARequest:
     _require(isinstance(configuration, ModelConfiguration),
              "configuration must be a validated ModelConfiguration")
@@ -668,6 +673,7 @@ def build_chapter_qa_request_for_role(
     return build_chapter_qa_request(
         source_chapter, hebrew_chapter, profile, glossary_decisions, policy,
         selection.provider, selection.model, definition, selection.capabilities,
+        book_notebook,
     )
 
 
@@ -775,7 +781,7 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
     request = build_chapter_qa_request(
         request.source_chapter, request.hebrew_chapter, request.profile,
         request.glossary_decisions, request.policy, request.provider, request.model,
-        request.provider_definition, request.capabilities,
+        request.provider_definition, request.capabilities, request.book_notebook,
     )
     base = _base_record(
         STAGE_CHAPTER_QA, CHAPTER_QA_PROMPT_ID, request.provider, request.model,
@@ -787,6 +793,7 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
         "profile": request.profile,
         "glossary_decisions": request.glossary_decisions,
         "policy": request.policy,
+        **({"book_notebook": request.book_notebook} if request.book_notebook else {}),
     })
 
     if request.policy == "off":
@@ -804,6 +811,7 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
         "hebrew_chapter": request.hebrew_chapter,
         "profile": request.profile or "(none)",
         "glossary_and_decisions": _glossary_text(request.glossary_decisions),
+        "book_notebook": request.book_notebook.strip() or "(none)",
     })
     _check_review_prompt(prompt_text, request)
     try:

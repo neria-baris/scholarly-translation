@@ -60,6 +60,19 @@ MODALITY_WORDS = {
 OCR_WARNING_TYPES = {"ocr_unreviewed", "low_confidence"}
 BYPASS_TRIGGER_TYPES = {"ocr_source_uncertainty", "unapproved_loaded_term", "formal_finding"}
 CRITIC_TRIGGER_TYPES = {"negation", "quantifier", "scope_modality", "japanese_context_dependence"}
+# Literary-profile triggers (deterministic; flags only, never error assertions).
+# Kept out of CRITIC_TRIGGER_TYPES so human_review's "review required" set and
+# every scholarly behaviour stay unchanged; the critic path accepts both.
+LITERARY_TRIGGER_TYPES = {"literary_dialogue", "literary_exclamation_question", "literary_wordplay_marker"}
+ALL_CRITIC_TRIGGER_TYPES = CRITIC_TRIGGER_TYPES | LITERARY_TRIGGER_TYPES
+MAX_LITERARY_TRIGGERS_PER_TYPE = 20
+_QUOTE_RES = tuple(re.compile(pattern) for pattern in (
+    "\u201c[^\u201d\n]+\u201d", '"[^"\n]+"', "\u00ab[^\u00bb\n]+\u00bb",
+    "\u300c[^\u300d\n]+\u300d", "\u300e[^\u300f\n]+\u300f",
+))
+_DASH_DIALOGUE_RE = re.compile("(?m)^[ \t]*[\u2014\u2015\u2013][^\n]+")
+_EXCLAIM_RE = re.compile("[!?\uff01\uff1f]+")
+_ITALIC_RE = re.compile(r"(?<![\w*])\*[^\s*][^*\n]{0,40}\*(?![\w*])|(?<![\w_])_[^\s_][^_\n]{0,40}_(?![\w_])|<i>[^<\n]{1,60}</i>")
 CORRECTABLE_TRIGGER_TYPES = {"negation", "quantifier", "scope_modality"}
 
 HEBREW_MARKERS_BY_TYPE = {
@@ -98,8 +111,37 @@ def _trigger(trigger_type, start, end, token):
     return {"type": trigger_type, "source_char_start": start, "source_char_end": end, "source_token": token}
 
 
-def detect_risk_triggers(unit, source_language, draft_findings, reading_origin=None):
-    """Deterministic flags only; never a semantic-error assertion by itself."""
+def _literary_triggers(text, source_language):
+    found = {"literary_dialogue": [], "literary_exclamation_question": [], "literary_wordplay_marker": []}
+    seen = set()
+    for regex in _QUOTE_RES:
+        for match in regex.finditer(text):
+            inner = match.group(0)[1:-1].strip()
+            if not inner or (match.start(), match.end()) in seen:
+                continue
+            seen.add((match.start(), match.end()))
+            single_word = (" " not in inner and len(inner) <= 30) if source_language != "ja" else len(inner) <= 4
+            kind = "literary_wordplay_marker" if single_word else "literary_dialogue"
+            found[kind].append((match.start(), match.end(), match.group(0)))
+    for match in _DASH_DIALOGUE_RE.finditer(text):
+        found["literary_dialogue"].append((match.start(), match.end(), match.group(0).strip()))
+    for match in _ITALIC_RE.finditer(text):
+        found["literary_wordplay_marker"].append((match.start(), match.end(), match.group(0)))
+    for match in _EXCLAIM_RE.finditer(text):
+        found["literary_exclamation_question"].append((match.start(), match.end(), match.group(0)))
+    triggers = []
+    for kind in ("literary_dialogue", "literary_exclamation_question", "literary_wordplay_marker"):
+        for start, end, token in sorted(found[kind])[:MAX_LITERARY_TRIGGERS_PER_TYPE]:
+            triggers.append(_trigger(kind, start, end, token))
+    return triggers
+
+
+def detect_risk_triggers(unit, source_language, draft_findings, reading_origin=None, profile=None):
+    """Deterministic flags only; never a semantic-error assertion by itself.
+
+    ``profile="literary"`` additionally flags dialogue/quoted speech,
+    exclamations/rhetorical questions and likely wordplay markers; any other
+    value (including the default None) leaves scholarly behaviour unchanged."""
     text = unit["text"]
     triggers = []
     for start, end, token in _word_hits(NEGATION_WORDS.get(source_language, []), text):
@@ -110,6 +152,8 @@ def detect_risk_triggers(unit, source_language, draft_findings, reading_origin=N
         triggers.append(_trigger("scope_modality", start, end, token))
     if source_language == "ja":
         triggers.append(_trigger("japanese_context_dependence", 0, len(text), text))
+    if profile == "literary":
+        triggers.extend(_literary_triggers(text, source_language))
     ocr_hits = sorted(set(unit.get("warnings", [])) & OCR_WARNING_TYPES)
     if reading_origin == "ocr":
         ocr_hits.append("selected_ocr_reading")
@@ -228,6 +272,7 @@ def build_semantic_review_request(structure, glossary, draft, provider="mock", m
     reading = next(r for r in structure["readings"] if r["reading_id"] == canonical.unit["reading_id"])
     risk_triggers = detect_risk_triggers(
         canonical.unit, canonical.source_language, draft["findings"], reading["selected"]["origin"],
+        profile=draft.get("profile_id"),
     )
 
     review_cache_key = fingerprint({
@@ -280,7 +325,7 @@ def _render_critic_prompt(request: SemanticReviewRequest) -> str:
         "risk_triggers": [
             {"source_char_start": t["source_char_start"], "source_char_end": t["source_char_end"],
              "trigger_type": t["type"], "source_token": t["source_token"]}
-            for t in request.risk_triggers if t["type"] in CRITIC_TRIGGER_TYPES
+            for t in request.risk_triggers if t["type"] in ALL_CRITIC_TRIGGER_TYPES
         ],
     }
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
@@ -320,7 +365,7 @@ class FakeSemanticCritic:
         start = time.monotonic()
         claims = []
         for trig in self._request.risk_triggers:
-            if trig["type"] not in CRITIC_TRIGGER_TYPES:
+            if trig["type"] not in ALL_CRITIC_TRIGGER_TYPES:
                 continue
             disposition, evidence = _heuristic_disposition(trig["type"], self._request.draft_text)
             claims.append({
@@ -356,6 +401,9 @@ class FakeSemanticCorrector:
 
 def _heuristic_disposition(trigger_type, hebrew_text):
     """Deterministic, auditable grounding check; never trusts a model claim as fact on its own."""
+    if trigger_type in LITERARY_TRIGGER_TYPES:
+        # The offline mock never asserts a literary error; a real critic judges effect.
+        return "false_positive", "literary risk is judged by a real critic; the mock asserts no error"
     markers = HEBREW_MARKERS_BY_TYPE.get(trigger_type)
     if markers is None:
         return "error", "ambiguity has no deterministic marker and requires human disambiguation"
@@ -394,7 +442,7 @@ def _parse_and_validate_claims(raw_text, request: SemanticReviewRequest):
     unit_text = request.unit["text"]
     allowed_spans = {
         (t["type"], t["source_char_start"], t["source_char_end"])
-        for t in request.risk_triggers if t["type"] in CRITIC_TRIGGER_TYPES
+        for t in request.risk_triggers if t["type"] in ALL_CRITIC_TRIGGER_TYPES
     }
     required_fields = {"source_char_start", "source_char_end", "trigger_type", "disposition",
                         "target_span_text", "evidence"}

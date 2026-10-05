@@ -13,7 +13,7 @@ function previewFingerprint(chosen){
 }
 function isReal(){return $('model').value!=='auto'}
 function isServer(){return $('model').value==='server'}
-const defaults={profile:'scholarly',quality:'fast',language:'auto',budget_usd:2,model:'auto'};
+const defaults={profile:'scholarly',quality:'fast',language:'auto',budget_usd:null,model:'auto'};
 let preferences={...defaults};
 try{const stored=JSON.parse(localStorage.getItem('document-preferences')||'null');if(stored)preferences={...defaults,...stored}}catch(_){}
 function remember(key,value){try{localStorage.setItem(key,value)}catch(_){}}
@@ -192,9 +192,12 @@ function schedulePreview(){
   if(!isReal()){$('preview-card').hidden=true;renderKeyFields();return}
   previewTimer=setTimeout(runPreview,450);
 }
+function validBudget(value){return typeof value==='number'&&Number.isFinite(value)&&value>0}
 async function runPreview(){
   const id=++previewCounter;
   const chosen=settings();
+  if(!validBudget(chosen.budget_usd)){previewState={fingerprint:'',valid:false,withinBudget:false};$('preview-card').hidden=false;
+    $('preview-body').textContent='יש להגדיר תקציב מרבי למסמך (מספר חיובי) כדי לקבל אומדן.';$('translation-options').open=true;$('budget').focus();return}
   const fingerprint=previewFingerprint(chosen);
   if(!isServer()&&(!chosen.role_selections||!chosen.role_selections.translator)){$('preview-card').hidden=true;return}
   try{
@@ -236,7 +239,7 @@ function renderPreview(preview){
 function settings(){
   const model=isReal()?'configured':'auto';
   const result={profile:$('profile').value,quality:$('quality').value,language:$('language').value,
-    budget_usd:Number($('budget').value),model,automation:model==='configured',
+    budget_usd:$('budget').value.trim()===''?null:Number($('budget').value),model,automation:model==='configured',
     font_id:$('font-before').value||null};
   if(isServer())result.use_server_config=true;
   else if(model==='configured'&&roleSelections.translator)result.role_selections={...roleSelections};
@@ -311,7 +314,7 @@ async function translate(event){
   const chosen=settings(),auto=chosen.model==='auto';
   if(!auto&&!chosen.role_selections&&!isServer()){message('בחרו מודל מתרגם לפני התרגום.');return}
   if(!auto){const missing=missingKeyProviders();if(missing.length){message('יש לשמור מפתח API עבור: '+missing.join(', ')+'.');return}}
-  if(!auto&&(!Number.isFinite(chosen.budget_usd)||chosen.budget_usd<0.01||chosen.budget_usd>30)){message('בחרו תקציב בין $0.01 ל־$30.');$('translation-options').open=true;$('budget').focus();return}
+  if(!auto&&!validBudget(chosen.budget_usd)){message('יש להגדיר תקציב מרבי למסמך (מספר חיובי) לפני תרגום בתשלום.');$('translation-options').open=true;$('budget').focus();return}
   if(!auto&&(!previewState.valid||previewState.fingerprint!==previewFingerprint(chosen))){message('ממתינים לאומדן עדכני לפני התרגום.');return}
   if(!auto&&!previewState.withinBudget){message('האומדן השמרני חורג מהתקציב שנבחר; הגדילו תקציב או שנו הגדרות.');$('translation-options').open=true;$('budget').focus();return}
   if(!auto&&!await askProviderConsent(chosen))return;
@@ -499,7 +502,7 @@ function populateFontSelects(){
 }
 async function initialize(){
   for(const [key,id] of Object.entries({profile:'profile',quality:'quality',language:'language',budget_usd:'budget',model:'model'})){
-    $(id).value=preferences[key];if($(id).value==='')$(id).value=defaults[key];
+    $(id).value=preferences[key]??'';if($(id).value===''&&defaults[key]!=null)$(id).value=defaults[key];
     $(id).addEventListener('change',()=>{if(id==='model'&&isReal())$('quality').value='checked';updateSettings();schedulePreview();renderConnection()});
   }
   initRoleUI();

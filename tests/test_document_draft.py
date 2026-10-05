@@ -96,7 +96,7 @@ MOCK_MODEL_CONFIG = {
         "semantic_reviewer": {"provider": "fake", "model": "fake-reviewer-1",
                               "capabilities": {"context_window": 8000, "usable_context_tokens": 6000}},
         "chapter_qa": {"provider": "fake", "model": "fake-chapter-qa-1",
-                       "capabilities": {"context_window": 8000, "usable_context_tokens": 6000}},
+                       "capabilities": {"context_window": 8000, "usable_context_tokens": 7000}},
     },
 }
 
@@ -137,9 +137,9 @@ class DocumentDraftTests(unittest.TestCase):
         for bad in (
             {"profile": "invented"}, {"quality": "magic"}, {"budget_usd": float("nan")},
             {"budget_usd": True}, {"model": "invented-model"},
-            {"model": "configured"},  # no model_config supplied
-            {"model": "configured", "model_config": {"not": "valid"}},
-            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "profile": "literary", "budget_usd": 100},
+            {"model": "configured", "budget_usd": 2.0},  # no model_config supplied
+            {"model": "configured", "budget_usd": 2.0, "model_config": {"not": "valid"}},
+            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "profile": "literary", "budget_usd": 0},
         ):
             with self.assertRaises(DocumentDraftError):
                 validate_settings(bad)
@@ -181,7 +181,7 @@ class DocumentDraftTests(unittest.TestCase):
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         jobs = DocumentJobs(self.root, adapter_factory=factory)
         started = jobs.start(
-            epub_path, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
+            epub_path, {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
             paid_confirm=True,
         )
         deadline = time.monotonic() + 10
@@ -226,7 +226,7 @@ class DocumentDraftTests(unittest.TestCase):
             factory = self.make_adapter_factory(translator=translator)
             jobs = DocumentJobs(self.root, adapter_factory=factory)
             _, job = self.run_job(
-                {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "profile": profile, "quality": "fast"},
+                {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "profile": profile, "quality": "fast"},
                 manager=jobs, adapter_factory=factory,
             )
             self.assertEqual(job["status"], "completed")
@@ -239,7 +239,7 @@ class DocumentDraftTests(unittest.TestCase):
         translator, reviewer, chapter_qa = FakeTranslationAdapter(), FakeReviewAdapter(), FakeChapterQAAdapter()
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         _, job = self.run_job(
-            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "fast"},
+            {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "fast"},
             adapter_factory=factory,
         )
         self.assertEqual(job["status"], "completed")
@@ -250,7 +250,7 @@ class DocumentDraftTests(unittest.TestCase):
         translator, reviewer, chapter_qa = FakeTranslationAdapter(), FakeReviewAdapter(), FakeChapterQAAdapter()
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         _, job = self.run_job(
-            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
+            {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
             adapter_factory=factory,
         )
         self.assertEqual(job["status"], "completed")
@@ -264,7 +264,7 @@ class DocumentDraftTests(unittest.TestCase):
         translator, reviewer, chapter_qa = FakeTranslationAdapter(), FakeReviewAdapter(), FakeChapterQAAdapter()
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         jobs = DocumentJobs(self.root, adapter_factory=factory)
-        started = jobs.start(chaptered, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "checked"},
+        started = jobs.start(chaptered, {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "checked"},
                             paid_confirm=True)
         deadline = time.monotonic() + 10
         job = None
@@ -282,7 +282,7 @@ class DocumentDraftTests(unittest.TestCase):
         translator = FakeTranslationAdapter()
         factory = self.make_adapter_factory(translator=translator)
         _, job = self.run_job(
-            {"model": "configured", "model_config": partial_config, "quality": "thorough"},
+            {"model": "configured", "budget_usd": 2.0, "model_config": partial_config, "quality": "thorough"},
             adapter_factory=factory,
         )
         self.assertEqual(job["status"], "completed")
@@ -343,7 +343,7 @@ class DocumentDraftTests(unittest.TestCase):
     def test_paid_job_requires_explicit_consent(self):
         jobs = DocumentJobs(self.root, adapter_factory=self.make_adapter_factory(FakeTranslationAdapter()))
         with self.assertRaises(DocumentDraftError):
-            jobs.start(self.path, {"model": "configured", "model_config": MOCK_MODEL_CONFIG}, paid_confirm=False)
+            jobs.start(self.path, {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG}, paid_confirm=False)
 
     # --- budget/cache wiring (Session G: review/QA calls now share the
     # document's persistent budget and cache, not a separate free path) ----
@@ -352,7 +352,7 @@ class DocumentDraftTests(unittest.TestCase):
         translator, reviewer, chapter_qa = FakeTranslationAdapter(), FakeReviewAdapter(), FakeChapterQAAdapter()
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         _, job = self.run_job(
-            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
+            {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
             adapter_factory=factory,
         )
         self.assertEqual(job["status"], "completed")
@@ -365,7 +365,7 @@ class DocumentDraftTests(unittest.TestCase):
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         jobs = DocumentJobs(self.root, adapter_factory=factory)
         started = jobs.start(
-            chaptered, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
+            chaptered, {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
             paid_confirm=True,
         )
         deadline = time.monotonic() + 10
@@ -431,7 +431,7 @@ class DocumentDraftTests(unittest.TestCase):
         translator = FakeBatchTranslationAdapter()
         factory = self.make_adapter_factory(translator=translator)
         _, job = self.run_job(
-            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": True},
+            {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": True},
             adapter_factory=factory,
         )
         self.assertEqual(job["status"], "completed")
@@ -449,7 +449,7 @@ class DocumentDraftTests(unittest.TestCase):
         translator = FakeTranslationAdapter()
         factory = self.make_adapter_factory(translator=translator)
         _, job = self.run_job(
-            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": False},
+            {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": False},
             adapter_factory=factory,
         )
         self.assertEqual(job["status"], "completed")
@@ -518,7 +518,7 @@ class ChapterQAPersistentStateTests(unittest.TestCase):
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         jobs = DocumentJobs(self.root, adapter_factory=factory)
         started = jobs.start(
-            chaptered, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": quality},
+            chaptered, {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": quality},
             paid_confirm=True,
         )
         deadline = time.monotonic() + 10
@@ -615,7 +615,7 @@ class ChapterQAPersistentStateTests(unittest.TestCase):
         factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
         jobs = DocumentJobs(self.root, adapter_factory=factory)
         started = jobs.start(
-            chaptered, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "checked"},
+            chaptered, {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "checked"},
             paid_confirm=True,
         )
         deadline = time.monotonic() + 10

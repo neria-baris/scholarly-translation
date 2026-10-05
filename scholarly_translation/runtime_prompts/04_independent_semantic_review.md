@@ -22,7 +22,11 @@ Check for:
 - loss of meaningful ambiguity;
 - errors in names, citations, numbers, formulas, or quotations.
 
-Do not flag harmless Hebrew stylistic variation.
+For literary text, also treat as fidelity issues (not as style preferences):
+- humor, irony or wordplay whose effect is lost, flattened, or replaced by a literal rendering that no longer works in Hebrew;
+- breaks in a speaker's voice or register, or in narrative voice, that the source does not have.
+
+Do not flag harmless Hebrew stylistic variation, and do not nitpick style.
 
 Classify each real issue as:
 - CRITICAL — changes the claim, event, speaker, or argument materially;

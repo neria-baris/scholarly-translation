@@ -120,7 +120,7 @@ class Automation3HTTPTests(unittest.TestCase):
         cb = model_settings.build_configuration({"translator": b})
         self.assertNotEqual(ca.models["translator"].provider, cb.models["translator"].provider)
         self.post("/model-keys", {"keys": {ca.models["translator"].provider: "key-for-first"}})
-        settings = {"model": "configured", "quality": "fast", "role_selections": {"translator": b}}
+        settings = {"model": "configured", "budget_usd": 2.0, "quality": "fast", "role_selections": {"translator": b}}
         resolved = self.post("/document-models", {"settings": settings})
         self.assertFalse(resolved["required_providers"][0]["key_available"])
         self.assertEqual(self.calls, [])
@@ -129,14 +129,14 @@ class Automation3HTTPTests(unittest.TestCase):
         self.post("/model-keys", {"keys": {"openai": "key-only-for-native"}})
         config = model_settings.build_configuration({"translator": {"source": "catalog", "provider": "openai", "model": "gpt-6-luna"}}).to_dict()
         config["providers"]["openai"]["base_url"] = "https://different.example/v1"
-        result = self.post("/document-models", {"settings": {"model": "configured", "quality": "fast", "model_config": config}})
+        result = self.post("/document-models", {"settings": {"model": "configured", "budget_usd": 2.0, "quality": "fast", "model_config": config}})
         self.assertFalse(result["required_providers"][0]["key_available"])
 
     def test_unknown_config_field_errors_do_not_echo_submitted_secret(self):
         secret = "private-field-must-not-echo"
         selected = {"source": "catalog", "provider": "openai", "model": "gpt-6-luna", secret: "x"}
         with self.assertRaises(HTTPError) as caught:
-            self.post("/document-models", {"settings": {"model": "configured", "role_selections": {"translator": selected}}})
+            self.post("/document-models", {"settings": {"model": "configured", "budget_usd": 2.0, "role_selections": {"translator": selected}}})
         self.assertNotIn(secret.encode(), caught.exception.read())
 
     # ---- no secret ever leaks ----
@@ -167,7 +167,7 @@ class Automation3HTTPTests(unittest.TestCase):
             **settings_luna,
             "role_selections": {
                 "translator": {"source": "other", "provider_type": "openai", "model": "some-future-model",
-                               "context_window": 8000, "max_output_tokens": 500},
+                               "context_window": 10000, "max_output_tokens": 500},
                 "semantic_reviewer": {"source": "catalog", "provider": "openai", "model": "gpt-6-luna"},
             },
         }

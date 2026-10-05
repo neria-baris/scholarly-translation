@@ -123,7 +123,7 @@ class LongDocsIntegrationTests(unittest.TestCase):
         jobs = dd.DocumentJobs(self.folder)
         for quality in ("fast", "checked", "thorough"):
             start = time.time()
-            preview = jobs.preview(self.book, {"model": "configured", "model_config": config_dict(),
+            preview = jobs.preview(self.book, {"model": "configured", "budget_usd": 2.0, "model_config": config_dict(),
                                                "quality": quality, "profile": "literary"})
             elapsed = time.time() - start
             print("preview %s seconds: %.1f" % (quality, elapsed))
@@ -132,7 +132,7 @@ class LongDocsIntegrationTests(unittest.TestCase):
 
     def test_small_output_translator_narrows_units_instead_of_failing(self):
         jobs = dd.DocumentJobs(self.folder)
-        preview = jobs.preview(self.book, {"model": "configured", "model_config": config_dict(8192),
+        preview = jobs.preview(self.book, {"model": "configured", "budget_usd": 2.0, "model_config": config_dict(8192),
                                            "quality": "fast", "profile": "literary"})
         self.assertGreaterEqual(preview["chapter_count"], 50)
         self.assertGreater(preview["expected_total_cost_usd"], 0)

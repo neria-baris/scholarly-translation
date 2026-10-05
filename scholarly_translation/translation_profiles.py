@@ -18,12 +18,12 @@ MAX_LOCAL_STATE_CHARS = 2000
 MAX_SOURCE_CONTEXT_CHARS = 4000
 
 PROMPT_VERSIONS = {
-    "scholarly": "scholarly-prompts-v2@1",
-    "literary": "literary-prompts-v2@1",
+    "scholarly": "scholarly-prompts-v2@2",
+    "literary": "literary-prompts-v2@2",
 }
 CONFIG_VERSIONS = dict(PROMPT_VERSIONS)
 
-_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@1):
+_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@2):
 You are translating scholarly prose into Hebrew. Produce faithful, readable
 academic Hebrew while preserving the author's exact claims, distinctions,
 qualifications, ambiguity, and argumentative structure. Fidelity outranks
@@ -52,7 +52,7 @@ and context does not resolve it, choose the best-supported reading and
 report the uncertainty briefly; never turn a guess into an established
 fact."""
 
-_LITERARY_STYLE_PROFILE = """STYLE_PROFILE (literary, literary-prompts-v2@1):
+_LITERARY_STYLE_PROFILE = """STYLE_PROFILE (literary, literary-prompts-v2@2):
 You are translating literary prose into Hebrew. Produce faithful literary
 Hebrew that preserves meaning, voice, characterization, register, rhythm,
 ambiguity, viewpoint, dialogue behavior, and deliberate stylistic choices.
@@ -77,6 +77,23 @@ preserves the literary effect; otherwise preserve the foreignness or
 ambiguity rather than inventing an explanation. For Japanese and other
 languages with omitted subjects, use broader context to infer only what the
 source supports.
+
+Literary craft guidance. Humor and irony must land in Hebrew: keep
+understatement, deadpan and comic timing rather than explaining the joke.
+For puns and wordplay, recreate the effect in Hebrew in preference to a
+literal rendering; keep the foreignness only when the effect cannot be
+recreated, and report the strategy chosen briefly in translation_note.
+For quotations and allusions, use an established Hebrew translation only if
+you are certain of it; otherwise translate the passage and note that it is
+your own rendering. Decide Hebrew grammatical gender and number deliberately
+for "you" (singular/plural, masculine/feminine) and for characters, and keep
+forms of address and register consistent for each relationship. Follow Hebrew
+dialogue punctuation conventions consistently. Avoid translationese and
+calques: write what a Hebrew author would write, without drifting from the
+source. When a BOOK_NOTEBOOK section is present, it records earlier
+decisions about this book (names, renderings, voice, forms of address,
+wordplay strategies); follow it unless the source clearly contradicts it,
+and if you depart from it, say so in translation_note.
 
 When two materially different readings remain plausible, choose the
 best-supported one and report the uncertainty briefly; do not silently

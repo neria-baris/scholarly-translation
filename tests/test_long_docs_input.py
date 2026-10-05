@@ -245,11 +245,10 @@ class LongBookTests(unittest.TestCase):
 
 class LimitTests(unittest.TestCase):
     def test_constants_and_budget(self):
-        self.assertEqual((dd.MAX_SOURCE_CHARS, dd.MAX_PAGES, dd.MAX_BUDGET_USD), (3_000_000, 2_000, 30))
+        self.assertEqual((dd.MAX_SOURCE_CHARS, dd.MAX_PAGES, dd.MAX_BUDGET_USD), (3_000_000, 2_000, None))
+        # No code-level ceiling any more (LIT-NOTEBOOK): any positive finite budget is valid.
         self.assertEqual(dd.validate_settings({"budget_usd": 30})["budget_usd"], 30.0)
-        with self.assertRaises(dd.DocumentDraftError) as ctx:
-            dd.validate_settings({"budget_usd": 31})
-        self.assertIn("$30", str(ctx.exception))
+        self.assertEqual(dd.validate_settings({"budget_usd": 31})["budget_usd"], 31.0)
 
 
 if __name__ == "__main__":

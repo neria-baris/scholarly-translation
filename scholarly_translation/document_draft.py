@@ -77,7 +77,10 @@ REVIEW_MAX_PROMPT_BYTES = 700_000
 MAX_FILE_BYTES = 25 * 1024 * 1024
 MAX_SOURCE_CHARS = 3_000_000
 MAX_PAGES = 2_000
-MAX_BUDGET_USD = 30
+# No code-level budget ceiling (user decision): the user's own per-document limit
+# is the cap. A positive finite budget is mandatory for paid (configured) runs.
+MAX_BUDGET_USD = None
+BUDGET_REQUIRED_MESSAGE = "יש להגדיר תקציב מרבי למסמך (מספר חיובי) לפני תרגום בתשלום."
 MIN_CHAPTER_CHARS = 1500
 LANGUAGES = {"auto", "en", "fr", "ja"}
 QUALITY_MODES = {"fast", "checked", "thorough"}
@@ -335,7 +338,7 @@ def validate_settings(settings):
     profile = settings.get("profile", "scholarly")
     quality = settings.get("quality", "fast")
     language = settings.get("language", "auto")
-    budget = settings.get("budget_usd", 2.0)
+    budget = settings.get("budget_usd")
     model_choice = settings.get("model", "auto")
     model_config_data = settings.get("model_config")
     # Opt-in (default False): preserves every existing saved/library job's
@@ -356,8 +359,18 @@ def validate_settings(settings):
         raise DocumentDraftError("בחרו רמת בדיקה נתמכת.")
     if language not in LANGUAGES:
         raise DocumentDraftError("הגדרות תרגום לא תקינות.")
-    if type(budget) not in (int, float) or isinstance(budget, bool) or not math.isfinite(budget) or not 0.01 <= budget <= MAX_BUDGET_USD:
-        raise DocumentDraftError(f"תקציב המסמך חייב להיות בין $0.01 ל־${MAX_BUDGET_USD}.")
+    budget_valid = (type(budget) in (int, float) and not isinstance(budget, bool)
+                    and math.isfinite(budget) and budget > 0)
+    if model_choice == "configured":
+        # Paid runs and previews: an explicit positive finite budget is mandatory.
+        if not budget_valid:
+            raise DocumentDraftError(BUDGET_REQUIRED_MESSAGE)
+    elif budget is None:
+        # Auto/mock mode makes no paid calls, so it needs no user budget; the
+        # internal value is inert and never enforced against real spend.
+        budget = 2.0
+    elif not budget_valid:
+        raise DocumentDraftError(BUDGET_REQUIRED_MESSAGE)
     if model_choice not in MODEL_CHOICES:
         raise DocumentDraftError("בחרו מודל נתמך.")
     if model_choice == "configured":

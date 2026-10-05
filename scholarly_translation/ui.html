@@ -26,7 +26,7 @@
 <div class="field"><label for="quality">רמת בדיקה</label><select id="quality"><option value="fast">מהיר — ללא בדיקה נוספת</option><option value="checked">נבדק — בדיקת מקטעים מסוכנים + בדיקת פרקים</option><option value="thorough">מעמיק — בדיקת כל מקטע + בדיקת פרקים</option></select><small id="quality-help">מהיר אינו שולח קריאות בדיקה נוספות; נבדק ומעמיק דורשים מודל מוגדר.</small></div>
 <div class="field"><label for="model">מודל</label><select id="model"><option value="auto">Auto — תצוגת ניסיון (מדומה), ללא עלות וללא תרגום אמיתי</option><option value="configured">מודל משלי (מפתח API)</option></select><small id="model-help">Auto אינו מבצע תרגום אמיתי ואינו מצריך מפתח API.</small></div>
 <div class="field"><label for="language">שפת המקור</label><select id="language"><option value="auto">זיהוי אוטומטי</option><option value="en">אנגלית</option><option value="fr">צרפתית</option><option value="ja">יפנית</option></select></div>
-<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" value="2" min="0.01" max="30" step="0.01" inputmode="decimal" dir="ltr"><small>מגבלת אומדן מחירון. רלוונטי רק למודל משלי.</small></div>
+<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" required min="0.01" step="0.01" placeholder="לדוגמה 5" inputmode="decimal" dir="ltr"><small>חובה במודל משלי: אין תקרה מובנית; המגבלה שלכם נאכפת כעצירה קשיחה.</small></div>
 <div class="field"><label for="font-before">גופן PDF (לפני תרגום)</label><select id="font-before"></select><small>רלוונטי לקובצי PDF בלבד; EPUB שומר את העיצוב המקורי שלו.</small></div>
 </div>
 <div id="model-settings" class="model-settings" hidden>

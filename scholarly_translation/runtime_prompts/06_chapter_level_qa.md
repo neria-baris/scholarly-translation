@@ -37,6 +37,16 @@ For literary text:
 - viewpoint errors;
 - recurring motifs translated inconsistently.
 
+## Book notebook (when BOOK_NOTEBOOK is not "(none)")
+BOOK_NOTEBOOK holds earlier decisions for this book (names and renderings, voice, forms of address, running jokes, wordplay strategies). It is a reference; SOURCE_CHAPTER stays authoritative.
+- Check the chapter follows the relevant entries; flag an entry the chapter contradicts (cite its title) unless the source requires the departure.
+- Report only relevant entries, not every unused one.
+
+## Literary effect (literary text only)
+- humor, irony, wordplay and allusions that do not land in Hebrew;
+- translationese/calques; inconsistent Hebrew dialogue punctuation; voice inconsistency.
+Report only real problems; no stylistic rewrite.
+
 ## Hebrew quality
 Flag genuinely awkward or unclear Hebrew when it impairs readability or meaning, but do not turn this into a general stylistic rewrite.
 
@@ -69,6 +79,9 @@ PROFILE:
 
 GLOSSARY_AND_APPROVED_DECISIONS:
 {{glossary_and_decisions}}
+
+BOOK_NOTEBOOK:
+{{book_notebook}}
 
 Output:
 
