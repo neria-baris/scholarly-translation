@@ -399,3 +399,33 @@ Implementations `3b4cdaa` (BOOK-REFERENCE-2) and `0445bde` (GOLD-THEME) passed 6
 - Behaviour: new automation jobs keep `book_notebook` (keeper call after each chapter in all modes; relevant excerpt + previous-passage bridge in translation; notebook in chapter QA; literary risk triggers; downloadable Markdown and summaries in results). Legacy jobs stay on document_state. Nothing waits for a human.
 - Acceptance: LIT-NOTEBOOK-BUILD; 760 offline tests OK 290.3 s. Cost: LIT-NOTEBOOK-COST. External API calls 0; builder usage not_metered.
 - Limits: no quality claim (Gate10 still needs real judgments); unknown-outcome keeper dispatch blocks further calls like any step; keeper model follows chapter_qa unless context_state_builder configured.
+
+## 2026-10-06T00:07:04.3531617+03:00 | LEARN-PROMPTS | PASS documentation package
+
+- User scope: separate learning window, library translation-copy bridge, direct Hebrew EPUB upload, common vocabulary/grammar, deterministic learner/language continuity committed by explicit "קראתי", one Luna role and no linguistic critic. User authorizes >2 agents for this work; package permits three disjoint builders after frozen bootstrap, sequential A -> B -> C integration and later UI D.
+- Contract: audit/contracts/language_learning_prompt_package.md. Artifacts: LANGUAGE_LEARNING_PROMPTS_HE.md and seven prompts/language_learning/*.md files (conductor, shared contract, A/B/C/D, runtime generation).
+- Acceptance: LEARN-PROMPTS-CHECK passed nine UTF-8 document checks, seven local Markdown links, runtime JSON example parsing, continuity/error handoff requirements and three pairwise-disjoint parallel write sets. Manual review: source copy/EPUB paths, exactly-once completion, within-book replan, projected vs committed state, no automatic mastery/level promotion, single-model recap, ownership and merge boundaries.
+- Limits: documentation acceptance only; no learning code implemented, workers dispatched or runtime/provider calls. English pilot is an explicit replaceable assumption; curated common seed is not verified frequency ranking. No linguistic/pedagogical quality claim; existing Gate10 remains blocked. No product tests rerun for documentation-only changes.
+- Git: inspected clean main at 3c698126f24ca037f7c24a2d99e120e19ec620e2; fresh origin fetch confirmed zero ahead/behind. This reconciles the earlier checkpoint's pending prior push description; prior implementation test evidence remains historical, not rerun. Explicit-path reviewed documentation/audit commit and permitted push follow; separate receipt will record hash/status.
+- Calls/cost: Sol internal not_metered; Sonnet/Opus/Astra/builders 0; paid runtime/provider calls 0. No imported book, source text, key, output or unrelated worktree added.
+- Next: user may execute 00_conductor.md; creating prompts did not start product implementation.
+## 2026-10-06T00:07:32+03:00 | LEARN-PROMPTS | Git closure stopped; documents ready
+
+Supersedes only the planned Git closure in the preceding documentation card.
+The initial tree was clean, but final inspection detected unexpected concurrent
+modifications in scholarly_translation/chapter_pipeline.py,
+scholarly_translation/work_journal.py, tests/test_chapter_pipeline.py and
+tests/test_pipeline_recovery_contract.py. This task did not edit those files.
+Per AGENTS.md stop-on-unexpected-changes, no staging, commit or push was performed.
+Document checks remain passed; full gate acceptance/clean Git closure is deferred.
+Prompt files are saved and delivered; product execution/worker dispatch did not start.
+No product test or quality claim is attached to the concurrent changes.
+
+## 2026-10-06T00:17:51.2437685+03:00 | LEARN-PROMPTS + WORDLISTS | verified delivery; Git reconciliation
+
+- User selected fr/de/es/yi/it. Added 500 unique lexical surface forms per language (2500), five readable Markdown lists, one provenance-bearing JSON, attribution README and standard-library-only offline reproduction helper under prompts/language_learning/wordlists/. No Hebrew glosses/lemma senses/grammar catalog claimed; frequency is a candidate-selection proxy, not universal usefulness or CEFR. First proposed working slice changed from English to French; runtime support remains unimplemented.
+- Sources: Hermit Dave FrequencyWords/OpenSubtitles2018 pinned commit 525f9b560de45753a5ea01069454e72e9aa541c6 (fr/de/es/it), Wiktionary Yiddish Newspaper top 600 oldid 71268025 (yi; 2006-2008 newspapers). CC-BY-SA-4.0 attribution/source/history/license and change notices included; raw snapshots stay ignored under outputs/. Letter/mark-safe NFC filtering and casefold dedup; surface inflections/function words retained; corpus bias/names/slang limitations documented.
+- LEARN-WORDLISTS-CHECK: 5 x 500 unique forms, ranks 1..500, descending counts, original source ranks and hashes, 15 UTF-8 documents and 15 local links, Unicode Yiddish marks, and byte-identical offline regeneration all passed. No product tests or linguistic critic; no runtime/model calls or workers dispatched.
+- Git-stop reconciliation: concurrent owner committed the four unrelated code/test paths plus checkpoint as b56df6b (untranslatable-unit fix). This task did not edit those paths. Fresh fetch succeeded; only this task's documentation/data/audit changes remain. Safe explicit-path documentation closure resumes; preserved prior fix and its checkpoint next action. Earlier stop receipt remains history.
+- Network fetch needed sandbox escalation and was approved. One download succeeded with only a console Unicode-print error; local inspection corrected output encoding without re-fetching or changing data. Paid/model cost 0 observable external provider calls; Sol internal usage not_metered.
+- Next: reviewed documentation/data/audit commit and authorized normal push, then separate receipt. Product execution starts only on user instruction.
