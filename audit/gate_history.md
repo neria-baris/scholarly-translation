@@ -303,3 +303,12 @@ A merge a35d3ab normally pushed and fetched; main/origin equality 0 0 and clean 
 ## SESSION-G | 2026-10-05T04:55:00Z | verified push receipt
 
 Commit `55ae999c9c65a8954dd388879d6ca6a4e26db22c` records the Session-G integration set (22 paths) on `main`, built on `15426ec` (verified `origin/main` immediately before commit, no divergence). Pushed as a normal fast-forward; post-push fetch confirms `main == origin/main == 55ae999`. Working tree clean except two items intentionally left untouched and unstaged: `.claude/` (harness-managed) and `AUTOMATION_WORK_PLAN_HE.md` (a different, not-yet-owned future-phase plan that explicitly defers to this session; not authored or claimed by this session).
+
+## 2026-10-05T05:39:57.642018+00:00 | AUTOMATION-1 | PASS (supersedes initial FIX)
+
+- Contract: `audit/contracts/automation_1.md`; plan authorized plus model/key/cost addendum.
+- Built: model catalogue/custom assumptions, offline tiktoken sizing, model-aware runtime costs, independent translation/QA fit, per-call caps, usage/truncation/credential-injection boundary.
+- Verification:580 tests,33.590s, no paid runtime calls; complete diff/privacy/whitespace review. `AUTO1-SOL-VERIFY`; `AUTO-1-C1`/`AUTO-1fix-C1`.
+- Cost:two observable Sonnet CLI invocations/list$4.8100636, actual subscription billing unknown; conductor not_metered; Opus0/Astra0.
+- Git:main from e333fd3; intended verified origin, normal commit/push pending receipt.
+- Limits: software acceptance only. UI/automation slices remain; real expert Gate10 pilot blocked. Next:commit/push receipt, then AUTOMATION-2.

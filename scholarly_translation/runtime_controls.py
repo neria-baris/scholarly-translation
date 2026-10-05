@@ -92,15 +92,17 @@ def validate_store_path(path, protected_paths=()):
     return resolved
 
 
-def _raw_result(result, provider, status):
-    from .model_adapter import compute_estimate
+def _raw_result(result, provider, status, model=None, custom_rates=None):
+    from .model_adapter import estimate_model_cost
     fields = {"status", "text", "token_usage", "observed_model", "error"}
     if (not isinstance(result, dict) or set(result) != fields or result["status"] != status
             or status not in COMPLETED_STATUSES or not isinstance(result["text"], str) or not result["text"].strip()
             or result["error"] is not None
             or not (result["observed_model"] is None or _identifier(result["observed_model"]))):
         raise StoreCorruptionError("invalid cached raw-result schema")
-    if provider != "mock" and (status != "completed" or compute_estimate(result["token_usage"]) == "not_metered"):
+    if provider != "mock" and (status != "completed"
+                               or estimate_model_cost(provider, model, result["token_usage"],
+                                                      custom_rates=custom_rates) == "not_metered"):
         raise StoreCorruptionError("unmetered or unsupported live result cannot be cached")
     if _usage(result["token_usage"]) != result["token_usage"]:
         raise StoreCorruptionError("invalid cached usage")
@@ -199,7 +201,7 @@ class ControlStore:
     def _valid_policy(max_calls, hard_list_usd, pricing_version, output_cap):
         return (type(max_calls) is int and 1 <= max_calls <= 100000
                 and type(hard_list_usd) in (int, float) and math.isfinite(hard_list_usd) and 1e-9 <= hard_list_usd <= 1_000_000
-                and _identifier(pricing_version) and type(output_cap) is int and 1 <= output_cap <= 100000)
+                and _identifier(pricing_version) and type(output_cap) is int and 1 <= output_cap <= 128000)
 
     def _task(self, task_id):
         row = self._conn.execute("SELECT * FROM tasks WHERE task_id=?", (task_id,)).fetchone()
@@ -331,13 +333,13 @@ class ControlStore:
                      "model": row["model"], "status": row["status"], "result": result, "source_event_id": row["created_event_id"]}
             if fingerprint(bound) != row["result_hash"] or (expected is not None and tuple(row[k] for k in ("stage", "provider", "model")) != expected):
                 raise StoreCorruptionError("cached identity or checksum mismatch")
-            _raw_result(result, row["provider"], row["status"])
+            _raw_result(result, row["provider"], row["status"], model=row["model"])
         except (ValueError, TypeError, KeyError):
             raise StoreCorruptionError("invalid cached result") from None
         return {"result": result, "status": row["status"], "source_event_id": row["created_event_id"]}
 
     def _cache_write(self, cache_key, *, stage, provider, model, status, result, event_id=None):
-        _raw_result(result, provider, status)
+        _raw_result(result, provider, status, model=model)
         bound = dict(cache_key=cache_key, stage=stage, provider=provider, model=model, status=status, result=result, source_event_id=event_id)
         self._conn.execute("INSERT INTO cache VALUES(?,?,?,?,?,?,?,?,?)",
                            (cache_key, stage, provider, model, status, json.dumps(result, allow_nan=False),
@@ -368,33 +370,56 @@ class ControlStore:
 
 class PersistentBudget:
     def __init__(self, store, task_id, *, max_calls, hard_list_usd, stage, provider, model,
-                 document_id=None, unit_id=None, pricing_version=None, output_cap=None, max_prompt_bytes=None):
+                 document_id=None, unit_id=None, pricing_version=None, output_cap=None, max_prompt_bytes=None,
+                 call_output_cap=None, custom_rates=None, pricing_provider=None):
         from .model_adapter import PRICING_VERSION, OPENAI_MAX_OUTPUT_TOKENS
         self.store, self.task_id, self.stage, self.provider, self.model = store, task_id, stage, provider, model
+        self.pricing_provider = pricing_provider or provider
         self.max_calls, self.hard_list_usd = max_calls, hard_list_usd
         self.document_id, self.unit_id = document_id, unit_id
         self.pricing_version = PRICING_VERSION if pricing_version is None else pricing_version
         self.output_cap = OPENAI_MAX_OUTPUT_TOKENS if output_cap is None else output_cap
-        # The task's output_cap is a worst-case bound used for every call under
-        # this task_id (get_or_create_task fixes it per task), not a single
-        # global constant: a document task may share one bound across several
-        # configured roles/models (e.g. translator vs. chapter_qa) as long as
-        # every PersistentBudget sharing that task_id agrees on the same value.
-        if self.pricing_version != PRICING_VERSION or type(self.output_cap) is not int or not 1 <= self.output_cap <= 100000:
+        # The task's output_cap is a shared POLICY CEILING used to fingerprint
+        # every call under this task_id (get_or_create_task fixes it per
+        # task), not necessarily the exact per-call output bound: a document
+        # task may share one ceiling across several configured roles/models
+        # (e.g. translator vs. chapter_qa) while an individual role's own
+        # resolved max_output_tokens (`call_output_cap`, never above this
+        # ceiling) prices and reserves that specific call.
+        if self.pricing_version != PRICING_VERSION or type(self.output_cap) is not int or not 1 <= self.output_cap <= 128000:
             raise RuntimeControlsError("unsupported pricing or output-cap configuration")
+        if call_output_cap is None:
+            call_output_cap = self.output_cap
+        if type(call_output_cap) is not int or not 1 <= call_output_cap <= self.output_cap:
+            raise RuntimeControlsError("call_output_cap must be a positive integer not exceeding the task output_cap")
+        self.call_output_cap = call_output_cap
+        self.custom_rates = custom_rates
         self.max_prompt_bytes = max_prompt_bytes
         self.policy_hash = store.get_or_create_task(task_id, max_calls, hard_list_usd, self.pricing_version, self.output_cap)
         self._pending_event = None
 
     def amount(self, prompt_text):
-        from .model_adapter import RATES_PER_MILLION
-        from .translation import MAX_PROMPT_BYTES, TranslationBudgetError
-        limit = MAX_PROMPT_BYTES if self.max_prompt_bytes is None else self.max_prompt_bytes
+        from .model_adapter import estimate_model_cost
+        from .translation import TranslationBudgetError
+        from .token_counting import count_tokens
+        from .model_catalog import estimate_cost
+        limit = 2_000_000 if self.max_prompt_bytes is None else self.max_prompt_bytes
         if not isinstance(prompt_text, str) or len(prompt_text.encode("utf-8")) > limit:
             raise TranslationBudgetError("oversized or invalid controlled prompt")
         if self.provider == "mock":
             return 0.0
-        return ((2 * len(prompt_text.encode("utf-8")) + 1024) * RATES_PER_MILLION["input"] + self.output_cap * RATES_PER_MILLION["output"]) / 1_000_000
+        input_bound = count_tokens(prompt_text, self.model)['upper_bound'] + 1024
+        quote = estimate_cost(
+            self.pricing_provider, self.model, {"input": input_bound, "output": self.call_output_cap},
+            custom_rates=self.custom_rates,
+        )
+        if quote is None:
+            raise TranslationBudgetError("no pricing is available for this model/provider")
+        # A future explicit prefix may be written, not read. Reserve the most
+        # expensive supported write tariff; never presume a cache hit.
+        rates = quote['rates_per_million']
+        return (input_bound * max(rates['input'], rates['cache_write'], rates['cache_write_1h'])
+                + self.call_output_cap * rates['output']) / 1_000_000
 
     def reserve(self, prompt_text):
         from .translation import TranslationBudgetError
@@ -413,8 +438,9 @@ class PersistentBudget:
         self._pending_event = None
 
     def record(self, token_usage):
-        from .model_adapter import compute_estimate
-        notices = self.store.settle(self._pending_event, token_usage=token_usage, estimate=compute_estimate(token_usage))
+        from .model_adapter import estimate_model_cost
+        estimate = estimate_model_cost(self.pricing_provider, self.model, token_usage, custom_rates=self.custom_rates)
+        notices = self.store.settle(self._pending_event, token_usage=token_usage, estimate=estimate)
         self._pending_event = None
         return notices
 
@@ -437,18 +463,23 @@ class RuntimeCache:
         self._store.cache_store(cache_key, stage=self.stage, provider=self.provider, model=self.model, status=result.status, result=raw)
 
     def execute(self, identity, prompt_text, model, call, *, stage, metadata, budget=None):
-        from .model_adapter import TextGenerationResult, OpenAIConfigurationError, compute_estimate
+        from .model_adapter import TextGenerationResult, OpenAIConfigurationError, estimate_model_cost
+        from .model_catalog import CATALOG_VERSION
         from .translation import TranslationBudgetError
         if budget is None:
             budget = PersistentBudget(self._store, metadata["document_id"], max_calls=3, hard_list_usd=0.01,
                                       stage=stage, provider=self.provider, model=model)
         if not isinstance(budget, PersistentBudget) or budget.store is not self._store or budget.provider != self.provider:
             raise RuntimeControlsError("cache and persistent budget must share one store/provider")
-        # The actual configured output_cap for this budget/task, never a
-        # blind global constant -- two calls that differ only in their
-        # resolved role's output cap must not collide on the same cache key.
+        # The actual configured per-call output cap and rate identity for
+        # this budget/task, never a blind global constant -- two calls that
+        # differ only in their resolved role's output cap or custom pricing
+        # must not collide on the same cache key.
         key = fingerprint(dict(identity=identity, prompt_hash=fingerprint(prompt_text), stage=stage,
-                               provider=self.provider, model=model, gateway_version=1, output_cap=budget.output_cap))
+                               provider=self.provider, model=model, gateway_version=2,
+                               output_cap=budget.call_output_cap, custom_rates=budget.custom_rates,
+                               pricing_provider=budget.pricing_provider,
+                               catalog_version=CATALOG_VERSION))
         # Only explicit identities/hashes enter usage events.
         meta = {k: metadata.get(k) for k in ("document_id", "unit_id", "source_text_hash", "pdf_hash", "policy_fingerprint", "profile_id", "provider_type")}
         meta.update(requested_provider=self.provider, requested_model=model, prompt_hash=fingerprint(prompt_text),
@@ -499,12 +530,15 @@ class RuntimeCache:
             if not _identifier(result.status) or not (result.observed_model is None or _identifier(result.observed_model)):
                 raise ValueError()
             provider_type = metadata.get("provider_type", self.provider)
+            # Any non-mock provider/model gets a model-aware estimate (a
+            # known catalogue rate, an explicit custom rate, or the labelled
+            # conservative unknown-model assumption) -- never "not_metered"
+            # solely because the provider type is not openai.
             estimate = (0.0 if provider_type == "mock" else
-                        compute_estimate(result.token_usage) if provider_type == "openai" else
-                        "not_metered")
+                        estimate_model_cost(provider_type, model, result.token_usage, custom_rates=budget.custom_rates))
             cache_entry = None
             if result.status in COMPLETED_STATUSES and estimate != "not_metered":
-                _raw_result(raw, self.provider, result.status)
+                _raw_result(raw, self.provider, result.status, model=model, custom_rates=budget.custom_rates)
                 cache_entry = dict(cache_key=key, stage=stage, provider=self.provider, model=model, status=result.status, result=raw)
         except (AttributeError, TypeError, ValueError):
             self._store.settle(event, token_usage="not_metered", estimate="not_metered", outcome="invalid_result")

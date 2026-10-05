@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
+from . import model_catalog
 from .model_config import ModelConfigError, ProviderDefinition
 
 SUPPORTED_PROVIDERS = {"mock", "openai"}
@@ -42,6 +43,24 @@ RATES_PER_MILLION = {
 OPENAI_MAX_OUTPUT_TOKENS = 256
 OPENAI_TIMEOUT_SECONDS = 20.0
 OPENAI_MAX_RETRIES = 0
+
+# Gate-7+ text-generation calls (translation/review/QA) are not the bounded
+# Gate-6 diagnostic probe: they default to a longer configurable timeout.
+# OPENAI_TIMEOUT_SECONDS/OPENAI_MAX_OUTPUT_TOKENS above remain the diagnostic
+# probe's own fixed 256/20s behavior and are never changed by this default.
+TEXT_GENERATION_TIMEOUT_SECONDS = 180.0
+
+
+def estimate_model_cost(provider, model, token_usage, custom_rates=None):
+    """Model-aware list-price estimate, or "not_metered" if usage is missing/invalid.
+
+    Drop-in replacement for the legacy, Luna-rate-only `compute_estimate` for
+    any provider/model: resolves `model_catalog.py`'s dated rates for a known
+    model, an explicit `custom_rates` override, or its labelled conservative
+    unknown-model assumption -- never silently reusing another model's rate.
+    """
+    result = model_catalog.estimate_cost(provider, model, token_usage, custom_rates=custom_rates)
+    return "not_metered" if result is None else result["cost_usd"]
 
 
 class RequestValidationError(ValueError):
@@ -247,13 +266,19 @@ def _extract_usage(response) -> object:
     result = {"input": input_tokens, "output": output_tokens}
     input_details = getattr(usage, "input_tokens_details", None)
     cached = getattr(input_details, "cached_tokens", None) if input_details is not None else None
+    if cached is not None and (type(cached) is not int or cached < 0):
+        return 'not_metered'
     if type(cached) is int:
         result["cached"] = cached
     cache_write = getattr(input_details, "cache_write_tokens", None) if input_details is not None else None
+    if cache_write is not None and (type(cache_write) is not int or cache_write < 0):
+        return 'not_metered'
     if type(cache_write) is int:
         result["cache_write"] = cache_write
     output_details = getattr(usage, "output_tokens_details", None)
     reasoning = getattr(output_details, "reasoning_tokens", None) if output_details is not None else None
+    if reasoning is not None and (type(reasoning) is not int or reasoning < 0):
+        return 'not_metered'
     if type(reasoning) is int:
         result["reasoning"] = reasoning
     if compute_estimate(result) == "not_metered" or ("reasoning" in result and not 0 <= result["reasoning"] <= output_tokens):
@@ -401,7 +426,7 @@ MOCK_TRANSLATION_PLACEHOLDER_PREFIX = "[GATE7-MOCK-PLACEHOLDER-NON-HEBREW]"
 class TextGenerationResult:
     """Provider-independent result of a single text-generation call."""
 
-    status: str  # "completed" | "mock_placeholder" | "failed_transport" | "failed_empty_response"
+    status: str  # "completed" | "mock_placeholder" | "failed_transport" | "failed_empty_response" | "failed_truncated"
     text: Optional[str]
     token_usage: object
     observed_model: Optional[str]
@@ -441,48 +466,75 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
     environment variable is found; its value is never stored or logged.
     """
 
-    def __init__(self, client=None, provider_definition=None, max_output_tokens=None) -> None:
+    def __init__(self, client=None, provider_definition=None, max_output_tokens=None,
+                 reasoning=None, timeout=None, api_key=None) -> None:
         self._client = client
         self._provider = provider_definition or ProviderDefinition(
             "openai", "openai", "OPENAI_API_KEY", None,
         )
         self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
+        # Per-model reasoning effort (Luna supports only "none"; Sol supports
+        # low/medium/high/xhigh/max). `None` keeps the historical "none"
+        # default; an explicitly unsupported value for the resolved model is
+        # never silently sent to the provider.
+        self._reasoning = reasoning
+        self._timeout = TEXT_GENERATION_TIMEOUT_SECONDS if timeout is None else timeout
+        # Explicit key takes precedence over the provider's env-var lookup;
+        # `os.environ` is only ever read, never mutated.
+        self._api_key = api_key
 
     def _build_client(self):
         import os
 
-        try:
-            api_key = self._provider.require_credential(os.environ)
-        except ModelConfigError as exc:
-            raise OpenAIConfigurationError(str(exc)) from None
+        api_key = self._api_key
+        if api_key is None:
+            try:
+                api_key = self._provider.require_credential(os.environ)
+            except ModelConfigError as exc:
+                raise OpenAIConfigurationError(str(exc)) from None
         try:
             import openai
         except ImportError:
             raise OpenAIConfigurationError(
                 "openai SDK is not installed; install it before calling openai"
             ) from None
-        kwargs = dict(api_key=api_key, max_retries=OPENAI_MAX_RETRIES, timeout=OPENAI_TIMEOUT_SECONDS)
+        kwargs = dict(api_key=api_key, max_retries=OPENAI_MAX_RETRIES, timeout=self._timeout)
         if self._provider.base_url:
             kwargs["base_url"] = self._provider.base_url
         return openai.OpenAI(**kwargs)
 
+    def _reasoning_effort(self, model):
+        if self._reasoning is not None:
+            entry = model_catalog.resolve("openai", model)
+            if entry is not None and self._reasoning not in entry.reasoning_values:
+                raise RequestValidationError(f"model {model!r} does not support reasoning {self._reasoning!r}")
+            return self._reasoning
+        entry = model_catalog.resolve('openai', model)
+        return entry.reasoning_values[0] if entry and entry.reasoning_values else None
+
     def generate(self, prompt_text: str, model: str) -> TextGenerationResult:
         if not isinstance(model, str) or not model.strip():
             raise RequestValidationError("model must be a nonempty configured identifier")
+        # Resolved before the network try/except below: an unsupported
+        # reasoning effort is a local configuration error, never silently
+        # swallowed into a generic "failed_transport" result.
+        reasoning_effort = self._reasoning_effort(model)
         client = self._client
         if client is None:
             client = self._build_client()
 
         start = time.monotonic()
         try:
-            response = client.responses.create(
+            payload = dict(
                 model=model,
                 input=prompt_text,
                 store=False,
                 tools=[],
-                reasoning={"effort": "none"},
                 max_output_tokens=self._max_output_tokens,
             )
+            if reasoning_effort is not None:
+                payload['reasoning'] = {'effort': reasoning_effort}
+            response = client.responses.create(**payload)
         except Exception:
             duration = time.monotonic() - start
             return TextGenerationResult(
@@ -493,11 +545,20 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
             )
         duration = time.monotonic() - start
 
-        text = _extract_output_text(response) if getattr(response, "status", None) == "completed" else None
+        response_status = getattr(response, "status", None)
+        text = _extract_output_text(response)
         usage = _extract_usage(response)
         observed_model = getattr(response, "model", None)
         observed_model = observed_model if isinstance(observed_model, str) else None
-        if not text:
+        incomplete_reason = getattr(getattr(response, "incomplete_details", None), "reason", None)
+        if response_status == "incomplete" and incomplete_reason == "max_output_tokens":
+            return TextGenerationResult(
+                status="failed_truncated", text=text, token_usage=usage,
+                observed_model=observed_model, duration_seconds=duration,
+                error="model response was truncated at max_output_tokens",
+                observed_provider=self._provider.provider_id,
+            )
+        if response_status != "completed" or not text:
             return TextGenerationResult(
                 status="failed_empty_response", text=None, token_usage=usage,
                 observed_model=observed_model, duration_seconds=duration,
@@ -521,37 +582,75 @@ def _anthropic_text(response):
 
 
 def _anthropic_usage(response):
+    """Normalize Anthropic usage: `input` is the uncached-plus-cache total
+    (uncached input_tokens + cache_read + cache_creation), never only the
+    uncached figure, matching this contract's cache-aware accounting.
+    `cache_write`/`cache_write_1h` separate the 5m/1h cache-creation
+    breakdown when the SDK reports it; thinking tokens are already counted
+    once inside `output_tokens` by the API and are never added again.
+    """
     usage = getattr(response, "usage", None)
-    input_tokens = getattr(usage, "input_tokens", None)
+    uncached_input = getattr(usage, "input_tokens", None)
     output_tokens = getattr(usage, "output_tokens", None)
-    if type(input_tokens) is not int or type(output_tokens) is not int or input_tokens < 0 or output_tokens < 0:
+    if type(uncached_input) is not int or type(output_tokens) is not int or uncached_input < 0 or output_tokens < 0:
         return "not_metered"
-    return {"input": input_tokens, "output": output_tokens}
+    cache_read = getattr(usage, "cache_read_input_tokens", None)
+    if cache_read is not None and (type(cache_read) is not int or cache_read < 0):
+        return 'not_metered'
+    cache_read = cache_read if type(cache_read) is int and cache_read >= 0 else 0
+    cache_creation = getattr(usage, "cache_creation_input_tokens", None)
+    if cache_creation is not None and (type(cache_creation) is not int or cache_creation < 0):
+        return 'not_metered'
+    cache_creation = cache_creation if type(cache_creation) is int and cache_creation >= 0 else 0
+    breakdown = getattr(usage, "cache_creation", None)
+    cache_write_1h = getattr(breakdown, "ephemeral_1h_input_tokens", None) if breakdown is not None else None
+    cache_write_5m = getattr(breakdown, "ephemeral_5m_input_tokens", None) if breakdown is not None else None
+    if breakdown is not None and (type(cache_write_1h) is not int or type(cache_write_5m) is not int or
+                                  min(cache_write_1h, cache_write_5m) < 0 or
+                                  cache_write_1h + cache_write_5m != cache_creation):
+        return 'not_metered'
+    if type(cache_write_1h) is int and type(cache_write_5m) is int and cache_write_1h >= 0 and cache_write_5m >= 0:
+        cache_write, cache_write_1h_value = cache_write_5m, cache_write_1h
+    else:
+        cache_write, cache_write_1h_value = cache_creation, 0
+    result = {
+        "input": uncached_input + cache_read + cache_creation,
+        "output": output_tokens, "cached": cache_read,
+        "cache_write": cache_write,
+    }
+    if cache_write_1h_value:
+        result["cache_write_1h"] = cache_write_1h_value
+    return result
 
 
 class AnthropicTextGenerationAdapter(TextGenerationAdapter):
     """Anthropic Messages adapter behind the shared result boundary."""
 
-    def __init__(self, client=None, provider_definition=None, max_output_tokens=None):
+    def __init__(self, client=None, provider_definition=None, max_output_tokens=None,
+                 timeout=None, api_key=None):
         self._client = client
         self._provider = provider_definition or ProviderDefinition(
             "anthropic", "anthropic", "ANTHROPIC_API_KEY", None,
         )
         self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
+        self._timeout = TEXT_GENERATION_TIMEOUT_SECONDS if timeout is None else timeout
+        self._api_key = api_key
 
     def _build_client(self):
         import os
-        try:
-            api_key = self._provider.require_credential(os.environ)
-        except ModelConfigError as exc:
-            raise OpenAIConfigurationError(str(exc)) from None
+        api_key = self._api_key
+        if api_key is None:
+            try:
+                api_key = self._provider.require_credential(os.environ)
+            except ModelConfigError as exc:
+                raise OpenAIConfigurationError(str(exc)) from None
         try:
             import anthropic
         except ImportError:
             raise OpenAIConfigurationError(
                 "anthropic SDK is not installed; install it before calling anthropic"
             ) from None
-        kwargs = {"api_key": api_key, "max_retries": 0, "timeout": OPENAI_TIMEOUT_SECONDS}
+        kwargs = {"api_key": api_key, "max_retries": 0, "timeout": self._timeout}
         if self._provider.base_url:
             kwargs["base_url"] = self._provider.base_url
         return anthropic.Anthropic(**kwargs)
@@ -577,6 +676,16 @@ class AnthropicTextGenerationAdapter(TextGenerationAdapter):
         text, usage = _anthropic_text(response), _anthropic_usage(response)
         observed = getattr(response, "model", None)
         observed = observed if isinstance(observed, str) else None
+        stop_reason = getattr(response, "stop_reason", None)
+        if stop_reason == "max_tokens":
+            return TextGenerationResult("failed_truncated", text, usage, observed, duration,
+                                        "model response was truncated at max_tokens", self._provider.provider_id)
+        if stop_reason not in (None, 'end_turn', 'stop_sequence', 'refusal'):
+            return TextGenerationResult('failed_incomplete', text, usage, observed, duration,
+                                        'model response did not finish a text turn', self._provider.provider_id)
+        if stop_reason == "refusal":
+            return TextGenerationResult("failed_empty_response", None, usage, observed, duration,
+                                        "model refused to respond", self._provider.provider_id)
         if not text:
             return TextGenerationResult("failed_empty_response", None, usage, observed, duration,
                                         "model response was incomplete or empty", self._provider.provider_id)
@@ -592,6 +701,13 @@ def _chat_text(response):
     return text if isinstance(text, str) and text.strip() else None
 
 
+def _chat_finish_reason(response):
+    choices = getattr(response, "choices", None)
+    if not isinstance(choices, (list, tuple)) or not choices:
+        return None
+    return getattr(choices[0], "finish_reason", None)
+
+
 def _chat_usage(response):
     usage = getattr(response, "usage", None)
     input_tokens = getattr(usage, "prompt_tokens", None)
@@ -604,17 +720,22 @@ def _chat_usage(response):
 class OpenAICompatibleTextGenerationAdapter(TextGenerationAdapter):
     """DeepSeek and explicitly configured OpenAI-compatible chat endpoints."""
 
-    def __init__(self, client=None, provider_definition=None, max_output_tokens=None):
+    def __init__(self, client=None, provider_definition=None, max_output_tokens=None,
+                 timeout=None, api_key=None):
         self._client = client
         self._provider = provider_definition
         self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
+        self._timeout = TEXT_GENERATION_TIMEOUT_SECONDS if timeout is None else timeout
+        self._api_key = api_key
 
     def _build_client(self):
         import os
-        try:
-            api_key = self._provider.require_credential(os.environ)
-        except ModelConfigError as exc:
-            raise OpenAIConfigurationError(str(exc)) from None
+        api_key = self._api_key
+        if api_key is None:
+            try:
+                api_key = self._provider.require_credential(os.environ)
+            except ModelConfigError as exc:
+                raise OpenAIConfigurationError(str(exc)) from None
         try:
             import openai
         except ImportError:
@@ -622,7 +743,7 @@ class OpenAICompatibleTextGenerationAdapter(TextGenerationAdapter):
                 "openai SDK is not installed; install it for compatible-provider calls"
             ) from None
         return openai.OpenAI(api_key=api_key, base_url=self._provider.base_url,
-                             max_retries=0, timeout=OPENAI_TIMEOUT_SECONDS)
+                             max_retries=0, timeout=self._timeout)
 
     def generate(self, prompt_text, model):
         if not isinstance(model, str) or not model.strip():
@@ -645,6 +766,12 @@ class OpenAICompatibleTextGenerationAdapter(TextGenerationAdapter):
         text, usage = _chat_text(response), _chat_usage(response)
         observed = getattr(response, "model", None)
         observed = observed if isinstance(observed, str) else None
+        if _chat_finish_reason(response) not in (None, 'stop', 'length'):
+            return TextGenerationResult('failed_incomplete', text, usage, observed, duration,
+                                        'model response did not finish a text turn', self._provider.provider_id)
+        if _chat_finish_reason(response) == "length":
+            return TextGenerationResult("failed_truncated", text, usage, observed, duration,
+                                        "model response was truncated at the length limit", self._provider.provider_id)
         if not text:
             return TextGenerationResult("failed_empty_response", None, usage, observed, duration,
                                         "model response was incomplete or empty", self._provider.provider_id)
@@ -662,8 +789,16 @@ def _default_provider(provider):
 
 
 def build_translation_adapter(provider: str, model: str, client=None,
-                              provider_definition=None, max_output_tokens=None) -> TextGenerationAdapter:
-    """Build exactly the configured adapter; never substitutes a fallback."""
+                              provider_definition=None, max_output_tokens=None,
+                              reasoning=None, timeout=None, api_key=None) -> TextGenerationAdapter:
+    """Build exactly the configured adapter; never substitutes a fallback.
+
+    `api_key` (or a future resolver callable at a higher layer) lets a caller
+    inject credentials explicitly instead of relying on the environment
+    fallback; `os.environ` is still read when `api_key` is omitted, and is
+    never mutated either way. `reasoning`/`timeout` are optional per-model
+    overrides; omitted, each adapter keeps its existing default.
+    """
     if not isinstance(model, str) or not model.strip():
         raise RequestValidationError("model must be a nonempty configured identifier")
     definition = provider_definition or _default_provider(provider)
@@ -674,9 +809,12 @@ def build_translation_adapter(provider: str, model: str, client=None,
     if definition is None or definition.provider_id != provider:
         raise RequestValidationError("provider is not configured; no fallback is available")
     if definition.provider_type == "openai":
-        return OpenAITextGenerationAdapter(client, definition, max_output_tokens)
+        return OpenAITextGenerationAdapter(client, definition, max_output_tokens,
+                                           reasoning=reasoning, timeout=timeout, api_key=api_key)
     if definition.provider_type == "anthropic":
-        return AnthropicTextGenerationAdapter(client, definition, max_output_tokens)
+        return AnthropicTextGenerationAdapter(client, definition, max_output_tokens,
+                                              timeout=timeout, api_key=api_key)
     if definition.provider_type in {"deepseek", "openai_compatible"}:
-        return OpenAICompatibleTextGenerationAdapter(client, definition, max_output_tokens)
+        return OpenAICompatibleTextGenerationAdapter(client, definition, max_output_tokens,
+                                                     timeout=timeout, api_key=api_key)
     raise RequestValidationError("provider type is not supported")

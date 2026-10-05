@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from . import context_strategy, document_state as document_state_module
+from . import context_strategy, document_state as document_state_module, token_counting
 from .formal_checks import run_formal_checks
 from .glossary import GlossaryError, effective_fingerprint, resolve_applicable, validate_glossary
 from .model_adapter import (
@@ -26,6 +26,7 @@ from .model_adapter import (
     OpenAIConfigurationError,
     build_translation_adapter,
     compute_estimate,
+    estimate_model_cost,
 )
 from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
 from .segmentation import validate_structure
@@ -94,7 +95,8 @@ class TranslationBudget:
     multi-unit run to enforce its cumulative cap.
     """
 
-    def __init__(self, max_calls=3, hard_list_usd=0.01):
+    def __init__(self, max_calls=3, hard_list_usd=0.01, provider=None, model=None, custom_rates=None,
+                 max_prompt_bytes=None):
         if (type(max_calls) is not int or max_calls < 1 or type(hard_list_usd) not in (int, float)
                 or not math.isfinite(hard_list_usd) or hard_list_usd <= 0):
             raise TranslationBudgetError("invalid translation budget")
@@ -103,12 +105,19 @@ class TranslationBudget:
         self.calls = 0
         self.spent_list_usd = 0.0
         self.stopped = False
+        # `provider`/`model` are optional, for backward compatibility: a
+        # caller that omits them keeps this class's historical Luna-rate
+        # worst-case math exactly (RATES_PER_MILLION happens to equal the
+        # catalogued gpt-6-luna rate); a caller supplying them gets a real
+        # model-aware estimate instead -- never Luna's rate for another model.
+        self.provider, self.model, self.custom_rates = provider, model, custom_rates
+        self.max_prompt_bytes = max_prompt_bytes or (2_000_000 if provider is not None else MAX_PROMPT_BYTES)
 
     def reserve(self, prompt_text, output_cap=None):
         if self.stopped or self.calls >= self.max_calls:
             raise TranslationBudgetError("translation call limit reached")
         prompt_bytes = len(prompt_text.encode("utf-8"))
-        if prompt_bytes > MAX_PROMPT_BYTES:
+        if prompt_bytes > self.max_prompt_bytes:
             raise TranslationBudgetError("oversized translation prompt")
         # Worst-case output defaults to the global constant only when the
         # caller has no better figure; a resolved role/model with its own
@@ -117,9 +126,18 @@ class TranslationBudget:
         # undercount a model allowed to emit far more than the default.
         effective_output_cap = OPENAI_MAX_OUTPUT_TOKENS if output_cap is None else output_cap
         # Includes substantial headroom for request framing and tokenizer variation.
-        input_bound = 2 * prompt_bytes + 1024
-        worst_case = (input_bound * RATES_PER_MILLION["input"]
-                      + effective_output_cap * RATES_PER_MILLION["output"]) / 1_000_000
+        input_bound = (2 * prompt_bytes + 1024 if self.provider is None else
+                       token_counting.count_tokens(prompt_text, self.model)['upper_bound'] + 1024)
+        if self.provider is None:
+            worst_case = (input_bound * RATES_PER_MILLION["input"]
+                          + effective_output_cap * RATES_PER_MILLION["output"]) / 1_000_000
+        else:
+            worst_case = estimate_model_cost(
+                self.provider, self.model, {"input": input_bound, "output": effective_output_cap},
+                custom_rates=self.custom_rates,
+            )
+            if worst_case == "not_metered":
+                raise TranslationBudgetError("no pricing is available for this model/provider")
         if self.spent_list_usd + worst_case > self.hard_list_usd:
             raise TranslationBudgetError("translation list-price budget exhausted")
         self.calls += 1
@@ -130,7 +148,8 @@ class TranslationBudget:
         self.calls -= 1
 
     def record(self, token_usage):
-        estimate = compute_estimate(token_usage)
+        estimate = (compute_estimate(token_usage) if self.provider is None else
+                    estimate_model_cost(self.provider, self.model, token_usage, custom_rates=self.custom_rates))
         if estimate == "not_metered":
             self.stopped = True
             return ["usage_not_metered_stop"]
@@ -144,6 +163,30 @@ class TranslationBudget:
 def _require(condition, message):
     if not condition:
         raise TranslationRequestError(message)
+
+
+def _check_prompt_fits(prompt_text, model, capabilities):
+    """Bound the rendered prompt before any provider call.
+
+    With no model capability metadata (the historical diagnostic/unconfigured
+    path), this is exactly the legacy flat MAX_PROMPT_BYTES bound. With
+    capabilities, a flat byte cap is the wrong bound for a real large-context
+    model (Session D may legitimately render a whole chapter far above
+    12000 bytes): the prompt must instead fit the model's own usable-context
+    budget (minus its reserved output), using `token_counting.py`'s safe
+    deterministic upper bound -- never an exact-but-unverified tokenizer
+    claim, and never silently larger than what the model can actually take.
+    """
+    if capabilities is None:
+        _require(len(prompt_text.encode("utf-8")) <= MAX_PROMPT_BYTES, "oversized translation prompt")
+        return
+    _require(len(prompt_text.encode('utf-8')) <= 2_000_000, 'oversized translation payload')
+    reserved_output = (capabilities.max_output_tokens or 0) + 1024
+    limit = max(capabilities.usable_context_tokens - reserved_output, 0)
+    _require(
+        token_counting.fits_within(prompt_text, limit, model=model),
+        "translation prompt exceeds the model's usable context budget",
+    )
 
 
 def _build_context_and_decision(structure, unit, capabilities, headroom_fraction):
@@ -466,7 +509,8 @@ def build_translation_request(
     _require(unit is not None, "unknown or missing unit for translation job")
     source_language = unit["language"]
     _require(source_language in SUPPORTED_SOURCE_LANGUAGES, "unsupported source language")
-    _require(len(unit["text"]) <= MAX_UNIT_CHARS, "oversized source unit")
+    _require(len(unit["text"]) <= (MAX_UNIT_CHARS if capabilities is None else 2_000_000),
+             "oversized source unit")
 
     resolution = resolve_applicable(glossary, structure, unit_id)
     _require(resolution["status"] != "needs_human", "conflicting glossary resolution for unit")
@@ -494,7 +538,7 @@ def build_translation_request(
         profile_id, context_segments, source_language, applicable_rules,
         approved_decisions, local_state, source_context, persistent_state_text,
     )
-    _require(len(prompt_text.encode("utf-8")) <= MAX_PROMPT_BYTES, "oversized translation prompt")
+    _check_prompt_fits(prompt_text, model, capabilities)
 
     caller_context_fingerprint = fingerprint({
         "approved_decisions": approved_decisions, "local_state": local_state, "source_context": source_context,
@@ -657,7 +701,7 @@ def build_whole_chapter_translation_request(
         profile_id, context_segments, source_language, applicable_rules,
         approved_decisions, local_state, source_context, persistent_state_text,
     )
-    _require(len(prompt_text.encode("utf-8")) <= MAX_PROMPT_BYTES, "oversized translation prompt")
+    _check_prompt_fits(prompt_text, model, capabilities)
 
     caller_context_fingerprint = fingerprint({
         "approved_decisions": approved_decisions, "local_state": local_state, "source_context": source_context,
@@ -744,8 +788,12 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
     notices = []
     cache_hit = False
     live_provider = request.provider != "mock"
-    provider_type = request.provider_definition.provider_type if request.provider_definition else request.provider
-    priced_provider = provider_type == "openai"
+    custom_rates = request.capabilities.custom_pricing if request.capabilities else None
+    # Any live provider/model gets a model-aware estimate (model_catalog.py's
+    # known rate, an explicit custom rate, or its labelled conservative
+    # unknown-model assumption) -- never restricted to openai alone, and
+    # never silently priced at another model's (e.g. Luna's) rate.
+    priced_provider = live_provider
     if cache is not None:
         adapter = adapter or build_translation_adapter(
             request.provider, request.model, provider_definition=request.provider_definition,
@@ -764,7 +812,10 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
                 max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
             )
         if live_provider:
-            budget = budget or TranslationBudget(max_calls=1)
+            budget = budget or TranslationBudget(
+                max_calls=1, provider=(request.provider_definition.provider_type if request.provider_definition else request.provider),
+                model=request.model, custom_rates=custom_rates,
+            )
             reserve_kwargs = {}
             if isinstance(budget, TranslationBudget):
                 reserve_kwargs["output_cap"] = request.capabilities.max_output_tokens if request.capabilities else None
@@ -780,7 +831,9 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
         duration = getattr(result, "duration_seconds", time.monotonic() - start)
 
     token_usage = result.token_usage
-    estimate = compute_estimate(token_usage) if priced_provider else "not_metered"
+    estimate = (estimate_model_cost(request.provider_definition.provider_type if request.provider_definition else request.provider,
+                                   request.model, token_usage, custom_rates=custom_rates)
+                if priced_provider else "not_metered")
     if live_provider and cache is None:
         if priced_provider:
             notices.extend(budget.record(token_usage))
@@ -841,4 +894,9 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
     })
     if cache is not None:
         draft["control_provenance"] = dict(cache.provenance[-1])
+    from .model_catalog import estimate_cost, CATALOG_VERSION
+    quote = estimate_cost(request.provider_definition.provider_type if request.provider_definition else request.provider,
+                          request.model, token_usage, custom_rates=custom_rates) if live_provider else None
+    draft['pricing_basis'] = quote['basis'] if quote else 'not_metered'
+    draft['catalog_version'] = CATALOG_VERSION
     return draft

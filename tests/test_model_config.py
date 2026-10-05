@@ -194,23 +194,37 @@ class AdapterDispatchTests(unittest.TestCase):
         self.assertNotEqual(one, compute_cache_key(provider="openai", model="two", **kwargs))
         self.assertNotEqual(one, compute_cache_key(provider="anthropic", model="one", **kwargs))
 
-    def test_unpriced_provider_records_usage_but_does_not_cache_or_continue(self):
+    def test_unknown_model_gets_a_labelled_conservative_price_and_still_caches(self):
+        # An unrecognized (provider, model) pair never silently becomes
+        # "not_metered" -- it gets model_catalog's explicit labelled
+        # conservative estimate instead, so the call is priced, settled and
+        # cached normally; replaying the identical call therefore hits the
+        # cache rather than dispatching again.
+        from scholarly_translation import model_catalog
+        expected_cost = model_catalog.estimate_cost("claude", "m", {"input": 2, "output": 1})["cost_usd"]
         with tempfile.TemporaryDirectory() as tmp, ControlStore(Path(tmp) / "controls.sqlite3") as store:
             budget = PersistentBudget(store, "doc", max_calls=2, hard_list_usd=0.01,
                                       stage="translate", provider="claude", model="m")
             cache = RuntimeCache(store, stage="translate", provider="claude", model="m")
-            result, hit, notices = cache.execute(
-                "identity", "prompt", "m",
-                lambda *_: TextGenerationResult("completed", "ok", {"input": 2, "output": 1}, "m", 0),
-                stage="translate",
-                metadata={"document_id": "doc", "unit_id": "unit", "provider_type": "anthropic"},
-                budget=budget,
-            )
+            calls = []
+
+            def call(*_):
+                calls.append(1)
+                return TextGenerationResult("completed", "ok", {"input": 2, "output": 1}, "m", 0)
+
+            kwargs = dict(stage="translate",
+                          metadata={"document_id": "doc", "unit_id": "unit", "provider_type": "anthropic"},
+                          budget=budget)
+            result, hit, notices = cache.execute("identity", "prompt", "m", call, **kwargs)
             self.assertFalse(hit)
             self.assertEqual(result.text, "ok")
-            self.assertIn("usage_not_metered_stop", notices)
-            self.assertTrue(store.status("doc")["stopped"])
-            self.assertEqual(store._conn.execute("SELECT COUNT(*) FROM cache").fetchone()[0], 0)
+            self.assertNotIn("usage_not_metered_stop", notices)
+            self.assertEqual(store._conn.execute("SELECT COUNT(*) FROM cache").fetchone()[0], 1)
+
+            result2, hit2, _ = cache.execute("identity", "prompt", "m", call, **kwargs)
+            self.assertTrue(hit2)
+            self.assertEqual(len(calls), 1)
+            self.assertAlmostEqual(expected_cost, 2.8e-05)
 
     def test_named_openai_provider_can_cache_with_requested_identity(self):
         with tempfile.TemporaryDirectory() as tmp, ControlStore(Path(tmp) / "controls.sqlite3") as store:
@@ -236,8 +250,12 @@ class SessionCRoleIntegrationTests(unittest.TestCase):
         self.assertEqual(record["model_capabilities"]["context_window"], 2000)
 
     def test_candidate_comparison_resolves_candidate_evaluator_provenance(self):
+        cfg = configuration().to_dict()
+        # Candidate evaluation includes its rubric, both targets and output.
+        cfg['models']['candidate_evaluator']['capabilities'].update(
+            context_window=20000, usable_context_tokens=20000)
         request = build_candidate_comparison_request_for_role(
-            "Source sentence.", {"A": "תרגום א.", "B": "תרגום ב."}, configuration(),
+            "Source sentence.", {"A": "תרגום א.", "B": "תרגום ב."}, ModelConfiguration.from_dict(cfg),
         )
         response = (
             "MATERIAL_DIFFERENCES:\nnone\n"
@@ -251,9 +269,13 @@ class SessionCRoleIntegrationTests(unittest.TestCase):
                 observed_provider="lab",
             ),
         )
+        from scholarly_translation import model_catalog
+        expected_cost = model_catalog.estimate_cost("lab", "eval-user-id", {"input": 2, "output": 1})["cost_usd"]
         self.assertEqual((record["provider"], record["model"]), ("lab", "eval-user-id"))
         self.assertEqual(record["call"]["observed_provider"], "lab")
-        self.assertEqual(record["call"]["estimated_cost_usd"], "not_metered")
+        # "lab" / "eval-user-id" is not in the model catalogue: this is a
+        # labelled conservative price estimate, never silently "not_metered".
+        self.assertEqual(record["call"]["estimated_cost_usd"], expected_cost)
 
     def test_chapter_qa_resolves_chapter_role_without_call_when_off(self):
         request = build_chapter_qa_request_for_role(

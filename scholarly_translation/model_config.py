@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .model_catalog import ModelCatalogError, validate_custom_pricing
 
 ROLES = (
     "translator",
@@ -54,12 +55,19 @@ class ModelCapabilities:
     usable_context_tokens: int
     max_output_tokens: int | None = None
     structured_output: bool = False
+    # Optional explicit per-million USD rates (input/output required; cached/
+    # cache_write default to the input rate -- no discount) for a model this
+    # deployment's catalogue does not know; never silently priced like a
+    # known cheap model. ``None`` (the default) defers to the catalogue's
+    # own known-model rate or its labelled conservative unknown-model
+    # assumption (see model_catalog.py).
+    custom_pricing: dict | None = None
 
     @staticmethod
     def from_dict(data):
         data = _object(data, "capabilities")
-        _keys(data, {"context_window", "usable_context_tokens", "max_output_tokens", "structured_output"},
-              "capability")
+        _keys(data, {"context_window", "usable_context_tokens", "max_output_tokens",
+                     "structured_output", "custom_pricing"}, "capability")
         context = _positive_int(data.get("context_window"), "context_window")
         usable = _positive_int(data.get("usable_context_tokens"), "usable_context_tokens")
         if usable > context:
@@ -67,11 +75,18 @@ class ModelCapabilities:
         structured = data.get("structured_output", False)
         if type(structured) is not bool:
             raise ModelConfigError("structured_output must be a boolean")
+        custom_pricing = data.get("custom_pricing")
+        if custom_pricing is not None:
+            try:
+                custom_pricing = validate_custom_pricing(custom_pricing)
+            except ModelCatalogError as exc:
+                raise ModelConfigError(str(exc)) from None
         return ModelCapabilities(
             context_window=context,
             usable_context_tokens=usable,
             max_output_tokens=_positive_int(data.get("max_output_tokens"), "max_output_tokens", optional=True),
             structured_output=structured,
+            custom_pricing=custom_pricing,
         )
 
     def to_dict(self):
@@ -80,6 +95,7 @@ class ModelCapabilities:
             "usable_context_tokens": self.usable_context_tokens,
             "max_output_tokens": self.max_output_tokens,
             "structured_output": self.structured_output,
+            "custom_pricing": self.custom_pricing,
         }
 
 

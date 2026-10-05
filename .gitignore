@@ -8,6 +8,7 @@ cache/
 outputs/
 .venv/
 node_modules/
+.claude/worktrees/
 __pycache__/
 *.pyc
 *.pyo

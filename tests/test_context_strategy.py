@@ -104,6 +104,43 @@ def _units_by_text_prefix(structure):
     return {u["text"].split()[0]: u for u in structure["units"]}
 
 
+def _whole_chapter_token_budget(structure, target):
+    """Exact real-token-counted size of ``target``'s enclosing chapter span.
+
+    Uses the actual ``context_strategy.estimate_tokens`` (a real safe upper
+    bound, never a word-count heuristic) so capability fixtures stay correct
+    regardless of exactly how many bytes/tokens the PDF-extracted fixture
+    text turns out to be.
+    """
+    chapter = context_strategy.find_enclosing_chapter_node(structure, target)
+    span = context_strategy.chapter_node_span(structure, chapter)
+    return sum(context_strategy.estimate_tokens(n["text"]) for n in span)
+
+
+def _target_plus_one_neighbor_each_side_budget(units):
+    """Exactly enough real-token budget for target + Beta + Delta, no more."""
+    return sum(context_strategy.estimate_tokens(units[name]["text"])
+               for name in ("Gamma", "Beta", "Delta"))
+
+
+# A full rendered prompt (style profile + glossary + local state + source
+# context headers) costs real, nonzero tokens on top of whatever source
+# text is actually selected as context. Tests that exercise the full
+# `build_translation_request` pipeline (not the pure `context_strategy`
+# functions) need `usable_context_tokens` large enough for that whole
+# rendered prompt to fit, while still wanting a *small* chapter/neighbor
+# context-selection budget. `context_headroom_fraction` is the knob that
+# separates those two numbers: `available_chapter_token_budget` reserves
+# `headroom_fraction` of `usable_context_tokens` for everything else,
+# leaving the remainder for chapter/neighbor source text, while the raw
+# `usable_context_tokens` itself remains the full-prompt fit limit.
+_LARGE_USABLE_CONTEXT_TOKENS = 20_000
+
+
+def _headroom_fraction_for_budget(desired_context_budget, usable=_LARGE_USABLE_CONTEXT_TOKENS):
+    return 1 - (desired_context_budget / usable)
+
+
 class ChapterLookupTests(unittest.TestCase):
     """Pure context_strategy behavior, independent of translation.py."""
 
@@ -145,9 +182,13 @@ class ChapterLookupTests(unittest.TestCase):
         span = context_strategy.chapter_node_span(self.structure, chapter)
         self.assertEqual([n["text"] for n in span], [line for line in CHAPTER_LINES])
 
-    def test_estimate_tokens_is_conservative_word_based_not_a_real_tokenizer(self):
+    def test_estimate_tokens_uses_real_token_counting_upper_bound_not_a_word_heuristic(self):
         text = "Gamma sentence is the target unit here today."
-        self.assertEqual(context_strategy.estimate_tokens(text), 8 * context_strategy.WORDS_TO_TOKENS_RATIO)
+        from scholarly_translation import token_counting
+        self.assertEqual(context_strategy.estimate_tokens(text), token_counting.count_tokens(text)["upper_bound"])
+        # Never a word-count-multiple "guaranteed conservative" claim.
+        word_count = len(text.split())
+        self.assertNotEqual(context_strategy.estimate_tokens(text), word_count * 2)
 
 
 class ModelAwareBudgetingTests(unittest.TestCase):
@@ -169,9 +210,13 @@ class ModelAwareBudgetingTests(unittest.TestCase):
         return ModelCapabilities(context_window=1_000_000, usable_context_tokens=usable_context_tokens)
 
     def test_large_budget_uses_whole_chapter_small_budget_falls_back(self):
-        # Whole-chapter word total is 33 words -> 66 estimated tokens exactly.
-        large = self._capabilities(66)
-        small = self._capabilities(16)
+        chapter_tokens = _whole_chapter_token_budget(self.structure, self.target)
+        target_tokens = context_strategy.estimate_tokens(self.target["text"])
+        # Exactly enough for the whole chapter vs. exactly enough for the
+        # target alone (no room left for any neighbor), using the real
+        # token-counting upper bound rather than a word-count heuristic.
+        large = self._capabilities(chapter_tokens)
+        small = self._capabilities(target_tokens)
 
         large_decision, large_segments = context_strategy.plan_context(
             self.structure, self.target, large, headroom_fraction=0.0,
@@ -193,10 +238,10 @@ class ModelAwareBudgetingTests(unittest.TestCase):
         self.assertNotIn("Delta", small_text)
 
     def test_bounded_fallback_expands_to_fit_available_budget(self):
-        # Exactly enough budget for target + one neighbor on each side
-        # (Beta + Gamma + Delta = 12+16+12 = 40 estimated tokens) but not
-        # the whole chapter (64) or the next ring out (Alpha/Epsilon).
-        capabilities = self._capabilities(40)
+        # Exactly enough real-token budget for target + one neighbor on
+        # each side (Beta + Gamma + Delta), but not the whole chapter or
+        # the next ring out (Alpha/Epsilon).
+        capabilities = self._capabilities(_target_plus_one_neighbor_each_side_budget(self.units))
         decision, segments = context_strategy.plan_context(
             self.structure, self.target, capabilities, headroom_fraction=0.0,
         )
@@ -229,7 +274,8 @@ class OriginalSourceOverSummaryTests(unittest.TestCase):
 
     def test_whole_chapter_context_is_literal_concatenated_node_text(self):
         target = self.units["Gamma"]
-        capabilities = ModelCapabilities(context_window=1000, usable_context_tokens=66)
+        chapter_tokens = _whole_chapter_token_budget(self.structure, target)
+        capabilities = ModelCapabilities(context_window=1_000_000, usable_context_tokens=chapter_tokens)
         decision, segments = context_strategy.plan_context(
             self.structure, target, capabilities, headroom_fraction=0.0,
         )
@@ -286,10 +332,14 @@ class LayeredPromptTests(unittest.TestCase):
 
     def test_target_and_context_are_independently_recoverable(self):
         target = self.units["Gamma"]
-        capabilities = ModelCapabilities(context_window=1000, usable_context_tokens=40)
+        desired_budget = _target_plus_one_neighbor_each_side_budget(self.units)
+        capabilities = ModelCapabilities(
+            context_window=1_000_000, usable_context_tokens=_LARGE_USABLE_CONTEXT_TOKENS,
+        )
         request = build_translation_request(
             self.structure, self.glossary, target["unit_id"], "scholarly", "mock", "mock-translation-1",
-            capabilities=capabilities, context_headroom_fraction=0.0,
+            capabilities=capabilities,
+            context_headroom_fraction=_headroom_fraction_for_budget(desired_budget),
         )
         metadata = request.to_metadata_dict()
 
@@ -326,7 +376,8 @@ class WholeChapterTranslationModeTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_whole_chapter_mode_is_distinct_from_default_semantic_unit_mode(self):
-        capabilities = ModelCapabilities(context_window=1000, usable_context_tokens=66)
+        capabilities = ModelCapabilities(context_window=1_000_000,
+                                         usable_context_tokens=_LARGE_USABLE_CONTEXT_TOKENS)
         default_request = build_translation_request(
             self.structure, self.glossary, self.target["unit_id"], "scholarly", "mock", "mock-translation-1",
             capabilities=capabilities, context_headroom_fraction=0.0,
@@ -345,7 +396,8 @@ class WholeChapterTranslationModeTests(unittest.TestCase):
         self.assertNotEqual(default_request.cache_key, chapter_request.cache_key)
 
     def test_whole_chapter_mode_is_not_the_default(self):
-        capabilities = ModelCapabilities(context_window=1000, usable_context_tokens=66)
+        capabilities = ModelCapabilities(context_window=1_000_000,
+                                         usable_context_tokens=_LARGE_USABLE_CONTEXT_TOKENS)
         request = build_translation_request(
             self.structure, self.glossary, self.target["unit_id"], "scholarly", "mock", "mock-translation-1",
             capabilities=capabilities, context_headroom_fraction=0.0,
@@ -367,7 +419,8 @@ class WholeChapterTranslationModeTests(unittest.TestCase):
             )
 
     def test_whole_chapter_mode_runs_through_run_translation(self):
-        capabilities = ModelCapabilities(context_window=1000, usable_context_tokens=66)
+        capabilities = ModelCapabilities(context_window=1_000_000,
+                                         usable_context_tokens=_LARGE_USABLE_CONTEXT_TOKENS)
         request = build_whole_chapter_translation_request(
             self.structure, self.glossary, self.target["unit_id"], "scholarly", "mock", "mock-translation-1",
             capabilities=capabilities, context_headroom_fraction=0.0,
@@ -388,7 +441,8 @@ class PageBoundaryContextTests(unittest.TestCase):
             page_ids = [p["page_id"] for p in structure["units"]]
             self.assertEqual(len(set(page_ids)), 2, "fixture must actually span two pages")
             target = next(u for u in structure["units"] if u["text"].startswith("Opening"))
-            capabilities = ModelCapabilities(context_window=1000, usable_context_tokens=100)
+            capabilities = ModelCapabilities(context_window=1_000_000,
+                                             usable_context_tokens=_LARGE_USABLE_CONTEXT_TOKENS)
             decision, segments = context_strategy.plan_context(
                 structure, target, capabilities, headroom_fraction=0.0,
             )
@@ -430,7 +484,8 @@ class CacheProvenanceCompatibilityTests(unittest.TestCase):
 
         with_caps = build_translation_request(
             self.structure, self.glossary, target["unit_id"], "scholarly", "mock", "mock-translation-1",
-            capabilities=ModelCapabilities(context_window=1000, usable_context_tokens=66),
+            capabilities=ModelCapabilities(context_window=1_000_000,
+                                           usable_context_tokens=_LARGE_USABLE_CONTEXT_TOKENS),
             context_headroom_fraction=0.0,
         )
         self.assertEqual(with_caps.context_mode, "whole_chapter")
@@ -457,10 +512,13 @@ class CacheProvenanceCompatibilityTests(unittest.TestCase):
         text actually sent (target + the context actually included), never on
         unrelated text elsewhere in the chapter that was not part of that."""
         target = self.units["Gamma"]
-        small_caps = ModelCapabilities(context_window=1000, usable_context_tokens=16)
+        target_only_budget = context_strategy.estimate_tokens(target["text"])
+        small_caps = ModelCapabilities(context_window=1_000_000,
+                                       usable_context_tokens=_LARGE_USABLE_CONTEXT_TOKENS)
+        small_headroom = _headroom_fraction_for_budget(target_only_budget)
         baseline = build_translation_request(
             self.structure, self.glossary, target["unit_id"], "scholarly", "mock", "mock-translation-1",
-            capabilities=small_caps, context_headroom_fraction=0.0,
+            capabilities=small_caps, context_headroom_fraction=small_headroom,
         )
         self.assertEqual(baseline.context_mode, "bounded_fallback")
         self.assertEqual(len(baseline.context_segments), 1)  # target only, per the tiny budget
@@ -471,7 +529,7 @@ class CacheProvenanceCompatibilityTests(unittest.TestCase):
         epsilon["warnings"] = list(epsilon["warnings"]) + ["unrelated_note_elsewhere_in_chapter"]
         again = build_translation_request(
             mutated, self.glossary, target["unit_id"], "scholarly", "mock", "mock-translation-1",
-            capabilities=small_caps, context_headroom_fraction=0.0,
+            capabilities=small_caps, context_headroom_fraction=small_headroom,
         )
         self.assertEqual(baseline.cache_key, again.cache_key)
 
@@ -486,7 +544,12 @@ class CacheProvenanceCompatibilityTests(unittest.TestCase):
         import copy
 
         target = self.units["Gamma"]
-        large_caps = ModelCapabilities(context_window=1000, usable_context_tokens=66)
+        # A margin above the exact baseline chapter size so the mutated
+        # chapter (whose Epsilon node text is now slightly longer) still
+        # fits and stays in whole_chapter mode too.
+        chapter_tokens = _whole_chapter_token_budget(self.structure, target)
+        large_caps = ModelCapabilities(context_window=1_000_000,
+                                       usable_context_tokens=chapter_tokens + 50)
         baseline_decision, baseline_segments = context_strategy.plan_context(
             self.structure, target, large_caps, headroom_fraction=0.0,
         )

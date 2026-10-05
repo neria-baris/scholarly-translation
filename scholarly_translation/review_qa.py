@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .model_adapter import (
-    PRICING_VERSION, TextGenerationResult, build_translation_adapter, compute_estimate,
+    PRICING_VERSION, TextGenerationResult, build_translation_adapter, estimate_model_cost,
 )
 from .document_state import CATEGORIES as STATE_CATEGORIES
 from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
@@ -150,16 +150,33 @@ def _provider_type(provider, provider_definition):
 
 
 def _call_record(result, prompt_text, request) -> dict:
-    provider_type = _provider_type(request.provider, request.provider_definition)
-    estimate = compute_estimate(result.token_usage) if provider_type == "openai" else "not_metered"
+    from .model_catalog import estimate_cost, CATALOG_VERSION
+    custom_rates = request.capabilities.custom_pricing if request.capabilities else None
+    quote = estimate_cost(_provider_type(request.provider, request.provider_definition), request.model,
+                          result.token_usage, custom_rates=custom_rates) if request.provider != 'mock' else None
+    estimate = (estimate_model_cost(_provider_type(request.provider, request.provider_definition),
+                                   request.model, result.token_usage, custom_rates=custom_rates)
+                if request.provider != "mock" else "not_metered")
     return {
         "prompt_hash": text_hash(prompt_text), "provider": request.provider,
         "model": request.model, "observed_provider": result.observed_provider or request.provider,
         "observed_model": result.observed_model,
         "token_usage": result.token_usage, "pricing_version": PRICING_VERSION,
         "estimated_cost_usd": estimate, "status": result.status, "error": result.error,
+        'pricing_basis': quote['basis'] if quote else 'not_metered', 'catalog_version': CATALOG_VERSION,
         "actual_charge": "unknown",
     }
+
+
+def _check_review_prompt(prompt_text, request):
+    from .token_counting import count_tokens
+    if request.capabilities is None:
+        return
+    needed = count_tokens(prompt_text, request.model)['upper_bound'] + 1024
+    needed += request.capabilities.max_output_tokens or 0
+    _require(len(prompt_text.encode('utf-8')) <= 2_000_000 and
+             needed <= request.capabilities.usable_context_tokens,
+             'review prompt exceeds the selected model context including output')
 
 
 def _base_record(stage, prompt_id, provider, model, policy,
@@ -369,6 +386,7 @@ def run_unit_review(request: UnitReviewRequest, generate=None) -> dict:
         "translation": request.translation,
         "glossary_and_decisions": _glossary_text(request.glossary_decisions),
     })
+    _check_review_prompt(prompt_text, request)
     try:
         result = generate(prompt_text, request.model)
     except Exception:
@@ -581,6 +599,7 @@ def run_candidate_comparison(request: CandidateComparisonRequest, generate=None)
         "glossary_and_decisions": _glossary_text(request.glossary_decisions),
         "candidates": _candidates_text(request.candidates),
     })
+    _check_review_prompt(prompt_text, request)
     try:
         result = generate(prompt_text, request.model)
     except Exception:
@@ -786,6 +805,7 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
         "profile": request.profile or "(none)",
         "glossary_and_decisions": _glossary_text(request.glossary_decisions),
     })
+    _check_review_prompt(prompt_text, request)
     try:
         result = generate(prompt_text, request.model)
     except Exception:

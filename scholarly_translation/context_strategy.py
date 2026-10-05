@@ -27,18 +27,10 @@ in this module makes that the default.
 """
 from __future__ import annotations
 
-from .document_structure import _word_count
+from . import token_counting
 from .source_reading import text_hash
 
 CONTEXT_POLICY_VERSION = "context-policy-chapter-aware@1"
-
-# This project ships no second tokenizer (STRUCTURE_SCHEMA.md / the Session D
-# contract's known_risks explicitly forbid inventing one). Each
-# whitespace/CJK "word" counted by the existing deterministic size heuristic
-# (document_structure._word_count) is conservatively assumed to cost this
-# many model tokens, so a budget-fit check only ever *underestimates* how
-# much chapter text can fit, never overestimates it.
-WORDS_TO_TOKENS_RATIO = 2.0
 
 # Fraction of usable_context_tokens permanently reserved for instructions,
 # glossary/approved decisions, local state, output and review metadata
@@ -51,8 +43,16 @@ CHAPTER_KINDS = ("part", "chapter")
 
 
 def estimate_tokens(text: str) -> int:
-    """Conservative token estimate for budget-fit checks; see module docstring."""
-    return int(_word_count(text) * WORDS_TO_TOKENS_RATIO)
+    """Conservative, deterministic token estimate for budget-fit checks.
+
+    Uses `token_counting.py`'s safe `upper_bound` (an official tokenizer's
+    count where this project can map one, otherwise a deterministic
+    byte-based ceiling with margin) -- never a word-count heuristic, which
+    this project never presents as "guaranteed conservative". Always an
+    upper bound, so a budget-fit check here only ever *underestimates* how
+    much chapter text can fit, never overestimates it.
+    """
+    return token_counting.count_tokens(text)["upper_bound"]
 
 
 def available_chapter_token_budget(capabilities, headroom_fraction=DEFAULT_HEADROOM_FRACTION) -> int:
