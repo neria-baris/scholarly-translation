@@ -713,3 +713,6 @@ Next: deliver links; later execution requires the user's instruction to start bu
 - Contract audit/contracts/learn_0.md and learn_1.md; executable schema1/source/hash/learner/catalog/plan/generated/recap validation, numeric effort policy and Unicode fixture. Four bootstrap tests OK; 22 existing library tests OK (correct discovery; initial module invocation lacked tests path and sandbox prevented node, corrected locally).
 - No model/provider calls yet; conductor usage unknown. Three Claude Code Sonnet builders will own disjoint paths in isolated common-base worktrees. Measured invocation caps 2 USD each, shared list cap10; subscription charge unknown. No runtime pilot authorized.
 - Git: verified local bootstrap commit follows; push intentionally not attempted outside standing origin/main authorization, and main remains untouched. Full integration accepted only after tests and separate UI preview.
+
+## 2026-10-06 | LEARN-1A
+A scoped Sonnet invocation list estimate1.0036326 USD,443292ms,20 CLI turns; observed Sonnet5 plus auxiliary Haiku4.5, subscription charge unknown. No recursive agents or runtime calls. Frozen APIs and28 unit tests passed after deterministic integration repairs. Bootstrap receipt d1f71e2 (preceded1d73c5e). Git local feature only.

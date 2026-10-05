@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "language": "fr",
+  "version": "fr-common@1",
+  "provenance": {
+    "basis": "Word candidates are frequency-rank picks from Hermit Dave's FrequencyWords OpenSubtitles2018 French list (not a CEFR or universal-usefulness ranking; priority_tier is candidate selection order only). Hebrew glosses, allowed-surface restriction, prerequisites and the two grammar items are hand-authored curated_common additions for this starter subset.",
+    "source": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/fr/fr_50k.txt (commit 525f9b560de45753a5ea01069454e72e9aa541c6); curated_common Hebrew glosses and grammar authored for the scholarly-translation project.",
+    "license": "CC-BY-SA-4.0 (https://creativecommons.org/licenses/by-sa/4.0/) applies to the frequency-derived French forms; the Hebrew gloss/grammar text is original project content."
+  },
+  "items": [
+    {"item_id": "fr-de", "kind": "word", "lemma": "de", "sense_he": "של / מ-", "forms": ["de"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-je", "kind": "word", "lemma": "je", "sense_he": "אני", "forms": ["je"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-est", "kind": "word", "lemma": "être", "sense_he": "הוא/היא (להיות, גוף שלישי יחיד בהווה)", "forms": ["est"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-pas", "kind": "word", "lemma": "pas", "sense_he": "לא (חלק ממבנה שלילה)", "forms": ["pas"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-le", "kind": "word", "lemma": "le", "sense_he": "ה' הידיעה (זכר) / אותו", "forms": ["le"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-la", "kind": "word", "lemma": "la", "sense_he": "ה' הידיעה (נקבה) / אותה", "forms": ["la"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-vous", "kind": "word", "lemma": "vous", "sense_he": "אתם/אתן, אתה (נימוס)", "forms": ["vous"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-tu", "kind": "word", "lemma": "tu", "sense_he": "אתה/את", "forms": ["tu"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-un", "kind": "word", "lemma": "un", "sense_he": "אחד / א' (זכר)", "forms": ["un"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-une", "kind": "word", "lemma": "une", "sense_he": "אחת / א' (נקבה)", "forms": ["une"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-il", "kind": "word", "lemma": "il", "sense_he": "הוא", "forms": ["il"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-elle", "kind": "word", "lemma": "elle", "sense_he": "היא", "forms": ["elle"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-nous", "kind": "word", "lemma": "nous", "sense_he": "אנחנו", "forms": ["nous"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-mais", "kind": "word", "lemma": "mais", "sense_he": "אבל", "forms": ["mais"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-oui", "kind": "word", "lemma": "oui", "sense_he": "כן", "forms": ["oui"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-non", "kind": "word", "lemma": "non", "sense_he": "לא (תשובה)", "forms": ["non"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-merci", "kind": "word", "lemma": "merci", "sense_he": "תודה", "forms": ["merci"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-bonjour", "kind": "word", "lemma": "bonjour", "sense_he": "שלום / בוקר טוב", "forms": ["bonjour"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-moi", "kind": "word", "lemma": "moi", "sense_he": "אני (כינוי מושא/הדגשה)", "forms": ["moi"], "priority_tier": 1, "prerequisite_ids": [], "explanation_he": "", "min_level": 1},
+    {"item_id": "fr-que", "kind": "word", "lemma": "que", "sense_he": "ש- / ש", "forms": ["que"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-en", "kind": "word", "lemma": "en", "sense_he": "ב- / ממנו", "forms": ["en"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-toi", "kind": "word", "lemma": "toi", "sense_he": "אתה (כינוי מושא/הדגשה)", "forms": ["toi"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-ils", "kind": "word", "lemma": "ils", "sense_he": "הם", "forms": ["ils"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-elles", "kind": "word", "lemma": "elles", "sense_he": "הן", "forms": ["elles"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-ou", "kind": "word", "lemma": "ou", "sense_he": "או", "forms": ["ou"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-pere", "kind": "word", "lemma": "père", "sense_he": "אבא", "forms": ["père"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-mere", "kind": "word", "lemma": "mère", "sense_he": "אמא", "forms": ["mère"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-fille", "kind": "word", "lemma": "fille", "sense_he": "בת / ילדה", "forms": ["fille"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-fils", "kind": "word", "lemma": "fils", "sense_he": "בן", "forms": ["fils"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-homme", "kind": "word", "lemma": "homme", "sense_he": "איש / גבר", "forms": ["homme"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-femme", "kind": "word", "lemma": "femme", "sense_he": "אישה", "forms": ["femme"], "priority_tier": 2, "prerequisite_ids": [], "explanation_he": "", "min_level": 2},
+    {"item_id": "fr-enfant", "kind": "word", "lemma": "enfant", "sense_he": "ילד / ילדה", "forms": ["enfant"], "priority_tier": 3, "prerequisite_ids": [], "explanation_he": "", "min_level": 3},
+    {"item_id": "fr-vie", "kind": "word", "lemma": "vie", "sense_he": "חיים", "forms": ["vie"], "priority_tier": 3, "prerequisite_ids": [], "explanation_he": "", "min_level": 3},
+    {"item_id": "fr.g-etre-present", "kind": "grammar", "lemma": "être (הווה)", "sense_he": "נטיית הפועל 'להיות' בהווה", "forms": ["suis", "es", "est", "sommes", "êtes", "sont"], "priority_tier": 1, "prerequisite_ids": ["fr-je", "fr-tu", "fr-il", "fr-elle", "fr-nous", "fr-vous", "fr-ils", "fr-elles", "fr-est"], "explanation_he": "נטיית הפועל הבלתי-רגולרי 'être' (להיות) בהווה: je suis, tu es, il/elle est, nous sommes, vous êtes, ils/elles sont.", "min_level": 1},
+    {"item_id": "fr.g-negation", "kind": "grammar", "lemma": "שלילה: ne...pas", "sense_he": "מבנה השלילה הבסיסי", "forms": ["ne", "pas"], "priority_tier": 2, "prerequisite_ids": ["fr-pas", "fr-je"], "explanation_he": "מבנה השלילה הבסיסי בצרפתית: ne + פועל + pas, למשל je ne sais pas.", "min_level": 2}
+  ],
+  "levels": [
+    {"level_id": "1", "new_items_per_chunk": 3, "max_foreign_share": 0.10, "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 1, "support_mode": "inline"},
+    {"level_id": "2", "new_items_per_chunk": 3, "max_foreign_share": 0.20, "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 2, "support_mode": "click"},
+    {"level_id": "3", "new_items_per_chunk": 4, "max_foreign_share": 0.30, "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 5, "support_mode": "click"}
+  ]
+}
