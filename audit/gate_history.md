@@ -378,3 +378,7 @@ Implementation `d695978e93e853b464cec691ebcc32e988463aaf` passed22 focused HTTP 
 - Change: `scholarly_translation/ui.css` palette only: teal/green hues mapped to the book gold (42deg, lightness kept), parchment page background, gold-brown accent `#644d16`, warm ink/muted text; error colours unchanged.
 - Acceptance: `GOLD-THEME-VERIFY`; contrast >= 5.2:1 for text, Edge home/processing render (ignored `outputs/automation/gold-theme-preview.png`), 659 offline tests OK. External/runtime calls 0, billed cost 0.
 - Git: explicit-path commit; normal push of main with BOOK-REFERENCE-2 per user authorization; separate receipt follows.
+
+## 2026-10-05T12:00:00+00:00 | BOOK-REFERENCE-2 + GOLD-THEME | verified push receipt
+
+Implementations `3b4cdaa` (BOOK-REFERENCE-2) and `0445bde` (GOLD-THEME) passed 659 offline tests and the browser checks recorded above. Explicit-path staging, diff check and JSONL validity reviewed. Normal fast-forward push 9753e61..0445bde to origin/main per user authorization; post-push fetch confirms main==origin/main and a clean tree. No force, secrets, source documents or ignored screenshots committed. Gate10 status unchanged.

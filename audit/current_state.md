@@ -1,12 +1,12 @@
 # Current state
-Updated: 2026-10-05T11:58:00+00:00 (Claude continuity; BOOK-REFERENCE-2 + GOLD-THEME visual changes)
+Updated: 2026-10-05T12:00:00+00:00 (Claude continuity; BOOK-REFERENCE-2 + GOLD-THEME pushed)
 
 BOOK-REFERENCE-2 (user: closed book did not look like a book): sprite rebuilt to
 48 frames after the reference - real closed cover/spine/label/page edges, hinge
 cover swing, page-block flip, two page turns per loop, mirrored close on back cover.
 ui.css offsets updated; 659 offline tests OK; Edge render + animation probe verified.
 GOLD-THEME: ui.css palette moved from teal to the book gold/parchment (contrast
->=5.2:1, 659 tests OK). User authorized push; next: verify push and record receipt.
+>=5.2:1, 659 tests OK). Pushed 3b4cdaa+0445bde; main==origin/main verified, receipt recorded.
 No active delegated writer.
 
 Verified BOOK-REFERENCE implementation d695978e93e853b464cec691ebcc32e988463aaf normally pushed.
