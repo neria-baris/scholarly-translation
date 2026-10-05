@@ -722,3 +722,6 @@ B Sonnet list1.181225 USD,345309ms,33 CLI turns; models Sonnet5 plus auxiliary H
 
 ## 2026-10-06T01:58:00+03:00 | LEARN-1C/2
 C Sonnet list0.795209 USD,1475103ms,21 turns; Sonnet5/auxiliaryHaiku4.5; actual charge unknown. Initial C fixtures yielded7 errors+1 failure (wrong codepoint offsets); fixed deterministically. Combined service stage contained invalid '@' character, found before any dispatch, fixed to learning-generate-v1.100 tests pass. Total3 invocations list2.9800666 USD, no fix-model calls, no runtime calls. Integration receipts A8228b2d,B9684c4b. D only after this verified backend, max2 USD, shared stop-loss10.
+
+## 2026-10-05T23:04:12.6191027Z | LEARN-2 hardening
+Sol deterministic integration fixes only; no additional model invocation. Four Sonnet builders dispatched in total (D running, cap2/shared10); ABC observable total2.9800666 USD. Phase timestamps in prior entries are phase labels; this UTC entry records the checkpoint time. Git closure is local feature; remote push not attempted.

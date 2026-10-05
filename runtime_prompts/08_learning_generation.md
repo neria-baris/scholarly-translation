@@ -5,8 +5,9 @@ Frozen prompt text assembled verbatim by
 versioned source of the instruction block; the function below composes it with
 the per-call PLAN/SELECTED_ITEMS/REVIEW_ITEMS/BOOK_CONTEXT/SOURCE_UNITS data
 sections (each rendered as fenced, labeled JSON) and returns the exact string
-sent to the configured Luna role. Changing this text changes
-PROMPT_VERSION and therefore every downstream cache fingerprint.
+sent to the configured Luna role. Instruction and output schema are both sent.
+Changing this text requires a new PROMPT_VERSION; the actual assembled text is
+also hashed, so an accidental missing version bump cannot reuse an old prompt.
 
 ## Instructions (sent verbatim before the data sections)
 

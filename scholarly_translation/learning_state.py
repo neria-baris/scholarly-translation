@@ -32,6 +32,7 @@ def apply_completion(learner, session, generated_chunks, recaps, *, completion_i
     require(session["learner_id"] == learner["learner_id"], "state_conflict")
     require(session["language"] == learner["language"], "state_conflict")
     require(session["base_learner_revision"] == learner["revision"], "state_conflict")
+    require(all(session[key] == learner[key] for key in ('catalog_version', 'level_id', 'support_mode')), 'state_conflict')
     require(learner["active_book_id"] == session["book_id"], "state_conflict")
 
     existing_completion_ids = {row["completion_id"] for row in learner["completed_books"]}
@@ -80,6 +81,7 @@ def apply_completion(learner, session, generated_chunks, recaps, *, completion_i
     new_learner = validate_learner(new_learner)
 
     receipt = {
+        "session_id": session['session_id'],
         "completion_id": completion_id,
         "book_id": session["book_id"],
         "prepared_hash": expected_hash,

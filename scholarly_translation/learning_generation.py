@@ -134,6 +134,7 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         require(isinstance(raw_edit, dict), "invalid_generation", "edit_shape")
         require(set(raw_edit) == {'unit_id', 'start', 'end', 'original', 'replacement', 'item_ids', 'grammar_ids', 'gloss_he'}, 'invalid_generation', 'edit_fields')
         unit_id = raw_edit.get("unit_id")
+        check_id(unit_id)
         require(unit_id in units_by_id, "invalid_generation", "unknown_unit")
         unit = units_by_id[unit_id]
         require(unit["kind"] != "heading", "invalid_generation", "heading_edit")
@@ -208,6 +209,8 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         require(isinstance(warning, dict) and warning.get("code") in _ALLOWED_WARNING_CODES,
                 "invalid_generation", "warning_code")
         unit_ref = warning.get("unit_id")
+        if unit_ref is not None:
+            check_id(unit_ref)
         require(unit_ref is None or unit_ref in units_by_id, "invalid_generation", "warning_unit")
         warnings.append({"code": warning["code"], "unit_id": unit_ref})
 
@@ -230,6 +233,8 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         "vocabulary": _grounded_entries(recap_raw.get("vocabulary"), edits, "item_ids", "gloss_he"),
         "grammar": _grounded_entries(recap_raw.get("grammar"), edits, "grammar_ids", "explanation_he"),
     }
+    for entry in recap_proposal['grammar']:
+        entry['explanation_he'] = items_by_id[entry['item_id']]['explanation_he']
     # Sparse model recap cannot hide a real accepted occurrence.
     for edit in edits:
         for item_id in edit['item_ids']:

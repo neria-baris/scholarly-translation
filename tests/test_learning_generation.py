@@ -103,6 +103,30 @@ class ParseResponseTests(unittest.TestCase):
         self.assertIn('"edit_indexes"', prompt)
         self.assertIn('"response_version"', prompt)
 
+    def test_curated_complete_phrase_demonstrates_grammar_locally(self):
+        from scholarly_translation.learning_catalog import load_catalog
+        from scholarly_translation.learning_planner import plan_book
+        from scholarly_translation.learning_contracts import fixture_source, new_learner, source_hash
+        cat = load_catalog()
+        learner = new_learner()
+        learner.update({'level_id': '3', 'support_mode': 'click', 'items': [
+            {'item_id': 'fr-je', 'introduced_count': 1, 'last_completed_book_id': 'previous-book'}]})
+        source = fixture_source()
+        source['chapters'][0]['units'][0]['text'] = 'אני כאן והספר נשאר על השולחן בעיר ליד הילד. ' * 10
+        source['source_hash'] = source_hash(source)
+        p = plan_book(source, learner, cat)[0]
+        _, input_hash = build_request(p, cat)
+        payload = {'response_version': 1, 'plan_id': p['plan_id'], 'edits': [{
+            'unit_id': 'unit-one', 'start': 0, 'end': len('אני כאן'), 'original': 'אני כאן',
+            'replacement': 'je suis ici', 'item_ids': ['fr-phrase-ici'],
+            'grammar_ids': ['fr.g-etre-present'], 'gloss_he': 'אני כאן'}],
+            'recap': {'vocabulary': [], 'grammar': []}, 'warnings': []}
+        chunk, proposals = parse_response(json.dumps(payload), p, cat, input_hash)
+        recap = build_chapter_recap('chapter-one', [chunk], [{'chunk_id': p['plan_id'], 'recap': proposals}])
+        self.assertIn('fr.g-etre-present', chunk['coverage_item_ids'])
+        self.assertIn('je suis', recap['grammar'][0]['explanation_he'])
+        self.assertEqual(recap['grammar'][0]['examples'], [{'chunk_id': p['plan_id'], 'edit_index': 0}])
+
     def test_duplicate_json_fields_and_unknown_fields_refused(self):
         payload = json.loads(valid_payload())
         payload['progress'] = 100

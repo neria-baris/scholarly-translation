@@ -25,6 +25,8 @@ from .learning_contracts import (
     validate_learner,
     validate_session,
     validate_source,
+    validate_generated,
+    validate_recap,
 )
 
 
@@ -208,13 +210,24 @@ class LearningStore:
             require(session["status"] in ("imported", "preparing", "paused"), "state_conflict")
             chunks = copy.deepcopy(chunks)
             recaps = copy.deepcopy(recaps)
+            for chunk in chunks:
+                validate_generated(chunk)
+            for recap in recaps:
+                validate_recap(recap)
             chunk_ids = [chunk["plan_id"] for chunk in chunks]
             require(len(chunk_ids) == len(set(chunk_ids)), "invalid_generation", "duplicate chunk plan_id")
             all_hashes = {chunk["content_hash"] for chunk in chunks}
             recap_hashes = set()
             for recap in recaps:
                 recap_hashes.update(recap["chunk_hashes"])
-            full_coverage = bool(chunks) and recap_hashes == all_hashes
+            from .learning_catalog import load_catalog
+            from .learning_planner import plan_book
+            source = validate_source(_read_json(self._source_path(session['book_id'])))
+            learner = self._read_learner_locked(session['language'])
+            expected_count = len(plan_book(source, learner, load_catalog(session['language']), policy_version=session['policy_version']))
+            full_coverage = (len(chunks) == expected_count and recap_hashes == all_hashes and
+                len(recaps) == len(source['chapters']) and
+                {r['chapter_id'] for r in recaps} == {c['chapter_id'] for c in source['chapters']})
             session["chunk_ids"] = chunk_ids
             if full_coverage:
                 session["prepared_hash"] = prepared_hash(chunks, recaps)
@@ -230,7 +243,11 @@ class LearningStore:
     def get_prepared(self, session_id):
         path = self._prepared_path(session_id)
         require(path.exists(), "invalid_record", "no prepared content for session")
-        return _read_json(path)
+        content = _read_json(path)
+        session = self.get_session(session_id)
+        if session['prepared_hash'] is not None:
+            require(prepared_hash(content['chunks'], content['recaps']) == session['prepared_hash'], 'corrupt_store')
+        return content
 
     # -- cursor (does not advance curriculum) --------------------------------
     def save_cursor(self, session_id, cursor):
@@ -253,6 +270,7 @@ class LearningStore:
                 receipt = _read_json(receipt_path)
                 original = validate_session(_read_json(self._session_path(session_id)))
                 require(receipt['book_id'] == original['book_id'] and
+                        receipt['session_id'] == session_id and
                         receipt['prepared_hash'] == expected_prepared_hash and
                         original['status'] == 'completed', 'state_conflict')
                 return copy.deepcopy(receipt)

@@ -137,6 +137,7 @@ class LearningService:
             session = self.store.get_session(sid)
             require(session['status'] in ('imported', 'preparing', 'paused', 'failed'), 'invalid_status')
             require(self.store.get_learner(session['language'])['revision'] == session['base_learner_revision'], 'stale_learner')
+            require(load_catalog(session['language'])['version'] == session['catalog_version'], 'catalog_changed')
             job = self._data['jobs'][sid]
             if job['budget_usd'] is None:
                 require(type(budget_usd) in (int, float) and math.isfinite(budget_usd) and 0 < budget_usd <= 100, 'invalid_budget')
@@ -267,6 +268,11 @@ class LearningService:
                 if plan['chapter_id'] == chapter['chapter_id']:
                     rendered.append(render_chunk(plan['units'], chunk, session['support_mode']))
             recap = next(r for r in prepared['recaps'] if r['chapter_id'] == chapter['chapter_id'])
+            chunks_by_id = {c['plan_id']: c for c in prepared['chunks']}
+            for entry in recap['grammar']:
+                for example in entry['examples']:
+                    edit = chunks_by_id[example['chunk_id']]['edits'][example['edit_index']]
+                    example.update({'foreign': edit['replacement'], 'hebrew': edit['original']})
             return {'session': session, 'title': source['title'], 'chapter_title': chapter['title'],
                     'chapter_index': chapter_index, 'chapter_count': len(source['chapters']),
                     'html': ''.join(rendered), 'recap': recap,

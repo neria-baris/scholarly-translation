@@ -61,6 +61,21 @@ class LearningTests(unittest.TestCase):
             store.complete_book(session_two['session_id'], ready['prepared_hash'], 'receipt-one')
         self.assertEqual(store.get_session(session_two['session_id'])['status'], 'imported')
 
+    def test_missing_source_chapter_cannot_be_marked_ready(self):
+        from scholarly_translation.learning_contracts import source_hash
+        store = LearningStore(Path(self._tmp.name))
+        source = fixture_source()
+        extra = {'chapter_id': 'chapter-two', 'title': 'פרק ב', 'units': [
+            {'unit_id': 'unit-two', 'kind': 'paragraph', 'text': 'פרק נוסף שהקורא צריך לקבל לפני סימון קראתי.'}]}
+        source['chapters'].append(extra)
+        source['source_hash'] = source_hash(source)
+        store.save_source(source)
+        session = store.create_session(source, store.get_learner())
+        partial = store.save_prepared(session['session_id'], [_chunk()], [_recap()])
+        self.assertEqual(partial['status'], 'preparing')
+        with self.assertRaises(LearningError):
+            store.complete_book(session['session_id'], partial['prepared_hash'], 'complete-partial')
+
     def test_save_source_is_immutable(self):
         tmp_path = Path(self._tmp.name)
         store = LearningStore(tmp_path / "learning")
