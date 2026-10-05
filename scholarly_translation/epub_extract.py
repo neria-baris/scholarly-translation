@@ -25,7 +25,7 @@ from typing import List
 
 from .epub_archive import (
     BLOCK_TAGS, EpubArchiveError, archive_path, block_text, encrypted_paths,
-    local_tag, open_validated_archive, parse_xml, resolve_package, resolve_spine,
+    local_tag, open_validated_archive, parse_xml, resolve_package, resolve_reading_order,
 )
 from .records import Document, Page, Segment
 from .store import deterministic_id
@@ -54,7 +54,14 @@ TAG_NODE_KIND = {
 
 
 class EpubExtractionError(Exception):
-    """Raised for invalid, empty, encrypted or malformed EPUB input. Never carries page content."""
+    """Raised for invalid, empty, encrypted or malformed EPUB input. Never carries page content.
+
+    ``code`` is a stable machine identifier: ``empty_spine``, ``empty_chapters``,
+    ``drm``, ``bad_spine_item``, ``no_text`` or ``None`` for other failures."""
+
+    def __init__(self, message: str, code=None):
+        super().__init__(message)
+        self.code = code
 
 
 def _require_positive_int(value, name: str) -> None:
@@ -100,24 +107,31 @@ def extract_epub(path_or_bytes, language: str, document_version: int = 1) -> Doc
     document_id = deterministic_id("digital-text-epub-source", file_hash, str(document_version))
 
     pages: List[Page] = []
+    warnings: List[str] = []
     try:
         archive = open_validated_archive(io.BytesIO(raw_bytes))
         with archive:
             package_path, package, base = resolve_package(archive)
-            spine_paths = resolve_spine(archive, package, base)
-            if not spine_paths:
-                raise EpubExtractionError("EPUB has no spine chapters")
+            spine_paths, fallback = resolve_reading_order(archive, package, base)
+            if fallback:
+                warnings.append(f"EPUB spine is empty; reading order taken from {fallback}")
+            blank_chapters = 0
 
             for page_number, chapter_path in enumerate(spine_paths, start=1):
-                root = parse_xml(archive.read(chapter_path))
-                body = next((e for e in root.iter() if local_tag(e.tag) == "body"), root)
+                chapter_bytes = archive.read(chapter_path)
+                if not chapter_bytes.strip():
+                    blank_chapters += 1
+                    root = None
+                else:
+                    root = parse_xml(chapter_bytes)
+                body = next((e for e in root.iter() if local_tag(e.tag) == "body"), root) if root is not None else None
 
                 page_id = deterministic_id(document_id, "page", str(page_number))
                 source_text_parts: List[str] = []
                 segments: List[Segment] = []
                 offset = 0
                 order = 0
-                for el in body.iter():
+                for el in (body.iter() if body is not None else ()):
                     tag = local_tag(el.tag)
                     if tag not in BLOCK_TAGS:
                         continue
@@ -144,10 +158,16 @@ def extract_epub(path_or_bytes, language: str, document_version: int = 1) -> Doc
                     page_id=page_id, document_id=document_id, page_number=page_number,
                     segments=segments, width=None, height=None, source_text=source_text,
                 ))
+            if not any(page.segments for page in pages):
+                if blank_chapters == len(pages):
+                    raise EpubExtractionError(
+                        "EPUB chapter files are empty; the file appears damaged or incompletely converted",
+                        code="empty_chapters")
+                raise EpubExtractionError("EPUB chapters contain no extractable text", code="no_text")
     except EpubExtractionError:
         raise
     except EpubArchiveError as exc:
-        raise EpubExtractionError(str(exc)) from None
+        raise EpubExtractionError(str(exc), code=exc.code) from None
     except KeyError as exc:
         raise EpubExtractionError(f"EPUB archive is missing an expected member: {exc}") from None
     except Exception as exc:
@@ -165,5 +185,5 @@ def extract_epub(path_or_bytes, language: str, document_version: int = 1) -> Doc
         stage_version=STAGE_VERSION,
         input_hash=file_hash,
         status="needs_human",
-        warnings=[],
+        warnings=warnings,
     )

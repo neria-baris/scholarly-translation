@@ -75,8 +75,10 @@ from .translation_profiles import SUPPORTED_PROFILE_IDS
 REVIEW_MAX_PROMPT_BYTES = 700_000
 
 MAX_FILE_BYTES = 25 * 1024 * 1024
-MAX_SOURCE_CHARS = 150_000
-MAX_PAGES = 200
+MAX_SOURCE_CHARS = 3_000_000
+MAX_PAGES = 2_000
+MAX_BUDGET_USD = 30
+MIN_CHAPTER_CHARS = 1500
 LANGUAGES = {"auto", "en", "fr", "ja"}
 QUALITY_MODES = {"fast", "checked", "thorough"}
 MODEL_CHOICES = {"auto", "configured"}
@@ -170,7 +172,7 @@ def _detect_language(document) -> str:
     return "en"
 
 
-def _auto_accept_decisions(document):
+def _auto_accept_decisions(document, unit_policy=None):
     """Resolve each page's sole usable (digital) candidate automatically.
 
     This simple flow offers no OCR and no alternative source candidate to
@@ -180,7 +182,7 @@ def _auto_accept_decisions(document):
     unresolved -- same unsupported spirit as before, surfaced later as a
     clear error if it leaves the whole document with no translatable text.
     """
-    draft_structure = segmentation.build_structure(document)
+    draft_structure = segmentation.build_structure(document, unit_policy=unit_policy)
     decisions = {}
     for reading in draft_structure["readings"]:
         if reading["status"] == "resolved":
@@ -196,7 +198,8 @@ def _auto_accept_decisions(document):
         }
     if not decisions:
         return draft_structure
-    return segmentation.build_structure(document, decisions=decisions, previous=draft_structure)
+    return segmentation.build_structure(document, decisions=decisions, previous=draft_structure,
+                                        unit_policy=unit_policy)
 
 
 def source_kind_for(path):
@@ -208,7 +211,72 @@ def source_kind_for(path):
     raise DocumentDraftError("ניתן לתרגם קובצי PDF או EPUB בלבד כרגע.")
 
 
-def extract_structure(path, language="auto"):
+_EPUB_ERROR_MESSAGES = {
+    "empty_chapters": "קובץ ה־EPUB פגום: קובצי הפרקים בתוכו ריקים (נראה שהומר באופן חלקי). השתמשו בקובץ ה־EPUB המקורי.",
+    "empty_spine": "קובץ ה־EPUB פגום: רשימת הפרקים (spine) ריקה ולא נמצאו בו קובצי פרקים. השתמשו בקובץ ה־EPUB המקורי.",
+    "drm": "קובץ ה־EPUB מוגן בהגנת DRM ולא ניתן לתרגום. השתמשו בגרסה ללא הגנה.",
+    "bad_spine_item": "קובץ ה־EPUB פגום: רשימת הפרקים מפנה לקובץ חסר או שאינו XHTML. השתמשו בקובץ ה־EPUB המקורי.",
+    "no_text": "קובץ ה־EPUB אינו מכיל טקסט הניתן לתרגום.",
+}
+
+
+def chapter_groups(structure, units):
+    """Pure partition of ``units`` (document order) into contiguous groups.
+
+    Units with an enclosing chapter/part node are grouped by that node
+    (historical behaviour). When no unit has one and the structure is of
+    EPUB ("digital-text") origin, each spine document (``page_id``) is a
+    boundary and documents shorter than ``MIN_CHAPTER_CHARS`` merge forward
+    into the next group (a small final group merges backward). Other
+    chapter-less structures (PDF) remain a single run."""
+    keys = []
+    for unit in units:
+        node = context_strategy.find_enclosing_chapter_node(structure, unit)
+        keys.append(node["node_id"] if node else None)
+    if units and all(key is None for key in keys) and _is_epub_structure(structure):
+        return _spine_groups(units)
+    groups, current_key, current = [], object(), []
+    for unit, key in zip(units, keys):
+        if current and key != current_key:
+            groups.append(current)
+            current = []
+        current_key, current = key, current + [unit]
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _is_epub_structure(structure):
+    for reading in structure.get("readings", []):
+        selected = reading.get("selected") or {}
+        origins = {selected.get("origin")} | {a.get("origin") for a in reading.get("alternatives", [])}
+        if "digital-text" in origins:
+            return True
+    return False
+
+
+def _spine_groups(units):
+    runs = []
+    for unit in units:
+        if runs and runs[-1][0] == unit["page_id"]:
+            runs[-1][1].append(unit)
+        else:
+            runs.append((unit["page_id"], [unit]))
+    groups, pending = [], []
+    for _, run in runs:
+        pending = pending + run
+        if sum(len(u.get("text") or u.get("source_text") or "") for u in pending) >= MIN_CHAPTER_CHARS:
+            groups.append(pending)
+            pending = []
+    if pending:
+        if groups:
+            groups[-1] = groups[-1] + pending
+        else:
+            groups.append(pending)
+    return groups
+
+
+def extract_structure(path, language="auto", unit_policy=None):
     """Extract a PDF or EPUB into the canonical schema-2 document_structure,
     with every resolvable page's sole candidate auto-accepted. Raises
     DocumentDraftError for anything invalid, oversized, or with no
@@ -229,18 +297,21 @@ def extract_structure(path, language="auto"):
         else:
             document = pdf_extract.extract_pdf(path, resolved_language)
     except epub_extract.EpubExtractionError as exc:
+        hebrew = _EPUB_ERROR_MESSAGES.get(getattr(exc, "code", None))
+        if hebrew:
+            raise DocumentDraftError(hebrew) from None
         raise DocumentDraftError(f"לא ניתן לקרוא את הקובץ: {exc}") from None
     except pdf_extract.ExtractionError as exc:
         raise DocumentDraftError(f"לא ניתן לקרוא את הקובץ: {exc}") from None
     if len(document.pages) > MAX_PAGES:
-        raise DocumentDraftError("המסמך מוגבל כרגע ל־200 עמודים/פרקים.")
+        raise DocumentDraftError(f"המסמך מוגבל כרגע ל־{MAX_PAGES:,} עמודים/פרקים.")
     total_chars = sum(len(p.source_text or "") for p in document.pages)
     if total_chars > MAX_SOURCE_CHARS:
-        raise DocumentDraftError("המסמך ארוך מדי כרגע. חלקו אותו לקבצים עד 150,000 תווים.")
+        raise DocumentDraftError(f"המסמך ארוך מדי כרגע. המגבלה היא {MAX_SOURCE_CHARS:,} תווי מקור.")
     if language == "auto":
         document = _dc_replace(document, language=_detect_language(document))
     try:
-        structure = _auto_accept_decisions(document)
+        structure = _auto_accept_decisions(document, unit_policy=unit_policy)
     except segmentation.StructureError as exc:
         raise DocumentDraftError(f"מבנה המסמך אינו תקין: {exc}") from None
     if not structure["units"]:
@@ -275,8 +346,8 @@ def validate_settings(settings):
         raise DocumentDraftError("בחרו רמת בדיקה נתמכת.")
     if language not in LANGUAGES:
         raise DocumentDraftError("הגדרות תרגום לא תקינות.")
-    if type(budget) not in (int, float) or isinstance(budget, bool) or not math.isfinite(budget) or not 0.01 <= budget <= 30:
-        raise DocumentDraftError("תקציב המסמך חייב להיות בין $0.01 ל־$30.")
+    if type(budget) not in (int, float) or isinstance(budget, bool) or not math.isfinite(budget) or not 0.01 <= budget <= MAX_BUDGET_USD:
+        raise DocumentDraftError(f"תקציב המסמך חייב להיות בין $0.01 ל־${MAX_BUDGET_USD}.")
     if model_choice not in MODEL_CHOICES:
         raise DocumentDraftError("בחרו מודל נתמך.")
     if model_choice == "configured":
@@ -516,17 +587,7 @@ class DocumentJobs:
         independent chapter model. Units with no enclosing chapter/part
         (flat/short documents) form their own run(s), exactly like the
         historical post-hoc grouping by ``chapter_node_id`` did."""
-        groups, current_key, current = [], object(), []
-        for unit in units:
-            node = context_strategy.find_enclosing_chapter_node(structure, unit)
-            key = node["node_id"] if node else None
-            if current and key != current_key:
-                groups.append(current)
-                current = []
-            current_key, current = key, current + [unit]
-        if current:
-            groups.append(current)
-        return groups
+        return chapter_groups(structure, units)
 
     def _run(self, job, path):
         store = None

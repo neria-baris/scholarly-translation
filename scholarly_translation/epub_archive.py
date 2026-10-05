@@ -43,7 +43,12 @@ ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
 class EpubArchiveError(Exception):
     """Raised for any invalid, encrypted, oversized or malformed EPUB
     archive. Never carries page/book content; callers translate this into
-    their own module-specific exception type."""
+    their own module-specific exception type. ``code`` is a stable machine
+    identifier (e.g. ``drm``, ``bad_spine_item``) or ``None``."""
+
+    def __init__(self, message: str, code=None):
+        super().__init__(message)
+        self.code = code
 
 
 def local_tag(tag: str) -> str:
@@ -126,9 +131,118 @@ def resolve_spine(archive: zipfile.ZipFile, package, base: str) -> list:
     for item_id in spine_refs:
         item = items.get(item_id)
         if item is None or item.get("media-type") not in XHTML_MEDIA_TYPES:
-            raise EpubArchiveError("EPUB spine references a missing or non-XHTML chapter")
+            raise EpubArchiveError("EPUB spine references a missing or non-XHTML chapter", code="bad_spine_item")
         chapter_path = archive_path(base, item.get("href", ""))
         if chapter_path in encrypted:
-            raise EpubArchiveError("EPUB chapter is protected by DRM and cannot be translated")
+            raise EpubArchiveError("EPUB chapter is protected by DRM and cannot be translated", code="drm")
         spine_paths.append(chapter_path)
     return spine_paths
+
+
+NCX_MEDIA_TYPE = "application/x-dtbncx+xml"
+_OPS_TYPE = "{http://www.idpf.org/2007/ops}type"
+
+
+def _manifest_xhtml(package, base: str) -> list:
+    """Manifest XHTML items as (item, archive_path) in manifest order."""
+    result = []
+    for e in package.iter():
+        if local_tag(e.tag) == "item" and e.get("media-type") in XHTML_MEDIA_TYPES:
+            try:
+                result.append((e, archive_path(base, e.get("href", ""))))
+            except EpubArchiveError:
+                continue
+    return result
+
+
+def _ncx_order(archive, package, base: str) -> list:
+    for e in package.iter():
+        if local_tag(e.tag) == "item" and e.get("media-type") == NCX_MEDIA_TYPE:
+            try:
+                ncx_path = archive_path(base, e.get("href", ""))
+                root = parse_xml(archive.read(ncx_path))
+            except (EpubArchiveError, KeyError):
+                continue
+            ncx_base = posixpath.dirname(ncx_path)
+            ranked = []
+            for index, point in enumerate(el for el in root.iter() if local_tag(el.tag) == "navPoint"):
+                content = next((c for c in point if local_tag(c.tag) == "content"), None)
+                if content is None or not content.get("src"):
+                    continue
+                order = point.get("playOrder", "")
+                ranked.append((int(order) if order.isdigit() else 10 ** 9, index, content.get("src")))
+            paths = []
+            for _, _, src in sorted(ranked):
+                try:
+                    paths.append(archive_path(ncx_base, src))
+                except EpubArchiveError:
+                    continue
+            if paths:
+                return paths
+    return []
+
+
+def _nav_order(archive, package, base: str) -> tuple:
+    """Return (ordered toc link paths, nav document path or None)."""
+    for e in package.iter():
+        if local_tag(e.tag) == "item" and "nav" in (e.get("properties") or "").split():
+            try:
+                nav_path = archive_path(base, e.get("href", ""))
+                root = parse_xml(archive.read(nav_path))
+            except (EpubArchiveError, KeyError):
+                continue
+            navs = [n for n in root.iter() if local_tag(n.tag) == "nav"]
+            toc = [n for n in navs if "toc" in (n.get(_OPS_TYPE) or n.get("type") or "").split()] or navs[:1]
+            nav_base = posixpath.dirname(nav_path)
+            paths = []
+            for nav in toc:
+                for a in nav.iter():
+                    if local_tag(a.tag) == "a" and a.get("href"):
+                        try:
+                            paths.append(archive_path(nav_base, a.get("href")))
+                        except EpubArchiveError:
+                            continue
+            if paths:
+                return paths, nav_path
+            return [], nav_path
+    return [], None
+
+
+def resolve_reading_order(archive: zipfile.ZipFile, package, base: str) -> tuple:
+    """Return ``(chapter_paths, fallback)``. ``fallback`` is ``None`` when the
+    spine was used, else ``"ncx"``, ``"nav"`` or ``"manifest"``. Used when
+    the spine has no linear itemrefs but content may still exist. Raises
+    EpubArchiveError with code ``empty_spine`` when no usable XHTML exists."""
+    spine_paths = resolve_spine(archive, package, base)
+    if spine_paths:
+        return spine_paths, None
+    manifest = _manifest_xhtml(package, base)
+    names = set(archive.namelist())
+    available = [path for _, path in manifest if path in names]
+    if not available:
+        raise EpubArchiveError("EPUB spine is empty and no chapter documents were found", code="empty_spine")
+    available_set = set(available)
+    encrypted = encrypted_paths(archive)
+
+    def finish(paths, label):
+        seen, ordered = set(), []
+        for path in paths:
+            if path in seen or path not in available_set:
+                continue
+            seen.add(path)
+            ordered.append(path)
+        if not ordered:
+            return None
+        if any(path in encrypted for path in ordered):
+            raise EpubArchiveError("EPUB chapter is protected by DRM and cannot be translated", code="drm")
+        return ordered, label
+
+    nav_links, nav_path = _nav_order(archive, package, base)
+    for label, candidate in (("ncx", _ncx_order(archive, package, base)), ("nav", nav_links)):
+        # Linked documents first, then any remaining manifest XHTML (except
+        # the nav document itself) so content missing from the TOC is kept.
+        rest = [path for path in available if path != nav_path]
+        result = finish(list(candidate) + rest, label) if candidate else None
+        if result:
+            return result
+    return finish([path for path in available if path != nav_path] or available, "manifest")
