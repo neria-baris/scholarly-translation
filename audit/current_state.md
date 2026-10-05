@@ -1,35 +1,45 @@
 # Current state
-Updated: 2026-10-05T07:40:17.144712+00:00 (Sol conductor)
+Updated: 2026-10-05T10:01:40.311484+00:00 (Sol conductor; AUTOMATION-3/4 software accepted)
 
-AUTOMATION-2 producer software accepted:635 offline tests41.683s,14 independent
-recovery/streaming tests. Verified implementation f929030 plus font-byte correction f266cb1 normally
-pushed; post-push fetch main==origin/main, clean tree. This separate receipt follows. Contracts2/4font
-producer accepted; automation_3/4 UI consumer remains next, not marked complete.
+Current main base 91f3dac4c7c1e037406553f884429d94762dd50c, accepted producer/font receipt synced.
+UI integration awaits explicit staged review, ordinary implementation commit/push
+and separate receipt. Contracts automation_1/2/3/4 software accepted; no active writers.
 
-Built actual whole-chapter/batch prompt/output-fit plan, independent QA models,
-actual Hebrew repartition, atomic shared hardbudget protected QA/correction tail,
-stable source prefix, per-call role/caps/type prices, exact-once received-raw
-accounting/replay, uncertain dispatch block, pause/resume, one grounded correction
-and focused recheck, visible exceptions, provisional source-grounded memory.
-Job stage percent/chapter progress and measured provider/cache token totals exposed.
-Public font catalogue and render_download font override support all five local
-fonts with original/license/hash provenance. PDFium raster review completed;
-David CLM embedding limitation recorded honestly. Switching font needs no model.
+New real UI jobs use whole-chapter/semantic-batch fit with independent QA,
+protected QA/correction funds, durable received-raw recovery and safe pause/resume.
+Selectable catalogue/Other translator+QA; endpoint-bound session memory keys,
+per-job snapshot and resolved role/caps; no secret disk/env/browser persistence.
+Model-aware QA-inclusive preview, measured provider/cache usage and local reuse.
+Styled HTML help, dated dynamic prices/quality uncertainty, original book logo,
+asymmetric side-profile pixel book with actual percent and reduced-motion/static
+pause/error states. Five bundled PDF fonts before/after; rerender zero generation.
+Human edits preserve revisions, rerun formal checks and mark previous QA stale.
 
-Four observable Sonnet CLI automation calls list$9.6286177, actual subscription
-charge unknown; phase2two$4.8185541. No paid runtime, Astra or Opus calls.
-Internal conductor/subagent usage not_metered. One builderrepair insufficient;
-Sol closed producer gaps with deterministic tests. Max2 isolated writers obeyed.
+Final659 offline tests PASS60.956s, including9 independent HTTP-worker cases.
+Initial659 run had one Windows403 socket reset; bounded rejected-body drain fixed
+it,13 focused checks passed8.183s before final full run. Prior JS syntax checks
+passed; final browser execution has no console errors. Edge actual file upload
+works after user setting update. Consent cancel/approve, mixed-model preview,
+pause52%, test-server restart and renewed QA key resume100% without translator
+resend verified. Help desktop/mobile375px inspected; no horizontal overflow.
+Real run-ui.ps1 launches with per-process policy setting; Auto demo completes and
+protected PDF download23058 bytes succeeds. Browser native download event/path
+unobserved; policy-rejected downloads surface was not bypassed.
 
-Runtime isolated outputs/tooling/runtime-venv Python3.12 all pinned requirements;
-brokenold.venv preserved. Launcher/installer3.10+/all six imports checked.
-No secrets, user sources, outputs/caches or unrelated Claude worktrees staged.
+Six observable automation Claude Code Sonnet5 calls list$14.2851749; this UI
+two calls$4.6565572/1211.847s, actual subscription charge unknown. Internal
+conductor/subagents not_metered. Opus0/Astra0/paid runtime0. One repair then Sol
+deterministic closure. Synthetic tests are not a paid translation-quality pilot.
 
-Next:isolated UI writer on accepted base: model/QA
-choice+Other, protected memory-only keys, per-role preview, actual pause/resume,
-styled help/cost-quality notes, original logo, side-profile pixelbook and before/
-after PDF fonts. Root docs/browser/fullsuite verification and gateclosure follow.
-Plan0/1 accepted,2-5 producer accepted;6 UI pending;7 offline accepted but actual
-Gate10 scholarly pilot BLOCKED on approved representative inputs/references,
-paid runtime credentials/authorization and expert judgments. Token/custom prices,
-expansion/expected output hypotheses and real cache behavior remain unvalidated.
+Product runtime outputs/tooling/runtime-venv Python3.12 pinned requirements;
+brokenold.venv and unrelated Claude worktrees preserved. Sources, screenshots,
+outputs/caches and credentials ignored/unstaged. Live product preview on loopback
+50152; fake test server stopped. No additional model calls required.
+
+Gate10 scholarly quality/pilot remains BLOCKED on approved examples/references,
+runtime authorization/credentials and expert judgments. Calibration of real cache,
+expected output/Hebrew expansion and custom model prices remains pending.
+Partial export, automatic QA after edits and auto-dispatch on server startup not
+implemented; completed export and explicit safe resume supported. Plan updates
+record these gaps. Next: verify ordinary Git closure/receipt; real pilot only
+with its genuine prerequisites, no inferred release approval.

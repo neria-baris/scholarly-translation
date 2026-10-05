@@ -4,15 +4,21 @@
 
 Run `./run-ui.ps1` on Windows (or `Run Scholarly Translation.vbs` at the repo
 root) to open the local, single-user web UI: upload a PDF with embedded text
-or an EPUB, choose Academic/Literary, a model (Auto, or any role configured
-in a server-side `model_config.json`), a quality mode (Fast/Checked/
-Thorough) and a per-document budget, then translate and download the
+or an EPUB, choose Academic/Literary, a catalogue model or Other, independent
+QA model, a quality mode (Fast/Checked/Thorough) and a per-document budget.
+Supply the selected providers' API keys in the protected local session, inspect
+the full translation/QA/correction cost preview, then translate and download the
 translated document in the **same format you uploaded** (PDF stays PDF,
 EPUB stays EPUB). Per-unit review/editing is optional and never a condition
 for downloading a result. "Auto" with no model configured is an explicit,
-free, non-network UI demo (mock placeholder text), not a translation. See
+free, non-network UI demo (mock placeholder text), not a translation. Select
+one of five bundled Hebrew PDF fonts before translation or change the download
+font afterwards: rerendering saved text makes no model call. See
 [the Hebrew UI guide](UI_README_HE.md) for setup, limits and storage, and
 [INSTALL_HE.md](INSTALL_HE.md) for first-time setup with no command line.
+If PowerShell blocks scripts, use the VBS launcher or
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1`;
+this applies only to that process, without changing machine policy.
 
 This user-directed document flow (`scholarly_translation/document_draft.py`,
 `document-draft@2` records) drives the same canonical pipeline as the CLI
@@ -21,8 +27,9 @@ unit_node_links) → `context_strategy.py`'s chapter-aware, model-budget-based
 context selection, extended with `document_state.py`'s small, versioned,
 source-backed cross-chapter memory (approved terminology/definitions/
 character register/unresolved ambiguities carried from one chapter into the
-next, never a chapter summary) → `translation.py` → quality-mode-gated
-`review_qa.py` (per-unit semantic review, chapter-level QA) → `export_pdf.py`
+next, never a chapter summary) → `chapter_pipeline.py`'s model-fit whole-chapter
+or semantic-unit batches → quality-mode-gated `review_qa.py` (risk-based/all-unit
+semantic review, chapter QA, one bounded correction and focused recheck) → `export_pdf.py`
 / `export_epub.py`. Chapter-level QA can propose persistent-state updates;
 a proposal that contradicts existing state is surfaced, never silently
 applied (see "Translation context, chapter QA and persistent state" below).
@@ -34,13 +41,20 @@ review/QA calls are no longer a separate, unmetered path, and the job's
 displayed cost estimate reflects every stage, not translation alone. Source
 remains unreviewed and all drafts remain unapproved, including human edits;
 this does not bypass scholarly approval or establish Gate-10 quality.
-Model/effort/pricing choices were checked against official OpenAI
-documentation on 2026-10-04; account availability and actual billing are
-separate from local estimates, and only OpenAI calls are priced at all --
-other configured providers (Anthropic/DeepSeek/OpenAI-compatible) are
-budget-reserved conservatively but their actual usage is reported
-`not_metered`, stopping further spend on that role after one call rather
-than guessing a price.
+Model limits and Standard prices are dated 2026-10-05 in `model_catalog.py`;
+OpenAI and Anthropic usage is normalized, including observed cache reads/writes.
+Other models use explicit manual rates or a labelled price assumption, never an
+official arbitrary-provider quote. Local `tiktoken`/byte sizing reports its method
+and uncertainty; the current GPT-6/Claude mappings remain estimates. See
+[token and cost notes](MODEL_COSTS_HE.md).
+
+`work_journal.py` persists each step's raw response before parsing/accounting;
+received/completed work resumes without another request. An uncertain dispatch
+blocks automatic resend. Pause stops before the next request after retaining the
+current response. Memory-only keys must be supplied again after server restart.
+Stage/chapter progress and observed estimated spend, held funds, remaining budget,
+local reuse and provider cache tokens are separate. Software acceptance does not
+establish scholarly quality; the representative human pilot remains pending.
 
 ## Gate 1 offline skeleton
 

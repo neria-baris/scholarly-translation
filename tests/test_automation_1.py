@@ -16,6 +16,7 @@ from scholarly_translation.model_adapter import (
     AnthropicTextGenerationAdapter,
     OpenAICompatibleTextGenerationAdapter,
     OpenAITextGenerationAdapter,
+    RequestValidationError,
     estimate_model_cost,
 )
 from scholarly_translation.model_config import ModelCapabilities, ModelConfigError
@@ -191,9 +192,21 @@ class OpenAITruncationTests(unittest.TestCase):
         self.assertNotEqual(result.token_usage, "not_metered")
 
     def test_reasoning_effort_rejected_when_unsupported(self):
-        adapter = OpenAITextGenerationAdapter(client=SimpleNamespace(), reasoning="high")
-        with self.assertRaises(Exception):
+        adapter = OpenAITextGenerationAdapter(client=SimpleNamespace(), reasoning="minimal")
+        with self.assertRaises(RequestValidationError):
             adapter.generate("prompt", "gpt-6-luna")
+
+    def test_luna_documented_high_effort_can_be_requested(self):
+        payloads = []
+        response = SimpleNamespace(status='completed', output_text='שלום', model='gpt-6-luna',
+            usage=SimpleNamespace(input_tokens=100, output_tokens=20))
+        def create(**payload):
+            payloads.append(payload)
+            return response
+        client = SimpleNamespace(responses=SimpleNamespace(create=create))
+        answer = OpenAITextGenerationAdapter(client=client, reasoning='high').generate('prompt', 'gpt-6-luna')
+        self.assertEqual(answer.status, 'completed')
+        self.assertEqual(payloads[0]['reasoning'], {'effort': 'high'})
 
 
 class ChatTruncationTests(unittest.TestCase):

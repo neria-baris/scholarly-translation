@@ -7,7 +7,7 @@
 </head>
 <body>
 <header class="app-header">
-<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h10M9 3v3M6 9c1 4 4 6 7 7M12 6c0 5-3 8-7 10M14 20l4-10 4 10m-6-3h4"/></svg></span><span>תרגום מסמכים</span></a>
+<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span>תרגום מסמכים</span></a>
 <button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">מודל: Auto</span></button>
 </header>
 <main class="workspace">
@@ -24,11 +24,21 @@
 <div class="settings-fields">
 <div class="field"><label for="profile">פרופיל תרגום</label><select id="profile"><option value="scholarly">אקדמי (מדויק, הערות ומינוח נשמרים)</option><option value="literary">ספרותי (זורם, נאמן לסגנון)</option></select></div>
 <div class="field"><label for="quality">רמת בדיקה</label><select id="quality"><option value="fast">מהיר — ללא בדיקה נוספת</option><option value="checked">נבדק — בדיקת מקטעים מסוכנים + בדיקת פרקים</option><option value="thorough">מעמיק — בדיקת כל מקטע + בדיקת פרקים</option></select><small id="quality-help">מהיר אינו שולח קריאות בדיקה נוספות; נבדק ומעמיק דורשים מודל מוגדר.</small></div>
-<div class="field"><label for="model">מודל</label><select id="model"><option value="auto">Auto — תצוגת ניסיון, ללא עלות</option><option value="configured">מודל מוגדר בשרת</option></select><small id="model-help">Auto אינו מבצע תרגום אמיתי ואינו מצריך מפתח API.</small></div>
+<div class="field"><label for="model">מודל</label><select id="model"><option value="auto">Auto — תצוגת ניסיון (מדומה), ללא עלות וללא תרגום אמיתי</option><option value="configured">מודל משלי (מפתח API)</option></select><small id="model-help">Auto אינו מבצע תרגום אמיתי ואינו מצריך מפתח API.</small></div>
 <div class="field"><label for="language">שפת המקור</label><select id="language"><option value="auto">זיהוי אוטומטי</option><option value="en">אנגלית</option><option value="fr">צרפתית</option><option value="ja">יפנית</option></select></div>
-<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" value="2" min="0.01" max="30" step="0.01" inputmode="decimal" dir="ltr"><small>מגבלת אומדן מחירון. רלוונטי רק למודל מוגדר.</small></div>
-<details id="advanced-roles"><summary>בחירת תפקידים מתקדמת (translator / semantic_reviewer / chapter_qa)</summary><p class="advanced-note">שימוש רגיל אינו דורש זאת: המודל המוגדר בשרת קובע את כל התפקידים.</p></details>
-</div></details>
+<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" value="2" min="0.01" max="30" step="0.01" inputmode="decimal" dir="ltr"><small>מגבלת אומדן מחירון. רלוונטי רק למודל משלי.</small></div>
+<div class="field"><label for="font-before">גופן PDF (לפני תרגום)</label><select id="font-before"></select><small>רלוונטי לקובצי PDF בלבד; EPUB שומר את העיצוב המקורי שלו.</small></div>
+</div>
+<div id="model-settings" class="model-settings" hidden>
+<p class="advanced-note">מודל משלי: המפתחות נשמרים בזיכרון השרת המקומי בלבד לאורך ההרצה, ולא בדיסק, בקובץ ההגדרות או בדפדפן. הפעלה חדשה של השרת מאפסת אותם.</p>
+<div class="role-block" data-role="translator"><h3>מתרגם</h3><div class="role-fields"></div></div>
+<div class="role-block" data-role="semantic_reviewer"><h3>בדיקת איכות (QA) <small>— כברירת מחדל כמו המתרגם</small></h3><div class="role-fields"></div></div>
+<details id="advanced-roles"><summary>בחירת מבקר פרקים מתקדמת (chapter_qa)</summary><div class="role-block" data-role="chapter_qa"><div class="role-fields"></div></div></details>
+<div class="key-fields"></div>
+<div class="field"><button id="save-keys" type="button" class="secondary-button">שמירת מפתחות API</button><span id="key-message" class="key-message" role="status"></span></div>
+<div id="preview-card" class="preview-card" hidden><h3>אומדן עלות (לפני שליחה בפועל)</h3><div id="preview-body"></div></div>
+</div>
+</details>
 <p id="form-message" class="message" role="alert" hidden></p>
 <button id="translate-button" type="submit" class="primary-button translate-button" disabled><span id="translate-label">תרגום לעברית</span><span aria-hidden="true">←</span></button>
 <p id="send-note" class="send-note">Auto: ללא עלות, ללא תרגום אמיתי. מודל מוגדר: לחיצה על תרגום תבקש אישור לשליחה לספק המודל.</p>
@@ -37,13 +47,41 @@
 <p class="format-note">מתרגמים את מבנה המסמך (פסקאות, כותרות). קובץ PDF נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את מבנה הפרקים והעיצוב המקורי שלו.</p>
 </section>
 <section id="processing-panel" class="processing-panel" aria-live="polite" hidden>
-<div class="spinner" aria-hidden="true"></div><span class="eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p><progress id="translation-progress" max="1" aria-label="התקדמות התרגום"></progress><p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
+<div id="processing-book-host"><div id="pixel-book" class="pixel-book" data-phase="start" aria-hidden="true">
+<svg viewBox="0 0 72 48" shape-rendering="crispEdges">
+<rect class="pb-ground" x="8" y="43" width="56" height="2"/>
+<g class="pb-closed"><path class="pb-paper" d="M36 38L47 9L59 14L48 40z"/>
+<path class="pb-lines" d="M39 37L49 12M42 38L52 13M45 39L55 14"/>
+<path class="pb-cover" d="M32 38L44 7L47 8L36 40zM46 40L58 11L61 12L49 42zM32 38L49 40v3L32 41z"/>
+<rect class="pb-spine" x="32" y="40" width="7" height="3"/></g>
+<g class="pb-open"><path class="pb-cover" d="M9 37h22v2h10v-2h22v4H9z"/>
+<path class="pb-paper" d="M11 34l18-6 7 7 7-7 18 6v4H41l-5 2-5-2H11z"/>
+<path class="pb-lines" d="M13 35l15-5 5 5M14 37l15-4 5 4M39 35l5-5 15 5M38 37l5-4 15 4"/>
+<path class="pb-turn" d="M36 37l18-15 5 5-23 13z"/>
+<rect class="pb-spine" x="33" y="38" width="6" height="4"/></g>
+<rect class="pb-opening-cover pb-cover" x="34" y="7" width="3" height="33"/>
+</svg></div><p id="processing-percentage" class="processing-percentage">0%</p></div>
+<span class="eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p>
+<progress id="translation-progress" max="100" aria-label="התקדמות התרגום"></progress>
+<p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
+<p id="processing-budget" class="processing-budget" hidden></p>
+<div id="processing-usage" class="usage-summary" hidden></div>
+<div id="resume-keys" class="model-settings" hidden>
+<p class="advanced-note">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. יש להזין אותם שוב כדי להמשיך.</p>
+<div class="key-fields" id="resume-key-fields"></div>
+<div class="field"><button id="resume-save-keys" type="button" class="secondary-button">שמירת מפתחות API</button><span id="resume-key-message" class="key-message" role="status"></span></div>
+</div>
+<div class="processing-actions"><button id="pause-button" class="secondary-button" hidden>השהיה</button><button id="resume-button" class="secondary-button" hidden>המשך</button></div>
 </section>
 <section id="result-panel" hidden aria-labelledby="result-title">
+<div id="result-book-host" class="result-book-host"></div>
 <div class="result-heading"><span id="result-symbol" class="result-symbol" aria-hidden="true">✓</span><span class="eyebrow" id="result-eyebrow">התרגום שלכם</span><h1 id="result-title">התרגום מוכן.</h1><p id="result-filename" dir="auto"></p></div>
 <div class="result-card"><div class="result-file"><span class="result-file-icon" aria-hidden="true">↓</span><div><strong id="download-filename" dir="auto"></strong><span id="result-meta"></span></div><span class="draft-badge">טיוטה</span></div>
 <p id="result-notice" class="result-notice" hidden></p>
 <p id="result-limitations" class="result-notice" hidden></p>
+<p id="result-exceptions" class="result-notice" hidden></p>
+<div id="result-usage" class="usage-summary" hidden></div>
+<div class="field" id="font-after-field" hidden><label for="font-after">גופן PDF (לאחר תרגום)</label><select id="font-after"></select><small>החלפת גופן בונה מחדש את ה־PDF בלבד; אינה שולחת קריאה למודל.</small></div>
 <div class="result-actions"><button id="download-pdf" class="primary-button">הורדת הקובץ המתורגם <span aria-hidden="true">↓</span></button></div>
 <div class="result-secondary"><button id="review-button" class="text-button">בדיקה ועריכה (לבחירתכם) <span aria-hidden="true">←</span></button><span id="cost-summary"></span></div></div>
 <div id="review-panel" class="review-panel" hidden>
@@ -54,6 +92,12 @@
 </section>
 </main>
 <footer class="app-footer"><span>הקובץ והתוצאה נשמרים במחשב שלכם.</span><a href="/help" target="_blank" rel="noopener">עזרה</a></footer>
+<dialog id="provider-consent" aria-labelledby="provider-consent-title">
+<h2 id="provider-consent-title">אישור שליחה לספקים</h2>
+<p id="provider-consent-detail"></p>
+<p>התרגום והבדיקות משתמשים באותו תקציב למסמך. זו מגבלת אומדן מקומית לפי המחירון, ולא מגבלת חיוב בחשבון הספק.</p>
+<div class="dialog-actions"><button id="confirm-provider-send" type="button" class="primary-button">אישור והתחלת תרגום</button><button id="cancel-provider-send" type="button" class="quiet-button">ביטול</button></div>
+</dialog>
 <dialog id="connection-dialog" aria-labelledby="connection-title">
 <div class="dialog-heading"><h2 id="connection-title">מודל תרגום</h2><button id="close-connection" class="quiet-button" aria-label="סגירה">✕</button></div>
 <p id="connection-detail">Auto הוא מצב תצוגת ניסיון בלבד, ללא עלות וללא תרגום אמיתי.</p>

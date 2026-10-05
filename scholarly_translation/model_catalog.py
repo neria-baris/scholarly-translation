@@ -56,7 +56,8 @@ _CATALOG = {
         provider="openai", model="gpt-6-luna",
         context_window=1_050_000, max_output_tokens=128_000,
         rates_per_million={"input": 0.10, "output": 0.50, "cached": 0.01, "cache_write": 0.125},
-        reasoning_values=("none",), long_context=True,
+        # Project default remains none; catalogue lists all documented values.
+        reasoning_values=("none", "low", "medium", "high", "xhigh", "max"), long_context=True,
     ),
     ("openai", "gpt-6.1-sol"): ModelPricing(
         provider="openai", model="gpt-6.1-sol",

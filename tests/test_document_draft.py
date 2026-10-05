@@ -330,6 +330,10 @@ class DocumentDraftTests(unittest.TestCase):
         edited = jobs.review(job["job_id"], 0, "טיוטה שנערכה ובה 3 טענות.", 0)
         self.assertEqual(edited["revision"], 1)
         self.assertFalse(edited["approved"])
+        self.assertTrue(edited['units'][0]['review_stale'])
+        self.assertEqual(edited['quality_status'], 'edited_draft_review_stale')
+        previous = json.loads((jobs.root / job['job_id'] / 'revision-0.json').read_text(encoding='utf-8'))
+        self.assertNotEqual(previous['units'][0]['target_text'], edited['units'][0]['target_text'])
         self.assertTrue((jobs.root / job["job_id"] / "revision-0.json").is_file())
         with self.assertRaises(DocumentDraftError):
             jobs.review(job["job_id"], 0, "עריכה ישנה", 0)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -19,12 +20,15 @@ from .gui import STEPS, build_command
 from .ui_decisions import (
     UIDecisionError, glossary_action, glossary_options, source_decisions, source_options,
 )
+from . import model_settings
+from .model_settings import ModelSettingsError
 
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = ROOT / "outputs" / "ui"
 MAX_UPLOAD = 100 * 1024 * 1024
 UI_DIR = Path(__file__).resolve().parent
+_PROVIDER_ID_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 
 
 def public_steps() -> list[dict]:
@@ -125,8 +129,11 @@ def local_library() -> list[dict]:
 
 def make_handler(token: str, model_config_path: str | None = None):
     from .document_draft import (
-        DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download,
+        DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download, validate_settings,
     )
+    from . import chapter_pipeline
+    from .export_common import list_pdf_fonts
+    from .model_adapter import build_translation_adapter
     from .model_config import ModelConfiguration
     from .translation_profiles import SUPPORTED_PROFILE_IDS
 
@@ -136,9 +143,118 @@ def make_handler(token: str, model_config_path: str | None = None):
         ModelConfiguration.from_dict(server_model_config)  # fail fast on an invalid deployment file
 
     session_settings = {"api_key": None}
+    # Memory-only provider API keys for the new multi-provider UI flow, keyed
+    # by provider_id. Never written to os.environ, disk, logs or any HTTP
+    # response; lost on server restart by design (resume re-supplies them).
+    session_keys: dict[str, str] = {}
     session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
     document_jobs = DocumentJobs(OUTPUT_ROOT)
+
+    def _environment_key(definition):
+        # Only standard native endpoints or the locally supplied deployment
+        # file can authorize reading an environment credential. A submitted
+        # custom endpoint cannot borrow an unrelated environment secret.
+        trusted = (definition.base_url is None and
+                   definition.provider_type in ("openai", "anthropic") and
+                   definition.credential_env == {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}[definition.provider_type])
+        if server_model_config:
+            trusted = trusted or server_model_config["providers"].get(definition.provider_id) == definition.to_dict()
+        return os.environ.get(definition.credential_env) if trusted and definition.credential_env else None
+
+    def _key_snapshot(configuration):
+        with settings_lock:
+            result = dict(session_keys)
+        for pid, definition in configuration.providers.items():
+            trusted_deployment = bool(server_model_config and server_model_config["providers"].get(pid) == definition.to_dict())
+            if definition.base_url and not trusted_deployment and pid != model_settings.endpoint_provider_id(definition.provider_type, definition.base_url):
+                result.pop(pid, None)
+            if not result.get(pid):
+                result[pid] = _environment_key(definition)
+        return result
+
+    def _requirements(configuration, settings):
+        snapshot = _key_snapshot(configuration)
+        return [{"id": definition.provider_id, "type": definition.provider_type,
+                 "endpoint": definition.base_url, "key_available": bool(snapshot.get(definition.provider_id))}
+                for definition in {definition.provider_id: definition for _, definition in
+                    _required_roles_for(configuration, settings).values() if definition.provider_type != "mock"}.values()]
+
+    def _required_roles_for(configuration, settings):
+        # Both the automation chapter pipeline and the legacy per-unit
+        # configured path dispatch real semantic_reviewer/chapter_qa calls
+        # whenever quality != "fast" (document_draft._run_configured_mode
+        # resolves and calls them too, not only chapter_pipeline); gate on
+        # quality the same way in both modes so preflight never under-covers
+        # a required provider credential.
+        return chapter_pipeline._resolve_required_roles(configuration, settings["quality"])
+
+    def _missing_credential_providers(configuration, settings, keys_snapshot=None):
+        keys_snapshot = _key_snapshot(configuration) if keys_snapshot is None else keys_snapshot
+        missing = set()
+        for _role, (selection, definition) in _required_roles_for(configuration, settings).items():
+            if definition.provider_type != "mock" and not keys_snapshot.get(definition.provider_id):
+                missing.add(definition.provider_id)
+        return sorted(missing)
+
+    def _preflight_credentials(configuration, settings):
+        keys_snapshot = _key_snapshot(configuration)
+        missing = _missing_credential_providers(configuration, settings, keys_snapshot)
+        if missing:
+            raise DocumentDraftError(
+                "יש לשמור מפתח API עבור: " + ", ".join(missing) + " לפני התחלת עבודה אמיתית."
+            )
+        return keys_snapshot
+
+    def _adapter_factory_for(configuration, keys_snapshot):
+
+        def adapter_factory(role, request):
+            selection, definition = configuration.resolve(role)
+            if definition.provider_type != "mock" and not keys_snapshot.get(definition.provider_id):
+                raise DocumentDraftError("מפתח הספק אינו זמין לעבודה זו; הזינו אותו לפני המשך.")
+            max_output_tokens = getattr(request, "max_output_tokens", None)
+            if max_output_tokens is None:
+                max_output_tokens = selection.capabilities.max_output_tokens if selection.capabilities else None
+            return build_translation_adapter(
+                selection.provider, selection.model, provider_definition=definition,
+                max_output_tokens=max_output_tokens, api_key=keys_snapshot.get(definition.provider_id),
+            )
+        return adapter_factory
+
+    def _resolve_model_config(settings):
+        """Build settings['model_config'] from the new per-role UI selections
+        (settings['role_selections']) when present, else keep the legacy
+        single-file server_model_config/model_config path unchanged."""
+        if settings.get("model") != "configured" or settings.get("model_config") is not None:
+            return settings
+        role_selections = settings.get("role_selections")
+        if role_selections is not None:
+            try:
+                configuration = model_settings.build_configuration(role_selections)
+            except ModelSettingsError as exc:
+                raise DocumentDraftError(str(exc)) from None
+            settings = dict(settings)
+            settings["model_config"] = configuration.to_dict()
+            return settings
+        if server_model_config is None:
+            raise DocumentDraftError("לא הוגדר קובץ תצורת מודל בשרת.")
+        settings = dict(settings)
+        settings["model_config"] = server_model_config
+        return settings
+
+    def _validated_settings(settings):
+        if not isinstance(settings, dict) or set(settings) - {
+            "profile", "quality", "language", "budget_usd", "model", "model_config",
+            "automation", "font_id", "role_selections", "use_server_config"}:
+            raise DocumentDraftError("הגדרות המסמך אינן תקינות.")
+        try:
+            resolved = _resolve_model_config(dict(settings))
+            if resolved.get("model") == "configured":
+                resolved["automation"] = True
+                resolved.setdefault("quality", "checked")
+            return validate_settings(resolved)
+        except (ValueError, TypeError, KeyError):
+            raise DocumentDraftError("הגדרות המודל או המסמך אינן תקינות; בדקו מזהה, מגבלות, תעריפים וכתובת ספק.") from None
 
     def decision_file(data: dict, key: str) -> tuple[str, dict]:
         path = data.get(key, "")
@@ -170,7 +286,33 @@ def make_handler(token: str, model_config_path: str | None = None):
 
         def do_GET(self) -> None:
             if self.path == "/help":
-                self._reply(200, (ROOT / "UI_README_HE.md").read_bytes(), "text/plain")
+                try:
+                    rows = "".join(
+                        "<tr><td>{provider}</td><td dir=\"ltr\">{model}</td>"
+                        "<td dir=\"ltr\">{inp:g}</td><td dir=\"ltr\">{out:g}</td>"
+                        "<td dir=\"ltr\">{cached:g}</td><td dir=\"ltr\">{write:g}</td><td dir=\"ltr\">{write1h}</td></tr>".format(
+                            provider=entry["provider"], model=entry["model"],
+                            inp=entry["rates_per_million"]["input"], out=entry["rates_per_million"]["output"],
+                            cached=entry["rates_per_million"].get("cached", entry["rates_per_million"]["input"]),
+                            write=entry["rates_per_million"].get("cache_write", entry["rates_per_million"]["input"]),
+                            write1h=(f"{entry['rates_per_million']['cache_write_1h']:g}" if "cache_write_1h" in entry["rates_per_million"] else "—"),
+                        )
+                        for entry in model_settings.catalogue()
+                    )
+                    from .model_catalog import CATALOG_VERSION
+                    fonts_rows = "".join(
+                        f"<li><strong>{f['name']}</strong> — {f['license']}"
+                        + (f" ({f['embedding_note']})" if f.get("embedding_note") else "") + "</li>"
+                        for f in list_pdf_fonts()
+                    )
+                    html = (UI_DIR / "help.html").read_text(encoding="utf-8")
+                    html = (html.replace("__PRICING_ROWS__", rows)
+                                .replace("__CATALOG_VERSION__", CATALOG_VERSION)
+                                .replace("__FONT_LIST__", fonts_rows))
+                except OSError:
+                    self._json(404, {"error": "not found"})
+                    return
+                self._reply(200, html.encode("utf-8"), "text/html")
                 return
             if self.path in ("/ui.css", "/ui.js"):
                 name = self.path.removeprefix("/")
@@ -188,6 +330,15 @@ def make_handler(token: str, model_config_path: str | None = None):
             origin = self.headers.get("Origin")
             expected = f"http://127.0.0.1:{self.server.server_port}"
             if self.headers.get("X-UI-Token") != token or (origin and origin != expected):
+                # Unread small request bodies can reset a Windows socket
+                # before the client receives the intended rejection response.
+                try:
+                    rejected_length = int(self.headers.get('Content-Length', '0'))
+                    if 0 < rejected_length <= 65536:
+                        self.connection.settimeout(2)
+                        self.rfile.read(rejected_length)
+                except (ValueError, OSError):
+                    pass
                 self._json(403, {"error": "request refused"})
                 return
             try:
@@ -227,6 +378,17 @@ def make_handler(token: str, model_config_path: str | None = None):
                     if server_model_config is not None:
                         translator = server_model_config.get("models", {}).get("translator", {})
                         translator_label = f"{translator.get('provider')}/{translator.get('model')}"
+                    with settings_lock:
+                        available_keys = {pid: True for pid in session_keys}
+                    for pid, env in (("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")):
+                        if os.environ.get(env):
+                            available_keys[pid] = True
+                    configured_requirements = []
+                    if server_model_config:
+                        configuration = ModelConfiguration.from_dict(server_model_config)
+                        configured_requirements = [{"id": pid, "type": definition.provider_type,
+                            "endpoint": definition.base_url, "key_available": bool(_key_snapshot(configuration).get(pid))}
+                            for pid, definition in configuration.providers.items() if definition.provider_type != "mock"]
                     self._json(200, {
                         "profiles": [{"id": pid} for pid in SUPPORTED_PROFILE_IDS],
                         "qualities": [{"id": q} for q in sorted(QUALITY_MODES)],
@@ -234,6 +396,11 @@ def make_handler(token: str, model_config_path: str | None = None):
                         "model_config_available": server_model_config is not None,
                         "configured_translator_model": translator_label,
                         "max_file_bytes": MAX_FILE_BYTES,
+                        "model_catalog": model_settings.catalogue(),
+                        "pdf_fonts": list_pdf_fonts(),
+                        "qa_roles": ["semantic_reviewer", "chapter_qa"],
+                        "key_providers_available": available_keys,
+                        "configured_requirements": configured_requirements,
                     })
                 elif route.path == "/document-translate":
                     source = Path(data.get("path", "")).resolve()
@@ -244,14 +411,80 @@ def make_handler(token: str, model_config_path: str | None = None):
                     settings = data.get("settings")
                     if not isinstance(settings, dict):
                         raise DocumentDraftError("הגדרות המסמך חסרות.")
-                    settings = dict(settings)
-                    if settings.get("model") == "configured" and settings.get("model_config") is None:
-                        if server_model_config is None:
-                            raise DocumentDraftError("לא הוגדר קובץ תצורת מודל בשרת.")
-                        settings["model_config"] = server_model_config
-                    self._json(200, document_jobs.start(source, settings, paid_confirm=data.get("paid_confirm")))
+                    settings = _validated_settings(settings)
+                    adapter_factory = None
+                    if settings.get("model") == "configured":
+                        configuration = ModelConfiguration.from_dict(settings["model_config"])
+                        keys_snapshot = _preflight_credentials(configuration, settings)
+                        adapter_factory = _adapter_factory_for(configuration, keys_snapshot)
+                    self._json(200, document_jobs.start(source, settings, paid_confirm=data.get("paid_confirm"),
+                                                         adapter_factory=adapter_factory))
                 elif route.path == "/document-job":
                     self._json(200, document_jobs.get(data.get("job_id")))
+                elif route.path == "/document-pause":
+                    self._json(200, document_jobs.pause(data.get("job_id")))
+                elif route.path == "/document-resume":
+                    job = document_jobs.get(data.get("job_id"))
+                    adapter_factory = None
+                    if job["status"] != "completed" and job["settings"].get("model") == "configured":
+                        configuration = ModelConfiguration.from_dict(job["settings"]["model_config"])
+                        keys_snapshot = _preflight_credentials(configuration, job["settings"])
+                        adapter_factory = _adapter_factory_for(configuration, keys_snapshot)
+                    self._json(200, document_jobs.resume(data.get("job_id"), adapter_factory=adapter_factory))
+                elif route.path == "/model-keys":
+                    keys = data.get("keys")
+                    if keys is not None:
+                        if not isinstance(keys, dict):
+                            raise ValueError("בקשת מפתחות אינה תקינה.")
+                        removals, updates = [], {}
+                        for provider_id, value in keys.items():
+                            if (not isinstance(provider_id, str) or not _PROVIDER_ID_RE.fullmatch(provider_id)
+                                    or provider_id.startswith('sk-')):
+                                raise ValueError("בקשת מפתחות אינה תקינה.")
+                            if value is None or value == "":
+                                removals.append(provider_id)
+                                continue
+                            if not isinstance(value, str) or len(value) > 4096 or "\n" in value or "\r" in value:
+                                raise ValueError("מפתח API אינו תקין.")
+                            stripped = value.strip()
+                            if not stripped:
+                                raise ValueError("מפתח API אינו תקין.")
+                            updates[provider_id] = stripped
+                        with settings_lock:
+                            for provider_id in removals:
+                                session_keys.pop(provider_id, None)
+                            session_keys.update(updates)
+                    with settings_lock:
+                        available = {pid: True for pid in session_keys}
+                    for pid, env in (("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")):
+                        if os.environ.get(env):
+                            available[pid] = True
+                    if server_model_config:
+                        available.update({pid: True for pid, key in _key_snapshot(ModelConfiguration.from_dict(server_model_config)).items() if key})
+                    self._json(200, {"available": available})
+                elif route.path == "/document-preview":
+                    source = Path(data.get("path", "")).resolve()
+                    if not source.is_relative_to((OUTPUT_ROOT / "uploads").resolve()) or not source.is_file():
+                        raise DocumentDraftError("בחרו קובץ שהועלה דרך הממשק.")
+                    if source.suffix.lower() not in (".pdf", ".epub") or not 0 < source.stat().st_size <= MAX_FILE_BYTES:
+                        raise DocumentDraftError("בחרו קובץ PDF או EPUB עד 25 MB.")
+                    settings = data.get("settings")
+                    if not isinstance(settings, dict):
+                        raise DocumentDraftError("הגדרות המסמך חסרות.")
+                    settings = _validated_settings(settings)
+                    preview = document_jobs.preview(source, settings)
+                    configuration = ModelConfiguration.from_dict(settings["model_config"])
+                    preview["required_providers"] = _requirements(configuration, settings)
+                    from .model_catalog import CATALOG_VERSION
+                    preview["catalog_version"] = CATALOG_VERSION
+                    self._json(200, preview)
+                elif route.path == "/document-models":
+                    settings = _validated_settings(data.get("settings"))
+                    if settings["model"] != "configured":
+                        self._json(200, {"required_providers": []})
+                    else:
+                        configuration = ModelConfiguration.from_dict(settings["model_config"])
+                        self._json(200, {"required_providers": _requirements(configuration, settings)})
                 elif route.path == "/document-recent":
                     candidates = sorted(document_jobs.root.glob("*/job.json"), key=lambda path: path.stat().st_mtime, reverse=True)
                     recent = None
@@ -271,8 +504,14 @@ def make_handler(token: str, model_config_path: str | None = None):
                     if job["status"] != "completed":
                         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
                     kind = job.get("source_kind", "pdf")
+                    font_id = data.get("font_id")
+                    if font_id is not None:
+                        if kind != "pdf" or not isinstance(font_id, str) or font_id not in {
+                            f["id"] for f in list_pdf_fonts() if f["available"]
+                        }:
+                            raise DocumentDraftError("בחרו פונט PDF זמין מהרשימה.")
                     source_path = document_jobs.source_path(job["job_id"], "epub") if kind == "epub" else None
-                    body = render_download(job, kind, source_path=source_path)
+                    body = render_download(job, kind, source_path=source_path, font_id=font_id)
                     content_type = "application/epub+zip" if kind == "epub" else "application/pdf"
                     self.send_response(200)
                     self.send_header("Content-Type", content_type)
@@ -323,6 +562,10 @@ def make_handler(token: str, model_config_path: str | None = None):
                     with settings_lock:
                         if key is not None:
                             session_settings["api_key"] = key.strip() or None
+                            if key.strip():
+                                session_keys["openai"] = key.strip()
+                            else:
+                                session_keys.pop("openai", None)
                         available = bool(session_settings["api_key"] or os.environ.get("OPENAI_API_KEY"))
                     self._json(200, {"api_key_available": available})
                 elif route.path == "/preview":

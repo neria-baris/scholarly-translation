@@ -498,6 +498,21 @@ class DurableBoundaryRegressionTests(unittest.TestCase):
             for private in ("PRIVATE_SOURCE_SENTINEL", "PRIVATE_PROMPT_SENTINEL", "PRIVATE_RESPONSE_SENTINEL"):
                 self.assertNotIn(private, event_data)
 
+    def test_namespaced_compatible_model_settles_and_replays_without_dispatch(self):
+        model = 'meta-llama/' + 'Llama-3.3-70B-Instruct-' * 7
+        with ControlStore(self.path) as store:
+            cache, budget = self._controls(store, 'openai_compatible')
+            first, hit, _ = self._execute(cache, budget, model=model)
+            self.assertFalse(hit)
+            self.assertEqual(first.observed_model, model)
+            cost = store.status('doc-1')['list_estimated_spent_usd']
+            self.assertGreater(cost, 0)
+            result, hit, _ = self._execute(cache, budget, model=model,
+                call=lambda *args: self.fail('valid namespaced cache redispatched'))
+            self.assertTrue(hit)
+            self.assertEqual(result.observed_model, model)
+            self.assertEqual(store.status('doc-1')['list_estimated_spent_usd'], cost)
+
     def test_identity_prompt_stage_and_model_changes_each_dispatch(self):
         with ControlStore(self.path) as store:
             cache, budget = self._controls(store, max_calls=10)

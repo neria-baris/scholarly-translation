@@ -40,6 +40,7 @@ from . import context_strategy, document_state as document_state_module
 from . import epub_extract, pdf_extract, segmentation
 from .work_journal import WorkJournal
 from .export_common import ExportError
+from .formal_checks import run_formal_checks
 from .export_epub import export_epub_from_document_structure as _export_epub
 from .export_pdf import export_pdf as _export_pdf
 from .glossary import new_store as _new_glossary_store
@@ -963,6 +964,10 @@ class DocumentJobs:
         (folder / f"revision-{job['revision']}.json").write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
         unit_record = job["units"][unit_index]
         unit_record["target_text"], unit_record["human_edited"] = target_text, True
+        unit_record['review_stale'] = True
+        unit_record['findings'] = run_formal_checks(unit_record['source_text'], target_text,
+                                                  unit_record.get('source_language', 'en'))
+        job['quality_status'] = 'edited_draft_review_stale'
         job["revision"] = revision
         self._persist(job)
         return job

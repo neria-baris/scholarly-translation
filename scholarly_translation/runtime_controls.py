@@ -61,6 +61,13 @@ def _identifier(value):
     return isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", value) is not None and not value.startswith("sk-")
 
 
+def _model_identifier(value):
+    """Provider model names can contain namespaces and exceed task-ID length."""
+    return (isinstance(value, str) and
+            re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./:@+-]{0,255}", value) is not None
+            and not value.startswith("sk-"))
+
+
 def _usage(value):
     if not isinstance(value, dict) or any(k not in {"input", "output", "cached", "cache_write", "cache_write_1h", "reasoning"} or type(v) is not int or v < 0 for k, v in value.items()):
         return "not_metered"
@@ -98,7 +105,7 @@ def _raw_result(result, provider, status, model=None, custom_rates=None):
     if (not isinstance(result, dict) or set(result) != fields or result["status"] != status
             or status not in COMPLETED_STATUSES or not isinstance(result["text"], str) or not result["text"].strip()
             or result["error"] is not None
-            or not (result["observed_model"] is None or _identifier(result["observed_model"]))):
+            or not (result["observed_model"] is None or _model_identifier(result["observed_model"]))):
         raise StoreCorruptionError("invalid cached raw-result schema")
     if provider != "mock" and (status != "completed"
                                or estimate_model_cost(provider, model, result["token_usage"],
@@ -609,7 +616,7 @@ class RuntimeCache:
             on_received(result, event)
         try:
             raw = {k: getattr(result, k) for k in ("status", "text", "token_usage", "observed_model", "error")}
-            if not _identifier(result.status) or not (result.observed_model is None or _identifier(result.observed_model)):
+            if not _identifier(result.status) or not (result.observed_model is None or _model_identifier(result.observed_model)):
                 raise ValueError()
             provider_type = metadata.get("provider_type", self.provider)
             # Any non-mock provider/model gets a model-aware estimate (a

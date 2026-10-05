@@ -204,3 +204,45 @@ always false. HTML/TXT outputs are labeled automatic drafts, including partial
 results; human edits preserve prior revisions and never grant research approval.
 Completed results can resume after server restart; in-flight interrupted jobs
 cannot silently dispatch again. No network call occurs in demo or tests.
+
+## Authorized chapter automation extension (2026-10-05)
+
+Contracts `audit/contracts/automation_1.md` through `automation_4.md` implement
+the user-approved `AUTOMATION_WORK_PLAN_HE.md` without changing scholarly
+approval boundaries. New UI real jobs opt into chapter automation; existing
+saved/library jobs retain their legacy path. Both use canonical source units.
+
+`chapter_pipeline.py` plans complete prompts for each independently configured
+role: source, expected Hebrew, instructions, state, output and envelope. Whole
+chapters are preferred when they fit; otherwise adjacent semantic units are
+batched with explicit source coverage. Actual Hebrew is counted before QA;
+required additional funds cannot silently raise the user's original budget.
+Initial token/output/expansion hypotheses remain labelled experimental.
+
+All live steps use one controlled dispatch path with exact role/model/output
+caps and atomic reservation of pending QA/correction/recheck funds. Stable
+chapter prefixes support provider caching; locally verified result reuse is
+separate and saves an entire request. One bounded source-grounded correction
+and focused recheck is allowed; failed, ambiguous and retained minor findings
+remain visible as draft exceptions. Provisional cross-chapter state never grants
+glossary or source approval.
+
+`work_journal.py` schema2 persists dispatch/reservation identity, received raw
+result before accounting/parsing, validation and completion. Received raw can
+reconcile its original ledger event exactly once and then replay locally;
+unknown dispatch blocks new automatic requests. Pause/resume uses saved source,
+configuration, units and state. UI credentials are per-session memory snapshots,
+injected per-job into resolved adapters; restart requires renewed credentials.
+Keys never enter persisted settings, job, journal, response or browser storage.
+
+Model catalogue and deterministic offline token sizing are dated and explicit
+about custom-price/mapping uncertainty. Observed estimated spend, held funds,
+remaining allocation, local replay and provider cache token usage are distinct.
+Progress derives from completed stages/chapters, not elapsed wall time.
+
+The PDF exporter accepts a closed five-font catalogue of bundled public assets,
+licenses, original sources and hashes. A completed-job download can select a
+different font and rerender current stored targets with zero model calls.
+EPUB retains its source archive/CSS behavior. Neither font switching nor human
+editing grants scholarly approval or establishes quality; Gate10 remains pending
+representative inputs and expert judgment.

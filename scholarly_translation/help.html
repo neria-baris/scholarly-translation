@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light"><title>עזרה — תרגום מסמכים</title>
+<link rel="stylesheet" href="/ui.css">
+<style>
+.help-main{max-width:860px;margin:auto;padding:30px 24px 60px;line-height:1.75}
+.help-main h2{font-size:21px;margin:40px 0 12px;color:var(--teal);scroll-margin-top:20px}
+.help-main h3{font-size:15px;margin:22px 0 8px}
+.help-main p,.help-main li{font-size:14px;color:#2c4642}
+.help-nav{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0 30px;font-size:12px}
+.help-nav a{color:var(--teal);border-bottom:1px solid #b5cec3}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
+.callout{background:#f8fbf9;border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
+.callout.warn{background:#fcf0ec;border-color:#f0dad1}
+.help-hero{padding:24px;border:1px solid var(--line);border-radius:16px;background:white;box-shadow:0 12px 40px #18372e08}.help-hero h1{margin:8px 0 10px}.help-hero p{margin:0}
+.help-nav a{background:white;padding:8px 12px;border:1px solid var(--line);border-radius:8px;text-decoration:none}
+.model-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}.model-card{border:1px solid var(--line);border-radius:10px;padding:16px;background:white}.model-card h3{margin:0 0 8px}.model-card p{margin:0;font-size:13px}.help-main a{color:var(--teal)}.table-scroll{overflow-x:auto}.help-main code{direction:ltr;unicode-bidi:isolate}
+@media(max-width:650px){.help-main{padding:20px 16px 40px}.help-hero{padding:18px}.model-cards{grid-template-columns:1fr}th,td{padding:8px;font-size:12px}}
+</style>
+</head>
+<body>
+<header class="app-header">
+<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span>תרגום מסמכים</span></a>
+<a class="quiet-button" href="/">חזרה לעמוד הראשי</a>
+</header>
+<main class="help-main">
+<div class="help-hero"><span class="eyebrow">מדריך לכלי המקומי</span><h1>עזרה ושקיפות</h1>
+<p>העמוד הזה מסביר את כל השלבים, ההגדרות ועלויות האומדן של כלי התרגום המקומי. דף זה נבנה מהשרת המקומי שלכם ואינו שולח מידע לאף שרת חיצוני.</p>
+</div>
+<nav class="help-nav" aria-label="ניווט בעמוד העזרה">
+<a href="#steps">שלבי השימוש</a><a href="#models">מודלים ומפתחות</a><a href="#pricing">תעריפים</a>
+<a href="#tokens">טוקנים ועלות</a><a href="#quality">פרופיל ואיכות</a><a href="#fonts">גופנים</a><a href="#resume">המשך ותוצאות</a><a href="#limits">הפעלה ומגבלות</a>
+</nav>
+
+<h2 id="steps">שלבי השימוש</h2>
+<ol>
+<li><strong>בחירת קובץ</strong> — PDF עם טקסט מוטמע (לא סריקה ללא טקסט) או EPUB, עד 25MB.</li>
+<li><strong>אפשרויות</strong> — פרופיל תרגום (אקדמי/ספרותי), רמת בדיקה (מהיר/נבדק/מעמיק), מודל (Auto לתצוגת ניסיון מדומה, או מודל משלכם עם מפתח API), שפת מקור, תקציב, וגופן PDF.</li>
+<li><strong>תרגום</strong> — לחיצה על הכפתור. במודל משלכם תתבקשו לאשר שליחה בפועל לספק/ים שנבחרו ולצפות באומדן עלות מראש.</li>
+<li><strong>מעקב התקדמות</strong> — אחוז התקדמות אמיתי (לא מבוסס זמן), לפי פרקים/שלבים שהושלמו בפועל; אפשר להשהות ולהמשיך עבודה אוטומטית.</li>
+<li><strong>תוצאה</strong> — הורדת הקובץ המתורגם (PDF/EPUB), בדיקה ועריכה ידנית אופציונלית, ושינוי גופן PDF ללא קריאה חוזרת למודל.</li>
+</ol>
+
+<h2 id="models">מודלים, QA ומפתחות API</h2>
+<p>ה-Auto מדומה: אינו שולח טקסט לאף ספק, אינו מצריך מפתח, ומחזיר טקסט מקום-שמור בלבד — לעולם לא תרגום אמיתי.</p>
+<p>במודל משלכם בוחרים מודל מתרגם מהקטלוג (למטה) או מגדירים מודל "אחר" (מזהה, ספק, ולכתובת תואמת-OpenAI גם endpoint). בדיקת האיכות (QA — "semantic_reviewer" ו-"chapter_qa") מוגדרת כברירת מחדל זהה למודל המתרגם, וניתן לשנות אותה בנפרד. המפתחות נשמרים רק בזיכרון השרת המקומי להרצה הנוכחית: לא בדיסק, לא בקובץ ההגדרות, לא ב-log, לא ב-localStorage של הדפדפן ולא במשתני סביבה. הפעלה חדשה של השרת מאפסת אותם; חידוש עבודה שהושהתה מבקש את המפתחות מחדש ומשתמש בעבודה שנשמרה.</p>
+
+<h2 id="pricing">תעריפים (רשימת מחיר רשמית, קטלוג __CATALOG_VERSION__)</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>ספק</th><th>מודל</th><th>קלט ($/1M)</th><th>פלט ($/1M)</th><th>קריאת מטמון ($/1M)</th><th>כתיבת מטמון ($/1M)</th><th>כתיבה לשעה ($/1M)</th></tr></thead>
+<tbody>__PRICING_ROWS__</tbody>
+</table></div>
+<div class="callout">
+<p>בקטלוג הזה כתיבת מטמון עולה יותר מקלט רגיל, וקריאת מטמון זולה ממנו. כתיבת Claude קצרה נשמרת לחמש דקות; כתיבה לשעה יקרה יותר ומופיעה בנפרד. בחירת מטמון אינה מבטיחה פגיעה: הספק צריך לזהות קידומת זהה ולתמוך באפשרות. תוצאה מקומית שמורה יכולה לחסוך קריאה שלמה למודל.</p>
+<p>במודלי OpenAI המופיעים כאן, מעל 272,000 טוקני קלט בבקשה יחידה תעריפי הקלט והמטמון מוכפלים פי 2 ותעריף הפלט פי 1.5 — על כל הבקשה. אומדן הפרויקט כולל זאת. מחירים רגילים אלה אינם מחירי מנוי Claude Code או ChatGPT, וחשבון API נפרד עשוי לכלול תנאים נוספים.</p>
+<p>למודל "אחר" ללא תעריף שהוזן משתמשים בהנחת $4 למיליון טוקני קלט ו־$20 לפלט, ללא הנחת מטמון. זהו אומדן מסומן, שאינו מחיר רשמי ואינו תקרת חיוב מובטחת של ספק לא מוכר. אפשר להזין את התעריפים האמיתיים כדי לעדכן את החישוב.</p>
+</div>
+<p>מקורות המחיר והמגבלות, שנבדקו ב־5 באוקטובר 2026: <a href="https://developers.openai.com/api/docs/models/gpt-6-luna" target="_blank" rel="noopener">GPT-6 Luna</a>, <a href="https://developers.openai.com/api/docs/models/gpt-6.1-sol" target="_blank" rel="noopener">GPT-6.1 Sol</a>, <a href="https://platform.claude.com/docs/en/models/sonnet-5-5/overview" target="_blank" rel="noopener">Claude Sonnet 5.5</a>, <a href="https://platform.claude.com/docs/en/models/opus-5-5/overview" target="_blank" rel="noopener">Claude Opus 5.5</a>.</p>
+
+<h2 id="tokens">אי-ודאות טוקנים, קלט/פלט ועלות QA/cache</h2>
+<p>ספירת הטוקנים בתצוגה המקדימה היא אומדן עליון (upper bound), לא ספירה רשמית של הספק: טקסט מעורב (עברית/לטינית/יפנית) עלול להיספר שונה ממה שהספק יחשב בפועל בזמן השליחה האמיתית. האומדן ה"צפוי" מניח כ-35% ניצול תקרת הפלט, אפס תיקונים ואפס פגיעה ב-cache (cache miss מלא); האומדן השמרני ("תקרה") כולל גם תיקון חסום אחד ובדיקה חוזרת ממוקדת אחת, ומניח כתיבת cache מלאה. שני האומדנים אינם הצעת מחיר של הספק, ועלות בפועל (observed) עשויה להיות שונה — היא מוצגת בנפרד מהתקציב השמור/המתוכנן בזמן ריצה אמיתית.</p>
+
+<h2 id="quality">פרופיל תרגום ורמת בדיקה</h2>
+<p>לפי תיאורי הספקים המקושרים למעלה, המודלים מיועדים לסוגי עבודה שונים. אלה תיאורי הספקים, ואינם דירוג של איכות התרגום לעברית בפרויקט.</p>
+<div class="model-cards">
+<article class="model-card"><h3>Luna — משימות ממוקדות</h3><p>מיועד לפי OpenAI למשימות ממוקדות בהיקף גדול, במחיר נמוך. הוא מאפשר לבדוק יותר דוגמאות בתקציב קטן; יש לבחון במיוחד מינוח וטיעונים מורכבים.</p></article>
+<article class="model-card"><h3>Sol — עבודה מקצועית מורכבת</h3><p>כך OpenAI מתארת את המודל. מחיר הקלט והפלט הרגיל גבוה פי 20 מ־Luna; תוספת המחיר אינה ראיה לשיפור בתרגום המסוים שלכם.</p></article>
+<article class="model-card"><h3>Sonnet — מהירות ויכולת</h3><p>Anthropic מתארת אותו כאיזון בין מהירות ליכולת. מחיר הקלט והפלט הרגיל זהה ל־Sol, אך תעריפי המטמון והחשיבה עשויים לשנות את העלות הכוללת.</p></article>
+<article class="model-card"><h3>Opus — עבודה ממושכת</h3><p>מיועד לפי Anthropic לעבודה מורכבת וממושכת. מחיר הקלט והפלט כפול מ־Sonnet, וחשיבה תמיד פעילה; לא הוכח בפרויקט שהוא תמיד מתרגם או מבקר טוב יותר.</p></article>
+</div>
+<p>אפשר לבחור מתרגם זול ובודק אחר, או לבדוק דגימת מקור עם כמה מודלים. הבחירה הרצויה תלויה בדיוק במשמעות, במינוח, בסגנון ובממצאי QA של הטקסט שלכם; מחיר גבוה או חלון הקשר גדול לבדם אינם הוכחת איכות.</p>
+<p><strong>אקדמי</strong> שומר על דיוק סמנטי, מינוח, הערות שוליים וציטוטים. <strong>ספרותי</strong> שומר על קול, רגיסטר ודיאלוג.</p>
+<p><strong>מהיר</strong>: תרגום בלבד, ללא בדיקת QA שגרתית. <strong>נבדק</strong>: בדיקת מקטעים מסוכנים + בדיקת פרקים. <strong>מעמיק</strong>: בדיקת כל מקטע + בדיקת פרקים.</p>
+<div class="callout warn">
+<p><strong>אין דירוג איכות מאומת למודלים.</strong> לא בוצע עדיין פיילוט איכות מחקרי עם שופטים אנושיים על מקטעי מקור אמיתיים (הפיילוט חסום כרגע בהיעדר קלט מייצג מאושר, הרשאת ספק ושיפוט אנושי). מודל יקר יותר אינו מובטח כאיכותי יותר לטקסט שלכם; מומלץ להריץ פיילוט קטן על חלק מהמסמך שלכם ולבדוק את ה-QA בעצמכם לפני שמסתמכים על מודל יחיד.</p>
+</div>
+
+<h2 id="fonts">גופני PDF</h2>
+<p>ניתן לבחור גופן לפני התרגום ואחריו (רק ל-PDF; EPUB משתמש בעיצוב המקורי שלו). החלפת גופן בתוצאה בונה מחדש את ה-PDF בלבד ואינה שולחת שום קריאה למודל.</p>
+<ul>__FONT_LIST__</ul>
+<h2 id="resume">השהיה, חידוש ותוצאות</h2>
+<p><strong>השהיה</strong> שומרת את תשובת הקריאה הפעילה ועוצרת לפני בקשה נוספת. <strong>המשך</strong> משתמש במקור, בתוכנית ובתוצאות השמורות. בקשה שתוצאתה לא ידועה אינה נשלחת שוב אוטומטית; מצב זה מוצג כחריג כדי למנוע שליחה וחיוב חוזרים.</p>
+<p><strong>הורדה</strong> בונה את המסמך מהטיוטה השמורה. <strong>בדיקה ועריכה</strong> מציגה מקור לצד יעד ושומרת גרסה קודמת. אחרי עריכה, בדיקת האיכות הישנה מסומנת כלא מעודכנת; העריכה אינה אישור מחקרי.</p>
+<p>האחוזים תחת הספר משקפים השלמת שלבים ופרקים, ואינם תחזית זמן. בהשהיה ובכשל הספר מפסיק להתדפדף. כל התוצאות הן טיוטות לא מאושרות, גם לאחר בדיקות אוטומטיות.</p>
+<h2 id="limits">הפעלה ומגבלות</h2>
+<p>להפעלה ב־Windows לחצו על <strong>Run Scholarly Translation.vbs</strong> או הריצו <code>.\run-ui.ps1</code>. בהתקנה ראשונית השתמשו ב־<strong>Install.bat</strong>. השאירו את חלון השרת פתוח. מינוי ChatGPT או Claude Code אינו מפתח API לתרגום.</p>
+<p>אם PowerShell חוסם סקריפטים, השתמשו בקובץ ה־VBS או ב־<code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1</code>. ההגדרה חלה על התהליך הזה בלבד ואינה משנה את מדיניות המחשב.</p>
+<p>הקלט מוגבל ל־200 עמודים/פרקים ול־150,000 תווים. PDF סרוק דורש OCR דרך הכלים המקומיים הנפרדים. PDF מתורגם נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את הארכיון והעיצוב, עם מגבלות במקטעים שאוחדו. עימוד מורכב ואיכות תרגום דורשים בדיקה על מסמכים אמיתיים.</p>
+<p>השרת מאזין רק במחשב המקומי. המקור, הטיוטות ויומני העבודה נשמרים ב־<code>outputs/ui/</code>; מפתחות שמוזנים בממשק נשמרים בזיכרון בלבד ושדות הסיסמה מתרוקנים אחרי שמירה.</p>
+</main>
+</body></html>

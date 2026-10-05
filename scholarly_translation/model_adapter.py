@@ -491,9 +491,8 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
             "openai", "openai", "OPENAI_API_KEY", None,
         )
         self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
-        # Per-model reasoning effort (Luna supports only "none"; Sol supports
-        # low/medium/high/xhigh/max). `None` keeps the historical "none"
-        # default; an explicitly unsupported value for the resolved model is
+        # Per-model reasoning effort comes from the dated catalogue. `None`
+        # uses project defaults (Luna none, Sol low); an unsupported value is
         # never silently sent to the provider.
         self._reasoning = reasoning
         self._timeout = TEXT_GENERATION_TIMEOUT_SECONDS if timeout is None else timeout
