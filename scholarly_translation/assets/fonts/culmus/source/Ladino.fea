@@ -1,0 +1,48 @@
+# Canonic substitution in Judesmo/Ladino language only:
+#   Aleph-Lamed ligature in Judesmo/Ladino language only
+#   Rafe replaced with Varika
+
+lookup ccmpAlephLamed {
+  lookupflag RightToLeft;
+    sub \afii57664 \afii57676  by \uniFB4F;
+} ccmpAlephLamed;
+
+lookup ccmpVarika {
+  lookupflag RightToLeft;
+    sub \afii57841 by \uniFB1E;
+} ccmpVarika;
+
+feature ccmp {
+  script hebr;
+    language JUD  exclude_dflt;
+      lookup ccmpAlephLamed;
+      lookup ccmpVarika;
+} ccmp;
+
+# Discretionary ligature:
+#   Aleph-Lamed ligature as a user-defined stylistic peculiarity
+
+lookup dligAlephLamed {
+  lookupflag RightToLeft;
+    sub \afii57664 \afii57676  by \uniFB4F;
+} dligAlephLamed;
+
+feature dlig {
+  script hebr;
+    language dflt ;
+      lookup dligAlephLamed;
+} dlig;
+
+# Stylistic alternative:
+#   Allow user-defined substitution of Rafe with Varika
+
+lookup saltVarika {
+  lookupflag RightToLeft;
+    sub \afii57841 by \uniFB1E;
+} saltVarika;
+
+feature salt {
+  script hebr;
+    language dflt ;
+      lookup saltVarika;
+} salt;

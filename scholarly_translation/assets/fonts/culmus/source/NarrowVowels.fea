@@ -1,0 +1,39 @@
+@Base = [\afii57664 - \afii57690 \uni25CC \uniE805 \uniFB20 \uniFB2A - \uniFB2D \uniFB30 - \uniFB34 \afii57723 \uniFB36 - \uniFB3F \uniFB40 - \uniFB4A];
+@NarrowBase = [\afii57666 \afii57669 \afii57670 \afii57673 \afii57680 \afii57687 uniFB32 afii57723 uniFB36 uniFB39 uniFB40 uniFB47];
+@NoLowerMark = [\afii57806 \uni05BA \afii57807 \afii57841 \afii57804 \afii57803 \uni05C4 \uniFB1E];
+@LowerVowel2 = [\afii57794 \afii57795 \afii57798 \afii57797];
+@LowerVowel3 = [\afii57801 \afii57800 \afii57802];
+@NarrowVowel2 = [\tsere.narrow \segol.narrow \patah.narrow qamats.narrow];
+@NarrowVowel3 = [\hatafsegol.narrow \hatafpatah.narrow hatafqamats.narrow];
+
+lookup WideMarkToNarrow {
+  lookupflag RightToLeft;
+    sub @LowerVowel2 by @NarrowVowel2;
+    sub @LowerVowel3 by @NarrowVowel3;
+} WideMarkToNarrow;
+
+lookup NarrowVowelMeteg {
+  lookupflag RightToLeft;
+    sub @Base @LowerVowel3' lookup WideMarkToNarrow \afii57839;
+  subtable;
+    sub @Base @NoLowerMark @LowerVowel3' lookup WideMarkToNarrow \afii57839;
+  subtable;
+    sub @Base @NoLowerMark @NoLowerMark @LowerVowel3' lookup WideMarkToNarrow \afii57839;
+  subtable;
+    sub @Base \afii57839 \uni034F @LowerVowel3' lookup WideMarkToNarrow;
+  subtable;
+    sub @NarrowBase @LowerVowel2' lookup WideMarkToNarrow \afii57839;
+  subtable;
+    sub @NarrowBase @NoLowerMark @LowerVowel2' lookup WideMarkToNarrow \afii57839;
+  subtable;
+    sub @NarrowBase @NoLowerMark @NoLowerMark @LowerVowel2' lookup WideMarkToNarrow \afii57839;
+  subtable;
+    sub @NarrowBase \afii57839 \uni034F @LowerVowel2' lookup WideMarkToNarrow;
+} NarrowVowelMeteg;
+
+feature ccmp {
+  script hebr;
+    language dflt ;
+      lookup NarrowVowelMeteg;
+} ccmp;
+

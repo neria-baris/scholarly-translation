@@ -1,0 +1,130 @@
+@Base = [\afii57664 - \afii57690 \uni25CC \uniE805 \uniFB20 \uniFB2A - \uniFB2D \uniFB30 - \uniFB34 \afii57723 \uniFB36 - \uniFB3F \uniFB40 - \uniFB4A];
+@NoLowerMark = [\afii57806 \uni05BA \afii57807 \afii57841 \afii57804 \afii57803 \uni05C4 \uniFB1E];
+@LowerVowel1 = [\afii57799 \afii57793];
+@LowerVowel2 = [\afii57794 \afii57795 \afii57798 \afii57797 \uni05C7];
+@LowerVowel2Narrow = [\patah.narrow \qamats.narrow \segol.narrow \tsere.narrow \uni05C7];
+@LowerVowel3 = [\afii57801 \afii57800 \afii57802 \afii57796];
+@LowerVowel3Narrow = [\hatafpatah.narrow \hatafqamats.narrow \hatafsegol.narrow \afii57796];
+@LowerVowel = [@LowerVowel1 @LowerVowel2 @LowerVowel2Narrow @LowerVowel3 @LowerVowel3Narrow];
+
+# Create placeholder lookups, they would be populated later by FontForge scripts
+# uni25CC is the placeholder glyph, uniE809 is the placeholder mark
+
+lookup CtxAnchors_M_D1 {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_M_D1;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_M_D1;
+} CtxAnchors_M_D1;
+
+lookup CtxAnchors_M_D2 {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_M_D2;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_M_D2;
+} CtxAnchors_M_D2;
+
+lookup CtxAnchors_M_D2Narrow {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_M_D2Narrow;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_M_D2Narrow;
+} CtxAnchors_M_D2Narrow;
+
+lookup CtxAnchors_M_D3Narrow {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_M_D3Narrow;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_M_D3Narrow;
+} CtxAnchors_M_D3Narrow;
+
+lookup CtxAnchors_D1_M {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_D1_M;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_D1_M;
+} CtxAnchors_D1_M;
+
+lookup CtxAnchors_D2_M {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_D2_M;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_D2_M;
+} CtxAnchors_D2_M;
+
+lookup CtxAnchors_D2Narrow_M {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_D2Narrow_M;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_D2Narrow_M;
+} CtxAnchors_D2Narrow_M;
+
+lookup CtxAnchors_D3Narrow_M {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_D3Narrow_M;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_D3Narrow_M;
+} CtxAnchors_D3Narrow_M;
+
+lookup CtxAnchors_Rafe {
+  lookupflag RightToLeft;
+  markClass [\uniE809 ] <anchor 0 0> @CtxAnchors_Rafe;
+  pos base [\uni25CC ] <anchor 500 0> mark @CtxAnchors_Rafe;
+} CtxAnchors_Rafe;
+
+lookup CtxAnchors_Yerushalam {
+  lookupflag RightToLeft;
+  markClass [\afii57793 ] <anchor 0 0> @CtxAnchors_Yerushalam;
+  pos base [\afii57676 ] <anchor -1000 0> mark @CtxAnchors_Yerushalam;
+} CtxAnchors_Yerushalam;
+
+lookup BaseDiac {
+  lookupflag RightToLeft;
+    pos @Base @LowerVowel1' lookup CtxAnchors_M_D1 [\afii57839] ;
+  subtable;
+    pos @Base @LowerVowel2' lookup CtxAnchors_M_D2 [\afii57839] ;
+  subtable;
+    pos @Base @LowerVowel2Narrow' lookup CtxAnchors_M_D2Narrow [\afii57839] ;
+  subtable;
+    pos @Base @LowerVowel3Narrow' lookup CtxAnchors_M_D3Narrow [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @LowerVowel1' lookup CtxAnchors_M_D1 [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @LowerVowel2' lookup CtxAnchors_M_D2 [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @LowerVowel2Narrow' lookup CtxAnchors_M_D2Narrow [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @LowerVowel3Narrow' lookup CtxAnchors_M_D3Narrow [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @NoLowerMark @LowerVowel1' lookup CtxAnchors_M_D1 [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @NoLowerMark @LowerVowel2' lookup CtxAnchors_M_D2 [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @NoLowerMark @LowerVowel2Narrow' lookup CtxAnchors_M_D2Narrow [\afii57839] ;
+  subtable;
+    pos @Base @NoLowerMark @NoLowerMark @LowerVowel3Narrow' lookup CtxAnchors_M_D3Narrow [\afii57839] ;
+  subtable;
+    pos @Base [\afii57839]' lookup CtxAnchors_D1_M \uni034F @LowerVowel1 ;
+  subtable;
+    pos @Base [\afii57839]' lookup CtxAnchors_D2_M \uni034F @LowerVowel2 ;
+  subtable;
+    pos @Base [\afii57839]' lookup CtxAnchors_D2Narrow_M \uni034F @LowerVowel2Narrow ;
+  subtable;
+    pos @Base [\afii57839]' lookup CtxAnchors_D3Narrow_M \uni034F @LowerVowel3Narrow ;
+  subtable;
+    pos @Base [\afii57841]' lookup CtxAnchors_Rafe [\afii57806] ;
+  subtable;
+    pos @Base [\afii57806] [\uniFB1E]' lookup CtxAnchors_Rafe ;
+  subtable;
+    pos @Base [\afii57806] [\afii57839] [\uniFB1E]' lookup CtxAnchors_Rafe ;
+  subtable;
+    pos [\uniFB2A - \uniFB2D] [\afii57841 \uniFB1E]' lookup CtxAnchors_Rafe ;
+  subtable;
+    pos [\uniFB2A - \uniFB2D] @LowerVowel [\uniFB1E]' lookup CtxAnchors_Rafe ;
+  subtable;
+    pos [\uniFB2A - \uniFB2D] @LowerVowel [\afii57839] [\uniFB1E]' lookup CtxAnchors_Rafe ;
+  subtable;
+    pos [\afii57676] [\afii57798] [\afii57793]' lookup CtxAnchors_Yerushalam ;
+  subtable;
+    pos [\afii57676] [\afii57798] [\uni034F] [\afii57793]' lookup CtxAnchors_Yerushalam ;
+} BaseDiac;
+
+feature mark {
+  script hebr;
+    language dflt ;
+      lookup BaseDiac;
+} mark;
+
+

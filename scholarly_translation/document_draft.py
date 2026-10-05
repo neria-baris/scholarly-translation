@@ -35,8 +35,10 @@ from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import chapter_pipeline
 from . import context_strategy, document_state as document_state_module
 from . import epub_extract, pdf_extract, segmentation
+from .work_journal import WorkJournal
 from .export_common import ExportError
 from .export_epub import export_epub_from_document_structure as _export_epub
 from .export_pdf import export_pdf as _export_pdf
@@ -254,6 +256,18 @@ def validate_settings(settings):
     budget = settings.get("budget_usd", 2.0)
     model_choice = settings.get("model", "auto")
     model_config_data = settings.get("model_config")
+    # Opt-in (default False): preserves every existing saved/library job's
+    # behavior exactly (the legacy one-unit-at-a-time path below). A future
+        # UI sets this True for a real translation run; it is the
+    # new planned/batched/journaled chapter_pipeline.py flow.
+    automation = settings.get("automation", False)
+    font_id = settings.get('font_id')
+    if font_id is not None:
+        from .export_common import list_pdf_fonts
+        if not isinstance(font_id, str) or font_id not in {f['id'] for f in list_pdf_fonts() if f['available']}:
+            raise DocumentDraftError('בחרו פונט PDF זמין מהרשימה.')
+    if type(automation) is not bool:
+        raise DocumentDraftError("הגדרת האוטומציה חייבת להיות בוליאנית.")
     if profile not in SUPPORTED_PROFILE_IDS:
         raise DocumentDraftError("בחרו פרופיל תרגום נתמך (אקדמי/ספרותי).")
     if quality not in QUALITY_MODES:
@@ -276,6 +290,8 @@ def validate_settings(settings):
     return {
         "profile": profile, "quality": quality, "language": language,
         "budget_usd": float(budget), "model": model_choice, "model_config": model_config_data,
+        "automation": automation,
+        'font_id': font_id,
     }
 
 
@@ -292,7 +308,7 @@ def _build_translations_mapping(units):
     }
 
 
-def render_download(job, kind, source_path=None):
+def render_download(job, kind, source_path=None, font_id=None):
     """Rebuild the translated document from the job's current (possibly
     human-edited) unit texts; never a frozen completion-time snapshot.
 
@@ -316,7 +332,8 @@ def render_download(job, kind, source_path=None):
             raise DocumentDraftError(f"בנייית ה-EPUB נכשלה: {exc}") from None
         return result.content
     try:
-        result = _export_pdf(job["structure"], translations, title=job["filename"])
+        result = _export_pdf(job["structure"], translations, title=job["filename"],
+                             font_id=font_id if font_id is not None else job['settings'].get('font_id'))
     except ExportError as exc:
         raise DocumentDraftError(f"בנייית ה-PDF נכשלה: {exc}") from None
     return result.content
@@ -328,6 +345,7 @@ class DocumentJobs:
     def __init__(self, root, adapter_factory=None):
         self.root = Path(root) / "documents"
         self.adapter_factory = adapter_factory
+        self._job_adapter_factories = {}
         self.lock = threading.RLock()
         self.active = None
 
@@ -345,21 +363,33 @@ class DocumentJobs:
             active = self.active == job_id
         if job["status"] in ("queued", "reading", "translating", "reviewing", "rebuilding") and not active:
             job["status"], job["error"] = "interrupted", "ההרצה הופסקה. התוצאות שכבר נשמרו זמינות; לא בוצע ניסיון אוטומטי נוסף."
+        controls = self._folder(job_id) / 'controls.sqlite3'
+        if controls.is_file():
+            try:
+                with ControlStore(controls, create=False) as store:
+                    job['budget_status'] = store.status(job_id)
+                    job['remaining_budget_usd'] = store.remaining_list_usd(job_id)
+                    job['estimated_cost_usd'] = job['budget_status']['list_estimated_spent_usd']
+            except RuntimeControlsError:
+                pass  # Worker may not have created its first task yet.
+        if job['status'] == 'completed' and job.get('progress'):
+            job['progress']['percentage'] = 100
         return job
 
     def _persist(self, job):
         with self.lock:
             _write_json(self._folder(job["job_id"]) / "job.json", job)
 
-    def start(self, path, settings, paid_confirm=False):
+    def start(self, path, settings, paid_confirm=False, adapter_factory=None):
         settings = validate_settings(settings)
         if settings["model"] == "configured" and paid_confirm is not True:
             raise DocumentDraftError("נדרש אישור לשליחת המסמך לספק המודל המוגדר.")
-        if settings["model"] == "configured" and self.adapter_factory is None:
+        if settings["model"] == "configured" and self.adapter_factory is None and adapter_factory is None:
             configuration = ModelConfiguration.from_dict(settings["model_config"])
-            _, definition = configuration.resolve("translator")
+            roles = chapter_pipeline._resolve_required_roles(configuration, settings["quality"]) if settings["automation"] else {"translator": configuration.resolve("translator")}
             try:
-                definition.require_credential(os.environ)
+                for _, definition in roles.values():
+                    definition.require_credential(os.environ)
             except ModelConfigError as exc:
                 raise DocumentDraftError(str(exc)) from None
         source_kind = source_kind_for(path)
@@ -370,7 +400,7 @@ class DocumentJobs:
             folder = self._folder(job_id)
             folder.mkdir(parents=True, exist_ok=False)
             source_path = folder / f"source.{source_kind}"
-            if source_kind == "epub":
+            if source_kind in ("pdf", "epub"):
                 # PDF export is a pure re-render from structure text; EPUB
                 # export rebuilds the original archive byte-for-byte except
                 # for translated text, so the original upload must outlive
@@ -389,7 +419,8 @@ class DocumentJobs:
             }
             self._persist(job)
             self.active = job_id
-        threading.Thread(target=self._run, args=(job, Path(path)), daemon=True).start()
+            self._job_adapter_factories[job_id] = adapter_factory or self.adapter_factory
+        threading.Thread(target=self._run, args=(job, source_path), daemon=True).start()
         return {"job_id": job_id}
 
     def source_path(self, job_id, source_kind):
@@ -526,7 +557,10 @@ class DocumentJobs:
             else:
                 store_path = validate_store_path(self._folder(job["job_id"]) / "controls.sqlite3")
                 store = ControlStore(store_path, create=True)
-                self._run_configured_mode(job, structure, glossary, units, policies, configuration, store)
+                if job["settings"].get("automation", False):
+                    self._run_automation_chapter_mode(job, structure, glossary, units, configuration, store)
+                else:
+                    self._run_configured_mode(job, structure, glossary, units, policies, configuration, store)
 
             job["status"], job["stage_label"] = "rebuilding", "בניית המסמך המתורגם"
             self._persist(job)
@@ -534,7 +568,7 @@ class DocumentJobs:
             if job["source_kind"] == "epub":
                 result = _export_epub(self._folder(job["job_id"]) / "source.epub", structure, translations)
             else:
-                result = _export_pdf(structure, translations, title=job["filename"])
+                result = _export_pdf(structure, translations, title=job["filename"], font_id=job['settings'].get('font_id'))
             job["export_limitations"] = result.limitations
             job["export_page_count"] = getattr(result, "page_count", 0)
 
@@ -543,6 +577,10 @@ class DocumentJobs:
             job["status"], job["error"] = "failed", str(exc)
         except (TranslationRequestError, TranslationBudgetError) as exc:
             job["status"], job["error"] = "failed", f"התרגום נעצר: {exc}"
+        except chapter_pipeline.PipelinePaused:
+            job["status"], job["stage_label"] = "paused", "מושהה — התוצאות נשמרו"
+        except chapter_pipeline.ChapterPipelineError as exc:
+            job["status"], job["error"] = "failed", f"התרגום האוטומטי נעצר: {exc}"
         except OpenAIConfigurationError as exc:
             job["status"], job["error"] = "failed", f"תצורת הספק שגויה: {exc}"
         except RuntimeControlsError as exc:
@@ -665,12 +703,7 @@ class DocumentJobs:
             self._persist(job)
 
     def _risk_flags_for(self, unit_record):
-        return {
-            "configured_risk_flags": [],
-            "translation_notes": bool(unit_record["translation_note"]),
-            "formal_check_failure": bool(unit_record["findings"]),
-            "extraction_or_ocr_risk": False,
-        }
+        return chapter_pipeline.detect_risk_triggers(unit_record)
 
     def _run_unit_reviews(self, job, configuration, policy, store=None, output_cap=None,
                           max_calls=None, hard_list_usd=None):
@@ -765,6 +798,150 @@ class DocumentJobs:
             job["review_notes"].append("תקציב המסמך הגיע למגבלה; בדיקת פרקים נוספת נדלגה.")
         self._persist(job)
         return new_state
+
+    def _run_automation_chapter_mode(self, job, structure, glossary, units, configuration, store):
+        chapter_pipeline.execute_document_chapters(job, structure, glossary, units, configuration,
+            store, self._folder(job["job_id"]), self._persist,
+            self._job_adapter_factories.get(job["job_id"], self.adapter_factory))
+
+    def pause(self, job_id):
+        """Request a safe pause of a running automation job: the in-flight
+        step finishes and persists its result, then the worker stops before any further
+        provider call. Journal-flag only; ``resume`` is the actual job
+        operation that continues the work. A job with no journal (not an
+        automation job, or not yet started) has nothing to pause."""
+        job = self.get(job_id)
+        if not job['settings'].get('automation'):
+            raise DocumentDraftError('השהיה זמינה במסלול האוטומטי בלבד.')
+        journal_path = self._folder(job_id) / "journal.sqlite3"
+        with WorkJournal(journal_path, create=True) as journal:
+            journal.pause(job_id)
+        with self.lock:
+            if self.active != job_id and job["status"] in (
+                "queued", "reading", "translating", "reviewing",
+            ):
+                job["status"], job["stage_label"] = "paused", "הופסק"
+                self._persist(job)
+        return self.get(job_id)
+
+    def resume(self, job_id, path=None, adapter_factory=None):
+        """Resume a paused (or interrupted) automation job from its saved
+        structure/units/document_state -- never from a fresh extraction.
+        An already-completed job returns unchanged, making zero provider
+        calls. ``adapter_factory`` may supply fresh memory-only credentials
+        for this resume without changing the job's persisted configured
+        model selection."""
+        job = self.get(job_id)
+        if job["status"] == "completed":
+            return job
+        if job["structure"] is None or job["settings"]["model"] != "configured" or not job["settings"].get("automation"):
+            raise DocumentDraftError("ניתן להמשיך רק עבודת אוטומציה שהתחילה עם מודל מוגדר.")
+        journal_path = self._folder(job_id) / "journal.sqlite3"
+        if not journal_path.is_file():
+            raise DocumentDraftError("לא נמצא יומן עבודה להמשך.")
+        with self.lock:
+            if self.active:
+                raise DocumentDraftError("מסמך אחר מתורגם כרגע. המתינו לסיום.")
+            with WorkJournal(journal_path, create=False) as journal:
+                journal.resume(job_id)
+            if adapter_factory is not None:
+                self._job_adapter_factories[job_id] = adapter_factory
+            job["status"], job["error"] = "translating", None
+            self._persist(job)
+            self.active = job_id
+        source_path = self.source_path(job_id, job["source_kind"])
+        threading.Thread(target=self._resume_run, args=(job, source_path), daemon=True).start()
+        return {"job_id": job_id}
+
+    def _resume_run(self, job, source_path):
+        """Continue an automation job from its persisted structure/units/
+        document_state, using its already-configured model/budget/quality
+        settings unchanged. Completed journal steps replay with zero
+        provider calls; already-recorded units are never re-appended."""
+        store = None
+        try:
+            structure = job["structure"]
+            page_number_by_id = {r["page_id"]: r["page_number"] for r in structure["readings"]}
+            units = sorted(
+                structure["units"],
+                key=lambda u: (page_number_by_id[u["page_id"]], u["source_char_start"]),
+            )
+            configuration = ModelConfiguration.from_dict(job["settings"]["model_config"])
+            glossary = job.get("glossary") or _new_glossary_store()
+            document_state = job["document_state"] or document_state_module.new_document_state(structure["document_id"])
+            store_path = validate_store_path(self._folder(job["job_id"]) / "controls.sqlite3")
+            if not store_path.is_file():
+                raise DocumentDraftError('לא נמצאה בקרת התקציב המקורית; ההמשך נעצר ללא שליחה.')
+            store = ControlStore(store_path, create=True)
+            job["status"], job["stage_label"] = "translating", "מתרגם"
+            self._persist(job)
+            self._run_automation_chapter_mode(job, structure, glossary, units, configuration, store)
+            if job["status"] == "paused":
+                return
+
+            job["status"], job["stage_label"] = "rebuilding", "בניית המסמך המתורגם"
+            self._persist(job)
+            translations = _build_translations_mapping(job["units"])
+            if job["source_kind"] == "epub":
+                result = _export_epub(source_path, structure, translations)
+            else:
+                result = _export_pdf(structure, translations, title=job["filename"], font_id=job['settings'].get('font_id'))
+            job["export_limitations"] = result.limitations
+            job["export_page_count"] = getattr(result, "page_count", 0)
+            job["status"], job["stage_label"] = "completed", "הושלם"
+        except DocumentDraftError as exc:
+            job["status"], job["error"] = "failed", str(exc)
+        except (TranslationRequestError, TranslationBudgetError) as exc:
+            job["status"], job["error"] = "failed", f"התרגום נעצר: {exc}"
+        except chapter_pipeline.PipelinePaused:
+            job["status"], job["stage_label"] = "paused", "מושהה — התוצאות נשמרו"
+        except chapter_pipeline.ChapterPipelineError as exc:
+            job["status"], job["error"] = "failed", f"התרגום האוטומטי נעצר: {exc}"
+        except OpenAIConfigurationError as exc:
+            job["status"], job["error"] = "failed", f"תצורת הספק שגויה: {exc}"
+        except RuntimeControlsError as exc:
+            job["status"], job["error"] = "failed", f"בקרת התקציב/המטמון נכשלה: {exc}"
+        except Exception:
+            job["status"], job["error"] = "failed", "התרגום לא הושלם. בדקו חיבור, הרשאת המודל ומפתח API. התוצאה החלקית נשמרה."
+        finally:
+            if store is not None:
+                store.close()
+            try:
+                self._persist(job)
+            finally:
+                with self.lock:
+                    self.active = None
+
+    def preview(self, path, settings):
+        """Thin cost/plan preview for a prospective automation run: no job
+        is created, no provider/network/journal/budget side effects occur.
+        Raises the same validation errors ``start`` would."""
+        settings = validate_settings(settings)
+        if settings["model"] != "configured":
+            raise DocumentDraftError("תצוגה מקדימה של עלות דורשת מודל מוגדר.")
+        configuration = ModelConfiguration.from_dict(settings["model_config"])
+        structure = extract_structure(path, settings["language"])
+        glossary = _new_glossary_store()
+        page_number_by_id = {r["page_id"]: r["page_number"] for r in structure["readings"]}
+        units = sorted(
+            structure["units"], key=lambda u: (page_number_by_id[u["page_id"]], u["source_char_start"]),
+        )
+        groups = self._chapter_groups(structure, units)
+        chapters = []
+        total_expected, total_conservative = 0.0, 0.0
+        for group in groups:
+            unit_ids = [u["unit_id"] for u in group]
+            preview = chapter_pipeline.estimate_preview(
+                structure, glossary, unit_ids, configuration, settings["quality"], settings["profile"],
+            )
+            chapters.append(preview)
+            total_expected += preview["expected_total_cost_usd"]
+            total_conservative += preview["conservative_total_ceiling_usd"]
+        return {
+            "chapter_count": len(groups), "chapters": chapters,
+            "expected_total_cost_usd": total_expected,
+            "conservative_total_ceiling_usd": total_conservative,
+        }
 
     def review(self, job_id, unit_index, target_text, expected_revision):
         with self.lock:

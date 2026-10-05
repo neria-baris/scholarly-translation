@@ -1,0 +1,22 @@
+@LowerMark = [\afii57793 \afii57794 \afii57795 \afii57796 \afii57797 \afii57798 \afii57799 \afii57800 \afii57801 \afii57802 \uni05C7 \afii57839];
+@NoLowerMark = [\afii57806 \uni05BA \afii57807 \afii57841 \afii57804 \afii57803 \uni05C4 \uniFB1E];
+
+lookup AltAyin {
+  lookupflag RightToLeft;
+    sub \afii57682 by \uniFB20 ;
+} AltAyin;
+
+lookup ccmpAltAyin {
+  lookupflag RightToLeft;
+    sub [\afii57682 ]' lookup AltAyin @LowerMark;
+  subtable;
+    sub [\afii57682 ]' lookup AltAyin @NoLowerMark @LowerMark;
+  subtable;
+    sub [\afii57682 ]' lookup AltAyin @NoLowerMark @NoLowerMark @LowerMark;
+} ccmpAltAyin;
+
+feature ccmp {
+  script hebr;
+     language dflt ;
+      lookup ccmpAltAyin;
+} ccmp;

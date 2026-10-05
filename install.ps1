@@ -73,7 +73,7 @@ function Set-Progress {
 }
 
 function Find-Python {
-    foreach ($candidate in @('py', 'python')) {
+    foreach ($candidate in @('py', 'python', (Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'))) {
         $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
         if (-not $cmd) { continue }
         try {
@@ -83,7 +83,7 @@ function Find-Python {
         }
         if ($LASTEXITCODE -ne 0 -or -not $versionOutput) { continue }
         $parts = $versionOutput.Trim().Split('.')
-        if ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 9) {
+        if ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 10) {
             return $candidate
         }
     }
@@ -111,11 +111,11 @@ function Run-Install {
     $retryButton.Enabled = $false
     $closeButton.Enabled = $false
     try {
-        Write-Log 'Looking for Python 3.9 or newer...'
+        Write-Log 'Looking for Python 3.10 or newer...'
         Set-Progress 5
         $python = Find-Python
         if (-not $python) {
-            Write-Log 'Python 3.9+ was not found on PATH.'
+            Write-Log 'Python 3.10+ was not found.'
             Write-Log 'Install it from https://www.python.org/downloads/ (check "Add python.exe to PATH"), then click Retry.'
             return
         }
@@ -124,16 +124,28 @@ function Run-Install {
 
         $venvPath = Join-Path $projectRoot '.venv'
         $venvPython = Join-Path $venvPath 'Scripts\python.exe'
+        if (Test-Path $venvPython) {
+            $healthy = $false
+            try {
+                & $venvPython -B -c 'import sys; assert sys.version_info >= (3, 10)' 2>$null
+                $healthy = ($LASTEXITCODE -eq 0)
+            } catch { $healthy = $false }
+            if (-not $healthy) {
+                Write-Log 'Existing .venv is unusable; preserving it and using outputs/tooling/runtime-venv.'
+                $venvPath = Join-Path $projectRoot 'outputs\tooling\runtime-venv'
+                $venvPython = Join-Path $venvPath 'Scripts\python.exe'
+            }
+        }
         if (-not (Test-Path $venvPython)) {
-            Write-Log 'Creating an isolated virtual environment (.venv)...'
+            Write-Log 'Creating a local isolated virtual environment...'
             & $python -m venv $venvPath
-            if ($LASTEXITCODE -ne 0) { throw 'Creating .venv failed.' }
+            if ($LASTEXITCODE -ne 0) { throw 'Creating the virtual environment failed.' }
         } else {
-            Write-Log '.venv already exists; reusing it.'
+            Write-Log 'Reusing the selected local virtual environment.'
         }
         Set-Progress 35
 
-        Write-Log 'Installing dependencies (pdfplumber, reportlab, Pillow)...'
+        Write-Log 'Installing document, tokenizer and provider SDK dependencies...'
         $requirements = Join-Path $projectRoot 'requirements.txt'
         $installOutput = & $venvPython -m pip install --disable-pip-version-check -r $requirements 2>&1
         $installOutput | ForEach-Object { Write-Log ([string]$_) }
@@ -141,7 +153,7 @@ function Run-Install {
         Set-Progress 75
 
         Write-Log 'Verifying the installation...'
-        $verify = & $venvPython -B -c "import pdfplumber, reportlab, PIL; print('ok')" 2>&1
+        $verify = & $venvPython -B -c "import sys; assert sys.version_info >= (3, 10); import pdfplumber, reportlab, PIL, tiktoken, openai, anthropic; print('ok')" 2>&1
         $verify | ForEach-Object { Write-Log ([string]$_) }
         if ($LASTEXITCODE -ne 0) { throw 'Verification failed (see log above).' }
         Set-Progress 90

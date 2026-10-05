@@ -394,6 +394,64 @@ class DocumentDraftTests(unittest.TestCase):
         while jobs.active and time.monotonic() < deadline:
             time.sleep(0.01)
 
+    # --- automation=True: the new planned/batched chapter_pipeline flow ----
+
+    def test_automation_defaults_to_false_and_is_boolean(self):
+        self.assertFalse(validate_settings({})["automation"])
+        self.assertTrue(validate_settings({"automation": True})["automation"])
+        with self.assertRaises(DocumentDraftError):
+            validate_settings({"automation": "yes"})
+
+    def test_automation_fast_mode_end_to_end_batched_translation(self):
+        import json as _json
+
+        class FakeBatchTranslationAdapter:
+            def __init__(self):
+                self.calls = []
+
+            def generate(self, prompt_text, model):
+                self.calls.append(prompt_text)
+                suffix = prompt_text.suffix if hasattr(prompt_text, "suffix") else prompt_text
+                marker = "TARGET_UNIT_IDS (translate exactly these ids, in exactly this order, each exactly once): "
+                start = suffix.index(marker) + len(marker)
+                end = suffix.index("\n", start)
+                unit_ids = _json.loads(suffix[start:end])
+                payload = [{"unit_id": uid, "translation": f"תרגום של {uid}", "translation_note": None}
+                          for uid in unit_ids]
+                return TextGenerationResult(
+                    status="completed", text=_json.dumps(payload, ensure_ascii=False),
+                    token_usage={"input": 10, "output": 10}, observed_model=model,
+                    duration_seconds=0.0, observed_provider="fake",
+                )
+
+        translator = FakeBatchTranslationAdapter()
+        factory = self.make_adapter_factory(translator=translator)
+        _, job = self.run_job(
+            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": True},
+            adapter_factory=factory,
+        )
+        self.assertEqual(job["status"], "completed")
+        self.assertEqual(job["completed_units"], job["total_units"])
+        self.assertTrue(translator.calls)
+        self.assertTrue(all("תרגום של" in u["target_text"] for u in job["units"]))
+        # The stable chapter-source/profile/glossary prefix precedes the
+        # dynamic target-ids/state suffix in exactly the dispatched prompt.
+        self.assertIn("SOURCE_UNITS", translator.calls[0].stable_prefix)
+        self.assertIn("TARGET_UNIT_IDS", translator.calls[0].suffix)
+        body = render_download(job, "pdf")
+        self.assertTrue(body.startswith(b"%PDF"))
+
+    def test_automation_false_keeps_the_legacy_per_unit_path(self):
+        translator = FakeTranslationAdapter()
+        factory = self.make_adapter_factory(translator=translator)
+        _, job = self.run_job(
+            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": False},
+            adapter_factory=factory,
+        )
+        self.assertEqual(job["status"], "completed")
+        self.assertTrue(translator.calls)
+        self.assertFalse((self.root / "documents" / job["job_id"] / "journal.sqlite3").exists())
+
 
 class _StatefulChapterQAAdapter:
     """A FakeChapterQAAdapter stand-in that returns a different scripted

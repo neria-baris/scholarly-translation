@@ -1,0 +1,156 @@
+{
+  "downloaded": "2026-10-05",
+  "google_fonts_commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "files": [
+    {
+      "path": "davidlibre/DavidLibre-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/davidlibre/DavidLibre-Regular.ttf",
+      "sha256": "923f06e0f6dc84e1649d8cc5d5e12a8d663adf6aba83ba15baa5d559fb47b86e",
+      "size": 127740
+    },
+    {
+      "path": "davidlibre/DavidLibre-Bold.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/davidlibre/DavidLibre-Bold.ttf",
+      "sha256": "7610819c7888c8e7ecdfc573089113ec5355cf95078614ae0e30b509b05468f8",
+      "size": 132840
+    },
+    {
+      "path": "davidlibre/OFL.txt",
+      "url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/davidlibre/OFL.txt",
+      "sha256": "01f227b494c348ca8daeeaecbb1e08988b222673ca4bdad1681e49ba4cc8a592",
+      "size": 4542
+    },
+    {
+      "path": "frankruhllibre/FrankRuhlLibre[wght].ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/frankruhllibre/FrankRuhlLibre%5Bwght%5D.ttf",
+      "sha256": "f9bf26966681037aae894b031bd0dcf2c1bfdfa128dd0640cf276fe62a338a43",
+      "size": 178468
+    },
+    {
+      "path": "frankruhllibre/OFL.txt",
+      "url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/frankruhllibre/OFL.txt",
+      "sha256": "4e9720b2544d946737e7dfe0027a62c23c7247f0144f08bc437cdcc2e6a7d828",
+      "size": 4502
+    },
+    {
+      "path": "notoserifhebrew/NotoSerifHebrew[wdth,wght].ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/notoserifhebrew/NotoSerifHebrew%5Bwdth%2Cwght%5D.ttf",
+      "sha256": "93caef921360788dc3b0e32136bb26f16bc57717ec482d48fc7fd43820617165",
+      "size": 183600
+    },
+    {
+      "path": "notoserifhebrew/OFL.txt",
+      "url": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/notoserifhebrew/OFL.txt",
+      "sha256": "9b9fe028b5ba74d231659a1bbaf0ed09b11e759d1ca6a070999e16d151616b47",
+      "size": 4382
+    },
+    {
+      "path": "culmus/HadasimCLM-Regular.ttf",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/truetype/HadasimCLM-Regular.ttf",
+      "sha256": "7a8426873ce56eb2d05d998381de92695fafabd00672175bfb925f1e78c0bb13",
+      "size": 36768
+    },
+    {
+      "path": "culmus/HadasimCLM-Bold.ttf",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/truetype/HadasimCLM-Bold.ttf",
+      "sha256": "6070d367d94f7769546b6e8fc1927f4001baad6b91fe8e443d1492993f286c41",
+      "size": 38076
+    },
+    {
+      "path": "culmus/source/DavidCLM-Medium.otf",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/opentype/DavidCLM-Medium.otf",
+      "sha256": "e7d9c4c1dd720583c6fe8f6793bf9e2f5b7c182383acb0d151d1a63d125b6d85",
+      "size": 55616
+    },
+    {
+      "path": "culmus/source/DavidCLM-Bold.otf",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/opentype/DavidCLM-Bold.otf",
+      "sha256": "38723ced9e2a7209ccc51c5a2d64681f1989dc59ddb62a6ef3affe22b18ab31b",
+      "size": 58224
+    },
+    {
+      "path": "culmus/LICENSE.txt",
+      "url": "https://sources.debian.org/data/main/c/culmus/0.140-3/LICENSE",
+      "sha256": "8b8838d119e703b0b4b2a9b406430ffe3058274a9314cb2cca1ed85870151c9d",
+      "size": 8401
+    },
+    {
+      "path": "culmus/GNU-GPL.txt",
+      "url": "https://sources.debian.org/data/main/c/culmus/0.140-3/GNU-GPL",
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "size": 18092
+    },
+    {
+      "path": "culmus/LICENSE-BITSTREAM.txt",
+      "url": "https://sources.debian.org/data/main/c/culmus/0.140-3/LICENSE-BITSTREAM",
+      "sha256": "ecad5afdbd1308634896744a4c962361e9eca73e7d9969bb3aad94533c66d046",
+      "size": 565
+    },
+    {
+      "path": "culmus/source/David-Medium.sfd",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/David-Medium.sfd",
+      "sha256": "6a04d45685903b76652fdde530aabaedab67ec98a43b93cefde6ab74fcbc9bf7",
+      "size": 253281
+    },
+    {
+      "path": "culmus/source/David-Bold.sfd",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/David-Bold.sfd",
+      "sha256": "e7e20de67ebe80aea7eaae16ee0304220410b2cbe857b6d089a85ac75bd1b943",
+      "size": 247074
+    },
+    {
+      "path": "culmus/source/HadasimCLM-Regular.sfd",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/HadasimCLM-Regular.sfd",
+      "sha256": "b039ff2eb6ba0c05820e9e8a4e176602de4975997fde749481298cff711f3999",
+      "size": 181718
+    },
+    {
+      "path": "culmus/source/HadasimCLM-Bold.sfd",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/HadasimCLM-Bold.sfd",
+      "sha256": "2d2735e40648d777002bd8415174367f861b9e80811ce8f0d53fdc65d3383215",
+      "size": 184526
+    },
+    {
+      "path": "culmus/source/AAYN.fea",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/AAYN.fea",
+      "sha256": "3f4ccc93bf93be5caa2e216f90430b17cc4b57747f35cfff957366e72e6abad1",
+      "size": 696
+    },
+    {
+      "path": "culmus/source/ContextualGPOS.fea",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/ContextualGPOS.fea",
+      "sha256": "6c746fab302de9b555ad356e857390bf8b3aedd5690574ccad4dacf62d6a7c5b",
+      "size": 5235
+    },
+    {
+      "path": "culmus/source/CustomPrecomp.fea",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/CustomPrecomp.fea",
+      "sha256": "b09abe36b5e2d9b66f337aef75920fc13a372f873ee64121cf22f4cd386f7d29",
+      "size": 783
+    },
+    {
+      "path": "culmus/source/Dagesh.fea",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/Dagesh.fea",
+      "sha256": "5cd4ad6a99072a77378704264b9f1781bfa2493db0dbe351233dc84ce1e97ec8",
+      "size": 1448
+    },
+    {
+      "path": "culmus/source/Ladino.fea",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/Ladino.fea",
+      "sha256": "25aa5eb66b3a3c09dc76948c68f57440765a9736e0accf7002722a1c36c0d9ca",
+      "size": 1026
+    },
+    {
+      "path": "culmus/source/MiscSALT.fea",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/MiscSALT.fea",
+      "sha256": "c35242670d8d7dc1abf5d57f69c89635b3df46c89ec7d083ea32c54f8d524bda",
+      "size": 284
+    },
+    {
+      "path": "culmus/source/NarrowVowels.fea",
+      "url": "https://mirrors.ibiblio.org/CTAN/fonts/culmus/source/NarrowVowels.fea",
+      "sha256": "93c684b732913af66b3e57a7d8884db756dd4d9daf12216aed04c062b1ffd63d",
+      "size": 1681
+    }
+  ]
+}

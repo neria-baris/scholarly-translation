@@ -1,0 +1,40 @@
+# Canonic composition:
+#   Letter + dagesh
+
+lookup ccmpDagesh {
+  lookupflag RightToLeft;
+    sub \afii57664 \afii57807  by \uniFB30;
+    sub \afii57665 \afii57807  by \uniFB31;
+    sub \afii57666 \afii57807  by \uniFB32;
+    sub \afii57667 \afii57807  by \uniFB33;
+    sub \afii57668 \afii57807  by \uniFB34;
+    sub \afii57669 \afii57807  by \uniFB35;
+    sub \afii57670 \afii57807  by \uniFB36;
+    sub \afii57672 \afii57807  by \uniFB38;
+    sub \afii57673 \afii57807  by \uniFB39;
+    sub \afii57674 \afii57807  by \uniFB3A;
+    sub \afii57675 \afii57807  by \uniFB3B;
+    sub \afii57676 \afii57807  by \uniFB3C;
+    sub \afii57678 \afii57807  by \uniFB3E;
+    sub \afii57680 \afii57807  by \uniFB40;
+    sub \afii57681 \afii57807  by \uniFB41;
+    sub \afii57683 \afii57807  by \uniFB43;
+    sub \afii57684 \afii57807  by \uniFB44;
+    sub \afii57686 \afii57807  by \uniFB46;
+    sub \afii57687 \afii57807  by \uniFB47;
+    sub \afii57688 \afii57807  by \uniFB48;
+    sub \afii57689 \afii57807  by \uniFB49;
+    sub \afii57690 \afii57807  by \uniFB4A;
+    sub \afii57671 \afii57807  by \uniFB37;
+    sub \afii57677 \afii57807  by \uniFB3D;
+    sub \afii57679 \afii57807  by \uniFB3F;
+    sub \afii57682 \afii57807  by \uniFB42;
+    sub \afii57685 \afii57807  by \uniFB45;
+    sub \uniFB20 \afii57807  by \uniE805;   # Alternative Ayin + Dagesh
+} ccmpDagesh;
+
+feature ccmp {
+  script hebr;
+    language dflt ;
+      lookup ccmpDagesh;
+} ccmp;

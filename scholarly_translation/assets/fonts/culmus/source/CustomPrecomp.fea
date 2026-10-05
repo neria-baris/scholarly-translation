@@ -1,0 +1,20 @@
+# Canonic composition:
+#   Custom precomposed glyphs (some in Private Use Area)
+
+lookup ccmpCustomPrecomp {
+  lookupflag RightToLeft;
+    sub \afii57669 \afii57806  by \afii57700;        # vav + holam => vavholam
+    sub \afii57674 \afii57799  by \uniE802;          # FINAL KAF + shva
+    sub \afii57674 \afii57797  by \uniE803;          # FINAL KAF + qamats
+#   sub \afii57673 \afii57793  by \uniFB1D;          # YOD + hiriq
+    sub \afii57801 \afii301 \afii57839  by \uniE806; # hataf-segol + ZWJ + meteg
+    sub \afii57800 \afii301 \afii57839  by \uniE807; # hataf-patah + ZWJ + meteg
+    sub \afii57802 \afii301 \afii57839  by \uniE808; # hataf-qamats + ZWJ + meteg
+} ccmpCustomPrecomp;
+
+feature ccmp {
+  script hebr;
+    language dflt ;
+      lookup ccmpCustomPrecomp;
+} ccmp;
+

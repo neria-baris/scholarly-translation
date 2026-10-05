@@ -1,1 +1,8 @@
 scholarly_translation/runtime_prompts/*.md text eol=lf
+# Preserve byte hashes of public bundled fonts and their upstream originals.
+scholarly_translation/assets/fonts/** text eol=lf
+scholarly_translation/assets/fonts/**/*.ttf -text
+scholarly_translation/assets/fonts/**/*.otf -text
+# Verbatim upstream notices/editable font sources retain original whitespace.
+scholarly_translation/assets/fonts/**/*.txt -text -whitespace
+scholarly_translation/assets/fonts/culmus/source/** -text -whitespace

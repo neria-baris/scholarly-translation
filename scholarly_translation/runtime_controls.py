@@ -62,7 +62,7 @@ def _identifier(value):
 
 
 def _usage(value):
-    if not isinstance(value, dict) or any(k not in {"input", "output", "cached", "cache_write", "reasoning"} or type(v) is not int or v < 0 for k, v in value.items()):
+    if not isinstance(value, dict) or any(k not in {"input", "output", "cached", "cache_write", "cache_write_1h", "reasoning"} or type(v) is not int or v < 0 for k, v in value.items()):
         return "not_metered"
     return value
 
@@ -253,8 +253,10 @@ class ControlStore:
         return cur.lastrowid
 
     def reserve(self, task_id, *, stage, worst_case_usd, document_id=None, unit_id=None, reason=None,
-                provider=None, model=None, prompt_hash=None, policy_hash=None, cache_key=None, metadata=None):
+                provider=None, model=None, prompt_hash=None, policy_hash=None, cache_key=None, metadata=None,
+                protect_tail_usd=0.0):
         amount = _money(worst_case_usd)
+        tail = _money(protect_tail_usd)
         if not _identifier(stage):
             raise RuntimeControlsError("invalid call stage")
         meta = metadata or {"document_id": document_id, "unit_id": unit_id, "reason": reason,
@@ -270,7 +272,7 @@ class ControlStore:
             if row["stopped"] or row["calls_reserved"] >= row["max_calls"]:
                 raise BudgetExhaustedError("persistent call limit reached or task stopped")
             total = row["reserved_nanos"] + row["spent_nanos"] + amount
-            if total > _money(row["hard_list_usd"], floor=True):
+            if total + tail > _money(row["hard_list_usd"], floor=True):
                 raise BudgetExhaustedError("persistent list-price reservation limit reached")
             event = self._event(task_id, stage, "reserved", meta, amount / SCALE)
             self._conn.execute("INSERT INTO reservations VALUES(?,?,?,?,?)", (event, task_id, cache_key, amount, "reserved"))
@@ -356,16 +358,63 @@ class ControlStore:
                         document_id=document_id, unit_id=unit_id, token_usage={"input": 0, "output": 0})
             return self._event(task_id, stage, "cache_hit", meta, estimate=0, parent=source_event_id, actual="no_provider_call")
 
+    def remaining_list_usd(self, task_id):
+        """Hard list-price ceiling minus everything already spent or held in
+        flight for ``task_id`` -- used to protect planned QA/repair/recheck
+        funds before a translation call is dispatched (never a reservation
+        by itself)."""
+        row = self._task(task_id)
+        return row["hard_list_usd"] - (row["reserved_nanos"] + row["spent_nanos"]) / SCALE
+
+    def reconcile_received(self, event_id, result, *, task_id, stage, provider, model,
+                           prompt_text, pricing_provider, custom_rates=None):
+        """Settle exactly the journal's original reservation, never send again."""
+        from .model_adapter import estimate_model_cost
+        event = self._conn.execute('SELECT * FROM events WHERE event_id=?', (event_id,)).fetchone()
+        reservation = self._conn.execute('SELECT * FROM reservations WHERE event_id=?', (event_id,)).fetchone()
+        if event is None or reservation is None:
+            raise StoreCorruptionError('received result lacks its reservation')
+        meta = json.loads(event['metadata_json'])
+        if (event['task_id'] != task_id or event['stage'] != stage or
+                meta.get('requested_provider') != provider or meta.get('requested_model') != model or
+                meta.get('prompt_hash') != fingerprint(prompt_text)):
+            raise StoreCorruptionError('received result reservation identity differs')
+        if reservation['state'] == 'reserved':
+            estimate = 0.0 if pricing_provider == 'mock' else estimate_model_cost(
+                pricing_provider, model, result.token_usage, custom_rates=custom_rates)
+            self.settle(event_id, token_usage=result.token_usage, estimate=estimate,
+                        observed_model=result.observed_model, outcome=result.status)
+        elif reservation['state'] != 'settled':
+            raise RuntimeControlsError('received call accounting is uncertain; resend refused')
+        if self.status(task_id)['stopped']:
+            raise RuntimeControlsError('received call retained its reservation; task stopped')
+
     def status(self, task_id):
         row = self._task(task_id)
         events = []
+        provider_usage = {}
         for event in self._conn.execute("SELECT * FROM events WHERE task_id=? ORDER BY event_id", (task_id,)):
             events.append({k: event[k] for k in ("event_id", "stage", "outcome", "reserved_usd", "observed_usd", "actual_charge", "timestamp", "parent_event_id")})
+            if event['parent_event_id'] is not None and event['outcome'] in ('settled', 'anomaly_over_cap', 'failed_held', 'stopped_not_metered'):
+                meta = json.loads(event['metadata_json'])
+                provider, model = meta.get('requested_provider'), meta.get('requested_model')
+                key = str(provider) + ':' + str(model)
+                usage = provider_usage.setdefault(key, {'provider': provider, 'model': model,
+                    'calls': 0, 'input': 0, 'output': 0, 'cached': 0, 'cache_write': 0,
+                    'cache_write_1h': 0, 'reasoning': 0, 'unmetered_calls': 0})
+                usage['calls'] += 1
+                tokens = meta.get('token_usage')
+                if isinstance(tokens, dict):
+                    for name in ('input', 'output', 'cached', 'cache_write', 'cache_write_1h', 'reasoning'):
+                        usage[name] += tokens.get(name, 0)
+                else:
+                    usage['unmetered_calls'] += 1
         return dict(task_id=task_id, max_calls=row["max_calls"], hard_list_usd=row["hard_list_usd"],
                     attempted_calls=row["calls_reserved"], settled_calls=row["calls_settled"],
                     held_usd=row["reserved_nanos"] / SCALE, list_estimated_spent_usd=row["spent_nanos"] / SCALE,
                     stopped=bool(row["stopped"]), cache_hits=sum(e["outcome"] == "cache_hit" for e in events),
-                    cache_misses=row["calls_reserved"], events=events)
+                    cache_misses=row["calls_reserved"], events=events,
+                    provider_usage=list(provider_usage.values()))
 
 
 class PersistentBudget:
@@ -406,7 +455,7 @@ class PersistentBudget:
         limit = 2_000_000 if self.max_prompt_bytes is None else self.max_prompt_bytes
         if not isinstance(prompt_text, str) or len(prompt_text.encode("utf-8")) > limit:
             raise TranslationBudgetError("oversized or invalid controlled prompt")
-        if self.provider == "mock":
+        if self.pricing_provider == "mock":
             return 0.0
         input_bound = count_tokens(prompt_text, self.model)['upper_bound'] + 1024
         quote = estimate_cost(
@@ -421,10 +470,31 @@ class PersistentBudget:
         return (input_bound * max(rates['input'], rates['cache_write'], rates['cache_write_1h'])
                 + self.call_output_cap * rates['output']) / 1_000_000
 
-    def reserve(self, prompt_text):
+    def remaining_list_usd(self):
+        return self.store.remaining_list_usd(self.task_id)
+
+    def require_tail(self, tail_usd):
+        """Fail closed, before reserving a call, unless enough of the hard
+        list-price ceiling remains to also cover ``tail_usd`` (a caller's own
+        precomputed planned QA + one bounded repair + one focused recheck
+        cost) after this call's own worst-case reservation. Protects planned
+        QA funds from being spent by translation dispatch."""
+        from .translation import TranslationBudgetError
+        if self.remaining_list_usd() < tail_usd:
+            raise TranslationBudgetError(
+                "insufficient remaining budget to protect planned QA/repair/recheck funds"
+            )
+
+    def reserve(self, prompt_text, protect_tail_usd=0.0):
         from .translation import TranslationBudgetError
         if self._pending_event is not None:
             raise TranslationBudgetError("previous reservation is still pending")
+        if protect_tail_usd:
+            amount = self.amount(prompt_text)
+            if self.remaining_list_usd() - amount < protect_tail_usd:
+                raise TranslationBudgetError(
+                    "insufficient remaining budget to protect planned QA/repair/recheck funds"
+                )
         try:
             self._pending_event, notices = self.store.reserve(self.task_id, stage=self.stage, worst_case_usd=self.amount(prompt_text),
                 document_id=self.document_id, unit_id=self.unit_id, provider=self.provider, model=self.model,
@@ -462,7 +532,8 @@ class RuntimeCache:
         raw = {k: getattr(result, k) for k in ("status", "text", "token_usage", "observed_model", "error")}
         self._store.cache_store(cache_key, stage=self.stage, provider=self.provider, model=self.model, status=result.status, result=raw)
 
-    def execute(self, identity, prompt_text, model, call, *, stage, metadata, budget=None):
+    def execute(self, identity, prompt_text, model, call, *, stage, metadata, budget=None,
+                protect_tail_usd=0.0, on_dispatched=None, on_received=None):
         from .model_adapter import TextGenerationResult, OpenAIConfigurationError, estimate_model_cost
         from .model_catalog import CATALOG_VERSION
         from .translation import TranslationBudgetError
@@ -511,12 +582,18 @@ class RuntimeCache:
             return hit(entry)
         try:
             event, notices = self._store.reserve(budget.task_id, stage=stage, worst_case_usd=budget.amount(prompt_text),
-                                                 cache_key=key, metadata=meta)
+                                                 cache_key=key, metadata=meta, protect_tail_usd=protect_tail_usd)
         except _CacheReady:
             return hit(self._store.cache_lookup(key, expected))
         except BudgetExhaustedError as exc:
             raise TranslationBudgetError(str(exc)) from None
         start = time.monotonic()
+        if on_dispatched is not None:
+            try:
+                on_dispatched(event)
+            except Exception:
+                self._store.release_unstarted(event)
+                raise
         try:
             result = call(prompt_text, model)
         except OpenAIConfigurationError:
@@ -525,6 +602,11 @@ class RuntimeCache:
         except Exception:
             self._store.settle(event, token_usage="not_metered", estimate="not_metered", outcome="failed_transport")
             raise RuntimeControlsError("controlled provider call failed; reservation retained") from None
+        # The durable consumer must save the returned raw response before any
+        # accounting or cache/parser work can fail. A crash here leaves the same
+        # reservation available for reconciliation, never a new dispatch.
+        if on_received is not None:
+            on_received(result, event)
         try:
             raw = {k: getattr(result, k) for k in ("status", "text", "token_usage", "observed_model", "error")}
             if not _identifier(result.status) or not (result.observed_model is None or _identifier(result.observed_model)):

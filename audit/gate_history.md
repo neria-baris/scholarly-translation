@@ -316,3 +316,17 @@ Commit `55ae999c9c65a8954dd388879d6ca6a4e26db22c` records the Session-G integrat
 ## 2026-10-05T05:42:24.044620+00:00 | AUTOMATION-1 | verified push receipt
 
 Commit f5deb4daeff2f12f69f7d1174e5da7398975e260 passed580 tests; complete and staged diffs reviewed. Normal fast-forward push to the authorized origin/main succeeded; post-push fetch verifies HEAD==origin/main and a clean tree. Receipt committed separately; next construction is AUTOMATION-2.
+
+## 2026-10-05T06:01:30.677862+00:00 | AUTOMATION-2 | FIX / PARTIAL
+
+Initial scoped Claude Sonnet5 builder:58 turns,789.075s, list estimate$3.2998919, actual Pro charge unknown; auxiliary Haiku reported, no subagents/Astra/Opus/runtime provider. 608-test suite has2 new invalid-fixture errors. Independent five-case contract suite after valid PDF geometry has5 substantive failures: output clamping, QA groups/counts and oversized Hebrew fit, negation risk routing, job pause/resume API. Code review additionally found late raw persistence, injected review controls bypass, insufficient QA tail protection and unstable batch prefixes. One scoped repair requested with actual-envelope planner, controlled journal lifecycle, bounded corrections/rechecks and real pause/resume. Initial result retained; acceptance pending. Sol prepared ignored isolated Python3.12 runtime and corrected launcher/installer3.10+ discovery independently for next slice; those paths not in builder scope.
+
+## 2026-10-05T07:40:17.144712+00:00 | AUTOMATION-2 | PASS (supersedes PARTIAL/FIX)
+
+- Contract: `audit/contracts/automation_2.md`; independent font producer part of automation_4.md.
+- Delivered: full chapter/batch/QA plan, protected QA funds, local reuse/provider cache boundaries, finite correction/recheck, durable raw recovery, pause/resume, actual stage progress and observed usage.
+- Acceptance:635 offline tests41.683s; independent14 recovery/streaming tests; five-font raster inspection; reviewed complete diff/privacy/whitespace. AUTO2-SOL-INTEGRATE.
+- Agents:font writer then recovery-test writer isolated; UI read-only until this base accepted; no recursive agents. Sol integration sequential.
+- Cost:two external Sonnet CLI calls/list$4.8185541, actual subscription billing unknown. Four automation builder calls cumulative$9.6286177; internal usage unknown. Runtime0/Astra0/Opus0.
+- Git:main from5c185fc, intended remote fetched unchanged; normal commit/push pending receipt.
+- Limits:software only, Gate10 representative source/credentials/expert judgment still BLOCKED. Next:verified push and UI automation_3/4.

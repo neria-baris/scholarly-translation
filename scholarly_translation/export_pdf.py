@@ -64,6 +64,7 @@ class PdfExportResult:
     manifest: list = field(default_factory=list)
     limitations: list = field(default_factory=list)
     page_count: int = 0
+    font_id: str | None = None
 
 
 class _PdfWriter:
@@ -97,7 +98,13 @@ class _PdfWriter:
         logical_lines = wrap_logical_lines(text, font, size, max_width) or [""]
         line_height = size * LINE_LEADING
         needed = style.get("before", 0) + len(logical_lines) * line_height + style.get("after", 0)
-        self._ensure_room(min(needed, self.page_height - 2 * MARGIN))
+        # A block longer than a page necessarily splits. Start its first lines
+        # in the current page's remaining room instead of abandoning that room
+        # merely because the whole block cannot fit. Short blocks retain their
+        # existing keep-together behaviour.
+        if needed > self.page_height - 2 * MARGIN:
+            needed = style.get("before", 0) + min(2, len(logical_lines)) * line_height
+        self._ensure_room(needed)
         self.y -= style.get("before", 0)
         self.canvas.setFont(font, size)
         for logical_line in logical_lines:
@@ -133,7 +140,7 @@ class _PdfWriter:
         return self.buf.getvalue()
 
 
-def export_pdf(structure, translations, *, images=None, title=None) -> PdfExportResult:
+def export_pdf(structure, translations, *, images=None, title=None, font_id=None) -> PdfExportResult:
     """Render a translated, reflowed, RTL-correct Hebrew PDF.
 
     ``structure`` must be a schema-2 ``document_structure`` dict (as
@@ -148,7 +155,10 @@ def export_pdf(structure, translations, *, images=None, title=None) -> PdfExport
     report, not a change to ``document_structure.py``.
 
     Raises :class:`ExportError` (never a raw internal traceback) for an
-    invalid structure or malformed translation mapping.
+    invalid structure, malformed translation mapping or unknown/unavailable
+    explicit font_id. Font selection changes rendering only; callers can
+    rerender stored translation records without invoking translation models.
+    None preserves the legacy host-font selection behaviour.
     """
     try:
         validate_structure(structure)
@@ -161,8 +171,13 @@ def export_pdf(structure, translations, *, images=None, title=None) -> PdfExport
     images = images or {}
 
     render_units = ordered_render_units(structure)
-    font_name, bold_font_name, font_limitation = resolve_hebrew_font()
+    font_name, bold_font_name, font_limitation = resolve_hebrew_font(font_id)
     limitations = []
+    if font_id == "david-clm":
+        limitations.append({"kind": "font_license_notice", "font_id": font_id,
+                             "detail": "David CLM is GPL-2.0 with Bitstream notices; "
+                                       "no document embedding exception was identified in the upstream license.",
+                             "source": "https://sources.debian.org/src/culmus/0.140-3/LICENSE"})
     if font_limitation:
         limitations.append({"kind": font_limitation, "detail":
                              "no Hebrew-capable TTF font found on this host; "
@@ -224,4 +239,4 @@ def export_pdf(structure, translations, *, images=None, title=None) -> PdfExport
 
     content = writer.finish()
     return PdfExportResult(content=content, manifest=manifest, limitations=limitations,
-                            page_count=writer.page_count)
+                            page_count=writer.page_count, font_id=font_id)

@@ -1,0 +1,65 @@
+{
+  "fonttools": "4.62.0",
+  "files": [
+    {
+      "path": "culmus/DavidCLMPDF-Bold.ttf",
+      "sha256": "0cf8003393345481260c7841c3c381ef68c2eb129f5ee09082db0ce86b2b721b",
+      "size": 36508
+    },
+    {
+      "path": "culmus/DavidCLMPDF-Regular.ttf",
+      "sha256": "4a5435119bd4d2c0d7d6c8cf938ac32488ec24e1f4599456a9b765ce8a494b03",
+      "size": 36932
+    },
+    {
+      "path": "culmus/HadasimCLM-Bold.ttf",
+      "sha256": "6070d367d94f7769546b6e8fc1927f4001baad6b91fe8e443d1492993f286c41",
+      "size": 38076
+    },
+    {
+      "path": "culmus/HadasimCLM-Regular.ttf",
+      "sha256": "7a8426873ce56eb2d05d998381de92695fafabd00672175bfb925f1e78c0bb13",
+      "size": 36768
+    },
+    {
+      "path": "davidlibre/DavidLibre-Bold.ttf",
+      "sha256": "7610819c7888c8e7ecdfc573089113ec5355cf95078614ae0e30b509b05468f8",
+      "size": 132840
+    },
+    {
+      "path": "davidlibre/DavidLibre-Regular.ttf",
+      "sha256": "923f06e0f6dc84e1649d8cc5d5e12a8d663adf6aba83ba15baa5d559fb47b86e",
+      "size": 127740
+    },
+    {
+      "path": "frankruhllibre/FrankRuhlLibre-Bold.ttf",
+      "sha256": "7918c44843271cb69099eacd467bdd019b0cdda56bfbf5cf56b6405092c55a20",
+      "size": 71964
+    },
+    {
+      "path": "frankruhllibre/FrankRuhlLibre-Regular.ttf",
+      "sha256": "ead13ff3005c11a42367b3841d7bacbbecbc7cedd634635eeb36e35d83d87cea",
+      "size": 71908
+    },
+    {
+      "path": "frankruhllibre/FrankRuhlLibre[wght].ttf",
+      "sha256": "f9bf26966681037aae894b031bd0dcf2c1bfdfa128dd0640cf276fe62a338a43",
+      "size": 178468
+    },
+    {
+      "path": "notoserifhebrew/NotoSerifHebrew-Bold.ttf",
+      "sha256": "36afe1045526d17b7b82ab7b5be291726bf132b4be60471b26043a62b8db26da",
+      "size": 56272
+    },
+    {
+      "path": "notoserifhebrew/NotoSerifHebrew-Regular.ttf",
+      "sha256": "e06f52e7cd41c99560d8464ee6fead234ac0758351b82309c8740599892f4da2",
+      "size": 56248
+    },
+    {
+      "path": "notoserifhebrew/NotoSerifHebrew[wdth,wght].ttf",
+      "sha256": "93caef921360788dc3b0e32136bb26f16bc57717ec482d48fc7fd43820617165",
+      "size": 183600
+    }
+  ]
+}

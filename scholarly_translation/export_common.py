@@ -15,6 +15,7 @@ must supply a ``document_structure`` already produced by
 from __future__ import annotations
 
 import re
+import threading
 import unicodedata
 from pathlib import Path
 
@@ -128,17 +129,85 @@ _BOLD_CANDIDATES = {
 }
 
 _font_cache = {}
+_font_lock = threading.RLock()
+_BUNDLED_FONT_ROOT = Path(__file__).resolve().parent / "assets" / "fonts"
+_PDF_FONTS = {
+    "david-libre": ("David Libre", "davidlibre/DavidLibre-Regular.ttf", "davidlibre/DavidLibre-Bold.ttf"),
+    "hadasim-clm": ("Hadasim CLM", "culmus/HadasimCLM-Regular.ttf", "culmus/HadasimCLM-Bold.ttf"),
+    "noto-serif-hebrew": ("Noto Serif Hebrew", "notoserifhebrew/NotoSerifHebrew-Regular.ttf", "notoserifhebrew/NotoSerifHebrew-Bold.ttf"),
+    "frank-ruhl-libre": ("Frank Ruhl Libre", "frankruhllibre/FrankRuhlLibre-Regular.ttf", "frankruhllibre/FrankRuhlLibre-Bold.ttf"),
+    "david-clm": ("David CLM", "culmus/DavidCLMPDF-Regular.ttf", "culmus/DavidCLMPDF-Bold.ttf"),
+}
 
 
-def resolve_hebrew_font():
+def list_pdf_fonts() -> list[dict]:
+    """Return the closed set of bundled choices, without local filesystem paths.
+
+    Availability checks registration and Hebrew/Latin coverage locally. A
+    damaged/missing font is unavailable; selecting it subsequently fails rather
+    than substituting another face. No download or provider call is performed.
+    """
+    fonts = []
+    for font_id, (name, _, _) in _PDF_FONTS.items():
+        try:
+            _resolve_bundled_font(font_id)
+            available = True
+        except ExportError:
+            available = False
+        license_id = ("GPL-2.0 with font embedding exception" if font_id == "hadasim-clm"
+                      else "GPL-2.0; Bitstream notices" if font_id == "david-clm"
+                      else "OFL-1.1")
+        fonts.append({"id": font_id, "name": name, "available": available,
+                      "license": license_id,
+                      "license_url": ("https://sources.debian.org/src/culmus/0.140-3/LICENSE"
+                                      if font_id.endswith("clm") else "https://openfontlicense.org/"),
+                      "embedding_note": ("David CLM upstream license has no identified document embedding exception."
+                                         if font_id == "david-clm" else None)})
+    return fonts
+
+
+def _resolve_bundled_font(font_id):
+    if not isinstance(font_id, str) or font_id not in _PDF_FONTS:
+        raise ExportError("unknown PDF font selection")
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    _, regular_path, bold_path = _PDF_FONTS[font_id]
+    paths = [_BUNDLED_FONT_ROOT / regular_path, _BUNDLED_FONT_ROOT / bold_path]
+    # Check before the registration cache: a removed deployment asset must not
+    # be reported available merely because a previous request registered it.
+    if any(not path.is_file() for path in paths):
+        raise ExportError("selected PDF font is unavailable")
+    names = [f"export-bundled-{font_id}-regular", f"export-bundled-{font_id}-bold"]
+    with _font_lock:
+        if font_id in _font_cache:
+            return _font_cache[font_id]
+        try:
+            for name, path in zip(names, paths):
+                font = TTFont(name, str(path))
+                required = set(range(32, 127)) | set(range(0x05D0, 0x05EB))
+                if not required.issubset(font.face.charToGlyph):
+                    raise ValueError("font has insufficient Hebrew/Latin coverage")
+                if name not in pdfmetrics.getRegisteredFontNames():
+                    pdfmetrics.registerFont(font)
+        except Exception:
+            raise ExportError("selected PDF font could not be loaded") from None
+        result = (names[0], names[1], None)
+        _font_cache[font_id] = result
+        return result
+
+
+def resolve_hebrew_font(font_id=None):
     """Register and return ``(regular_font_name, bold_font_name, limitation)``.
 
-    Searches a short list of common host font locations for a Hebrew-
-    capable TTF (this project never ships or embeds a font file itself --
-    see spec section 4). Returns the built-in ``Helvetica``/``Helvetica-Bold``
+    An explicit font_id selects only its bundled, licensed regular/bold pair.
+    Unknown or unavailable explicit selections raise ExportError. With no
+    selection, preserve the legacy short list of host font locations for a
+    Hebrew-capable TTF. Returns ``Helvetica``/``Helvetica-Bold``
     (no Hebrew glyphs) plus a non-``None`` limitation string when no such
     font is found on the host, so callers can record it rather than fail.
     """
+    if font_id is not None:
+        return _resolve_bundled_font(font_id)
     if "resolved" in _font_cache:
         return _font_cache["resolved"]
     from reportlab.pdfbase import pdfmetrics

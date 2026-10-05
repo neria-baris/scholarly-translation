@@ -1,0 +1,13 @@
+lookup saltMiscSAlt {
+  lookupflag RightToLeft;
+    sub \plus by \uniFB29 ;      # plus => alternative plus (_|_)
+    sub \afii57682 by \uniFB20 ; # ayin => ayin without descender
+} saltMiscSAlt;
+
+feature salt {
+  script hebr;
+    language dflt ;
+      lookup saltMiscSAlt;
+} salt;
+
+

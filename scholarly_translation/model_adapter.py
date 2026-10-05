@@ -442,6 +442,24 @@ class TextGenerationAdapter:
         raise NotImplementedError
 
 
+class CacheablePrompt(str):
+    """A plain `str` (same text, same hashing/equality/identity everywhere)
+    that additionally carries an explicit stable-prefix/dynamic-suffix split
+    for a provider cache breakpoint. A caller that renders a chapter-batch
+    prompt as immutable source/IDs/profile/glossary (the stable prefix)
+    followed by dynamic target IDs/state instructions (the suffix) builds
+    this instead of a plain string; any adapter that does not know about it
+    (mock, or an adapter that receives `str(prompt)`) sees exactly the same
+    full prompt text with no behavior change.
+    """
+
+    def __new__(cls, stable_prefix: str, suffix: str):
+        self = str.__new__(cls, stable_prefix + suffix)
+        self.stable_prefix = stable_prefix
+        self.suffix = suffix
+        return self
+
+
 class MockTextGenerationAdapter(TextGenerationAdapter):
     """No network, no secret needed. Conspicuous non-Hebrew placeholder, never a real translation."""
 
@@ -467,7 +485,7 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
     """
 
     def __init__(self, client=None, provider_definition=None, max_output_tokens=None,
-                 reasoning=None, timeout=None, api_key=None) -> None:
+                 reasoning=None, timeout=None, api_key=None, max_wall_seconds=3600) -> None:
         self._client = client
         self._provider = provider_definition or ProviderDefinition(
             "openai", "openai", "OPENAI_API_KEY", None,
@@ -482,6 +500,7 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
         # Explicit key takes precedence over the provider's env-var lookup;
         # `os.environ` is only ever read, never mutated.
         self._api_key = api_key
+        self._max_wall_seconds = max_wall_seconds
 
     def _build_client(self):
         import os
@@ -527,14 +546,39 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
         try:
             payload = dict(
                 model=model,
-                input=prompt_text,
                 store=False,
                 tools=[],
                 max_output_tokens=self._max_output_tokens,
             )
+            # Explicit OpenAI prompt caching (official `prompt_cache_options`
+            # schema): only applied when the caller marked an explicit
+            # stable/dynamic split via CacheablePrompt; a plain string keeps
+            # the historical single opaque `input` string. No cache warming:
+            # this is the same single generation call either way, just with
+            # a breakpoint hint on the stable block.
+            if (isinstance(prompt_text, CacheablePrompt) and prompt_text.stable_prefix
+                    and model_catalog.resolve('openai', model) is not None):
+                payload["input"] = [{
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": prompt_text.stable_prefix,
+                         "prompt_cache_breakpoint": {"mode": "explicit"}},
+                        {"type": "input_text", "text": prompt_text.suffix},
+                    ],
+                }]
+                payload["prompt_cache_options"] = {"mode": "explicit", "ttl": "30m"}
+            else:
+                payload["input"] = str(prompt_text)
             if reasoning_effort is not None:
                 payload['reasoning'] = {'effort': reasoning_effort}
-            response = client.responses.create(**payload)
+            if self._max_output_tokens > 8192 and callable(getattr(client.responses, 'stream', None)):
+                with client.responses.stream(**payload) as stream:
+                    for _event in stream:
+                        if time.monotonic() - start > self._max_wall_seconds:
+                            raise TimeoutError('generation wall limit')
+                    response = stream.get_final_response()
+            else:
+                response = client.responses.create(**payload)
         except Exception:
             duration = time.monotonic() - start
             return TextGenerationResult(
@@ -627,7 +671,7 @@ class AnthropicTextGenerationAdapter(TextGenerationAdapter):
     """Anthropic Messages adapter behind the shared result boundary."""
 
     def __init__(self, client=None, provider_definition=None, max_output_tokens=None,
-                 timeout=None, api_key=None):
+                 timeout=None, api_key=None, max_wall_seconds=3600):
         self._client = client
         self._provider = provider_definition or ProviderDefinition(
             "anthropic", "anthropic", "ANTHROPIC_API_KEY", None,
@@ -635,6 +679,7 @@ class AnthropicTextGenerationAdapter(TextGenerationAdapter):
         self._max_output_tokens = max_output_tokens or OPENAI_MAX_OUTPUT_TOKENS
         self._timeout = TEXT_GENERATION_TIMEOUT_SECONDS if timeout is None else timeout
         self._api_key = api_key
+        self._max_wall_seconds = max_wall_seconds
 
     def _build_client(self):
         import os
@@ -660,11 +705,29 @@ class AnthropicTextGenerationAdapter(TextGenerationAdapter):
             raise RequestValidationError("model must be a nonempty configured identifier")
         client = self._client or self._build_client()
         start = time.monotonic()
+        # Explicit Anthropic prompt caching: a single user-message content
+        # block list with an `ephemeral` cache_control breakpoint on the
+        # stable prefix only when the caller marked one via CacheablePrompt;
+        # a plain string keeps the historical single-string content.
+        if isinstance(prompt_text, CacheablePrompt) and prompt_text.stable_prefix:
+            content = [
+                {"type": "text", "text": prompt_text.stable_prefix,
+                 "cache_control": {"type": "ephemeral", "ttl": "5m"}},
+                {"type": "text", "text": prompt_text.suffix},
+            ]
+        else:
+            content = str(prompt_text)
         try:
-            response = client.messages.create(
-                model=model, max_tokens=self._max_output_tokens,
-                messages=[{"role": "user", "content": prompt_text}],
-            )
+            payload = dict(model=model, max_tokens=self._max_output_tokens,
+                           messages=[{"role": "user", "content": content}])
+            if self._max_output_tokens > 8192 and callable(getattr(client.messages, 'stream', None)):
+                with client.messages.stream(**payload) as stream:
+                    for _event in stream:
+                        if time.monotonic() - start > self._max_wall_seconds:
+                            raise TimeoutError('generation wall limit')
+                    response = stream.get_final_message()
+            else:
+                response = client.messages.create(**payload)
         except Exception:
             return TextGenerationResult(
                 "failed_transport", None, "not_metered", None,
