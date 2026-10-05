@@ -524,6 +524,25 @@ def make_handler(token: str, model_config_path: str | None = None):
                     self.send_header("X-Content-Type-Options", "nosniff")
                     self.end_headers()
                     self.wfile.write(body)
+                elif route.path == "/document-notebook":
+                    try:
+                        job = document_jobs.get(data.get("job_id"))
+                    except DocumentDraftError:
+                        job = None
+                    notebook = job.get("book_notebook") if job else None
+                    if not notebook:
+                        self._json(404, {"error": "notebook not found"})
+                        return
+                    from .book_notebook import render_markdown
+                    body = render_markdown(notebook).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/markdown; charset=utf-8")
+                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + ".notebook.md"))
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    self.wfile.write(body)
                 elif route.path == "/document-sample":
                     from reportlab.pdfgen import canvas as _rl_canvas
                     destination = OUTPUT_ROOT / "uploads" / secrets.token_hex(10) / "sample.pdf"

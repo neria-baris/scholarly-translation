@@ -245,7 +245,7 @@ class Automation3HTTPTests(unittest.TestCase):
             if job["status"] not in ("queued", "reading", "translating", "reviewing", "rebuilding"):
                 break
             time.sleep(0.02)
-        self.assertEqual(job["status"], "completed")
+        self.assertEqual((job["status"], job.get("error")), ("completed", None))
 
         # pause() on an already-active-less, non-automation-incompatible state is
         # exercised directly on a non-automation job to prove it is the real

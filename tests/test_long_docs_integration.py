@@ -51,6 +51,7 @@ class LongDocsIntegrationTests(unittest.TestCase):
         self.folder = Path(tempfile.mkdtemp(dir=self.temp.name))
         self.config = ModelConfiguration.from_dict(config_dict())
         self.calls = []
+        self.keeper_calls = 0
 
     def job(self, quality="fast"):
         return {"job_id": "long-job", "settings": {"quality": quality, "profile": "literary", "budget_usd": 30},
@@ -59,6 +60,9 @@ class LongDocsIntegrationTests(unittest.TestCase):
     def factory(self, pause_after=None):
         def make(role, descriptor):
             def generate(prompt, model):
+                if "rolling NOTEBOOK for a book" in prompt:  # book-notebook keeper step (not a translation call)
+                    self.keeper_calls += 1
+                    return TextGenerationResult("completed", '{"ops": []}', {"input": 100, "output": 10}, model, 0)
                 self.calls.append((role, prompt))
                 ids = json.loads(re.search(r"TARGET_UNIT_IDS[^\n]*?: (\[[^\n]*\])", prompt).group(1))
                 text = json.dumps([{"unit_id": uid, "translation": "תרגום", "translation_note": None}
@@ -89,7 +93,7 @@ class LongDocsIntegrationTests(unittest.TestCase):
         self.assertEqual(len(self.calls), batches)
         for _, prompt in self.calls:
             # Each request carries one chapter's source, never the whole book.
-            self.assertEqual(len(set(_TITLE_RE.findall(prompt))), 1)
+            self.assertEqual(len(set(_TITLE_RE.findall(prompt.split("PREVIOUS_PASSAGE")[0]))), 1)
             self.assertLess(len(prompt), 60000)
 
     def test_pause_resume_keeps_groups_and_never_resends(self):

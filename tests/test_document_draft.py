@@ -428,8 +428,20 @@ class DocumentDraftTests(unittest.TestCase):
                     duration_seconds=0.0, observed_provider="fake",
                 )
 
-        translator = FakeBatchTranslationAdapter()
-        factory = self.make_adapter_factory(translator=translator)
+        class FakeKeeperAdapter:
+            """Book-notebook keeper (role chapter_qa): an empty update."""
+            def __init__(self):
+                self.calls = 0
+
+            def generate(self, prompt_text, model):
+                self.calls += 1
+                return TextGenerationResult(
+                    status="completed", text='{"ops": []}', token_usage={"input": 10, "output": 5},
+                    observed_model=model, duration_seconds=0.0, observed_provider="fake",
+                )
+
+        translator, keeper = FakeBatchTranslationAdapter(), FakeKeeperAdapter()
+        factory = self.make_adapter_factory(translator=translator, chapter_qa=keeper)
         _, job = self.run_job(
             {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": True},
             adapter_factory=factory,
@@ -437,6 +449,7 @@ class DocumentDraftTests(unittest.TestCase):
         self.assertEqual(job["status"], "completed")
         self.assertEqual(job["completed_units"], job["total_units"])
         self.assertTrue(translator.calls)
+        self.assertEqual(keeper.calls, 1)  # one book-notebook keeper call per chapter, even in fast mode
         self.assertTrue(all("תרגום של" in u["target_text"] for u in job["units"]))
         # The stable chapter-source/profile/glossary prefix precedes the
         # dynamic target-ids/state suffix in exactly the dispatched prompt.

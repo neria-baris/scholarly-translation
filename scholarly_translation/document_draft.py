@@ -791,8 +791,8 @@ class DocumentJobs:
             job["estimated_cost_usd"] = self._store_cost(store, job_id)
             self._persist(job)
 
-    def _risk_flags_for(self, unit_record):
-        return chapter_pipeline.detect_risk_triggers(unit_record)
+    def _risk_flags_for(self, unit_record, profile=None):
+        return chapter_pipeline.detect_risk_triggers(unit_record, profile)
 
     def _run_unit_reviews(self, job, configuration, policy, store=None, output_cap=None,
                           max_calls=None, hard_list_usd=None):
@@ -814,7 +814,7 @@ class DocumentJobs:
         )
         budget_exhausted_noted = False
         for unit_record in job["units"]:
-            risk_flags = self._risk_flags_for(unit_record)
+            risk_flags = self._risk_flags_for(unit_record, job["settings"].get("profile"))
             request = build_unit_review_request_for_role(
                 unit_record["source_text"], unit_record["target_text"] or unit_record["source_text"],
                 configuration, policy=policy, risk_flags=risk_flags,

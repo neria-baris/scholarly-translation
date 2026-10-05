@@ -223,7 +223,7 @@ function renderPreview(preview){
   const rows=[];
   for(const chapter of preview.chapters){
     for(const [role,usage] of Object.entries(chapter.role_usage)){
-      rows.push(`<tr><td>${esc(role)}</td><td dir="ltr">${esc(usage.provider)}/${esc(usage.model)}</td><td dir="ltr">${esc(usage.calls)}</td>
+      rows.push(`<tr><td>${esc(role==='notebook_keeper'?'מחברת הספר':role)}</td><td dir="ltr">${esc(usage.provider)}/${esc(usage.model)}</td><td dir="ltr">${esc(usage.calls)}</td>
         <td dir="ltr">${esc(usage.input_tokens_upper_bound)} / ${esc(usage.output_tokens_upper_bound)}<br>${esc(usage.count_method)} · ${usage.exact?'ספירה לפי קידוד':'אומדן'}</td>
         <td dir="ltr">$${Number(usage.expected_cost_usd).toFixed(4)}</td><td dir="ltr">$${Number(usage.conservative_cost_usd).toFixed(4)}</td>
         <td>${usage.pricing_basis==='unknown_conservative'?'הנחה שמרנית (לא רשמי)':esc(usage.pricing_basis)}</td></tr>`);
@@ -423,6 +423,7 @@ function renderResult(){
     (stale?'הטקסט נערך לאחר בדיקת המודל; תוצאות ה־QA הקודמות אינן אישור לגרסה הערוכה.':'');
   $('result-exceptions').hidden=!findings&&!stale;
   $('download-pdf').disabled=!complete;
+  renderNotebook();
   $('review-button').disabled=!complete;
   $('cost-summary').textContent=currentJob.estimated_cost_usd?'אומדן $'+currentJob.estimated_cost_usd.toFixed(4):auto?'ללא עלות':'';
   const isPdf=sourceExt()==='pdf';
@@ -435,6 +436,20 @@ function renderResult(){
   for(const [index,unit] of (currentJob.units||[]).entries()){
     const option=document.createElement('option');option.value=index;option.textContent=(index+1)+' · '+(unit.status||'');$('unit-select').append(option)}
   unitIndex=0;
+}
+function renderNotebook(){
+  const nb=currentJob.book_notebook,box=$('result-notebook'),list=$('notebook-summaries');
+  list.replaceChildren();
+  const summaries=nb&&nb.chapter_summaries?Object.entries(nb.chapter_summaries).sort((a,b)=>Number(a[0])-Number(b[0])):[];
+  box.hidden=!nb||currentJob.status!=='completed';
+  for(const [index,text] of summaries){const item=document.createElement('li');item.textContent='פרק '+(Number(index)+1)+': '+text;list.append(item)}
+}
+async function downloadNotebook(){
+  $('download-notebook').disabled=true;
+  try{const blob=await request('/document-notebook',{job_id:currentJob.job_id},true);
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=currentJob.filename.replace(/\.[^.]+$/,'')+'.notebook.md';
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(error){$('result-notice').hidden=false;$('result-notice').textContent=error.message}finally{$('download-notebook').disabled=false}
 }
 function dirty(){return !$('review-panel').hidden&&currentJob?.units[unitIndex]&&$('review-target').value!==currentJob.units[unitIndex].target_text}
 function confirmDiscard(){return !dirty()||confirm('יש שינויים שלא נשמרו. לעבור בלי לשמור?')}
@@ -526,7 +541,7 @@ for(const kind of ['dragleave','drop'])$('drop-zone').addEventListener(kind,even
 $('translation-form').onsubmit=translate;$('connection-button').onclick=showConnection;
 $('close-connection').onclick=()=>$('connection-dialog').close();
 $('close-connection-ok').onclick=()=>$('connection-dialog').close();
-$('sample-button').onclick=sample;$('download-pdf').onclick=download;
+$('sample-button').onclick=sample;$('download-pdf').onclick=download;$('download-notebook').onclick=downloadNotebook;
 $('save-keys').onclick=saveKeys;$('pause-button').onclick=pauseJob;$('resume-button').onclick=resumeJob;
 $('resume-save-keys').onclick=saveResumeKeys;
 $('font-before').addEventListener('change',schedulePreview);
