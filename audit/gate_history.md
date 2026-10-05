@@ -391,3 +391,11 @@ Implementations `3b4cdaa` (BOOK-REFERENCE-2) and `0445bde` (GOLD-THEME) passed 6
 - Acceptance: LONG-DOCS-INTEGRATE; 709 offline tests OK 276.7 s; real novel 38 chapters, preview 7-25 s per mode.
 - Cost (no calls): LONG-DOCS-COST. Sol 6.1 checked reserve $71.63 > MAX_BUDGET_USD $30: user decision pending. Builder usage subscription not_metered; external API calls 0.
 - Next: user budget ceiling; literary continuity/quality design (separate contract) awaiting approval.
+
+## 2026-10-05T16:10:00+00:00 | LIT-NOTEBOOK | PASS scoped software
+
+- Contract `audit/contracts/literary_notebook.md` (e4d2166). Builders: C `fdb41c4`, D `0d6c2b0`->`1e1c366`, E `f504304` (ff). LONG-DOCS `9cc42e4` was pushed (receipt here).
+- User decisions: no code budget ceiling but a required user budget for paid runs/previews; adaptive model-kept notebook with free tags and per-chapter plot summaries; human review optional only.
+- Behaviour: new automation jobs keep `book_notebook` (keeper call after each chapter in all modes; relevant excerpt + previous-passage bridge in translation; notebook in chapter QA; literary risk triggers; downloadable Markdown and summaries in results). Legacy jobs stay on document_state. Nothing waits for a human.
+- Acceptance: LIT-NOTEBOOK-BUILD; 760 offline tests OK 290.3 s. Cost: LIT-NOTEBOOK-COST. External API calls 0; builder usage not_metered.
+- Limits: no quality claim (Gate10 still needs real judgments); unknown-outcome keeper dispatch blocks further calls like any step; keeper model follows chapter_qa unless context_state_builder configured.

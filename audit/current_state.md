@@ -1,13 +1,14 @@
 # Current state
-Updated: 2026-10-05T14:20:00+00:00 (Claude continuity; LONG-DOCS integrated)
+Updated: 2026-10-05T16:10:00+00:00 (Claude continuity; LIT-NOTEBOOK integrated)
 
-LONG-DOCS accepted as scoped software (contract audit/contracts/long_documents_chapters.md):
-real EPUB chapters, size fitting, adaptive unit policy, planner speed, caps 3M chars/2000
-pages, persisted chapter groups for resume. 709 tests OK. Builder worktree branches
-worktree-agent-a3c6d5c090eaf28ac / -a9ab1557d1719b954 merged; no active delegated work.
-Open user decisions: (1) MAX_BUDGET_USD (30) - Sol 6.1 checked reserve $71.63 for a
-730k novel; (2) approve literary continuity/quality contract (to be drafted).
-Next exact action: on answers, adjust cap and draft/implement the literary contract.
+LONG-DOCS (pushed 9cc42e4) and LIT-NOTEBOOK accepted as scoped software. Budget: required
+user value for paid runs, no code ceiling. New automation jobs keep a model-maintained
+book notebook (free tags, chapter summaries, story so far) used by translation and QA;
+legacy jobs unchanged. 760 tests OK. No active delegated work; builder branches
+worktree-agent-a6bbb2ac65efc98fe / -ab9068247a6539e9e / -a7de952124f5698fb merged.
+Open options for user: expose keeper role (context_state_builder) in UI; blind sample
+chapter comparison (paid, needs authorization); real browser run of a configured job.
+Next exact action: push and record receipt; then await user direction.
 
 BOOK-REFERENCE-2 (user: closed book did not look like a book): sprite rebuilt to
 48 frames after the reference - real closed cover/spine/label/page edges, hinge
