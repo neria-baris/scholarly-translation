@@ -2,8 +2,8 @@
 Updated: 2026-10-05T07:40:17.144712+00:00 (Sol conductor)
 
 AUTOMATION-2 producer software accepted:635 offline tests41.683s,14 independent
-recovery/streaming tests. Base main5c185fc; intended origin fetched unchanged.
-New implementation commit and verified push receipt follow. Contracts2/4font
+recovery/streaming tests. Verified implementation f929030 plus font-byte correction f266cb1 normally
+pushed; post-push fetch main==origin/main, clean tree. This separate receipt follows. Contracts2/4font
 producer accepted; automation_3/4 UI consumer remains next, not marked complete.
 
 Built actual whole-chapter/batch prompt/output-fit plan, independent QA models,
@@ -25,7 +25,7 @@ Runtime isolated outputs/tooling/runtime-venv Python3.12 all pinned requirements
 brokenold.venv preserved. Launcher/installer3.10+/all six imports checked.
 No secrets, user sources, outputs/caches or unrelated Claude worktrees staged.
 
-Next:commit/push receipt, then isolated UI writer on accepted base: model/QA
+Next:isolated UI writer on accepted base: model/QA
 choice+Other, protected memory-only keys, per-role preview, actual pause/resume,
 styled help/cost-quality notes, original logo, side-profile pixelbook and before/
 after PDF fonts. Root docs/browser/fullsuite verification and gateclosure follow.
