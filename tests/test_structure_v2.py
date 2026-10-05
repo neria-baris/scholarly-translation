@@ -271,6 +271,53 @@ class LegacySchemaAcceptanceTests(unittest.TestCase):
             validate_structure(upgraded)
 
 
+class PdfPathUnaffectedByEpubSchemaExtensionTests(unittest.TestCase):
+    """audit/contracts/session_epub_digital_text_schema.md acceptance check:
+    the full existing PDF acceptance path is byte-for-byte unaffected by the
+    new "digital-text" origin -- same candidate/anchor shape, same errors,
+    same hashes."""
+
+    def test_pdf_digital_candidate_shape_and_geometry_unchanged(self):
+        tmp, document, page, candidate, decisions = _extract_and_resolve(["A single plain sentence."])
+        with tmp:
+            self.assertEqual(candidate["origin"], "digital")
+            self.assertEqual(candidate["provenance"], {
+                "base_extraction_hash": candidate["provenance"]["base_extraction_hash"],
+                "stage": "digital-pdf@1",
+            })
+            self.assertGreater(candidate["pdf_width"], 0)
+            self.assertGreater(candidate["pdf_height"], 0)
+            for anchor in candidate["anchors"]:
+                self.assertEqual(set(anchor), {
+                    "kind", "source_char_start", "source_char_end",
+                    "segment_id", "region_id", "bbox",
+                })
+                self.assertEqual(anchor["kind"], "line")
+                self.assertNotIn("node_kind", anchor)
+                self.assertNotIn("node_level", anchor)
+            structure = build_structure(document, decisions=decisions)
+            validate_structure(structure)
+            self.assertEqual(structure["nodes"][0]["kind"], "paragraph")
+
+    def test_unknown_source_kind_still_rejected(self):
+        from scholarly_translation.records import Document, Page, Segment
+        import hashlib
+        document_id = "doc-1"
+        page_id = "page-1"
+        segment = Segment(segment_id="seg-1", page_id=page_id, order=1, text="x",
+                          source_char_start=0, source_char_end=1)
+        page = Page(page_id=page_id, document_id=document_id, page_number=1,
+                   segments=[segment], source_text="x")
+        document = Document(
+            schema_version=3, document_id=document_id, document_version=1, language="en",
+            source_kind="docx", source_uri="urn:test:docx", pages=[page],
+            input_hash=hashlib.sha256(b"x").hexdigest(),
+        )
+        from scholarly_translation.source_reading import build_readings
+        with self.assertRaises(StructureError):
+            build_readings(document)
+
+
 class PersistedSchema2ValidationTests(unittest.TestCase):
     def test_hierarchy_policy_and_unit_node_link_tampering_is_rejected(self):
         tmp, document, page, candidate, decisions = _extract_and_resolve([

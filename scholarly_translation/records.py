@@ -38,6 +38,13 @@ class Segment:
     source_char_end: int
     region_id: str = ""
     bbox: Optional[Tuple[float, float, float, float]] = None
+    # Additive, backward-compatible fields (default None): for non-geometric
+    # "digital-text" sources (EPUB), the block's already-known structural
+    # kind/level, carried through so document_structure.py can build nodes
+    # directly from them instead of re-deriving kind/level heuristically.
+    # Unused (None) for PDF/OCR segments.
+    node_kind: Optional[str] = None
+    node_level: Optional[int] = None
 
     def __post_init__(self) -> None:
         _require_nonempty_id(self.segment_id, "segment_id")
@@ -73,6 +80,12 @@ class Segment:
             if x0 > x1 or top > bottom:
                 raise RecordValidationError("segment bbox must have x0<=x1 and top<=bottom")
             object.__setattr__(self, "bbox", tuple(values))
+        if self.node_kind is not None and (not isinstance(self.node_kind, str) or not self.node_kind.strip()):
+            raise RecordValidationError("segment node_kind must be a nonempty string when set")
+        if self.node_level is not None and (
+            isinstance(self.node_level, bool) or not isinstance(self.node_level, int) or self.node_level < 1
+        ):
+            raise RecordValidationError("segment node_level must be a positive integer when set")
 
     def to_dict(self) -> dict:
         return {
@@ -84,6 +97,8 @@ class Segment:
             "source_char_end": self.source_char_end,
             "region_id": self.region_id,
             "bbox": list(self.bbox) if self.bbox is not None else None,
+            "node_kind": self.node_kind,
+            "node_level": self.node_level,
         }
 
     @staticmethod
@@ -100,6 +115,8 @@ class Segment:
                 source_char_end=data["source_char_end"],
                 region_id=data.get("region_id", ""),
                 bbox=data.get("bbox"),
+                node_kind=data.get("node_kind"),
+                node_level=data.get("node_level"),
             )
         except KeyError as exc:
             raise RecordValidationError(f"segment missing field: {exc}") from exc

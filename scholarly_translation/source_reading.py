@@ -93,8 +93,12 @@ def validate_anchors(text, anchors, origin, width, height, image):
     spans, ids = [], set()
     for a in anchors:
         common = {"kind", "source_char_start", "source_char_end"}
-        expected = common | ({"segment_id", "region_id", "bbox"} if origin == "digital" else
-                             {"text", "confidence", "pixel_bbox", "pdf_bbox", "image_uri", "image_hash"})
+        if origin == "digital":
+            expected = common | {"segment_id", "region_id", "bbox"}
+        elif origin == "digital-text":
+            expected = common | {"segment_id", "region_id", "node_kind", "node_level"}
+        else:
+            expected = common | {"text", "confidence", "pixel_bbox", "pdf_bbox", "image_uri", "image_hash"}
         require(isinstance(a, dict) and set(a) == expected, "invalid source anchor shape")
         start, end = a["source_char_start"], a["source_char_end"]
         require(integer(start, 0) and integer(end) and start < end <= len(text), "invalid source anchor span")
@@ -105,6 +109,16 @@ def validate_anchors(text, anchors, origin, width, height, image):
             require(a["segment_id"] not in ids, "duplicate source anchor")
             ids.add(a["segment_id"])
             validate_box(a["bbox"], width, height)
+        elif origin == "digital-text":
+            require(a["kind"] == "block" and nonempty(a["segment_id"]) and nonempty(a["region_id"]),
+                    "invalid source region identity")
+            require(a["segment_id"] not in ids, "duplicate source anchor")
+            ids.add(a["segment_id"])
+            # No pixel-to-PDF bbox mapping applies to this non-geometric origin.
+            # node_kind vocabulary (NODE_KINDS) is owned and checked by
+            # document_structure.py, not here.
+            require(nonempty(a["node_kind"]), "invalid digital-text node kind")
+            require(a["node_level"] is None or integer(a["node_level"], 1), "invalid digital-text node level")
         else:
             require(a["kind"] == "word" and nonempty(a["text"]) and text[start:end] == a["text"],
                     "word differs from source span")
@@ -135,10 +149,14 @@ CANDIDATE_FIELDS = {"origin", "usable", "document_id", "page_id", "page_number",
 
 def validate_candidate(c):
     require(isinstance(c, dict) and set(c) == CANDIDATE_FIELDS, "invalid evidence candidate shape")
-    require(c["origin"] in ("digital", "ocr") and type(c["usable"]) is bool
+    require(c["origin"] in ("digital", "ocr", "digital-text") and type(c["usable"]) is bool
             and nonempty(c["document_id"]) and nonempty(c["page_id"]) and integer(c["page_number"])
-            and sha(c["pdf_hash"]) and positive(c["pdf_width"]) and positive(c["pdf_height"]),
-            "invalid evidence candidate identity or geometry")
+            and sha(c["pdf_hash"]), "invalid evidence candidate identity")
+    if c["origin"] == "digital-text":
+        require(c["pdf_width"] is None and c["pdf_height"] is None,
+                "digital-text evidence must not carry PDF page geometry")
+    else:
+        require(positive(c["pdf_width"]) and positive(c["pdf_height"]), "invalid evidence candidate geometry")
     require(isinstance(c["text"], str) and c["text_hash"] == text_hash(c["text"])
             and strings(c["warnings"]) and c["status"] == "needs_human", "invalid evidence text/status")
     p = c["provenance"]
@@ -146,6 +164,9 @@ def validate_candidate(c):
     if c["origin"] == "digital":
         require(set(p) == {"base_extraction_hash", "stage"} and p["stage"] == "digital-pdf@1"
                 and c["image"] is None and c["error"] is None, "invalid digital provenance")
+    elif c["origin"] == "digital-text":
+        require(set(p) == {"base_extraction_hash", "stage"} and p["stage"] == "digital-text-epub@1"
+                and c["image"] is None and c["error"] is None, "invalid digital-text provenance")
     else:
         require(set(p) == {"base_extraction_hash", "stage", "language", "engine_version", "model_file_hash"}
                 and p["stage"] == "local-ocr@1" and nonempty(p["language"])
@@ -180,6 +201,19 @@ def _digital_candidate(document, page):
                     source_char_start=s.source_char_start, source_char_end=s.source_char_end,
                     bbox=list(s.bbox)) for s in page.segments]
     return _candidate(document, page, "digital", page.source_text, anchors, list(document.warnings), None, None,
+                      {"base_extraction_hash": fingerprint(document.to_dict()),
+                       "stage": f"{document.stage_id}@{document.stage_version}"})
+
+
+def _digital_text_candidate(document, page):
+    """Non-geometric EPUB source evidence: one 'block' anchor per discovered
+    HTML block (Segment), carrying the block's already-known node_kind/
+    node_level instead of PDF line geometry. pdf_width/pdf_height stay
+    explicitly None (never a fabricated geometry value)."""
+    anchors = [dict(kind="block", segment_id=s.segment_id, region_id=s.region_id,
+                    source_char_start=s.source_char_start, source_char_end=s.source_char_end,
+                    node_kind=s.node_kind, node_level=s.node_level) for s in page.segments]
+    return _candidate(document, page, "digital-text", page.source_text, anchors, list(document.warnings), None, None,
                       {"base_extraction_hash": fingerprint(document.to_dict()),
                        "stage": f"{document.stage_id}@{document.stage_version}"})
 
@@ -230,14 +264,17 @@ DECISION_FIELDS = {"origin", "candidate_hash", "actor", "actor_kind", "reason"}
 
 def validate_decision(decision):
     require(isinstance(decision, dict) and set(decision) == DECISION_FIELDS
-            and decision["origin"] in ("digital", "ocr") and sha(decision["candidate_hash"])
+            and decision["origin"] in ("digital", "ocr", "digital-text") and sha(decision["candidate_hash"])
             and nonempty(decision["actor"]) and decision["actor_kind"] == "human"
             and nonempty(decision["reason"]), "invalid human source decision")
 
 
 def build_readings(document: Document, ocr_bundle=None, decisions=None, previous_readings=None):
-    require(isinstance(document, Document) and document.schema_version == 3 and document.source_kind == "pdf",
-            "source reading requires schema-3 PDF extraction")
+    require(isinstance(document, Document) and document.schema_version == 3
+            and document.source_kind in ("pdf", "epub"),
+            "source reading requires schema-3 PDF or EPUB extraction")
+    if document.source_kind == "epub":
+        require(ocr_bundle is None, "OCR is not supported for EPUB documents")
     decisions = {} if decisions is None else decisions
     require(isinstance(decisions, dict), "decisions must be a page mapping")
     known = {p.page_id for p in document.pages}
@@ -248,7 +285,10 @@ def build_readings(document: Document, ocr_bundle=None, decisions=None, previous
     previous_by_page = {r["page_id"]: r for r in (previous_readings or [])}
     readings = []
     for page in document.pages:
-        alternatives = [_digital_candidate(document, page)] + ([ocr[page.page_id]] if page.page_id in ocr else [])
+        if document.source_kind == "epub":
+            alternatives = [_digital_text_candidate(document, page)]
+        else:
+            alternatives = [_digital_candidate(document, page)] + ([ocr[page.page_id]] if page.page_id in ocr else [])
         decision, selected = decisions.get(page.page_id), None
         if decision is not None:
             selected = next((c for c in alternatives if c["usable"] and c["origin"] == decision["origin"]
