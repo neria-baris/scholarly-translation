@@ -450,3 +450,6 @@ Next: deliver links; later execution requires the user's instruction to start bu
 
 ## 2026-10-06 | LEARN-1A | PASS local component
 Builder A integrated first from d1f71e2.28 tests pass, including continuity, deterministic plans, stale state and receipt scope. Conductor adapted pytest-style tests to repository unittest without dependencies, repaired fixture hashes, added atomic slot acquisition and source opportunity ranking. Small French35-item starter; four other catalogs unavailable. No runtime calls; no quality claim. Commit follows, feature push not attempted; main remains untouched.
+
+## 2026-10-06 | LEARN-1B | PASS local component
+B integrated after A receipt8228b2d.43 learning tests pass. Reused safe EPUB reader and chapter grouping; conductor preserves explicit short chapters, checks Hebrew targets. Immutable source snapshots, damaged/wrong-language/unfinished input refusals, stable splits and headings. No live app changes; shared integration remains in progress, not a deploy gate.

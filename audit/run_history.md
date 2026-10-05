@@ -716,3 +716,6 @@ Next: deliver links; later execution requires the user's instruction to start bu
 
 ## 2026-10-06 | LEARN-1A
 A scoped Sonnet invocation list estimate1.0036326 USD,443292ms,20 CLI turns; observed Sonnet5 plus auxiliary Haiku4.5, subscription charge unknown. No recursive agents or runtime calls. Frozen APIs and28 unit tests passed after deterministic integration repairs. Bootstrap receipt d1f71e2 (preceded1d73c5e). Git local feature only.
+
+## 2026-10-06 | LEARN-1B
+B Sonnet list1.181225 USD,345309ms,33 CLI turns; models Sonnet5 plus auxiliary Haiku4.5, actual charge unknown.15 import tests and43 total learning checks passed after boundary/language fixes. Total A+B2.1848576 USD; no paid runtime. Commit follows local feature only.
