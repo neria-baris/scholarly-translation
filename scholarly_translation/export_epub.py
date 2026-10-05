@@ -27,103 +27,30 @@ byte-for-byte unchanged.
 from __future__ import annotations
 
 import io
-import posixpath
 import zipfile
 from dataclasses import dataclass, field
-from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 
+from .epub_archive import (
+    BLOCK_TAGS as _BLOCK_TAGS,
+    EpubArchiveError,
+    HEADING_TAGS as _HEADING_TAGS,
+    INLINE_LINK_TAG as _INLINE_LINK_TAG,
+    MEDIA_TAGS as _MEDIA_TAGS,
+    XHTML_MEDIA_TYPES as _XHTML_MEDIA_TYPES,
+    archive_path as _archive_path,
+    block_text as _block_text,
+    encrypted_paths as _encrypted_paths,
+    local_tag as _local,
+    open_validated_archive as _open_validated_archive,
+    parse_xml as _xml,
+    resolve_package as _resolve_package,
+    resolve_spine as _resolve_spine,
+)
 from .export_common import ExportError, validate_translations_mapping
 from .store import deterministic_id
 
-MAX_ENTRIES = 5000
-MAX_TOTAL_BYTES = 100 * 1024 * 1024
-MAX_ENTRY_BYTES = 10 * 1024 * 1024
-
-_XHTML_MEDIA_TYPES = ("application/xhtml+xml", "text/html")
-
-_HEADING_TAGS = {f"h{i}": i for i in range(1, 7)}
-_BLOCK_TAGS = {"p", "li", "blockquote"} | set(_HEADING_TAGS)
-_MEDIA_TAGS = {"img", "svg", "table", "audio", "video", "object", "picture"}
-_INLINE_LINK_TAG = "a"
-
 SCHEMA = "epub-structure@1"
-
-# Keep re-serialized XHTML/OPF close to idiomatic EPUB markup (default
-# xmlns on <html>, a short "opf"/"dc" prefix) instead of ElementTree's
-# auto-generated "ns0:" prefixes. Purely cosmetic -- both forms are
-# equally well-formed, namespace-correct XML.
-ET.register_namespace("", "http://www.w3.org/1999/xhtml")
-ET.register_namespace("opf", "http://www.idpf.org/2007/opf")
-ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
-
-
-def _local(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
-
-
-def _xml(content: bytes):
-    upper = content.upper()
-    if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
-        raise ExportError("EPUB contains an unsupported XML structure (DOCTYPE/ENTITY)")
-    try:
-        return ET.fromstring(content)
-    except ET.ParseError as exc:
-        raise ExportError(f"EPUB contains malformed XML: {exc}") from None
-
-
-def _archive_path(base: str, reference: str) -> str:
-    reference = unquote(reference.split("#", 1)[0])
-    if not reference or ":" in reference or "\\" in reference or reference.startswith("/"):
-        raise ExportError("EPUB contains an invalid internal reference")
-    path = posixpath.normpath(posixpath.join(base, reference))
-    if path == ".." or path.startswith("../"):
-        raise ExportError("EPUB reference escapes the archive")
-    return path
-
-
-def _open_validated_archive(path_or_bytes) -> zipfile.ZipFile:
-    try:
-        archive = zipfile.ZipFile(path_or_bytes)
-    except (zipfile.BadZipFile, OSError) as exc:
-        raise ExportError(f"EPUB archive could not be opened: {exc.__class__.__name__}") from None
-    entries = archive.infolist()
-    if len(entries) > MAX_ENTRIES or sum(e.file_size for e in entries) > MAX_TOTAL_BYTES or \
-            any(e.file_size > MAX_ENTRY_BYTES for e in entries):
-        raise ExportError("EPUB archive is too large after extraction")
-    if len({e.filename for e in entries}) != len(entries) or any(e.flag_bits & 1 for e in entries):
-        raise ExportError("EPUB archive is encrypted or internally inconsistent")
-    return archive
-
-
-def _resolve_package(archive: zipfile.ZipFile):
-    try:
-        container_bytes = archive.read("META-INF/container.xml")
-    except KeyError:
-        raise ExportError("EPUB is missing META-INF/container.xml") from None
-    container = _xml(container_bytes)
-    rootfile = next((e.get("full-path") for e in container.iter() if _local(e.tag) == "rootfile"), None)
-    if not rootfile:
-        raise ExportError("EPUB container does not reference a package document")
-    package_path = _archive_path("", rootfile)
-    try:
-        package_bytes = archive.read(package_path)
-    except KeyError:
-        raise ExportError("EPUB package document is missing") from None
-    package = _xml(package_bytes)
-    base = posixpath.dirname(package_path)
-    return package_path, package, base
-
-
-def _encrypted_paths(archive: zipfile.ZipFile) -> set:
-    if "META-INF/encryption.xml" not in archive.namelist():
-        return set()
-    encryption = _xml(archive.read("META-INF/encryption.xml"))
-    return {_archive_path("", e.get("URI", "")) for e in encryption.iter() if _local(e.tag) == "CipherReference"}
-
-
-def _block_text(el) -> str:
-    return "".join(el.itertext()).strip()
 
 
 def extract_epub_structure(path_or_bytes) -> dict:
@@ -144,22 +71,11 @@ def extract_epub_structure(path_or_bytes) -> dict:
         archive = _open_validated_archive(path_or_bytes)
         with archive:
             package_path, package, base = _resolve_package(archive)
-            items = {e.get("id"): e for e in package.iter() if _local(e.tag) == "item"}
-            spine_refs = [e.get("idref") for e in package.iter()
-                          if _local(e.tag) == "itemref" and e.get("linear", "yes") != "no"]
-            encrypted = _encrypted_paths(archive)
+            spine_paths = _resolve_spine(archive, package, base)
 
-            spine_paths = []
             nodes, units, links = [], [], []
             order = 0
-            for chapter_index, item_id in enumerate(spine_refs):
-                item = items.get(item_id)
-                if item is None or item.get("media-type") not in _XHTML_MEDIA_TYPES:
-                    raise ExportError("EPUB spine references a missing or non-XHTML chapter")
-                chapter_path = _archive_path(base, item.get("href", ""))
-                if chapter_path in encrypted:
-                    raise ExportError("EPUB chapter is protected by DRM and cannot be translated")
-                spine_paths.append(chapter_path)
+            for chapter_index, chapter_path in enumerate(spine_paths):
                 root = _xml(archive.read(chapter_path))
                 body = next((e for e in root.iter() if _local(e.tag) == "body"), root)
                 element_index = 0
@@ -198,6 +114,8 @@ def extract_epub_structure(path_or_bytes) -> dict:
             }
     except ExportError:
         raise
+    except EpubArchiveError as exc:
+        raise ExportError(str(exc)) from None
     except KeyError as exc:
         raise ExportError(f"EPUB archive is missing an expected member: {exc}") from None
     except Exception as exc:
@@ -309,6 +227,8 @@ def export_epub(path_or_bytes, epub_structure, translations) -> EpubExportResult
                     out_archive.writestr(item, raw)
     except ExportError:
         raise
+    except EpubArchiveError as exc:
+        raise ExportError(str(exc)) from None
     except KeyError as exc:
         raise ExportError(f"EPUB archive is missing an expected member: {exc}") from None
     except Exception as exc:

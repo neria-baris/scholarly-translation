@@ -158,7 +158,52 @@ def _merge_paragraph_lines(text: str, raw: list) -> list:
     return groups
 
 
+def _build_nodes_for_digital_text_reading(reading: dict, previous_nodes) -> list:
+    """Build nodes directly from the selected "digital-text" (EPUB) candidate's
+    anchors -- one node per anchor, using its already-known node_kind/
+    node_level -- instead of re-deriving kind/level via classify_line. EPUB
+    markup already encodes its own block structure unambiguously; guessing
+    structure from flattened plain text here would be exactly the second,
+    heuristic interpretation of chapters/headings the project forbids."""
+    text = reading["text"]
+    previous_nodes = previous_nodes or []
+    previous_by_id = {n["node_id"]: n for n in previous_nodes}
+    nodes = []
+    for anchor in reading["selected_anchors"]:
+        start, end = anchor["source_char_start"], anchor["source_char_end"]
+        kind, level = anchor["node_kind"], anchor["node_level"]
+        require(kind in NODE_KINDS, "unrecognized digital-text node kind")
+        node_id = deterministic_id(
+            "node", reading["document_id"], reading["page_id"], reading["reading_id"],
+            str(reading["version"]), str(start), str(end), kind,
+        )
+        overlapping = [
+            n for n in previous_nodes
+            if n["source_char_start"] < end and n["source_char_end"] > start
+        ]
+        existing = previous_by_id.get(node_id)
+        if existing is not None:
+            node_version = existing["node_version"]
+            predecessor_node_ids = existing.get("predecessor_node_ids", [])
+        else:
+            node_version = max((n["node_version"] for n in overlapping), default=0) + 1
+            predecessor_node_ids = [n["node_id"] for n in overlapping if n["node_id"] != node_id]
+        nodes.append({
+            "node_id": node_id, "node_version": node_version, "kind": kind, "level": level,
+            "order": 0, "parent_node_id": None,
+            "reading_id": reading["reading_id"], "reading_version": reading["version"],
+            "document_id": reading["document_id"], "page_id": reading["page_id"],
+            "language": reading["language"], "source_char_start": start, "source_char_end": end,
+            "text": text[start:end], "anchors": _intersecting_anchors(reading["selected_anchors"], start, end),
+            "predecessor_node_ids": predecessor_node_ids,
+        })
+    return nodes
+
+
 def _build_nodes_for_reading(reading: dict, previous_nodes) -> list:
+    origin = reading["selected"]["origin"] if reading["selected"] else None
+    if origin == "digital-text":
+        return _build_nodes_for_digital_text_reading(reading, previous_nodes)
     text = reading["text"]
     previous_nodes = previous_nodes or []
     previous_by_id = {n["node_id"]: n for n in previous_nodes}
@@ -470,7 +515,12 @@ def _validate_reading(r, document_id, pdf_hash):
         box = (c["pdf_width"], c["pdf_height"])
         require(geometry is None or geometry == box, "source alternatives geometry mismatch")
         geometry = box
-    require("digital" in origins, "digital extraction evidence missing")
+    # PDF/OCR readings always carry a "digital" alternative (build_readings
+    # always adds one); EPUB readings carry only "digital-text" instead
+    # (there is no PDF digital-extraction stage for EPUB). Either is
+    # acceptable primary digital evidence; this is additive, not a
+    # relaxation of the PDF/OCR requirement, which is unaffected.
+    require("digital" in origins or "digital-text" in origins, "digital extraction evidence missing")
     if r["status"] == "resolved":
         validate_decision(r["decision"])
         require(isinstance(r["selected"], dict) and set(r["selected"]) == {"origin", "candidate_hash"},
