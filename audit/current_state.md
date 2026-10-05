@@ -1,5 +1,18 @@
 # Current state
-Updated: 2026-10-05T16:10:00+00:00 (Claude continuity; LIT-NOTEBOOK integrated)
+Updated: 2026-10-05T19:30:00+00:00 (Claude continuity; LIBRARY-HTML-INSTALLER integrated)
+
+LIBRARY-HTML-INSTALLER (contract audit/contracts/library_html_installer.md, e10ee37):
+user explicitly authorized >2 parallel builders for this gate only; three disjoint
+writers merged sequentially: B1 373f5a4 (export_html, html render_download,
+/document-library, download format), B2 a9a78f1 (library panel UI: font choice,
+PDF/EPUB/HTML downloads, reopen), B3 a56908a (installer auto-installs per-user
+Python 3.12 via winget or signed python.org installer, py -3.x probing, pip upgrade,
+run-ui without python39). 799 tests OK; both .ps1 parse clean; live loopback smoke
+listed library and served HTML (embedded font) + PDF. Not verified: real browser
+click-through of library panel; actual Python auto-install on a machine without
+3.10+ (never executed by design). No provider calls. Builder worktrees preserved.
+Next exact action: push and record receipt; then await user direction.
+
 
 LONG-DOCS (pushed 9cc42e4) and LIT-NOTEBOOK accepted as scoped software. Budget: required
 user value for paid runs, no code ceiling. New automation jobs keep a model-maintained
