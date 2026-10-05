@@ -1,9 +1,9 @@
 # Current state
-Updated: 2026-10-05T10:01:40.311484+00:00 (Sol conductor; AUTOMATION-3/4 software accepted)
+Updated: 2026-10-05T10:04:37.062280+00:00 (Sol conductor; AUTOMATION-3/4 software accepted and synced)
 
-Current main base 91f3dac4c7c1e037406553f884429d94762dd50c, accepted producer/font receipt synced.
-UI integration awaits explicit staged review, ordinary implementation commit/push
-and separate receipt. Contracts automation_1/2/3/4 software accepted; no active writers.
+Verified implementation 59a06d6d06320ca600b42dc38da6c099b18be3bb normally pushed to authorized origin/main.
+Post-push fetch confirms equality and clean tree; this separate receipt records
+that hash. Contracts automation_1/2/3/4 software accepted; no active writers.
 
 New real UI jobs use whole-chapter/semantic-batch fit with independent QA,
 protected QA/correction funds, durable received-raw recovery and safe pause/resume.
@@ -41,5 +41,5 @@ runtime authorization/credentials and expert judgments. Calibration of real cach
 expected output/Hebrew expansion and custom model prices remains pending.
 Partial export, automatic QA after edits and auto-dispatch on server startup not
 implemented; completed export and explicit safe resume supported. Plan updates
-record these gaps. Next: verify ordinary Git closure/receipt; real pilot only
+record these gaps. Next: real pilot only
 with its genuine prerequisites, no inferred release approval.
