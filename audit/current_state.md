@@ -1,8 +1,8 @@
 # Current state
 Updated: 2026-10-05T05:39:57.642018+00:00 (Sol conductor)
 
-AUTOMATION-1 software acceptance passed:580 offline tests in33.590s. Base main
-e333fd3, origin verified matching before changes; new commit/push receipt follows.
+AUTOMATION-1 software acceptance passed:580 offline tests in33.590s. Verified implementation commit f5deb4d, normally pushed; post-push fetch
+confirms main==origin/main with a clean tree. This separate receipt follows.
 Contract automation_1.md; user execution plan and cost/model/key addendum.
 
 Implemented dated model pricing/custom assumptions, offline local tiktoken
@@ -20,7 +20,7 @@ charge unknown; two earlier stdin-blocked wrappers returned no model metrics.
 Conductor usage not_metered, Opus0/Astra0. Builder repair fixed stale tests only;
 Sol independently completed remaining scoped contract omissions.
 
-Next: verified commit/push then automation_2.md (chapter manifest, protected QA
+Next: automation_2.md (chapter manifest, protected QA
 funds, stable prefixes, bounded correction and durable pause/resume journal),
 automation_3.md (UI model/API keys/cost preview/progress, Python installer).
 Original plan stages0/1 done; later stages pending. Custom tariff assumptions
