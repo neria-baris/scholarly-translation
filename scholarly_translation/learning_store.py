@@ -183,6 +183,24 @@ class LearningStore:
             _atomic_write(self._session_path(session["session_id"]), session)
         return copy.deepcopy(session)
 
+    def abandon_session(self, session_id):
+        """Release a stopped book without recording exposures or completion."""
+        with self._lock:
+            session = validate_session(_read_json(self._session_path(session_id)))
+            require(session['status'] in ('failed', 'paused', 'imported'), 'state_conflict')
+            learner = self._read_learner_locked(session['language'])
+            require(learner['active_book_id'] == session['book_id'] and
+                    learner['revision'] == session['base_learner_revision'], 'state_conflict')
+            learner['active_book_id'] = None
+            learner['revision'] += 1
+            session['status'] = 'failed'
+            txn = {'learner': validate_learner(learner), 'session': session}
+            pending = self._pending_dir() / f'{uuid.uuid4().hex}.json'
+            _atomic_write(pending, txn)
+            self._apply_txn(txn)
+            pending.unlink()
+            return copy.deepcopy(session)
+
     # -- prepared chunks -----------------------------------------------------
     def save_prepared(self, session_id, chunks, recaps):
         with self._lock:

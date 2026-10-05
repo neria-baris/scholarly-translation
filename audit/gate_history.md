@@ -453,3 +453,6 @@ Builder A integrated first from d1f71e2.28 tests pass, including continuity, det
 
 ## 2026-10-06 | LEARN-1B | PASS local component
 B integrated after A receipt8228b2d.43 learning tests pass. Reused safe EPUB reader and chapter grouping; conductor preserves explicit short chapters, checks Hebrew targets. Immutable source snapshots, damaged/wrong-language/unfinished input refusals, stable splits and headings. No live app changes; shared integration remains in progress, not a deploy gate.
+
+## 2026-10-06T01:58:00+03:00 | LEARN-1C/2 | PASS software integration
+C integrated after A/B;100 learning tests pass (offline). Strict source slices/words/approved forms/grammar, duplicate-key refusal, source-bound content hashes, grounded recap, RTL safe render including Yiddish marks. Conductor repaired fixture offsets and prompt shape omission, enforced complete allowed surfaces and actual rendered share. French37-item curated starter now includes2 complete phrases and applicable grammar. Service uses existing single-role controlled call, cap/cache/journal; restart/pause/orphan-budget recovery, explicit completion, idempotency, abandonment without exposures. Token/origin HTTP protection, memory-only keys, no client paths. Legacy808 tests previously passed,1 skip; UI pending. Main untouched; no paid runtime; no linguistic acceptance.

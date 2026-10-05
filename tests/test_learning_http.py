@@ -1,0 +1,82 @@
+import json
+from pathlib import Path
+import tempfile
+import threading
+import unittest
+from http.server import ThreadingHTTPServer
+from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+from scholarly_translation import web_ui
+from scholarly_translation.learning_service import LearningService
+from test_learning_import import _completed_job_snapshot, _hebrew_epub_bytes
+
+
+class LearningHttpTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.service = LearningService(self.root / 'learning')
+        self.output_patch = patch.object(web_ui, 'OUTPUT_ROOT', self.root / 'ui')
+        self.output_patch.start()
+        self.addCleanup(self.output_patch.stop)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), web_ui.make_handler('test-token', learning_service=self.service))
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+        self.base = f'http://127.0.0.1:{self.server.server_port}'
+
+    def post(self, path, data, *, token='test-token', origin=None, raw=False):
+        body = data if raw else json.dumps(data).encode()
+        headers = {'X-UI-Token': token, 'Content-Type': 'application/epub+zip' if raw else 'application/json'}
+        if origin:
+            headers['Origin'] = origin
+        try:
+            with urlopen(Request(self.base + path, body, headers), timeout=5) as response:
+                return response.status, json.load(response)
+        except HTTPError as response:
+            return response.code, json.load(response)
+
+    def test_token_and_origin_guards_cover_learning_routes(self):
+        for path, body in [('/learning/state', {}), ('/learning/import-translation', {'job_id': 'bad'})]:
+            self.assertEqual(self.post(path, body, token='wrong')[0], 403)
+            self.assertEqual(self.post(path, body, origin='https://example.org')[0], 403)
+        self.assertEqual(self.service.summary()['books'], [])
+
+    def test_import_upload_and_state_never_send_provider_calls(self):
+        with patch('scholarly_translation.model_adapter.build_translation_adapter', side_effect=AssertionError('unexpected provider')):
+            status, book = self.post('/learning/upload-epub?name=book.epub', _hebrew_epub_bytes(), raw=True)
+            self.assertEqual(status, 200)
+            status, summary = self.post('/learning/state', {})
+            self.assertEqual(status, 200)
+            self.assertEqual(summary['books'][0]['book_id'], book['book_id'])
+            self.assertEqual(summary['sessions'], [])
+
+    def test_handoff_is_server_snapshot_and_unfinished_job_refused(self):
+        with patch('scholarly_translation.document_draft.DocumentJobs.get', return_value=_completed_job_snapshot()) as get:
+            status, book = self.post('/learning/import-translation', {'job_id': 'requested-job'})
+            self.assertEqual(status, 200)
+            get.assert_called_once_with('requested-job')
+            self.assertEqual(book['origin'], 'translation_library')
+        snapshot = _completed_job_snapshot()
+        snapshot['status'] = 'translating'
+        with patch('scholarly_translation.document_draft.DocumentJobs.get', return_value=snapshot):
+            self.assertEqual(self.post('/learning/import-translation', {'job_id': 'active-job'})[0], 400)
+
+    def test_missing_key_prevents_any_learning_job(self):
+        with patch.dict('os.environ', {}, clear=True):
+            status, response = self.post('/learning/prepare', {'book_id': 'any', 'budget_usd': 1})
+        self.assertEqual(status, 400)
+        self.assertEqual(response['code'], 'missing_api_key')
+        self.assertEqual(self.service.summary()['sessions'], [])
+
+    def test_legacy_home_and_wordlists_still_available(self):
+        with urlopen(self.base + '/') as response:
+            self.assertIn('תרגום מסמכים', response.read().decode())
+        with urlopen(self.base + '/learning/wordlist?language=yi') as response:
+            self.assertIn('500', response.read().decode())
+        status, _ = self.post('/learning/upload-epub?name=book.pdf', b'bad', raw=True)
+        self.assertEqual(status, 400)
