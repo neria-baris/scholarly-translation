@@ -368,22 +368,29 @@ class ControlStore:
 
 class PersistentBudget:
     def __init__(self, store, task_id, *, max_calls, hard_list_usd, stage, provider, model,
-                 document_id=None, unit_id=None, pricing_version=None, output_cap=None):
+                 document_id=None, unit_id=None, pricing_version=None, output_cap=None, max_prompt_bytes=None):
         from .model_adapter import PRICING_VERSION, OPENAI_MAX_OUTPUT_TOKENS
         self.store, self.task_id, self.stage, self.provider, self.model = store, task_id, stage, provider, model
         self.max_calls, self.hard_list_usd = max_calls, hard_list_usd
         self.document_id, self.unit_id = document_id, unit_id
         self.pricing_version = PRICING_VERSION if pricing_version is None else pricing_version
         self.output_cap = OPENAI_MAX_OUTPUT_TOKENS if output_cap is None else output_cap
-        if self.pricing_version != PRICING_VERSION or self.output_cap != OPENAI_MAX_OUTPUT_TOKENS:
+        # The task's output_cap is a worst-case bound used for every call under
+        # this task_id (get_or_create_task fixes it per task), not a single
+        # global constant: a document task may share one bound across several
+        # configured roles/models (e.g. translator vs. chapter_qa) as long as
+        # every PersistentBudget sharing that task_id agrees on the same value.
+        if self.pricing_version != PRICING_VERSION or type(self.output_cap) is not int or not 1 <= self.output_cap <= 100000:
             raise RuntimeControlsError("unsupported pricing or output-cap configuration")
+        self.max_prompt_bytes = max_prompt_bytes
         self.policy_hash = store.get_or_create_task(task_id, max_calls, hard_list_usd, self.pricing_version, self.output_cap)
         self._pending_event = None
 
     def amount(self, prompt_text):
         from .model_adapter import RATES_PER_MILLION
         from .translation import MAX_PROMPT_BYTES, TranslationBudgetError
-        if not isinstance(prompt_text, str) or len(prompt_text.encode("utf-8")) > MAX_PROMPT_BYTES:
+        limit = MAX_PROMPT_BYTES if self.max_prompt_bytes is None else self.max_prompt_bytes
+        if not isinstance(prompt_text, str) or len(prompt_text.encode("utf-8")) > limit:
             raise TranslationBudgetError("oversized or invalid controlled prompt")
         if self.provider == "mock":
             return 0.0
@@ -430,15 +437,18 @@ class RuntimeCache:
         self._store.cache_store(cache_key, stage=self.stage, provider=self.provider, model=self.model, status=result.status, result=raw)
 
     def execute(self, identity, prompt_text, model, call, *, stage, metadata, budget=None):
-        from .model_adapter import TextGenerationResult, OpenAIConfigurationError, compute_estimate, OPENAI_MAX_OUTPUT_TOKENS
+        from .model_adapter import TextGenerationResult, OpenAIConfigurationError, compute_estimate
         from .translation import TranslationBudgetError
         if budget is None:
             budget = PersistentBudget(self._store, metadata["document_id"], max_calls=3, hard_list_usd=0.01,
                                       stage=stage, provider=self.provider, model=model)
         if not isinstance(budget, PersistentBudget) or budget.store is not self._store or budget.provider != self.provider:
             raise RuntimeControlsError("cache and persistent budget must share one store/provider")
+        # The actual configured output_cap for this budget/task, never a
+        # blind global constant -- two calls that differ only in their
+        # resolved role's output cap must not collide on the same cache key.
         key = fingerprint(dict(identity=identity, prompt_hash=fingerprint(prompt_text), stage=stage,
-                               provider=self.provider, model=model, gateway_version=1, output_cap=OPENAI_MAX_OUTPUT_TOKENS))
+                               provider=self.provider, model=model, gateway_version=1, output_cap=budget.output_cap))
         # Only explicit identities/hashes enter usage events.
         meta = {k: metadata.get(k) for k in ("document_id", "unit_id", "source_text_hash", "pdf_hash", "policy_fingerprint", "profile_id", "provider_type")}
         meta.update(requested_provider=self.provider, requested_model=model, prompt_hash=fingerprint(prompt_text),

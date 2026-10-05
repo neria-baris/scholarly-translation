@@ -12,11 +12,11 @@
 </header>
 <main class="workspace">
 <section id="start-panel" aria-labelledby="main-title">
-<div class="hero"><span class="eyebrow">PDF · לעברית</span><h1 id="main-title">המסמך שלכם, <span>בעברית.</span></h1><p>מעלים קובץ PDF, בוחרים איך לתרגם, ומורידים PDF מתורגם.<br class="desktop-break"> אפשר לעבור עליו ולערוך — אם רוצים.</p></div>
+<div class="hero"><span class="eyebrow">PDF / EPUB · לעברית</span><h1 id="main-title">המסמך שלכם, <span>בעברית.</span></h1><p>מעלים קובץ PDF או EPUB, בוחרים איך לתרגם, ומורידים אותו מתורגם באותו פורמט.<br class="desktop-break"> אפשר לעבור עליו ולערוך — אם רוצים.</p></div>
 <form id="translation-form" class="translate-card">
-<input id="document-file" class="visually-hidden" type="file" accept=".pdf,application/pdf" aria-label="בחרו PDF">
-<div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="בחירת קובץ PDF או גרירתו לכאן">
-<div id="upload-empty"><span class="file-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M13 5h15l9 9v28H13zM28 5v10h9M20 24h10M20 30h10M20 36h6"/></svg></span><h2>בחרו קובץ או גררו אותו לכאן</h2><span class="choose-file">בחירת קובץ <span aria-hidden="true">←</span></span><p class="upload-note">PDF עם טקסט · עד 25 MB · EPUB עדיין לא נתמך בזרימה זו</p></div>
+<input id="document-file" class="visually-hidden" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" aria-label="בחרו PDF או EPUB">
+<div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="בחירת קובץ PDF או EPUB, או גרירתו לכאן">
+<div id="upload-empty"><span class="file-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M13 5h15l9 9v28H13zM28 5v10h9M20 24h10M20 30h10M20 36h6"/></svg></span><h2>בחרו קובץ או גררו אותו לכאן</h2><span class="choose-file">בחירת קובץ <span aria-hidden="true">←</span></span><p class="upload-note">PDF עם טקסט מוטמע, או EPUB · עד 25 MB</p></div>
 <div id="upload-selected" class="selected-file" hidden><span class="selected-file-icon" aria-hidden="true">↥</span><div><strong id="filename" dir="auto"></strong><span id="file-size"></span></div><span class="change-file">החלפה</span></div>
 </div>
 <details id="translation-options" class="options">
@@ -34,7 +34,7 @@
 <p id="send-note" class="send-note">Auto: ללא עלות, ללא תרגום אמיתי. מודל מוגדר: לחיצה על תרגום תבקש אישור לשליחה לספק המודל.</p>
 </form>
 <div class="below-card"><button id="sample-button" class="text-button">נסו עם PDF דוגמה, ללא עלות</button><button id="recent-button" class="text-button" hidden></button></div>
-<p class="format-note">מתרגמים את מבנה המסמך (פסקאות, כותרות). התוצאה היא PDF מחדש, לא עימוד מקורי זהה.</p>
+<p class="format-note">מתרגמים את מבנה המסמך (פסקאות, כותרות). קובץ PDF נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את מבנה הפרקים והעיצוב המקורי שלו.</p>
 </section>
 <section id="processing-panel" class="processing-panel" aria-live="polite" hidden>
 <div class="spinner" aria-hidden="true"></div><span class="eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p><progress id="translation-progress" max="1" aria-label="התקדמות התרגום"></progress><p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
@@ -44,12 +44,12 @@
 <div class="result-card"><div class="result-file"><span class="result-file-icon" aria-hidden="true">↓</span><div><strong id="download-filename" dir="auto"></strong><span id="result-meta"></span></div><span class="draft-badge">טיוטה</span></div>
 <p id="result-notice" class="result-notice" hidden></p>
 <p id="result-limitations" class="result-notice" hidden></p>
-<div class="result-actions"><button id="download-pdf" class="primary-button">הורדת ה-PDF המתורגם <span aria-hidden="true">↓</span></button></div>
+<div class="result-actions"><button id="download-pdf" class="primary-button">הורדת הקובץ המתורגם <span aria-hidden="true">↓</span></button></div>
 <div class="result-secondary"><button id="review-button" class="text-button">בדיקה ועריכה (לבחירתכם) <span aria-hidden="true">←</span></button><span id="cost-summary"></span></div></div>
 <div id="review-panel" class="review-panel" hidden>
 <div class="review-toolbar"><div><h2>מקור לצד תרגום</h2><p id="review-location"></p></div><select id="unit-select" aria-label="בחירת מקטע לבדיקה"></select><button id="close-review" class="quiet-button" aria-label="סגירת הבדיקה">✕</button></div>
 <div class="review-columns"><section><h3>מקור</h3><div id="review-source" class="source-copy" dir="auto"></div></section><section><h3>תרגום · אפשר לערוך</h3><textarea id="review-target" dir="rtl" aria-label="עריכת התרגום"></textarea></section></div>
-<div id="review-findings" class="review-findings"></div><div class="review-actions"><button id="save-edit" class="primary-button">שמירת שינויים</button><span id="review-message" role="status"></span><span class="review-note">השמירה מעדכנת את ה-PDF להורדה.</span></div></div>
+<div id="review-findings" class="review-findings"></div><div class="review-actions"><button id="save-edit" class="primary-button">שמירת שינויים</button><span id="review-message" role="status"></span><span class="review-note">השמירה מעדכנת את הקובץ להורדה.</span></div></div>
 <div class="result-bottom"><button id="new-document" class="text-button">← תרגום מסמך נוסף</button><p>טיוטה אוטומטית; אפשר להוריד מיד, ואפשר לבדוק קודם.</p></div>
 </section>
 </main>

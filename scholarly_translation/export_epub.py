@@ -237,6 +237,108 @@ def export_epub(path_or_bytes, epub_structure, translations) -> EpubExportResult
     return EpubExportResult(content=out_buf.getvalue(), manifest=manifest, limitations=limitations)
 
 
+def _map_canonical_units_to_epub_units(structure: dict, epub_structure: dict):
+    """Positionally match the canonical schema-2 ``document_structure``'s
+    EPUB ("digital-text" origin) nodes to this module's own
+    ``epub-structure@1`` nodes, without touching either module's node
+    identity scheme (Session G: the smallest adapter reconciling the two
+    independent EPUB structures named in audit/current_state.md).
+
+    Both epub_extract.py (which produces the canonical nodes) and this
+    module's own :func:`extract_epub_structure` walk the *same* spine
+    chapters, filtering the *same* ``BLOCK_TAGS`` with the *same*
+    ``block_text`` and skipping the same empty blocks -- so the Kth
+    non-empty block in one chapter is provably the Kth entry in the
+    other's per-chapter node list, even though neither module's element
+    indexing agrees. Matching therefore only needs page/chapter number
+    and within-page document order (``source_char_start``), never a
+    second independent interpretation of EPUB structure.
+
+    A unit spanning more than one canonical node (segmentation.py only
+    ever merges consecutive ``paragraph`` nodes -- STRUCTURE_SCHEMA.md)
+    maps to more than one EPUB block; only the first carries the
+    translated text (mirroring export_pdf.py's own one-block-per-unit
+    rendering), and this is recorded as a ``units_merged_multiple_blocks``
+    limitation rather than silently duplicating or dropping text.
+    """
+    canonical_nodes_by_page = {}
+    for node in structure.get("nodes", []):
+        canonical_nodes_by_page.setdefault(node["page_id"], []).append(node)
+    for nodes in canonical_nodes_by_page.values():
+        nodes.sort(key=lambda n: n["source_char_start"])
+
+    epub_nodes_by_chapter_index = {}
+    for node in epub_structure["nodes"]:
+        epub_nodes_by_chapter_index.setdefault(node["chapter_index"], []).append(node)
+    epub_unit_by_node_id = {link["node_ids"][0]: link["unit_id"] for link in epub_structure["unit_node_links"]}
+
+    node_id_map = {}
+    for reading in structure.get("readings", []):
+        selected = reading.get("selected")
+        if not selected or selected.get("origin") != "digital-text":
+            continue
+        canonical_nodes = canonical_nodes_by_page.get(reading["page_id"], [])
+        if not canonical_nodes:
+            continue
+        epub_nodes = epub_nodes_by_chapter_index.get(reading["page_number"] - 1, [])
+        if len(canonical_nodes) != len(epub_nodes):
+            raise ExportError(
+                "EPUB chapter block count does not match the canonical document structure; "
+                "cannot safely export"
+            )
+        for canonical_node, epub_node in zip(canonical_nodes, epub_nodes):
+            node_id_map[canonical_node["node_id"]] = epub_node["node_id"]
+
+    unit_id_map, limitations = {}, []
+    for link in structure.get("unit_node_links", []):
+        mapped_node_ids = [node_id_map[nid] for nid in link["node_ids"] if nid in node_id_map]
+        mapped_unit_ids = [epub_unit_by_node_id[nid] for nid in mapped_node_ids if nid in epub_unit_by_node_id]
+        if not mapped_unit_ids:
+            continue
+        unit_id_map[link["unit_id"]] = mapped_unit_ids
+        if len(mapped_unit_ids) > 1:
+            limitations.append({
+                "kind": "units_merged_multiple_blocks", "unit_id": link["unit_id"],
+                "node_ids": mapped_unit_ids,
+                "detail": f"{len(mapped_unit_ids)} original EPUB blocks were combined into one "
+                          "translation unit; only the first block carries the translated text, the "
+                          "remaining original-language block(s) were left untouched below it",
+            })
+    return unit_id_map, limitations
+
+
+def export_epub_from_document_structure(path_or_bytes, structure, translations) -> EpubExportResult:
+    """Export a translated EPUB from the *canonical* schema-2
+    ``document_structure`` (as produced by ``segmentation.build_structure``
+    for an EPUB's "digital-text" source, see ``epub_extract.py``) plus a
+    ``unit_id -> translation`` mapping keyed by that same canonical
+    ``structure``'s unit ids -- the same mapping shape
+    ``export_pdf.export_pdf`` accepts, so the simple-UI job runner (or any
+    other caller) needs no second translations format for EPUB.
+
+    Internally re-keys the mapping onto this module's own
+    ``epub-structure@1`` unit ids (see :func:`_map_canonical_units_to_epub_units`)
+    and reuses :func:`export_epub` unchanged, so every existing export/
+    rebuild guarantee (byte-for-byte copy of everything but rewritten
+    chapters, RTL attributes, media/link preservation) is unaffected.
+    """
+    if not isinstance(structure, dict) or structure.get("schema_version") != 2:
+        raise ExportError("EPUB export requires a schema-2 document_structure with nodes")
+    translations = validate_translations_mapping(translations)
+    epub_structure = extract_epub_structure(path_or_bytes)
+    unit_id_map, extra_limitations = _map_canonical_units_to_epub_units(structure, epub_structure)
+
+    epub_translations = {}
+    for unit_id, record in translations.items():
+        mapped = unit_id_map.get(unit_id)
+        if mapped:
+            epub_translations[mapped[0]] = record
+
+    result = export_epub(path_or_bytes, epub_structure, epub_translations)
+    result.limitations = list(result.limitations) + extra_limitations
+    return result
+
+
 def _rewrite_package_language(raw: bytes) -> bytes:
     """Set ``dc:language`` to ``he`` in the package document, since the
     whole translated book is now in Hebrew. Every other package metadata

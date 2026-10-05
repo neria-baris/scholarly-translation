@@ -104,16 +104,22 @@ class TranslationBudget:
         self.spent_list_usd = 0.0
         self.stopped = False
 
-    def reserve(self, prompt_text):
+    def reserve(self, prompt_text, output_cap=None):
         if self.stopped or self.calls >= self.max_calls:
             raise TranslationBudgetError("translation call limit reached")
         prompt_bytes = len(prompt_text.encode("utf-8"))
         if prompt_bytes > MAX_PROMPT_BYTES:
             raise TranslationBudgetError("oversized translation prompt")
+        # Worst-case output defaults to the global constant only when the
+        # caller has no better figure; a resolved role/model with its own
+        # configured max_output_tokens (model_config.py capabilities) must
+        # use that real cap instead, or the reservation can silently
+        # undercount a model allowed to emit far more than the default.
+        effective_output_cap = OPENAI_MAX_OUTPUT_TOKENS if output_cap is None else output_cap
         # Includes substantial headroom for request framing and tokenizer variation.
         input_bound = 2 * prompt_bytes + 1024
         worst_case = (input_bound * RATES_PER_MILLION["input"]
-                      + OPENAI_MAX_OUTPUT_TOKENS * RATES_PER_MILLION["output"]) / 1_000_000
+                      + effective_output_cap * RATES_PER_MILLION["output"]) / 1_000_000
         if self.spent_list_usd + worst_case > self.hard_list_usd:
             raise TranslationBudgetError("translation list-price budget exhausted")
         self.calls += 1
@@ -759,7 +765,10 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
             )
         if live_provider:
             budget = budget or TranslationBudget(max_calls=1)
-            notices.extend(budget.reserve(request.prompt_text))
+            reserve_kwargs = {}
+            if isinstance(budget, TranslationBudget):
+                reserve_kwargs["output_cap"] = request.capabilities.max_output_tokens if request.capabilities else None
+            notices.extend(budget.reserve(request.prompt_text, **reserve_kwargs))
 
         start = time.monotonic()
         try:

@@ -8,12 +8,13 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 
 from scholarly_translation.document_draft import (
-    DocumentDraftError, DocumentJobs, EPUB_BLOCKED_MESSAGE, extract_structure, render_download, validate_settings,
+    DocumentDraftError, DocumentJobs, extract_structure, render_download, validate_settings,
 )
 from scholarly_translation.model_adapter import TextGenerationResult
 from scholarly_translation.translation_profiles import style_profile_text
 
 import pdf_fixture
+from test_export_epub import make_epub
 
 
 def _build_pdf(path, pages_lines):
@@ -79,7 +80,8 @@ class FakeChapterQAAdapter:
     def generate(self, prompt_text, model):
         self.calls += 1
         return TextGenerationResult(
-            status="completed", text="VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: (none)",
+            status="completed",
+            text="VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: (none)\nSTATE_UPDATES: none",
             token_usage={"input": 5, "output": 2}, observed_model=model,
             duration_seconds=0.0, observed_provider="fake",
         )
@@ -147,17 +149,56 @@ class DocumentDraftTests(unittest.TestCase):
         self.assertEqual(settings["model"], "auto")
         self.assertIsNone(settings["model_config"])
 
-    # --- EPUB blocker ----------------------------------------------------------
+    # --- EPUB end-to-end (Session G: reconciled with export_epub.py) ----------
 
-    def test_epub_upload_is_refused_with_clear_blocker_message(self):
+    def test_invalid_epub_upload_is_rejected_with_a_clear_message(self):
         epub_path = self.root / "book.epub"
-        epub_path.write_bytes(b"not a real epub, refused before parsing anyway")
-        with self.assertRaisesRegex(DocumentDraftError, "EPUB"):
+        epub_path.write_bytes(b"not a real epub")
+        with self.assertRaisesRegex(DocumentDraftError, "לא ניתן"):
             extract_structure(epub_path)
-        try:
-            extract_structure(epub_path)
-        except DocumentDraftError as exc:
-            self.assertEqual(str(exc), EPUB_BLOCKED_MESSAGE)
+
+    def test_epub_fast_mode_auto_model_exports_valid_epub(self):
+        epub_path = self.root / "book.epub"
+        make_epub(epub_path)
+        jobs = DocumentJobs(self.root)
+        started = jobs.start(epub_path, {"model": "auto", "quality": "fast"})
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            job = jobs.get(started["job_id"])
+            if job["status"] not in ("queued", "reading", "translating", "reviewing", "rebuilding"):
+                break
+            time.sleep(0.01)
+        self.assertEqual(job["status"], "completed")
+        self.assertEqual(job["source_kind"], "epub")
+        source_path = jobs.source_path(job["job_id"], "epub")
+        body = render_download(job, "epub", source_path=source_path)
+        self.assertTrue(body.startswith(b"PK"))  # EPUB is a zip archive
+
+    def test_epub_configured_mode_end_to_end_with_chapter_qa_and_state(self):
+        epub_path = self.root / "book.epub"
+        make_epub(epub_path)
+        translator, reviewer, chapter_qa = FakeTranslationAdapter(), FakeReviewAdapter(), FakeChapterQAAdapter()
+        factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
+        jobs = DocumentJobs(self.root, adapter_factory=factory)
+        started = jobs.start(
+            epub_path, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
+            paid_confirm=True,
+        )
+        deadline = time.monotonic() + 10
+        job = None
+        while time.monotonic() < deadline:
+            job = jobs.get(started["job_id"])
+            if job["status"] not in ("queued", "reading", "translating", "reviewing", "rebuilding"):
+                break
+            time.sleep(0.01)
+        self.assertEqual(job["status"], "completed")
+        self.assertGreaterEqual(chapter_qa.calls, 1)
+        source_path = jobs.source_path(job["job_id"], "epub")
+        body = render_download(job, "epub", source_path=source_path)
+        self.assertTrue(body.startswith(b"PK"))
+        # The rebuilt EPUB actually contains the translated text, not the
+        # original-language source.
+        self.assertIn(translator.prefix.encode("utf-8"), body)
 
     # --- PDF end-to-end, Fast mode, Auto/mock model -----------------------------
 
@@ -300,6 +341,50 @@ class DocumentDraftTests(unittest.TestCase):
         with self.assertRaises(DocumentDraftError):
             jobs.start(self.path, {"model": "configured", "model_config": MOCK_MODEL_CONFIG}, paid_confirm=False)
 
+    # --- budget/cache wiring (Session G: review/QA calls now share the
+    # document's persistent budget and cache, not a separate free path) ----
+
+    def test_estimated_cost_usd_updates_as_the_job_progresses(self):
+        translator, reviewer, chapter_qa = FakeTranslationAdapter(), FakeReviewAdapter(), FakeChapterQAAdapter()
+        factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
+        _, job = self.run_job(
+            {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
+            adapter_factory=factory,
+        )
+        self.assertEqual(job["status"], "completed")
+        self.assertGreater(job["estimated_cost_usd"], 0.0)
+
+    def test_review_and_chapter_qa_calls_share_the_translation_budget_and_cache(self):
+        chaptered = self.root / "chaptered.pdf"
+        make_chaptered_pdf(chaptered)
+        translator, reviewer, chapter_qa = FakeTranslationAdapter(), FakeReviewAdapter(), FakeChapterQAAdapter()
+        factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
+        jobs = DocumentJobs(self.root, adapter_factory=factory)
+        started = jobs.start(
+            chaptered, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "thorough"},
+            paid_confirm=True,
+        )
+        deadline = time.monotonic() + 10
+        job = None
+        while time.monotonic() < deadline:
+            job = jobs.get(started["job_id"])
+            if job["status"] not in ("queued", "reading", "translating", "reviewing", "rebuilding"):
+                break
+            time.sleep(0.01)
+        self.assertEqual(job["status"], "completed")
+        from scholarly_translation.runtime_controls import ControlStore
+        store_path = jobs.root / job["job_id"] / "controls.sqlite3"
+        self.assertTrue(store_path.is_file())
+        with ControlStore(store_path, create=False) as store:
+            status = store.status(job["job_id"])
+            stages = {event["stage"] for event in status["events"]}
+        # The same persistent per-document task now covers every stage --
+        # not just "translate" with review/QA calls bypassing it entirely.
+        self.assertIn("translate", stages)
+        self.assertIn("unit-review", stages)
+        self.assertIn("chapter-qa", stages)
+        self.assertGreater(status["list_estimated_spent_usd"], 0.0)
+
     def test_one_active_job_at_a_time(self):
         jobs = DocumentJobs(self.root)
         jobs.start(self.path, {"model": "auto"}, paid_confirm=False)
@@ -308,6 +393,182 @@ class DocumentDraftTests(unittest.TestCase):
         deadline = time.monotonic() + 10
         while jobs.active and time.monotonic() < deadline:
             time.sleep(0.01)
+
+
+class _StatefulChapterQAAdapter:
+    """A FakeChapterQAAdapter stand-in that returns a different scripted
+    response per call, so a test can control exactly what each chapter's
+    QA pass proposes (used only by ChapterQAPersistentStateTests below)."""
+
+    def __init__(self, responses):
+        self.responses = responses
+        self.calls = 0
+        self.prompts = []
+
+    def generate(self, prompt_text, model):
+        self.prompts.append(prompt_text)
+        text = self.responses[min(self.calls, len(self.responses) - 1)]
+        self.calls += 1
+        return TextGenerationResult(
+            status="completed", text=text, token_usage={"input": 5, "output": 2},
+            observed_model=model, duration_seconds=0.0, observed_provider="fake",
+        )
+
+
+class ChapterQAPersistentStateTests(unittest.TestCase):
+    """End-to-end coverage of the 2026-10-05 addendum's ten required test
+    scenarios (Session G: wiring Session C's chapter QA into Session D's
+    document_state.py) -- exercised through the real job runner, not just
+    review_qa.py/document_state.py in isolation."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def make_adapter_factory(self, translator=None, reviewer=None, chapter_qa=None):
+        fakes = {"translator": translator, "semantic_reviewer": reviewer, "chapter_qa": chapter_qa}
+
+        def factory(role, request):
+            return fakes[role]
+        return factory
+
+    CHAPTER_ONE_PROPOSES_TWO_ITEMS = (
+        "VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: (none)\nSTATE_UPDATES:\n"
+        "- [terminology] argument :: consistently rendered as \"טענה\" :: likely :: "
+        "opening argument\n"
+        "- [character] narrator :: formal, third-person register :: unresolved :: "
+        "The first chapter contains an opening argument worth reading.\n"
+    )
+    CHAPTER_TWO_CONTRADICTS_AND_PASSES = (
+        "VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: (none)\nSTATE_UPDATES:\n"
+        "- [terminology] argument :: rendered instead as \"טיעון\" :: likely :: "
+        "The second chapter continues the discussion in more detail.\n"
+    )
+
+    def _run_two_chapter_job(self, quality="checked"):
+        chaptered = self.root / "chaptered.pdf"
+        make_chaptered_pdf(chaptered)
+        translator, reviewer = FakeTranslationAdapter(), FakeReviewAdapter()
+        chapter_qa = _StatefulChapterQAAdapter([
+            self.CHAPTER_ONE_PROPOSES_TWO_ITEMS, self.CHAPTER_TWO_CONTRADICTS_AND_PASSES,
+        ])
+        factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
+        jobs = DocumentJobs(self.root, adapter_factory=factory)
+        started = jobs.start(
+            chaptered, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": quality},
+            paid_confirm=True,
+        )
+        deadline = time.monotonic() + 10
+        job = None
+        while time.monotonic() < deadline:
+            job = jobs.get(started["job_id"])
+            if job["status"] not in ("queued", "reading", "translating", "reviewing", "rebuilding"):
+                break
+            time.sleep(0.01)
+        return jobs, job, translator, chapter_qa
+
+    def test_01_terminology_choice_carries_into_the_next_chapter(self):
+        _, job, translator, chapter_qa = self._run_two_chapter_job()
+        self.assertEqual(job["status"], "completed")
+        self.assertGreaterEqual(chapter_qa.calls, 2)
+        # The committed Hebrew rendering only appears in prompts sent AFTER
+        # chapter one's QA committed it -- never in chapter one's own
+        # translation prompts.
+        first_chapter_prompts = translator.calls[:2]
+        later_prompts = translator.calls[2:]
+        self.assertFalse(any("טענה" in p for p in first_chapter_prompts))
+        self.assertTrue(any("טענה" in p for p in later_prompts))
+
+    def test_02_literary_character_register_persists_the_same_way(self):
+        _, job, _translator, _chapter_qa = self._run_two_chapter_job()
+        items = job["document_state"]["items"]
+        character_items = [i for i in items if i["category"] == "character" and i["label"] == "narrator"]
+        self.assertEqual(len(character_items), 1)
+        self.assertEqual(character_items[0]["certainty"], "unresolved")
+
+    def test_03_chapter_qa_can_propose_a_state_update(self):
+        _, job, _translator, _chapter_qa = self._run_two_chapter_job()
+        self.assertEqual(job["chapter_qa_results"][0]["state_proposed"], 2)
+        self.assertEqual(job["chapter_qa_results"][0]["state_committed"], 2)
+
+    def test_04_state_item_retains_source_provenance(self):
+        _, job, _translator, _chapter_qa = self._run_two_chapter_job()
+        item = next(i for i in job["document_state"]["items"] if i["label"] == "argument")
+        source = item["source"]
+        self.assertTrue(source["chapter_node_id"])
+        self.assertTrue(source["unit_ids"])
+        self.assertEqual(source["document_id"], job["document_state"]["document_id"])
+        self.assertLess(source["source_char_start"], source["source_char_end"])
+
+    def test_05_unresolved_ambiguity_is_never_promoted_to_established(self):
+        _, job, _translator, _chapter_qa = self._run_two_chapter_job()
+        item = next(i for i in job["document_state"]["items"] if i["label"] == "narrator")
+        self.assertEqual(item["certainty"], "unresolved")
+        self.assertTrue(all(i["certainty"] != "established" for i in job["document_state"]["items"]))
+
+    def test_06_contradiction_with_existing_state_is_surfaced_not_overwritten(self):
+        _, job, _translator, _chapter_qa = self._run_two_chapter_job()
+        self.assertEqual(len(job["chapter_qa_results"]), 2)
+        second = job["chapter_qa_results"][1]
+        self.assertEqual(second["state_proposed"], 1)
+        self.assertEqual(second["state_committed"], 0)  # contradiction withheld, not auto-applied
+        self.assertTrue(second["state_conflicts"])
+        self.assertEqual(second["state_conflicts"][0]["label"], "argument")
+        # The original (chapter-one) value remains the latest -- never
+        # silently overwritten by chapter two's conflicting proposal.
+        latest = [i for i in job["document_state"]["items"] if i["label"] == "argument"]
+        self.assertEqual(len(latest), 1)
+        self.assertIn("טענה", latest[0]["value"])
+
+    def test_07_each_translation_records_the_state_version_it_used(self):
+        _, job, _translator, _chapter_qa = self._run_two_chapter_job()
+        versions = {u["chapter_node_id"]: u["document_state_version"] for u in job["units"]}
+        self.assertEqual(len(set(u["document_state_version"] for u in job["units"][:2])), 1)
+        first_chapter_version = job["units"][0]["document_state_version"]
+        last_chapter_version = job["units"][-1]["document_state_version"]
+        self.assertLess(first_chapter_version, last_chapter_version)
+
+    def test_08_updating_state_does_not_rewrite_earlier_chapters_recorded_version(self):
+        _, job, _translator, _chapter_qa = self._run_two_chapter_job()
+        # Chapter one's units were translated and persisted before chapter
+        # one's own QA committed anything; their recorded version (0) must
+        # stay 0 even after later commits bump the document's revision.
+        self.assertEqual(job["units"][0]["document_state_version"], 0)
+        self.assertGreater(job["document_state"]["revision"], 0)
+
+    def test_09_the_next_chapter_receives_the_updated_state(self):
+        _, job, translator, _chapter_qa = self._run_two_chapter_job()
+        self.assertTrue(any("טענה" in p for p in translator.calls[2:]))
+
+    def test_10_arbitrary_chapter_summary_category_is_not_accepted(self):
+        chaptered = self.root / "chaptered.pdf"
+        make_chaptered_pdf(chaptered)
+        translator, reviewer = FakeTranslationAdapter(), FakeReviewAdapter()
+        chapter_qa = _StatefulChapterQAAdapter([
+            "VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: (none)\nSTATE_UPDATES:\n"
+            "- [summary] chapter_one :: the chapter is about an argument :: likely :: "
+            "opening argument\n",
+        ])
+        factory = self.make_adapter_factory(translator, reviewer, chapter_qa)
+        jobs = DocumentJobs(self.root, adapter_factory=factory)
+        started = jobs.start(
+            chaptered, {"model": "configured", "model_config": MOCK_MODEL_CONFIG, "quality": "checked"},
+            paid_confirm=True,
+        )
+        deadline = time.monotonic() + 10
+        job = None
+        while time.monotonic() < deadline:
+            job = jobs.get(started["job_id"])
+            if job["status"] not in ("queued", "reading", "translating", "reviewing", "rebuilding"):
+                break
+            time.sleep(0.01)
+        self.assertEqual(job["status"], "completed")
+        # An unallowlisted "summary" category fails closed (needs_human),
+        # never silently stored as persistent memory.
+        self.assertEqual(job["chapter_qa_results"][0]["status"], "needs_human")
+        self.assertEqual(job["chapter_qa_results"][0]["state_proposed"], 0)
+        self.assertEqual(job["document_state"]["items"], [])
 
 
 if __name__ == "__main__":

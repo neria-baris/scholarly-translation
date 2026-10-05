@@ -239,8 +239,8 @@ def make_handler(token: str, model_config_path: str | None = None):
                     source = Path(data.get("path", "")).resolve()
                     if not source.is_relative_to((OUTPUT_ROOT / "uploads").resolve()) or not source.is_file():
                         raise DocumentDraftError("בחרו קובץ שהועלה דרך הממשק.")
-                    if source.suffix.lower() != ".pdf" or not 0 < source.stat().st_size <= MAX_FILE_BYTES:
-                        raise DocumentDraftError("בחרו PDF עד 25 MB (EPUB אינו נתמך כרגע בזרימה זו).")
+                    if source.suffix.lower() not in (".pdf", ".epub") or not 0 < source.stat().st_size <= MAX_FILE_BYTES:
+                        raise DocumentDraftError("בחרו קובץ PDF או EPUB עד 25 MB.")
                     settings = data.get("settings")
                     if not isinstance(settings, dict):
                         raise DocumentDraftError("הגדרות המסמך חסרות.")
@@ -270,11 +270,13 @@ def make_handler(token: str, model_config_path: str | None = None):
                     job = document_jobs.get(data.get("job_id"))
                     if job["status"] != "completed":
                         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
-                    kind = data.get("format", "pdf")
-                    body = render_download(job, kind)
+                    kind = job.get("source_kind", "pdf")
+                    source_path = document_jobs.source_path(job["job_id"], "epub") if kind == "epub" else None
+                    body = render_download(job, kind, source_path=source_path)
+                    content_type = "application/epub+zip" if kind == "epub" else "application/pdf"
                     self.send_response(200)
-                    self.send_header("Content-Type", "application/pdf")
-                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + ".he.pdf"))
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + f".he.{kind}"))
                     self.send_header("Content-Length", str(len(body)))
                     self.send_header("Cache-Control", "no-store")
                     self.send_header("X-Content-Type-Options", "nosniff")

@@ -38,7 +38,7 @@ function setUploaded(file){
 }
 async function uploadFile(file){
   if(!file||busy)return;
-  if(!/\.pdf$/i.test(file.name)||file.size===0||file.size>25*1024*1024){message('בחרו PDF עד 25 MB. EPUB אינו נתמך כרגע בזרימה זו.');return}
+  if(!/\.(pdf|epub)$/i.test(file.name)||file.size===0||file.size>25*1024*1024){message('בחרו קובץ PDF או EPUB עד 25 MB.');return}
   setBusy(true);message('');
   try{const response=await fetch('/upload?name='+encodeURIComponent(file.name),{method:'POST',headers:{'X-UI-Token':token},body:file});
     const result=await response.json();if(!response.ok)throw Error(result.error||'העלאת הקובץ נכשלה');
@@ -82,12 +82,13 @@ async function poll(jobId){
   }catch(error){if(error.status===400){forget('document-last-job');currentJob=null;setBusy(false);show('start-panel');message(error.message);return}
     $('processing-detail').textContent=error.message+' ננסה שוב לבדוק את מצב ההרצה.';pollTimer=setTimeout(()=>poll(jobId),5000)}
 }
+function sourceExt(){return (currentJob.source_kind||'pdf').toLowerCase()}
 function renderResult(){
   const auto=currentJob.settings.model==='auto',complete=currentJob.status==='completed',partial=!complete&&currentJob.completed_units>0;
   $('result-title').textContent=auto?'תצוגת הניסיון מוכנה.':complete?'התרגום מוכן.':partial?'התרגום הושלם חלקית.':'התרגום לא הושלם.';
   $('result-symbol').textContent=auto?'↗':complete?'✓':'!';$('result-eyebrow').textContent=auto?'ללא קריאה לספק':'המסמך שלכם';
   $('result-filename').textContent=currentJob.filename;
-  $('download-filename').textContent=currentJob.filename.replace(/\.[^.]+$/,'')+'.he.pdf';
+  $('download-filename').textContent=currentJob.filename.replace(/\.[^.]+$/,'')+'.he.'+sourceExt();
   $('result-meta').textContent=(auto?'Auto — תצוגת ניסיון':'מודל מוגדר')+' · '+currentJob.completed_units+'/'+currentJob.total_units+' מקטעים';
   const notices=[];
   if(auto)notices.push('זו תצוגת ניסיון של הממשק בלבד. לא בוצע תרגום אמיתי.');
@@ -95,7 +96,7 @@ function renderResult(){
   (currentJob.review_notes||[]).forEach(n=>notices.push(n));
   $('result-notice').textContent=notices.join(' · ');$('result-notice').hidden=!notices.length;
   const limitations=currentJob.export_limitations||[];
-  $('result-limitations').textContent=limitations.length?'הערות על בניית ה-PDF: '+limitations.map(l=>l.detail||l.kind).join(' · '):'';
+  $('result-limitations').textContent=limitations.length?'הערות על בניית הקובץ המתורגם: '+limitations.map(l=>l.detail||l.kind).join(' · '):'';
   $('result-limitations').hidden=!limitations.length;
   $('download-pdf').disabled=!complete;
   $('review-button').disabled=!complete;
@@ -126,8 +127,8 @@ async function saveEdit(showMessage=true){
 async function download(){
   if(dirty()&&!await saveEdit())return;
   $('download-pdf').disabled=true;
-  try{const blob=await request('/document-download',{job_id:currentJob.job_id,format:'pdf'},true);
-    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=currentJob.filename.replace(/\.[^.]+$/,'')+'.he.pdf';
+  try{const blob=await request('/document-download',{job_id:currentJob.job_id,format:sourceExt()},true);
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=currentJob.filename.replace(/\.[^.]+$/,'')+'.he.'+sourceExt();
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(error){$('result-notice').hidden=false;$('result-notice').textContent=error.message}finally{$('download-pdf').disabled=false}
 }

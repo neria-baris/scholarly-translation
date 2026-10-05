@@ -42,6 +42,22 @@ Flag genuinely awkward or unclear Hebrew when it impairs readability or meaning,
 
 For every issue, identify the smallest affected span(s) and propose a local correction.
 
+## Persistent state for later chapters
+
+Separately from issues, identify any facts likely to matter for translating
+LATER chapters: new or changed terminology decisions, definitions, notation,
+author-specific usage, important conceptual distinctions, recurring
+names/titles/places, character voice/register/forms of address, recurring
+expressions, invented terminology, translation-relevant relationships, or
+explicitly unresolved ambiguities/contradictions with earlier chapters.
+
+Do not propose a plot summary or chapter summary. Only propose an item if it
+will plausibly change how a later chapter should be translated.
+
+You may never mark a proposed item "established" -- only a human reviewer
+may do that. Use "likely" when you are reasonably confident, or
+"unresolved" when the matter is genuinely undecided or ambiguous.
+
 SOURCE_CHAPTER:
 {{source_chapter}}
 
@@ -62,4 +78,7 @@ ISSUES:
 ...
 
 CHAPTER_LEVEL_NOTES:
+...
+
+STATE_UPDATES:
 ...

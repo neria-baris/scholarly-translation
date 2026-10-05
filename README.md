@@ -2,18 +2,45 @@
 
 ## Simple local document UI
 
-Run `./run-ui.ps1` on Windows to upload a PDF with embedded text or an EPUB,
-choose an OpenAI model and processing level, and download an automatic Hebrew
-draft as readable HTML or plain text. Source/translation review and editing are
-optional. The sample is explicitly a UI demo, not a translation. See
-[the Hebrew UI guide](UI_README_HE.md) for setup, limits and storage.
+Run `./run-ui.ps1` on Windows (or `Run Scholarly Translation.vbs` at the repo
+root) to open the local, single-user web UI: upload a PDF with embedded text
+or an EPUB, choose Academic/Literary, a model (Auto, or any role configured
+in a server-side `model_config.json`), a quality mode (Fast/Checked/
+Thorough) and a per-document budget, then translate and download the
+translated document in the **same format you uploaded** (PDF stays PDF,
+EPUB stays EPUB). Per-unit review/editing is optional and never a condition
+for downloading a result. "Auto" with no model configured is an explicit,
+free, non-network UI demo (mock placeholder text), not a translation. See
+[the Hebrew UI guide](UI_README_HE.md) for setup, limits and storage, and
+[INSTALL_HE.md](INSTALL_HE.md) for first-time setup with no command line.
 
-This user-directed document flow uses separate `document-draft@1` records:
-source remains unreviewed and all drafts remain unapproved, including human
-edits. It does not bypass scholarly approval or establish Gate-10 quality.
-Persistent budget reservations/cache come from Gate 11. Model/effort/pricing
-choices were checked against official OpenAI documentation on 2026-10-04;
-account availability and actual billing are separate from local estimates.
+This user-directed document flow (`scholarly_translation/document_draft.py`,
+`document-draft@2` records) drives the same canonical pipeline as the CLI
+gates below: `document_structure.py` (schema 2: nodes/units/
+unit_node_links) → `context_strategy.py`'s chapter-aware, model-budget-based
+context selection, extended with `document_state.py`'s small, versioned,
+source-backed cross-chapter memory (approved terminology/definitions/
+character register/unresolved ambiguities carried from one chapter into the
+next, never a chapter summary) → `translation.py` → quality-mode-gated
+`review_qa.py` (per-unit semantic review, chapter-level QA) → `export_pdf.py`
+/ `export_epub.py`. Chapter-level QA can propose persistent-state updates;
+a proposal that contradicts existing state is surfaced, never silently
+applied (see "Translation context, chapter QA and persistent state" below).
+
+Every live translation, review and chapter-QA call for one document shares
+a single persistent per-document budget and cache
+(`runtime_controls.ControlStore`/`PersistentBudget`/`RuntimeCache`, Gate 11):
+review/QA calls are no longer a separate, unmetered path, and the job's
+displayed cost estimate reflects every stage, not translation alone. Source
+remains unreviewed and all drafts remain unapproved, including human edits;
+this does not bypass scholarly approval or establish Gate-10 quality.
+Model/effort/pricing choices were checked against official OpenAI
+documentation on 2026-10-04; account availability and actual billing are
+separate from local estimates, and only OpenAI calls are priced at all --
+other configured providers (Anthropic/DeepSeek/OpenAI-compatible) are
+budget-reserved conservatively but their actual usage is reported
+`not_metered`, stopping further spend on that role after one call rather
+than guessing a price.
 
 ## Gate 1 offline skeleton
 
@@ -587,7 +614,97 @@ available through `ModelConfiguration.resolve()` because no context-building
 workflow exists yet.
 
 Legacy `--provider mock|openai` commands and Gate-1's `config.example.json`
-remain readable. The compact whole-document browser draft is still a separate
-OpenAI-only convenience path with its dated model/price table; it never
-silently consumes this role configuration. Multi-provider credentials and
-base URLs stay in environment/configuration rather than the upload screen.
+remain readable. The simple document UI's "Auto" model choice is a separate,
+free, OpenAI-only-when-configured convenience path with its dated model/price
+table and never silently consumes role configuration; choosing "configured"
+in that UI instead resolves `translator`/`semantic_reviewer`/`chapter_qa`
+exactly through this same `ModelConfiguration` (Session G: see "Simple local
+document UI" above). Multi-provider credentials and base URLs stay in
+environment/configuration rather than the upload screen.
+
+## Translation context, chapter QA and persistent state (Sessions D/G)
+
+`context_strategy.py` chooses, per translation unit, between showing the
+model the unit's whole enclosing chapter/part (when it fits the resolved
+role's `usable_context_tokens` budget, minus headroom for instructions/
+glossary/local state/output/review metadata) or a bounded fallback window
+expanding outward unit by unit. Every request keeps four layers separately
+labelled, never collapsed into one blob: profile/style instructions,
+persistent document state, current chapter source context, and local
+translation state. A whole-chapter-in-one-request mode exists for
+comparison (`build_whole_chapter_translation_request`) but is not the
+default.
+
+`document_state.py` (Session D's 2026-10-05 addendum) is a small, versioned,
+append-only store of only the translation-relevant facts a later chapter may
+depend on -- approved terminology, definitions, notation, character/
+register/forms-of-address, recurring names/places, and explicitly-marked
+unresolved ambiguities. It is not a Story Bible, not RAG, and never
+accumulates chapter summaries. Every item carries explicit certainty
+(`established`/`likely`/`unresolved`) and a source pointer back to the
+exact chapter/unit/character span that introduced or last refined it; a
+model-authored item can never be `established` -- only a human can promote
+one. Updating a (category, label) key never overwrites the prior value; it
+adds a new version, so every historical translation's recorded state
+version/content stays reproducible even after later chapters add state.
+
+Session G wired Session C's existing chapter-level QA into this store: the
+chapter QA runtime prompt also asks for `STATE_UPDATES` (category/label/
+value/certainty/source span); `review_qa.run_chapter_qa` parses and
+grounds them exactly like its existing issue spans (an ungrounded span or
+a model-claimed `established` certainty fails closed, `needs_human`,
+never silently accepted); `document_draft.py` then runs
+`document_state.find_conflicts` before committing -- a proposal that
+contradicts an existing item is recorded (never silently overwritten) and
+only the non-conflicting proposals are committed as the next document-state
+revision, which the *next* chapter's translation requests then receive.
+`tests/test_document_draft.py`'s `ChapterQAPersistentStateTests` exercises
+this end-to-end against the ten scenarios named in the addendum (carrying a
+scholarly term and a literary character register across chapters, a
+grounded contradiction, certainty never promoted, historical reproducibility
+of earlier chapters' recorded state version, and a rejected
+unallowlisted "summary" category).
+
+Known limitation: a single document's whole translation/review/chapter-QA
+budget is bounded by one list-price ceiling shared by every stage and role
+(`DocumentJobs._run_configured_mode`); a very long, multi-chapter book under
+Thorough quality can exhaust it before every chapter's QA/state step runs,
+in which case that remaining QA is skipped with a note rather than spending
+past the configured cap.
+
+## PDF/EPUB export and its limitations (Session X/G)
+
+`export_pdf.py` reflows the canonical schema-2 structure into a fresh,
+Hebrew-RTL A4 PDF, preserving node-kind hierarchy as visual style (title >
+heading > body > note) -- not the original page layout/pagination. Notes/
+footnotes render inline near their source position, not pinned to the
+original page bottom. Images embed only when the caller separately supplies
+raw bytes keyed by node id (the canonical schema itself carries no image
+payload); tables/formulas have no dedicated layout and render as plain
+text. Treat PDF output as a readable, structurally faithful re-typeset, not
+a reproduction of the source document's pagination.
+
+`export_epub.py` preserves the original EPUB archive byte-for-byte (package
+metadata, CSS, images, nav/TOC, fonts) except for rewritten chapter text,
+which is the higher-fidelity path when the input is EPUB. Session G's
+`export_epub_from_document_structure` reconciles this exporter with the
+canonical schema-2 structure (previously it only had its own, disconnected
+`epub-structure@1` extraction, see `audit/current_state.md`'s prior
+checkpoints): a unit spanning more than one original EPUB block --
+segmentation.py only ever merges consecutive plain `paragraph` nodes, never
+headings/lists/quotations -- has its translated text placed in the first
+block only, recorded as a `units_merged_multiple_blocks` limitation, rather
+than duplicating text or guessing a split. A block containing an image/
+table/audio/video is left in its original language untouched rather than
+risk losing the embedded media.
+
+Both exporters are exercised by representative automated tests (synthetic
+fixtures, mock/fake adapters) but have not yet been visually inspected
+against real, complex scholarly/literary source documents -- in particular
+real footnote/endnote layouts, multi-column or table-heavy pages, embedded
+formulas, and mixed Hebrew-Latin running text. Treat current output as
+software-construction evidence, not a visual-acceptance proof, until that
+review happens on real documents. OCR (`scholarly_translation ocr-pdf`) is
+a separate local CLI component (Gate 3, requires a local Tesseract
+install); the simple document UI does not offer OCR -- a scanned PDF with
+no extractable digital text is refused there with a clear message.

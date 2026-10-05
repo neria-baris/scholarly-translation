@@ -1,15 +1,26 @@
 """Automated whole-document drafts, driven by the canonical translation
-backend (Session F). No source or scholarly approval is inferred beyond the
-single, explicitly-logged auto-accept decision described below.
+backend (Session F/G). No source or scholarly approval is inferred beyond
+the single, explicitly-logged auto-accept decision described below.
 
 PDF jobs flow: pdf_extract.extract_pdf -> (auto-accept the sole digital
 candidate per page, since this simple flow offers no OCR/alternative to
-choose between) -> segmentation.build_structure -> per-unit
-translation.build_translation_request(_for_role) -> translation.run_translation
--> (quality-mode-gated) review_qa unit review / chapter QA ->
-export_pdf.export_pdf. EPUB input is intentionally not supported by this
-job runner yet -- see the module-level ``EPUB_BLOCKED_MESSAGE`` docstring
-below for why.
+choose between) -> segmentation.build_structure -> export_pdf.export_pdf.
+EPUB jobs flow the same way through epub_extract.extract_epub ->
+segmentation.build_structure (digital-text origin) ->
+export_epub.export_epub_from_document_structure, reusing the identical
+canonical schema-2 structure (Session G: the EPUB digital-text schema
+session already made segmentation/translation/review_qa/document_state
+origin-agnostic; this module only had to stop refusing the upload and
+plug in the matching extractor/exporter).
+
+Per chapter: translate its units (using profile/style, persistent
+document state, current chapter context and local translation state) ->
+(quality-mode-gated) per-unit semantic review -> chapter-level QA ->
+proposed persistent-state updates -> validated/committed document state
+used by the *next* chapter (Session G: wires Session C's chapter QA into
+Session D's document_state.py). Every live translation/review/QA call
+for a configured (non-Auto) job shares one persistent per-document
+budget and cache (runtime_controls.ControlStore), not just translation.
 """
 from __future__ import annotations
 
@@ -18,16 +29,19 @@ import math
 import os
 import re
 import secrets
+import shutil
 import threading
 from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import pdf_extract, segmentation
+from . import context_strategy, document_state as document_state_module
+from . import epub_extract, pdf_extract, segmentation
 from .export_common import ExportError
+from .export_epub import export_epub_from_document_structure as _export_epub
 from .export_pdf import export_pdf as _export_pdf
 from .glossary import new_store as _new_glossary_store
-from .model_adapter import OpenAIConfigurationError, TextGenerationResult
+from .model_adapter import OpenAIConfigurationError, TextGenerationResult, build_translation_adapter, OPENAI_MAX_OUTPUT_TOKENS
 from .model_config import ModelConfigError, ModelConfiguration
 from .review_qa import (
     build_chapter_qa_request,
@@ -36,6 +50,9 @@ from .review_qa import (
     build_unit_review_request_for_role,
     run_chapter_qa,
     run_unit_review,
+)
+from .runtime_controls import (
+    ControlStore, PersistentBudget, RuntimeCache, RuntimeControlsError, validate_store_path,
 )
 from .translation import (
     TranslationBudget,
@@ -46,6 +63,13 @@ from .translation import (
     run_translation,
 )
 from .translation_profiles import SUPPORTED_PROFILE_IDS
+
+# Chapter-level QA prompts legitimately exceed translation.MAX_PROMPT_BYTES
+# (a whole assembled chapter, not one ~2000-char unit); this is a separate,
+# explicit bound for the review/QA control path only -- comfortably above
+# MAX_SOURCE_CHARS (one whole document) at 2 bytes/char for Hebrew, never
+# unbounded.
+REVIEW_MAX_PROMPT_BYTES = 700_000
 
 MAX_FILE_BYTES = 25 * 1024 * 1024
 MAX_SOURCE_CHARS = 150_000
@@ -63,28 +87,14 @@ _QUALITY_POLICIES = {
     "thorough": {"unit_review": "all", "chapter_qa": "on"},
 }
 
-# EPUB cannot honestly be routed through this same canonical path yet: the
-# shared segmentation.validate_structure()/source_reading.py evidence schema
-# hard-requires a "digital" source candidate whose *literal* provenance
-# stage string is "digital-pdf@1" (source_reading.validate_candidate), plus
-# real page geometry (pdf_width/pdf_height/bbox) for every anchor. EPUB text
-# never went through PDF digital extraction and has no page geometry at all
-# (it reflows); satisfying that validator for EPUB would require either (a)
-# fabricating a false "digital-pdf@1" provenance claim for text that was
-# never PDF-extracted, or (b) adding a new, legitimate non-PDF origin type
-# to source_reading.py/document_structure.py's schema -- explicitly out of
-# scope for this session ("do not change document_structure.py's schema-2
-# contract... to accommodate it"). This is the exact "EPUB adapter needs a
-# much larger reinterpretation than smallest adapter can cover" case the
-# Session F contract's own stop_condition names; see the Session F delivery
-# report for the full writeup. EPUB upload is refused with a clear message
-# rather than silently faking provenance or guessing at a schema change.
-EPUB_BLOCKED_MESSAGE = (
-    "תרגום קובצי EPUB דרך ממשק זה מושבת כעת: אין דרך ישרה וכנה לבנות עבור "
-    "EPUB את אותה סכימת ראיות (מקור PDF/OCR עם גיאומטריית עמוד) שה-pipeline "
-    "המרכזי דורש, מבלי לזייף נתוני מקור. זהו חוסם ארכיטקטוני שדווח למוביל; "
-    "PDF נתמך במלואו."
-)
+# Historical note (Session F / pre-Session-G): EPUB upload used to be
+# refused here because the canonical document_structure schema had no
+# legitimate non-PDF source-evidence origin. The EPUB digital-text schema
+# session added exactly that ("digital-text" origin, epub_extract.py) and
+# Session G reconciled export_epub.py with it (see
+# export_epub.export_epub_from_document_structure); EPUB is fully wired
+# below. Kept only as an exported symbol for tests/imports referencing it.
+EPUB_BLOCKED_MESSAGE = None
 
 
 class DocumentDraftError(ValueError):
@@ -104,10 +114,44 @@ def _mock_review_generate(prompt_text: str, model: str) -> TextGenerationResult:
 
 def _mock_chapter_qa_generate(prompt_text: str, model: str) -> TextGenerationResult:
     return TextGenerationResult(
-        status="mock_placeholder", text="VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: (none)",
+        status="mock_placeholder",
+        text="VERDICT: PASS\nISSUES: none\nCHAPTER_LEVEL_NOTES: (none)\nSTATE_UPDATES: none",
         token_usage="not_metered", observed_model=model, duration_seconds=0.0,
         observed_provider="mock",
     )
+
+
+def _state_candidates_from_chapter_qa(proposed_updates, *, document_id, chapter_node_id, unit_ids, source_chapter):
+    """The smallest adapter between Session C's chapter QA output and
+    Session D's document_state.py (Session G's explicit integration job,
+    per the 2026-10-05 addendum): review_qa.run_chapter_qa's
+    ``proposed_state_updates`` are already category/certainty-validated
+    plain dicts with a source-grounded ``span``; this turns each into a
+    document_state.propose_item() candidate with full source provenance
+    resolved to an exact character span. A span review_qa already checked
+    is a literal substring of ``source_chapter`` is never missing here,
+    but this still never raises on a malformed item -- it is skipped
+    (fail-closed) rather than guessed, since document_state.py must never
+    receive an ungrounded or otherwise invalid candidate."""
+    candidates = []
+    for update in proposed_updates:
+        span = update.get("span") or ""
+        start = source_chapter.find(span) if span else -1
+        if start < 0:
+            continue
+        source = {
+            "chapter_node_id": chapter_node_id, "unit_ids": list(unit_ids),
+            "document_id": document_id, "source_char_start": start, "source_char_end": start + len(span),
+        }
+        try:
+            candidates.append(document_state_module.propose_item(
+                category=update["category"], label=update["label"], value=update["value"],
+                certainty=update["certainty"], source=source,
+                reason=f"chapter_qa:{chapter_node_id}",
+            ))
+        except (document_state_module.DocumentStateError, KeyError):
+            continue
+    return candidates
 
 
 _LANGUAGE_WORD_RE = re.compile(r"\b(?:les|des|une|dans|pour|avec|est|qui)\b")
@@ -152,27 +196,41 @@ def _auto_accept_decisions(document):
     return segmentation.build_structure(document, decisions=decisions, previous=draft_structure)
 
 
+def source_kind_for(path):
+    suffix = Path(path).suffix.lower()
+    if suffix == ".epub":
+        return "epub"
+    if suffix == ".pdf":
+        return "pdf"
+    raise DocumentDraftError("ניתן לתרגם קובצי PDF או EPUB בלבד כרגע.")
+
+
 def extract_structure(path, language="auto"):
-    """Extract a PDF into the canonical schema-2 document_structure, with
-    every resolvable page's sole candidate auto-accepted. Raises
+    """Extract a PDF or EPUB into the canonical schema-2 document_structure,
+    with every resolvable page's sole candidate auto-accepted. Raises
     DocumentDraftError for anything invalid, oversized, or with no
     extractable text at all (same spirit as the historical OCR-required
-    message)."""
+    message). EPUB uses the same "digital-text" source-evidence origin and
+    the same segmentation/translation pipeline as PDF -- no second,
+    EPUB-specific interpretation of structure."""
     path = Path(path)
     if not path.is_file() or not 0 < path.stat().st_size <= MAX_FILE_BYTES:
         raise DocumentDraftError("בחרו קובץ תקין עד 25 MB.")
-    if path.suffix.lower() == ".epub":
-        raise DocumentDraftError(EPUB_BLOCKED_MESSAGE)
-    if path.suffix.lower() != ".pdf":
-        raise DocumentDraftError("ניתן לתרגם קובצי PDF בלבד כרגע.")
+    kind = source_kind_for(path)
     if language not in LANGUAGES:
         raise DocumentDraftError("שפת מקור לא נתמכת.")
+    resolved_language = language if language != "auto" else "en"
     try:
-        document = pdf_extract.extract_pdf(path, language if language != "auto" else "en")
+        if kind == "epub":
+            document = epub_extract.extract_epub(path, resolved_language)
+        else:
+            document = pdf_extract.extract_pdf(path, resolved_language)
+    except epub_extract.EpubExtractionError as exc:
+        raise DocumentDraftError(f"לא ניתן לקרוא את הקובץ: {exc}") from None
     except pdf_extract.ExtractionError as exc:
         raise DocumentDraftError(f"לא ניתן לקרוא את הקובץ: {exc}") from None
     if len(document.pages) > MAX_PAGES:
-        raise DocumentDraftError("המסמך מוגבל כרגע ל־200 עמודים.")
+        raise DocumentDraftError("המסמך מוגבל כרגע ל־200 עמודים/פרקים.")
     total_chars = sum(len(p.source_text or "") for p in document.pages)
     if total_chars > MAX_SOURCE_CHARS:
         raise DocumentDraftError("המסמך ארוך מדי כרגע. חלקו אותו לקבצים עד 150,000 תווים.")
@@ -183,6 +241,8 @@ def extract_structure(path, language="auto"):
     except segmentation.StructureError as exc:
         raise DocumentDraftError(f"מבנה המסמך אינו תקין: {exc}") from None
     if not structure["units"]:
+        if kind == "epub":
+            raise DocumentDraftError("קובץ ה־EPUB אינו מכיל טקסט הניתן לתרגום.")
         raise DocumentDraftError("ה־PDF מכיל עמודים סרוקים ללא טקסט. נדרש OCR לפני התרגום.")
     return structure
 
@@ -232,14 +292,29 @@ def _build_translations_mapping(units):
     }
 
 
-def render_download(job, kind):
-    """Rebuild the translated PDF from the job's current (possibly
-    human-edited) unit texts; never a frozen completion-time snapshot."""
-    if kind != "pdf":
-        raise DocumentDraftError("סוג הורדה לא נתמך.")
+def render_download(job, kind, source_path=None):
+    """Rebuild the translated document from the job's current (possibly
+    human-edited) unit texts; never a frozen completion-time snapshot.
+
+    PDF is a pure re-render from ``structure`` text (no original bytes
+    needed). EPUB rebuilds the original archive byte-for-byte except for
+    translated text, so it needs the original upload's bytes; callers
+    must pass ``source_path`` (the job folder's persisted ``source.epub``)
+    for an EPUB job.
+    """
+    if kind != job.get("source_kind", "pdf"):
+        raise DocumentDraftError("סוג הורדה לא תואם את קובץ המקור.")
     if job["status"] not in ("completed",) or not job.get("units"):
         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
     translations = _build_translations_mapping(job["units"])
+    if kind == "epub":
+        if source_path is None:
+            raise DocumentDraftError("קובץ ה־EPUB המקורי אינו זמין להורדה.")
+        try:
+            result = _export_epub(source_path, job["structure"], translations)
+        except ExportError as exc:
+            raise DocumentDraftError(f"בנייית ה-EPUB נכשלה: {exc}") from None
+        return result.content
     try:
         result = _export_pdf(job["structure"], translations, title=job["filename"])
     except ExportError as exc:
@@ -287,26 +362,42 @@ class DocumentJobs:
                 definition.require_credential(os.environ)
             except ModelConfigError as exc:
                 raise DocumentDraftError(str(exc)) from None
+        source_kind = source_kind_for(path)
         with self.lock:
             if self.active:
                 raise DocumentDraftError("מסמך אחר מתורגם כרגע. המתינו לסיום.")
             job_id = secrets.token_hex(16)
             folder = self._folder(job_id)
             folder.mkdir(parents=True, exist_ok=False)
+            source_path = folder / f"source.{source_kind}"
+            if source_kind == "epub":
+                # PDF export is a pure re-render from structure text; EPUB
+                # export rebuilds the original archive byte-for-byte except
+                # for translated text, so the original upload must outlive
+                # the transient upload path for later downloads/re-renders.
+                shutil.copyfile(path, source_path)
             job = {
                 "schema_version": 2, "stage": "document-draft@2", "job_id": job_id,
-                "filename": Path(path).name, "settings": settings, "status": "queued",
+                "filename": Path(path).name, "source_kind": source_kind, "settings": settings,
+                "status": "queued",
                 "stage_label": None, "completed_units": 0, "total_units": 0, "chapter_progress": None,
                 "units": [], "structure": None, "approved": False, "source_reviewed": False,
                 "revision": 0, "created_at": datetime.now(timezone.utc).isoformat(),
                 "error": None, "estimated_cost_usd": 0.0,
                 "export_limitations": [], "export_page_count": 0, "review_notes": [],
-                "chapter_qa_results": [],
+                "chapter_qa_results": [], "document_state": None,
             }
             self._persist(job)
             self.active = job_id
         threading.Thread(target=self._run, args=(job, Path(path)), daemon=True).start()
         return {"job_id": job_id}
+
+    def source_path(self, job_id, source_kind):
+        """The persisted original upload for a completed EPUB job's export,
+        or None if this job has no persisted original (e.g. PDF, which
+        never needs one)."""
+        candidate = self._folder(job_id) / f"source.{source_kind}"
+        return candidate if candidate.is_file() else None
 
     def _resolve_role(self, configuration, role):
         """Returns (provider, model, provider_definition, capabilities) for
@@ -323,14 +414,90 @@ class DocumentJobs:
             return self.adapter_factory("translator", request)
         return None  # let run_translation build the real adapter from provider_definition
 
-    def _review_generate(self, role, provider_definition):
+    def _shared_output_cap(self, configuration):
+        """One worst-case output-token bound shared by every role's budget
+        under this document's single ControlStore task (get_or_create_task
+        fixes one output_cap per task_id): the max of every configured
+        role's own capabilities, never a blind single global constant, so
+        a role actually allowed to emit more than OPENAI_MAX_OUTPUT_TOKENS
+        (model_config.py capabilities.max_output_tokens) is never
+        silently undercounted."""
+        caps = [sel.capabilities.max_output_tokens for sel in configuration.models.values()
+                if sel.capabilities and sel.capabilities.max_output_tokens]
+        return max(caps) if caps else OPENAI_MAX_OUTPUT_TOKENS
+
+    def _store_cost(self, store, job_id):
+        status = store.status(job_id)
+        return status["held_usd"] + status["list_estimated_spent_usd"]
+
+    def _resolve_review_controls(self, role, stage, provider, model, provider_definition, capabilities,
+                                  store, output_cap, max_calls, hard_list_usd, job_id):
+        """Build one persistent budget+cache pair for this role, shared by
+        every call made under it, and return a ``make_generate(identity,
+        unit_id)`` factory producing a plain ``generate(prompt_text,
+        model)`` callable -- review_qa.py's own call signature -- that
+        routes every call through them. Review/QA calls previously bypassed
+        the document's budget/cache entirely; this is the fix."""
         if self.adapter_factory is not None:
-            return self.adapter_factory(role, None).generate
-        if provider_definition is None:
-            return _mock_review_generate if role == "semantic_reviewer" else _mock_chapter_qa_generate
-        return None  # let review_qa build the real adapter from provider_definition
+            raw = self.adapter_factory(role, None).generate
+        elif provider_definition is not None:
+            raw = build_translation_adapter(
+                provider, model, provider_definition=provider_definition,
+                max_output_tokens=(capabilities.max_output_tokens if capabilities else None),
+            ).generate
+        else:
+            raw = _mock_review_generate if role == "semantic_reviewer" else _mock_chapter_qa_generate
+
+        if store is None:
+            return lambda identity, unit_id: raw
+
+        budget = PersistentBudget(
+            store, job_id, max_calls=max_calls, hard_list_usd=hard_list_usd, stage=stage,
+            provider=provider, model=model, output_cap=output_cap, max_prompt_bytes=REVIEW_MAX_PROMPT_BYTES,
+        )
+        cache = RuntimeCache(store, stage=stage, provider=provider, model=model)
+        provider_type = provider_definition.provider_type if provider_definition else provider
+
+        def make_generate(identity, unit_id):
+            def generate(prompt_text, model_arg):
+                metadata = {"document_id": job_id, "unit_id": unit_id, "provider_type": provider_type}
+                try:
+                    result, _cache_hit, _notices = cache.execute(
+                        identity, prompt_text, model_arg, raw, stage=stage, metadata=metadata, budget=budget,
+                    )
+                except TranslationBudgetError:
+                    # The document's shared budget is exhausted: fail this
+                    # one optional review/QA call cleanly rather than spend
+                    # further or crash the whole (already-translated) job.
+                    return TextGenerationResult(
+                        status="failed", text=None, token_usage="not_metered", observed_model=model_arg,
+                        duration_seconds=0.0, error="document_budget_exhausted", observed_provider=provider_type,
+                    )
+                return result
+            return generate
+        return make_generate
+
+    def _chapter_groups(self, structure, units):
+        """Partition ``units`` (already in document order) into contiguous
+        per-chapter runs using the same enclosing chapter/part node
+        context_strategy.py already resolves -- never a second
+        independent chapter model. Units with no enclosing chapter/part
+        (flat/short documents) form their own run(s), exactly like the
+        historical post-hoc grouping by ``chapter_node_id`` did."""
+        groups, current_key, current = [], object(), []
+        for unit in units:
+            node = context_strategy.find_enclosing_chapter_node(structure, unit)
+            key = node["node_id"] if node else None
+            if current and key != current_key:
+                groups.append(current)
+                current = []
+            current_key, current = key, current + [unit]
+        if current:
+            groups.append(current)
+        return groups
 
     def _run(self, job, path):
+        store = None
         try:
             job["status"], job["stage_label"] = "reading", "קריאת המסמך"
             self._persist(job)
@@ -349,51 +516,27 @@ class DocumentJobs:
                 if job["settings"]["model"] == "configured" else None
             )
             glossary = _new_glossary_store()
-            budget = (
-                TranslationBudget(max_calls=len(units) + 5, hard_list_usd=job["settings"]["budget_usd"])
-                if configuration is not None else None
-            )
             policies = _QUALITY_POLICIES[job["settings"]["quality"]]
 
             job["status"], job["stage_label"] = "translating", "מתרגם"
             self._persist(job)
-            for index, unit in enumerate(units):
-                if configuration is not None:
-                    request = build_translation_request_for_role(
-                        structure, glossary, unit["unit_id"], job["settings"]["profile"], configuration,
-                    )
-                else:
-                    request = build_translation_request(
-                        structure, glossary, unit["unit_id"], job["settings"]["profile"], "mock", "mock-translation-1",
-                    )
-                adapter = self._translation_adapter(request)
-                draft = run_translation(request, adapter=adapter, budget=budget)
-                job["units"].append({
-                    "unit_id": unit["unit_id"], "order": index, "page_id": unit["page_id"],
-                    "chapter_node_id": draft["chapter_node_id"], "source_text": unit["text"],
-                    "target_text": draft["draft_text"] or "", "translation_note": draft["translation_note"],
-                    "status": draft["status"], "findings": draft["findings"],
-                    "approved": False, "human_edited": False, "review": None,
-                })
-                job["completed_units"] = index + 1
-                self._persist(job)
 
-            if policies["unit_review"] != "off":
-                job["status"], job["stage_label"] = "reviewing", "בבדיקה"
-                self._persist(job)
-                self._run_unit_reviews(job, configuration, policies["unit_review"])
-
-            if policies["chapter_qa"] == "on":
-                job["status"], job["stage_label"] = "reviewing", "בבדיקת פרקים"
-                self._persist(job)
-                self._run_chapter_qa(job, configuration)
+            if configuration is None:
+                self._run_auto_mode(job, structure, glossary, units)
+            else:
+                store_path = validate_store_path(self._folder(job["job_id"]) / "controls.sqlite3")
+                store = ControlStore(store_path, create=True)
+                self._run_configured_mode(job, structure, glossary, units, policies, configuration, store)
 
             job["status"], job["stage_label"] = "rebuilding", "בניית המסמך המתורגם"
             self._persist(job)
             translations = _build_translations_mapping(job["units"])
-            result = _export_pdf(structure, translations, title=job["filename"])
+            if job["source_kind"] == "epub":
+                result = _export_epub(self._folder(job["job_id"]) / "source.epub", structure, translations)
+            else:
+                result = _export_pdf(structure, translations, title=job["filename"])
             job["export_limitations"] = result.limitations
-            job["export_page_count"] = result.page_count
+            job["export_page_count"] = getattr(result, "page_count", 0)
 
             job["status"], job["stage_label"] = "completed", "הושלם"
         except DocumentDraftError as exc:
@@ -402,14 +545,124 @@ class DocumentJobs:
             job["status"], job["error"] = "failed", f"התרגום נעצר: {exc}"
         except OpenAIConfigurationError as exc:
             job["status"], job["error"] = "failed", f"תצורת הספק שגויה: {exc}"
+        except RuntimeControlsError as exc:
+            job["status"], job["error"] = "failed", f"בקרת התקציב/המטמון נכשלה: {exc}"
         except Exception:
             job["status"], job["error"] = "failed", "התרגום לא הושלם. בדקו חיבור, הרשאת המודל ומפתח API. התוצאה החלקית נשמרה."
         finally:
+            if store is not None:
+                store.close()
             try:
                 self._persist(job)
             finally:
                 with self.lock:
                     self.active = None
+
+    def _run_auto_mode(self, job, structure, glossary, units):
+        """Auto/mock mode: no configured provider, so no real cost and no
+        real Hebrew text -- kept as the original simple flat translation
+        loop (no persistent budget/cache, no document state/chapter QA
+        wiring, all of which exist only to control and connect *real*
+        provider spend)."""
+        for index, unit in enumerate(units):
+            request = build_translation_request(
+                structure, glossary, unit["unit_id"], job["settings"]["profile"], "mock", "mock-translation-1",
+            )
+            adapter = self._translation_adapter(request)
+            draft = run_translation(request, adapter=adapter, budget=None)
+            job["units"].append({
+                "unit_id": unit["unit_id"], "order": index, "page_id": unit["page_id"],
+                "chapter_node_id": draft["chapter_node_id"], "source_text": unit["text"],
+                "target_text": draft["draft_text"] or "", "translation_note": draft["translation_note"],
+                "status": draft["status"], "findings": draft["findings"],
+                "document_state_version": draft["document_state_version"],
+                "approved": False, "human_edited": False, "review": None,
+            })
+            job["completed_units"] = index + 1
+            self._persist(job)
+
+        policies = _QUALITY_POLICIES[job["settings"]["quality"]]
+        if policies["unit_review"] != "off":
+            job["status"], job["stage_label"] = "reviewing", "בבדיקה"
+            self._persist(job)
+            self._run_unit_reviews(job, None, policies["unit_review"])
+        if policies["chapter_qa"] == "on":
+            job["status"], job["stage_label"] = "reviewing", "בבדיקת פרקים"
+            self._persist(job)
+            job["review_notes"].append("מצב Auto/ללא ספק מוגדר: בדיקת פרקים נדלגה (אין תרגום עברי אמיתי לבדוק).")
+
+    def _run_configured_mode(self, job, structure, glossary, units, policies, configuration, store):
+        """The real, controlled path (Session G): translate chapter by
+        chapter so each chapter's QA-proposed persistent-state updates are
+        committed and visible to the *next* chapter's translation (the
+        2026-10-05 addendum's required flow), and route every live
+        translation/review/QA call for this document through one shared
+        ControlStore task -- one persistent budget and cache, not a
+        separate uncontrolled path for review/QA."""
+        job_id = job["job_id"]
+        selection, _translator_definition = configuration.resolve("translator")
+        output_cap = self._shared_output_cap(configuration)
+        max_calls = len(units) * 3 + 10
+        hard_list_usd = job["settings"]["budget_usd"]
+
+        translate_budget = PersistentBudget(
+            store, job_id, max_calls=max_calls, hard_list_usd=hard_list_usd, stage="translate",
+            provider=selection.provider, model=selection.model, output_cap=output_cap,
+        )
+        translate_cache = RuntimeCache(store, stage="translate", provider=selection.provider, model=selection.model)
+
+        document_state = document_state_module.new_document_state(structure["document_id"])
+        job["document_state"] = document_state
+        groups = self._chapter_groups(structure, units)
+
+        chapter_qa_resolved = None
+        if policies["chapter_qa"] == "on":
+            chapter_qa_resolved = self._resolve_role(configuration, "chapter_qa")
+            if chapter_qa_resolved is None:
+                job["review_notes"].append("תפקיד chapter_qa אינו מוגדר; בדיקת פרקים נדלגה.")
+
+        for group_index, group in enumerate(groups, start=1):
+            job["chapter_progress"] = {"current": group_index, "total": len(groups)}
+            self._persist(job)
+            for unit in group:
+                request = build_translation_request_for_role(
+                    structure, glossary, unit["unit_id"], job["settings"]["profile"], configuration,
+                    document_state=document_state,
+                )
+                adapter = self._translation_adapter(request)
+                draft = run_translation(request, adapter=adapter, cache=translate_cache, budget=translate_budget)
+                job["units"].append({
+                    "unit_id": unit["unit_id"], "order": len(job["units"]), "page_id": unit["page_id"],
+                    "chapter_node_id": draft["chapter_node_id"], "source_text": unit["text"],
+                    "target_text": draft["draft_text"] or "", "translation_note": draft["translation_note"],
+                    "status": draft["status"], "findings": draft["findings"],
+                    "document_state_version": draft["document_state_version"],
+                    "approved": False, "human_edited": False, "review": None,
+                })
+                job["completed_units"] = len(job["units"])
+                job["estimated_cost_usd"] = self._store_cost(store, job_id)
+                self._persist(job)
+
+            if policies["chapter_qa"] == "on" and chapter_qa_resolved is not None:
+                job["status"], job["stage_label"] = "reviewing", "בבדיקת פרקים"
+                self._persist(job)
+                chapter_records = job["units"][-len(group):]
+                document_state = self._run_chapter_qa_for_group(
+                    job, configuration, chapter_qa_resolved, chapter_records, document_state,
+                    store, output_cap, max_calls, hard_list_usd,
+                )
+                job["document_state"] = document_state
+                job["estimated_cost_usd"] = self._store_cost(store, job_id)
+                job["status"], job["stage_label"] = "translating", "מתרגם"
+                self._persist(job)
+
+        if policies["unit_review"] != "off":
+            job["status"], job["stage_label"] = "reviewing", "בבדיקה"
+            self._persist(job)
+            self._run_unit_reviews(job, configuration, policies["unit_review"],
+                                    store, output_cap, max_calls, hard_list_usd)
+            job["estimated_cost_usd"] = self._store_cost(store, job_id)
+            self._persist(job)
 
     def _risk_flags_for(self, unit_record):
         return {
@@ -419,7 +672,8 @@ class DocumentJobs:
             "extraction_or_ocr_risk": False,
         }
 
-    def _run_unit_reviews(self, job, configuration, policy):
+    def _run_unit_reviews(self, job, configuration, policy, store=None, output_cap=None,
+                          max_calls=None, hard_list_usd=None):
         if configuration is None:
             # Auto/mock mode never produces real Hebrew text (the mock
             # translation adapter's placeholder is deliberately conspicuous,
@@ -427,77 +681,90 @@ class DocumentJobs:
             # so Auto-mode review is a graceful, documented no-op, not a crash.
             job["review_notes"].append("מצב Auto/ללא ספק מוגדר: בדיקת מקטעים נדלגה (אין תרגום עברי אמיתי לבדוק).")
             return
-        provider_definition = None
-        if configuration is not None:
-            resolved = self._resolve_role(configuration, "semantic_reviewer")
-            if resolved is None:
-                job["review_notes"].append("תפקיד semantic_reviewer אינו מוגדר; בדיקת מקטעים נדלגה.")
-                return
-            provider, model, provider_definition, capabilities = resolved
+        resolved = self._resolve_role(configuration, "semantic_reviewer")
+        if resolved is None:
+            job["review_notes"].append("תפקיד semantic_reviewer אינו מוגדר; בדיקת מקטעים נדלגה.")
+            return
+        provider, model, provider_definition, capabilities = resolved
+        make_generate = self._resolve_review_controls(
+            "semantic_reviewer", "unit-review", provider, model, provider_definition, capabilities,
+            store, output_cap, max_calls, hard_list_usd, job["job_id"],
+        )
+        budget_exhausted_noted = False
         for unit_record in job["units"]:
             risk_flags = self._risk_flags_for(unit_record)
-            if configuration is not None:
-                request = build_unit_review_request_for_role(
-                    unit_record["source_text"], unit_record["target_text"] or unit_record["source_text"],
-                    configuration, policy=policy, risk_flags=risk_flags,
-                )
-            else:
-                request = build_unit_review_request(
-                    unit_record["source_text"], unit_record["target_text"] or unit_record["source_text"],
-                    policy=policy, risk_flags=risk_flags, provider="mock", model="mock-review-1",
-                )
-            generate = self._review_generate("semantic_reviewer", provider_definition)
+            request = build_unit_review_request_for_role(
+                unit_record["source_text"], unit_record["target_text"] or unit_record["source_text"],
+                configuration, policy=policy, risk_flags=risk_flags,
+            )
+            generate = make_generate(("unit-review", unit_record["unit_id"]), unit_record["unit_id"])
             result = run_unit_review(request, generate=generate)
             unit_record["review"] = {
                 "status": result["status"], "verdict": result.get("verdict"), "issues": result.get("issues", []),
             }
+            if not budget_exhausted_noted and (result.get("call") or {}).get("error") == "document_budget_exhausted":
+                job["review_notes"].append("תקציב המסמך הגיע למגבלה; בדיקות מקטעים נוספות נדלגו.")
+                budget_exhausted_noted = True
             self._persist(job)
 
-    def _run_chapter_qa(self, job, configuration):
-        if configuration is None:
-            job["review_notes"].append("מצב Auto/ללא ספק מוגדר: בדיקת פרקים נדלגה (אין תרגום עברי אמיתי לבדוק).")
-            return
-        provider_definition = None
-        if configuration is not None:
-            resolved = self._resolve_role(configuration, "chapter_qa")
-            if resolved is None:
-                job["review_notes"].append("תפקיד chapter_qa אינו מוגדר; בדיקת פרקים נדלגה.")
-                return
-            provider, model, provider_definition, capabilities = resolved
-        groups, current_key, current = [], object(), []
-        for unit_record in job["units"]:
-            key = unit_record["chapter_node_id"]
-            if current and key != current_key:
-                groups.append(current)
-                current = []
-            current_key, current = key, current + [unit_record]
-        if current:
-            groups.append(current)
+    def _run_chapter_qa_for_group(self, job, configuration, resolved, chapter_records, document_state,
+                                   store, output_cap, max_calls, hard_list_usd):
+        """Run chapter-level QA for one already-translated chapter, then
+        (Session G) adapt any ``proposed_state_updates`` it returns into
+        document_state.py candidates, surface contradictions against the
+        existing state rather than silently overwrite them, and commit
+        the rest -- returning the (possibly updated) document_state for
+        the *next* chapter to use. The caller resolves the chapter_qa role
+        (or decides to skip it) once for the whole document, not once per
+        chapter, so a "not configured" note is never duplicated per chapter."""
+        provider, model, provider_definition, capabilities = resolved
 
-        total = len(groups)
-        for group_index, group in enumerate(groups, start=1):
-            job["chapter_progress"] = {"current": group_index, "total": total}
-            self._persist(job)
-            source_chapter = "\n\n".join(u["source_text"] for u in group)
-            hebrew_chapter = "\n\n".join((u["target_text"] or u["source_text"]) for u in group)
-            if configuration is not None:
-                request = build_chapter_qa_request_for_role(
-                    source_chapter, hebrew_chapter, configuration,
-                    profile=job["settings"]["profile"], policy="on",
-                )
-            else:
-                request = build_chapter_qa_request(
-                    source_chapter, hebrew_chapter, profile=job["settings"]["profile"],
-                    policy="on", provider="mock", model="mock-review-1",
-                )
-            generate = self._review_generate("chapter_qa", provider_definition)
-            result = run_chapter_qa(request, generate=generate)
-            job["chapter_qa_results"].append({
-                "unit_ids": [u["unit_id"] for u in group], "status": result["status"],
-                "verdict": result.get("verdict"), "issues": result.get("issues", []),
-                "chapter_level_notes": result.get("chapter_level_notes"),
-            })
-            self._persist(job)
+        chapter_node_id = chapter_records[0]["chapter_node_id"]
+        unit_ids = [u["unit_id"] for u in chapter_records]
+        source_chapter = "\n\n".join(u["source_text"] for u in chapter_records)
+        hebrew_chapter = "\n\n".join((u["target_text"] or u["source_text"]) for u in chapter_records)
+        request = build_chapter_qa_request_for_role(
+            source_chapter, hebrew_chapter, configuration,
+            profile=job["settings"]["profile"], policy="on",
+        )
+        make_generate = self._resolve_review_controls(
+            "chapter_qa", "chapter-qa", provider, model, provider_definition, capabilities,
+            store, output_cap, max_calls, hard_list_usd, job["job_id"],
+        )
+        identity = ("chapter-qa", chapter_node_id or "flat", len(job["chapter_qa_results"]))
+        generate = make_generate(identity, chapter_node_id or "document")
+        result = run_chapter_qa(request, generate=generate)
+
+        entry = {
+            "unit_ids": unit_ids, "status": result["status"],
+            "verdict": result.get("verdict"), "issues": result.get("issues", []),
+            "chapter_level_notes": result.get("chapter_level_notes"),
+            "state_proposed": 0, "state_committed": 0, "state_conflicts": [],
+        }
+        new_state = document_state
+        if result["status"] == "completed" and chapter_node_id is not None:
+            candidates = _state_candidates_from_chapter_qa(
+                result.get("proposed_state_updates") or [], document_id=document_state["document_id"],
+                chapter_node_id=chapter_node_id, unit_ids=unit_ids, source_chapter=source_chapter,
+            )
+            entry["state_proposed"] = len(candidates)
+            if candidates:
+                conflicts = document_state_module.find_conflicts(new_state, candidates)
+                conflict_keys = {(c["category"], c["label"]) for c in conflicts}
+                entry["state_conflicts"] = conflicts
+                accepted = [c for c in candidates if (c["category"], c["label"]) not in conflict_keys]
+                if accepted:
+                    new_state = document_state_module.commit_update(
+                        new_state, accepted, chapter_node_id=chapter_node_id,
+                        actor="chapter_qa:" + (provider_definition.provider_type if provider_definition else provider),
+                        actor_kind="model", reason="chapter-level QA proposed update",
+                    )
+                    entry["state_committed"] = len(accepted)
+        job["chapter_qa_results"].append(entry)
+        if (result.get("call") or {}).get("error") == "document_budget_exhausted":
+            job["review_notes"].append("תקציב המסמך הגיע למגבלה; בדיקת פרקים נוספת נדלגה.")
+        self._persist(job)
+        return new_state
 
     def review(self, job_id, unit_index, target_text, expected_revision):
         with self.lock:

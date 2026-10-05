@@ -5,8 +5,13 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+from scholarly_translation.epub_extract import extract_epub
 from scholarly_translation.export_common import ExportError
-from scholarly_translation.export_epub import export_epub, extract_epub_structure
+from scholarly_translation.export_epub import (
+    export_epub, export_epub_from_document_structure, extract_epub_structure,
+)
+from scholarly_translation.segmentation import build_structure
+from scholarly_translation.source_reading import build_readings
 
 
 def make_epub(path, extra_files=None):
@@ -274,6 +279,91 @@ class EpubErrorHandlingTests(unittest.TestCase):
         structure = extract_epub_structure(path)
         with self.assertRaises(ExportError):
             export_epub(path, structure, {"x": "not-a-dict"})
+
+
+def _auto_accept_decisions(document):
+    readings = build_readings(document)
+    decisions = {}
+    for page in document.pages:
+        reading = next(r for r in readings if r["page_id"] == page.page_id)
+        candidate = reading["alternatives"][0]
+        decisions[page.page_id] = {
+            "origin": candidate["origin"], "candidate_hash": candidate["candidate_hash"],
+            "actor": "test", "actor_kind": "human", "reason": "auto-accepted for test",
+        }
+    return decisions
+
+
+def _canonical_epub_structure(path):
+    document = extract_epub(path, language="en")
+    return build_structure(document, decisions=_auto_accept_decisions(document))
+
+
+class ExportFromCanonicalDocumentStructureTests(unittest.TestCase):
+    """Session G: export_epub_from_document_structure bridges the
+    canonical schema-2 document_structure (epub_extract.py's "digital-text"
+    origin) onto this module's own epub-structure@1 export path -- the
+    reconciliation flagged as still-open in audit/current_state.md."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / "book.epub"
+        make_epub(self.path)
+        self.structure = _canonical_epub_structure(self.path)
+
+    def _translations(self, prefix="טקסט מתורגם"):
+        return {u["unit_id"]: {"text": f"{prefix} {i}", "approved": True}
+                for i, u in enumerate(self.structure["units"])}
+
+    def test_produces_a_valid_zip_epub_with_translated_text(self):
+        translations = self._translations(prefix="TRANSLATED")
+        result = export_epub_from_document_structure(self.path, self.structure, translations)
+        with zipfile.ZipFile(io.BytesIO(result.content)) as archive:
+            self.assertIn("mimetype", archive.namelist())
+            chapter0 = archive.read("OEBPS/chapter0.xhtml").decode("utf-8")
+        self.assertIn("TRANSLATED", chapter0)
+        self.assertNotIn("A plain paragraph with no inline markup.", chapter0)
+
+    def test_consecutive_paragraphs_merged_into_one_unit_record_a_limitation(self):
+        # segmentation.py only ever merges consecutive plain "paragraph"
+        # nodes (STRUCTURE_SCHEMA.md); chapter0's several short paragraphs
+        # are exactly that case under the default word-count target.
+        merged_units = [
+            u for u in self.structure["units"]
+            if len([l for l in self.structure["unit_node_links"] if l["unit_id"] == u["unit_id"]][0]["node_ids"]) > 1
+        ]
+        self.assertTrue(merged_units, "fixture no longer exercises the multi-node-unit merge path")
+        result = export_epub_from_document_structure(self.path, self.structure, self._translations())
+        self.assertTrue(any(l["kind"] == "units_merged_multiple_blocks" for l in result.limitations))
+
+    def test_headings_list_and_quotation_are_never_merged_and_translate_1to1(self):
+        translations = self._translations(prefix="HE")
+        result = export_epub_from_document_structure(self.path, self.structure, translations)
+        with zipfile.ZipFile(io.BytesIO(result.content)) as archive:
+            chapter1 = archive.read("OEBPS/chapter1.xhtml").decode("utf-8")
+        self.assertIn("HE", chapter1)
+        self.assertNotIn("First item", chapter1)
+        self.assertNotIn("A quoted passage.", chapter1)
+
+    def test_mismatched_epub_raises_export_error_rather_than_mis_mapping(self):
+        other_path = Path(self.tmp.name) / "other.epub"
+        make_epub(other_path, extra_files={"OEBPS/extra.txt": "irrelevant"})
+        # Structure was built from self.path; exporting against a
+        # differently-shaped archive must fail closed, never silently
+        # substitute text into the wrong element.
+        mismatched = dict(self.structure)
+        mismatched_readings = [dict(r) for r in self.structure["readings"]]
+        for r in mismatched_readings:
+            if r.get("selected"):
+                r["page_number"] = r["page_number"] + 10
+        mismatched["readings"] = mismatched_readings
+        with self.assertRaises(ExportError):
+            export_epub_from_document_structure(self.path, mismatched, self._translations())
+
+    def test_requires_schema_2_structure(self):
+        with self.assertRaises(ExportError):
+            export_epub_from_document_structure(self.path, {"schema_version": 1}, {})
 
 
 class InputFormatDeterminesEpubOutputFormatTests(unittest.TestCase):

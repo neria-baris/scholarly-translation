@@ -320,18 +320,24 @@ class ChapterQATests(unittest.TestCase):
 
     def test_policy_off_skips_without_calling_adapter(self):
         request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="off")
-        generate = _counting_generate("VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n")
+        generate = _counting_generate(
+            "VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n\nSTATE_UPDATES:\nnone\n"
+        )
         qa = run_chapter_qa(request, generate)
         self.assertEqual(qa["status"], "skipped")
         self.assertEqual(generate.calls["count"], 0)
         self.assertFalse(qa["approved"])
+        self.assertEqual(qa["proposed_state_updates"], [])
 
     def test_policy_on_pass(self):
         request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
-        qa = run_chapter_qa(request, _fake_generate("VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n"))
+        qa = run_chapter_qa(request, _fake_generate(
+            "VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n\nSTATE_UPDATES:\nnone\n"
+        ))
         self.assertEqual(qa["status"], "completed")
         self.assertEqual(qa["verdict"], "PASS")
         self.assertEqual(qa["issues"], [])
+        self.assertEqual(qa["proposed_state_updates"], [])
 
     def test_boundary_duplication_issue_with_local_correction(self):
         request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
@@ -343,6 +349,7 @@ class ChapterQATests(unittest.TestCase):
             "   Correction: remove the duplicated sentence at the unit boundary\n"
             "\nCHAPTER_LEVEL_NOTES:\n"
             "Unit boundary duplication detected between the first two merged units.\n"
+            "\nSTATE_UPDATES:\nnone\n"
         )
         qa = run_chapter_qa(request, _fake_generate(response))
         self.assertEqual(qa["status"], "completed")
@@ -351,6 +358,7 @@ class ChapterQATests(unittest.TestCase):
         self.assertFalse(qa["approved"])
         self.assertRegex(qa["input_hash"], r"^[0-9a-f]{64}$")
         self.assertRegex(qa["prompt_asset_hash"], r"^[0-9a-f]{64}$")
+        self.assertEqual(qa["proposed_state_updates"], [])
 
     def test_structured_output_contract_is_sent_to_adapter(self):
         request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
@@ -360,13 +368,46 @@ class ChapterQATests(unittest.TestCase):
             seen["prompt"] = prompt_text
             return TextGenerationResult(
                 status="mock_placeholder",
-                text="VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n",
+                text="VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n\nSTATE_UPDATES:\nnone\n",
                 token_usage="not_metered", observed_model=model, duration_seconds=0.001,
             )
 
         qa = run_chapter_qa(request, generate)
         self.assertEqual(qa["verdict"], "PASS")
         self.assertIn("STRUCTURED_OUTPUT_CONTRACT:", seen["prompt"])
+
+    def test_state_update_is_parsed_with_grounded_span(self):
+        request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
+        response = (
+            "VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n\nSTATE_UPDATES:\n"
+            "- [terminology] claim :: translated consistently as \"טענה\" :: likely :: "
+            "Chapter one begins here\n"
+        )
+        qa = run_chapter_qa(request, _fake_generate(response))
+        self.assertEqual(qa["status"], "completed")
+        self.assertEqual(len(qa["proposed_state_updates"]), 1)
+        update = qa["proposed_state_updates"][0]
+        self.assertEqual(update["category"], "terminology")
+        self.assertEqual(update["certainty"], "likely")
+        self.assertEqual(update["span"], "Chapter one begins here")
+
+    def test_state_update_cannot_claim_established_certainty(self):
+        request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
+        response = (
+            "VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n\nSTATE_UPDATES:\n"
+            "- [terminology] claim :: טענה :: established :: Chapter one begins here\n"
+        )
+        qa = run_chapter_qa(request, _fake_generate(response))
+        self.assertEqual(qa["status"], "needs_human")
+
+    def test_state_update_span_must_be_grounded_in_source(self):
+        request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
+        response = (
+            "VERDICT: PASS\n\nISSUES: none\n\nCHAPTER_LEVEL_NOTES:\nnone\n\nSTATE_UPDATES:\n"
+            "- [terminology] claim :: טענה :: likely :: an invented span not in the source\n"
+        )
+        qa = run_chapter_qa(request, _fake_generate(response))
+        self.assertEqual(qa["status"], "needs_human")
 
     def test_malformed_response_fails_closed(self):
         request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")

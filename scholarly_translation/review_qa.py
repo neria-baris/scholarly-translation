@@ -34,6 +34,7 @@ from pathlib import Path
 from .model_adapter import (
     PRICING_VERSION, TextGenerationResult, build_translation_adapter, compute_estimate,
 )
+from .document_state import CATEGORIES as STATE_CATEGORIES
 from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
 from .source_reading import fingerprint, text_hash
 
@@ -68,6 +69,12 @@ In ISSUES, write `none` or number every issue using exactly these fields:
    Severity: CRITICAL | MAJOR | MINOR
    Span: an exact literal substring of SOURCE_CHAPTER or HEBREW_CHAPTER
    Correction: a nonempty local correction, never a wholesale retranslation
+In STATE_UPDATES, write `none` or one proposed persistent-state item per
+line, in exactly this form (double-colon separated, no extra `::`):
+- [category] label :: value :: certainty :: span
+where `category` is one of """ + ", ".join(sorted(STATE_CATEGORIES)) + """;
+`certainty` is `likely` or `unresolved` (never `established`); and `span`
+is an exact literal substring of SOURCE_CHAPTER.
 """,
 }
 
@@ -75,6 +82,10 @@ UNIT_REVIEW_POLICIES = {"off", "risk_based", "all"}
 CHAPTER_QA_POLICIES = {"off", "on"}
 SEVERITIES = {"CRITICAL", "MAJOR", "MINOR"}
 CHAPTER_ISSUE_CATEGORIES = {"completeness", "consistency", "continuity", "hebrew_quality"}
+# A model may never author an "established" fact (document_state.py enforces
+# this too, as defense in depth); chapter QA may only ever propose "likely"
+# or "unresolved" persistent-state candidates.
+STATE_UPDATE_CERTAINTIES = {"likely", "unresolved"}
 DIFFERENCE_CLASSIFICATIONS = {
     "stylistic_only", "genuine_interpretive_difference", "likely_translation_error",
 }
@@ -648,6 +659,40 @@ _CHAPTER_ISSUE_RE = re.compile(
     r"\s*Correction:\s*(?P<correction>[^\n]*)",
 )
 
+_STATE_UPDATE_LINE_RE = re.compile(
+    r"-\s*\[(?P<category>[^\]]+)\]\s*(?P<label>[^:]+?)\s*::\s*(?P<value>.+?)\s*::\s*"
+    r"(?P<certainty>[^:]+?)\s*::\s*(?P<span>.+)",
+)
+
+
+def _parse_state_updates_block(block, source_chapter):
+    if block.lower() == "none":
+        return [], None
+    updates = []
+    for raw_line in block.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = _STATE_UPDATE_LINE_RE.fullmatch(line)
+        if match is None:
+            return None, "a STATE_UPDATES line is malformed"
+        category = match.group("category").strip()
+        if category not in STATE_CATEGORIES:
+            return None, "a STATE_UPDATES category is not allowlisted"
+        certainty = match.group("certainty").strip()
+        if certainty not in STATE_UPDATE_CERTAINTIES:
+            return None, "a STATE_UPDATES certainty must be likely or unresolved (never established)"
+        label = match.group("label").strip()
+        value = match.group("value").strip()
+        span = match.group("span").strip()
+        if not label or not value or not span:
+            return None, "a STATE_UPDATES line is missing a required field"
+        if span not in source_chapter:
+            return None, "a STATE_UPDATES span is not a grounded substring of the source chapter"
+        updates.append({"category": category, "label": label, "value": value,
+                         "certainty": certainty, "span": span})
+    return updates, None
+
 
 def _parse_chapter_qa_response(raw_text, request: ChapterQARequest):
     if not isinstance(raw_text, str) or not raw_text.strip():
@@ -657,11 +702,14 @@ def _parse_chapter_qa_response(raw_text, request: ChapterQARequest):
         return None, "model response did not contain a valid VERDICT"
     verdict = verdict_match.group(1)
 
-    issues_match = re.search(r"ISSUES:\s*(.*?)CHAPTER_LEVEL_NOTES:\s*(.*)", raw_text, re.DOTALL)
-    if issues_match is None:
-        return None, "model response is missing ISSUES or CHAPTER_LEVEL_NOTES"
-    issues_block = issues_match.group(1).strip()
-    notes = issues_match.group(2).strip()
+    sections_match = re.search(
+        r"ISSUES:\s*(.*?)CHAPTER_LEVEL_NOTES:\s*(.*?)STATE_UPDATES:\s*(.*)", raw_text, re.DOTALL,
+    )
+    if sections_match is None:
+        return None, "model response is missing ISSUES, CHAPTER_LEVEL_NOTES or STATE_UPDATES"
+    issues_block = sections_match.group(1).strip()
+    notes = sections_match.group(2).strip()
+    state_updates_block = sections_match.group(3).strip()
 
     if issues_block.lower() == "none":
         issues = []
@@ -693,7 +741,13 @@ def _parse_chapter_qa_response(raw_text, request: ChapterQARequest):
         return None, "PASS verdict must not carry invented issues"
     if verdict == "REVISE" and not issues:
         return None, "REVISE verdict must carry at least one grounded issue"
-    return {"verdict": verdict, "issues": issues, "chapter_level_notes": notes}, None
+
+    state_updates, state_error = _parse_state_updates_block(state_updates_block, request.source_chapter)
+    if state_error is not None:
+        return None, state_error
+
+    return {"verdict": verdict, "issues": issues, "chapter_level_notes": notes,
+            "proposed_state_updates": state_updates}, None
 
 
 def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
@@ -718,7 +772,7 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
 
     if request.policy == "off":
         return dict(base, status="skipped", skip_reason="policy_off", verdict=None, issues=[],
-                    chapter_level_notes=None, call=None)
+                    chapter_level_notes=None, call=None, proposed_state_updates=[])
 
     if generate is None and request.provider_definition is not None:
         generate = build_translation_adapter(
@@ -737,25 +791,27 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
     except Exception:
         return dict(
             base, status="failed", skip_reason=None, verdict=None, issues=[],
-            chapter_level_notes=None, call=None, error="adapter call failed",
+            chapter_level_notes=None, call=None, error="adapter call failed", proposed_state_updates=[],
         )
     if not isinstance(result, TextGenerationResult):
         return dict(
             base, status="failed", skip_reason=None, verdict=None, issues=[],
             chapter_level_notes=None, call=None, error="adapter returned an invalid result",
+            proposed_state_updates=[],
         )
     call = _call_record(result, prompt_text, request)
     if result.status not in ("completed", "mock_placeholder"):
         return dict(base, status="failed", skip_reason=None, verdict=None, issues=[],
-                    chapter_level_notes=None, call=call)
+                    chapter_level_notes=None, call=call, proposed_state_updates=[])
 
     parsed, parse_error = _parse_chapter_qa_response(result.text, request)
     if parse_error is not None:
         return dict(
             base, status="needs_human", skip_reason=None, verdict=None, issues=[],
-            chapter_level_notes=None, call=call, error=parse_error,
+            chapter_level_notes=None, call=call, error=parse_error, proposed_state_updates=[],
         )
     return dict(
         base, status="completed", skip_reason=None, verdict=parsed["verdict"],
         issues=parsed["issues"], chapter_level_notes=parsed["chapter_level_notes"], call=call,
+        proposed_state_updates=parsed["proposed_state_updates"],
     )

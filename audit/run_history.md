@@ -532,3 +532,47 @@ integrated on main; Session G (final integration review) is next, scoped per
 audit/claude_integration_conductor.md plus the 2026-10-05 persistent-state
 addendum, and should treat the EPUB-translation gap as a known, explicitly
 tracked limitation unless the user's decision changes that before G runs.
+
+Session G (2026-10-05): acted as conductor and sole builder under the
+continuity bootstrap (CLAUDE.md), since the remaining work (budget/cache
+wiring, chapter-QA/document-state integration, EPUB export reconciliation)
+was interdependent and touched the same files, not a case for two parallel
+isolated writers. Confirmed via git status/log/branch -a/worktree list/
+fetch that main was already at 15426ec and already equal to origin/main
+(the checkpoint's claim of 2 unpushed commits behind was stale -- those
+had already been pushed before this session started); proceeded with
+Session G from there per audit/claude_integration_conductor.md's recorded
+next action rather than the checkpoint's stale push instruction.
+
+Implemented and tested the five fixes listed in the SESSION-G gate_history.md
+entry above (budget/cache wiring shared across translate/review/chapter-qa,
+output-cap-aware worst-case reservation, chapter-QA-to-document-state
+adapter with grounded/certainty-limited STATE_UPDATES, export_epub.py
+reconciled with the canonical schema-2 structure, EPUB wired into
+document_draft.py/web_ui.py/ui.html/ui.js). Also added, at the user's
+explicit request alongside G: a double-click launcher ("Run Scholarly
+Translation.vbs", plain launcher for the existing run-ui.ps1 -- adds no new
+server-start logic) and a simple-GUI Windows installer (install.ps1, a
+WinForms window with a progress bar and log that creates .venv, installs
+requirements.txt, verifies the install, and creates a desktop shortcut;
+Install.bat is the double-click entry point), documented in INSTALL_HE.md
+and referenced from UI_README_HE.md/README_START_HERE_HE.md.
+
+Updated README.md (rewrote the stale "Simple local document UI" section,
+which still described an obsolete document-draft@1/HTML-output UI; added
+"Translation context, chapter QA and persistent state" and "PDF/EPUB
+export and its limitations" sections; corrected a stale claim that the
+simple UI never consumes role configuration) and UI_README_HE.md (full
+rewrite to match the actual current upload/profile/quality/model/budget/
+download flow, folding in the budget/cache/state fixes and the honest
+remaining export/OCR limitations). Replaced the now-incorrect
+test_document_draft.py EPUB-blocker test with real EPUB coverage.
+
+Full suite: 527 -> 549 tests pass throughout, rerun after every change
+batch (runtime_controls/translation -> review_qa -> document_draft/
+export_epub -> web_ui/frontend -> docs/launcher). Independently smoke-
+tested the live local server over HTTP (real EPUB upload, Auto-mode
+translate-to-completion, download, verified rebuilt-archive content) before
+closing out. No paid provider calls; Claude Code's own usage for this
+session is not independently metered. Git/commit/push status recorded in
+the next checkpoint update, not self-referentially here.

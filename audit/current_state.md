@@ -1,69 +1,78 @@
 # Current state
-Updated: 2026-10-05T03:00:00+00:00 (Claude conductor)
+Updated: 2026-10-05T04:48:02Z (Claude conductor)
 
-Phase: A/B/C/D(+persistent-state addendum)/E/F(PDF-only)/X/EPUB-schema
-integrated and tested; not yet pushed. `main` == `f750278` ("Integrate
-EPUB digital-text schema extension"); `origin/main` still at `20fa0c9`
-(2 commits behind: contract d2ca2d7 + checkpoint 12ce6d3 were also not
-yet pushed before this). Independent full-suite rerun on merged main:
-527 tests pass, OK, bundled runtime
-`C:/Users/pc2/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe`.
+Phase: A/B/C/D(+persistent-state addendum)/E/F/X/EPUB-schema/G all
+integrated and tested. Verified via `git fetch` + `git rev-parse HEAD
+origin/main`: both equal `15426ec` -- the prior checkpoint's claim of 2
+unpushed commits was stale; everything through the EPUB-schema session was
+already pushed. This session's Session-G work (549 passing tests via
+`python -B -m unittest discover -s tests`, run with the project's `.venv`
+which has pdfplumber/reportlab/Pillow installed) is uncommitted working-tree
+changes on top of `15426ec`, not yet committed or pushed.
 
-Stage summary: A=structure schema 2; B=scholarly+literary profiles;
-C=optional review/chapter QA (review_qa.py); D=chapter-aware context
-(context_strategy.py) + versioned cross-chapter persistent state
-(document_state.py, NOT yet wired to C's chapter QA - that's G's job);
-E=role-based provider/model selection; X=PDF export (export_pdf.py
-working fully) + EPUB export (export_epub.py, still its own bespoke
-`epub-structure@1` path, see below); F=the simple upload/translate/
-download UI drives the real backend for PDF end-to-end; EPUB upload in
-that UI is still explicitly refused (unchanged by this session, see
-below).
+An untracked `AUTOMATION_WORK_PLAN_HE.md` (not authored by this session)
+appeared in the working tree during this session, proposing a *future*,
+separate automated chapter-translation/QA-budget phase; its own text
+explicitly defers to this Session G ("close the existing Session G, or get
+an orderly handoff from its owner, before extending it"). Left untouched
+and excluded from this session's commit -- it is not this session's file to
+commit or act on.
 
-RESOLVED 2026-10-05: EPUB-translation schema question. Contract
-`audit/contracts/session_epub_digital_text_schema.md` (d2ca2d7) was
-implemented by an isolated-worktree builder, reviewed file-by-file by
-the conductor against the contract, independently retested (527 tests,
-OK, matching the builder's own report), and merged (`f750278`, merging
-builder commit `2278415`). Added: a new non-geometric "digital-text"
-source-evidence origin in source_reading.py/document_structure.py
-(branches on origin throughout; no existing PDF/OCR check relaxed) plus
-a new epub_extract.py producer mirroring pdf_extract.py, reusing EPUB's
-own HTML block kind (h1-h6/p/li/blockquote: h1->heading/5, h2-6->
-subheading/6, p->paragraph, li->list, blockquote->quotation) instead of
-classify_line heuristics. export_epub.py's archive-parsing primitives
-were factored into a shared epub_archive.py (its public ExportError
-contract unchanged; all 18 pre-existing export tests pass unmodified).
-Confirmed by a new end-to-end test, not just asserted:
-translation.py/context_strategy.py/review_qa.py/document_state.py/
-glossary.py needed zero changes - build_translation_request now
-succeeds for an EPUB-derived unit via the mock provider.
+Session G (this session) closed every item the prior checkpoint deferred to
+it:
+1. **Budget/cache wiring.** `document_draft.py`'s per-document budget used
+   to cover translation only; `review_qa.py` review/chapter-QA calls ran
+   completely unmetered and never touched the persistent
+   `runtime_controls.ControlStore`. Now one shared `ControlStore` task per
+   document covers translate+unit-review+chapter-qa, and
+   `job["estimated_cost_usd"]` updates live from it.
+2. **Output-cap-aware pricing.** The worst-case reservation and cache key
+   hard-coded one global `OPENAI_MAX_OUTPUT_TOKENS` regardless of a
+   resolved role's real configured `max_output_tokens`; both now use the
+   actual per-task/per-call cap.
+3. **Chapter QA -> persistent document state.** `review_qa.py`'s chapter
+   QA now also emits a grounded, certainty-limited `STATE_UPDATES` section
+   (never `established` from a model); `document_draft.py` translates
+   chapter-by-chapter, commits non-conflicting proposals via
+   `document_state.find_conflicts`/`commit_update`, and feeds the result
+   into the next chapter's translation. Covered end-to-end by
+   `tests.test_document_draft.ChapterQAPersistentStateTests` (the
+   addendum's 10 named scenarios).
+4. **EPUB export reconciliation.** `export_epub_from_document_structure`
+   bridges the canonical schema-2 structure onto `export_epub.py`'s
+   existing archive-rewriting path (positional node matching; a unit
+   spanning multiple original blocks records a
+   `units_merged_multiple_blocks` limitation rather than guessing a
+   split). EPUB upload is no longer refused anywhere (`document_draft.py`,
+   `web_ui.py`, `ui.html`/`ui.js`); real PDF->PDF and EPUB->EPUB both work,
+   confirmed by a live-server HTTP smoke test in addition to unit tests.
 
-Still open, explicitly deferred to Session G per the contract: (1)
-export_epub.py's own `epub-structure@1` extraction/export path is not
-yet reconciled with this new schema-2-capable EPUB structure, so a
-translated EPUB still cannot be written back out through the canonical
-export path; (2) epub_extract.py is not wired into the simple-UI job
-runner (document_draft.py still refuses EPUB uploads - that refusal is
-unchanged and still correct until (1) is done).
+Also added at the user's explicit request: `Run Scholarly Translation.vbs`
+(double-click launcher for the existing `run-ui.ps1`, opens the browser
+automatically via `web_ui.main()`'s own `webbrowser.open`) and
+`install.ps1`/`Install.bat` (a simple WinForms GUI installer: creates
+`.venv`, installs `requirements.txt`, verifies, creates a desktop
+shortcut), documented in `INSTALL_HE.md`.
 
-Original clean worktrees preserved at sibling scholarly-translation.worktrees/
-(A/B/C/E, fully merged) and .claude/worktrees/ (untracked, harness-managed:
-D's, X's, F's and this session's (agent-a2d6f5c14a1853182) are done and
-may be pruned once confirmed with the user).
+Documentation updated to be accurate rather than aspirational: README.md's
+"Simple local document UI" section was describing an obsolete
+`document-draft@1`/HTML-output UI; rewritten, plus new "Translation
+context, chapter QA and persistent state" and "PDF/EPUB export and its
+limitations" sections. `UI_README_HE.md` fully rewritten to match the
+actual current flow.
 
-Quota and actual subscription charges unknown. No new external paid
-model/provider calls this session (mock/fixture-only).
+**Explicitly NOT done (documented limitations, not defects left silently
+unfixed):** real per-model/per-provider pricing (only OpenAI is priced at
+all; unchanged from before G, now clearly documented); visual acceptance
+of either exporter against real, complex documents (footnotes, tables,
+formulas, mixed Hebrew-Latin) -- still only exercised by synthetic
+fixtures and one live-server smoke test with trivial content. Gate-10
+human quality pilot remains BLOCKED and unaffected by this session.
 
-Exact next action: push the 3 unpushed commits (d2ca2d7, 12ce6d3,
-f750278) to `origin/main` as a normal verified fast-forward gate push
-(no divergence expected - confirm before pushing), then launch Session G
-(final integration review), which per audit/claude_integration_conductor.md
-plus the 2026-10-05 persistent-state addendum must: (1) wire Session C's
-chapter QA output into Session D's document_state.py via the smallest
-adapter necessary; (2) add the ten addendum test scenarios end-to-end;
-(3) reconcile export_epub.py with the new schema-2-capable EPUB structure
-and wire epub_extract.py into the simple-UI job runner, completing real
-EPUB -> translated EPUB; (4) run the complete test suite and fix only
-concrete integration defects; (5) document the EPUB-translation
-resolution accurately.
+Exact next action: review this session's diff, stage the intended paths
+(exclude `.claude/`, `outputs/`, `.venv/`, and `AUTOMATION_WORK_PLAN_HE.md`
+-- not this session's file), commit, re-verify `origin/main` is still
+`15426ec` (no one else pushed meanwhile), and push as a normal
+fast-forward. No further Session-G code work is expected; remaining items
+above require either a human visual-acceptance pass on real documents or a
+user decision on multi-provider pricing, not more unsupervised building.
