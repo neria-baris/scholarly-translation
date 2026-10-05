@@ -1,45 +1,37 @@
 # Current state
-Updated: 2026-10-05T10:04:37.062280+00:00 (Sol conductor; AUTOMATION-3/4 software accepted and synced)
+Updated: 2026-10-05T10:17:47.361949+00:00 (Sol; BOOK-REFERENCE visual software accepted)
 
-Verified implementation 59a06d6d06320ca600b42dc38da6c099b18be3bb normally pushed to authorized origin/main.
-Post-push fetch confirms equality and clean tree; this separate receipt records
-that hash. Contracts automation_1/2/3/4 software accepted; no active writers.
+Current main base 200ec773ef63a72e46546befd16df4d2c656fc13, prior AUTOMATION-3/4 implementation
+59a06d6d06320ca600b42dc38da6c099b18be3bb and receipt synced/clean at start.
+BOOK-REFERENCE awaits explicit staging, reviewed commit/push and separate receipt.
+Contract audit/contracts/book_reference_animation.md. No active delegated writer.
 
-New real UI jobs use whole-chapter/semantic-batch fit with independent QA,
-protected QA/correction funds, durable received-raw recovery and safe pause/resume.
-Selectable catalogue/Other translator+QA; endpoint-bound session memory keys,
-per-job snapshot and resolved role/caps; no secret disk/env/browser persistence.
-Model-aware QA-inclusive preview, measured provider/cache usage and local reuse.
-Styled HTML help, dated dynamic prices/quality uncertainty, original book logo,
-asymmetric side-profile pixel book with actual percent and reduced-motion/static
-pause/error states. Five bundled PDF fonts before/after; rerender zero generation.
-Human edits preserve revisions, rerun formal checks and mark previous QA stale.
+User supplied a gold/cream pixel book sheet. Reconstructed code-native40-frame
+SVG, deterministic tools/build_book_sprite.py; fixed /book-sprite.svg asset route.
+Opening0-7, page loop8-31, mirrored closing32-39; pause/error static; reduced
+motion uses stable open/closed views. Actual stage/percent and all processing,
+translation/QA/cost/key/font behavior unchanged. Art is reference-based recreation,
+not original attachment bytes. Screenshot outputs/automation/book-reference-preview.jpg
+is ignored design-only gallery with labelled example percentages.
 
-Final659 offline tests PASS60.956s, including9 independent HTTP-worker cases.
-Initial659 run had one Windows403 socket reset; bounded rejected-body drain fixed
-it,13 focused checks passed8.183s before final full run. Prior JS syntax checks
-passed; final browser execution has no console errors. Edge actual file upload
-works after user setting update. Consent cancel/approve, mixed-model preview,
-pause52%, test-server restart and renewed QA key resume100% without translator
-resend verified. Help desktop/mobile375px inspected; no horizontal overflow.
-Real run-ui.ps1 launches with per-process policy setting; Auto demo completes and
-protected PDF download23058 bytes succeeds. Browser native download event/path
-unobserved; policy-rejected downloads surface was not bypassed.
+22 existing focused HTTP tests passed (9 in7.667s,13 in8.440s). XML40-frame bounds,
+full mirrored endpoints, exact regeneration and served SVG MIME/bytes verified.
+Edge loop changes positions; static pause/opposite ends verified, reduced-motion
+demonstration static, mobile375px no overflow. Actual completed Auto job shows new
+asset100%, no console errors. Prior659 full acceptance60.956s remains; backend
+only adds fixed local static route. No additional broad testing without new risk.
 
-Six observable automation Claude Code Sonnet5 calls list$14.2851749; this UI
-two calls$4.6565572/1211.847s, actual subscription charge unknown. Internal
-conductor/subagents not_metered. Opus0/Astra0/paid runtime0. One repair then Sol
-deterministic closure. Synthetic tests are not a paid translation-quality pilot.
+No external Sonnet/Opus/Astra/runtime calls this visual gate; internal Sol usage
+not_metered. Prior six automation builder calls list$14.2851749, actual subscription
+charge unknown, unchanged. No secrets/private source/output evidence staged.
+Existing unrelated Claude worktrees and brokenold.venv preserved.
+Product/ignored art-fixture loopback server50152, runtime session16878.
 
-Product runtime outputs/tooling/runtime-venv Python3.12 pinned requirements;
-brokenold.venv and unrelated Claude worktrees preserved. Sources, screenshots,
-outputs/caches and credentials ignored/unstaged. Live product preview on loopback
-50152; fake test server stopped. No additional model calls required.
-
-Gate10 scholarly quality/pilot remains BLOCKED on approved examples/references,
-runtime authorization/credentials and expert judgments. Calibration of real cache,
-expected output/Hebrew expansion and custom model prices remains pending.
-Partial export, automatic QA after edits and auto-dispatch on server startup not
-implemented; completed export and explicit safe resume supported. Plan updates
-record these gaps. Next: real pilot only
-with its genuine prerequisites, no inferred release approval.
+Core automation software remains accepted: independent models/QA, memory-only
+endpoint-bound keys, token/cost preflight, reserved QA funds, durable response
+reuse, safe pause/resume, stale QA after edits and five fonts with zero generation
+on rerender. Gate10 remains BLOCKED on approved representative sources/references,
+runtime authorization/credentials and expert judgments. Cache hits, output/expansion
+and Other price assumptions uncalibrated. Partial export, auto QA after edits and
+auto-dispatch on server startup not implemented; completed export/explicit resume
+supported. Next: verified normal Git receipt, genuine pilot only with prerequisites.

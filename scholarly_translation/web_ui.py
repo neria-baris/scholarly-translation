@@ -319,6 +319,9 @@ def make_handler(token: str, model_config_path: str | None = None):
                 kind = "text/css" if name.endswith(".css") else "text/javascript"
                 self._reply(200, (UI_DIR / name).read_bytes(), kind)
                 return
+            if self.path == "/book-sprite.svg":
+                self._reply(200, (UI_DIR / "assets" / "book-sprite.svg").read_bytes(), "image/svg+xml")
+                return
             if self.path != "/":
                 self._json(404, {"error": "not found"})
                 return
