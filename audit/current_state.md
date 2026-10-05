@@ -1,5 +1,10 @@
 # Current state
-Updated: 2026-10-05T04:48:02Z (Claude conductor)
+Updated: 2026-10-05T04:55:00Z (Claude conductor)
+
+**Pushed.** `main == origin/main == 55ae999c9c65a8954dd388879d6ca6a4e26db22c`
+(verified by fetch + `git rev-parse` immediately before and after push; no
+divergence). See `audit/gate_history.md`'s "SESSION-G | ... | verified push
+receipt" entry. Everything below describes what that commit contains.
 
 Phase: A/B/C/D(+persistent-state addendum)/E/F/X/EPUB-schema/G all
 integrated and tested. Verified via `git fetch` + `git rev-parse HEAD
@@ -69,10 +74,9 @@ formulas, mixed Hebrew-Latin) -- still only exercised by synthetic
 fixtures and one live-server smoke test with trivial content. Gate-10
 human quality pilot remains BLOCKED and unaffected by this session.
 
-Exact next action: review this session's diff, stage the intended paths
-(exclude `.claude/`, `outputs/`, `.venv/`, and `AUTOMATION_WORK_PLAN_HE.md`
--- not this session's file), commit, re-verify `origin/main` is still
-`15426ec` (no one else pushed meanwhile), and push as a normal
-fast-forward. No further Session-G code work is expected; remaining items
-above require either a human visual-acceptance pass on real documents or a
-user decision on multi-provider pricing, not more unsupervised building.
+Exact next action: none pending for Session-G code; it is committed and
+pushed. The two "Explicitly NOT done" items above require either a human
+visual-acceptance pass on real documents or a user decision on
+multi-provider pricing, not more unsupervised building. Whoever owns
+`AUTOMATION_WORK_PLAN_HE.md` (not this session) can now proceed per its own
+text, which was waiting on this Session-G checkpoint/handoff.
