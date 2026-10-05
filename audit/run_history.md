@@ -705,3 +705,12 @@ passed. Normal authorized push b56df6b..f675162 succeeded; post-push fetch verif
 main == origin/main and clean tree. Prior product fix preserved. Workers/runtime calls
 0; documentation/data acceptance only. This separate receipt records that known hash.
 Next: deliver links; later execution requires the user's instruction to start building.
+
+
+## 2026-10-06T01:25:07.7972847+03:00 | LEARN-0 | PASS isolated bootstrap
+
+- User authorized execution and warned about an active translation. Isolated conductor worktree/branch codex/language-learning from 9898011; active root checkout/server/data/credentials untouched. No merge/deployment while book runs.
+- Contract audit/contracts/learn_0.md and learn_1.md; executable schema1/source/hash/learner/catalog/plan/generated/recap validation, numeric effort policy and Unicode fixture. Four bootstrap tests OK; 22 existing library tests OK (correct discovery; initial module invocation lacked tests path and sandbox prevented node, corrected locally).
+- No model/provider calls yet; conductor usage unknown. Three Claude Code Sonnet builders will own disjoint paths in isolated common-base worktrees. Measured invocation caps 2 USD each, shared list cap10; subscription charge unknown. No runtime pilot authorized.
+- Git: verified local bootstrap commit follows; push intentionally not attempted outside standing origin/main authorization, and main remains untouched. Full integration accepted only after tests and separate UI preview.
+
