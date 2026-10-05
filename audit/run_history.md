@@ -695,3 +695,13 @@ No product test or quality claim is attached to the concurrent changes.
 - Git-stop reconciliation: concurrent owner committed the four unrelated code/test paths plus checkpoint as b56df6b (untranslatable-unit fix). This task did not edit those paths. Fresh fetch succeeded; only this task's documentation/data/audit changes remain. Safe explicit-path documentation closure resumes; preserved prior fix and its checkpoint next action. Earlier stop receipt remains history.
 - Network fetch needed sandbox escalation and was approved. One download succeeded with only a console Unicode-print error; local inspection corrected output encoding without re-fetching or changing data. Paid/model cost 0 observable external provider calls; Sol internal usage not_metered.
 - Next: reviewed documentation/data/audit commit and authorized normal push, then separate receipt. Product execution starts only on user instruction.
+
+## 2026-10-06T00:23:03.3639273+03:00 | LEARN-PROMPTS + WORDLISTS | verified push receipt
+
+Delivery f675162c4a29a80d8ddcc6681ae31d8f81d0d02a contains exactly 20 reviewed
+prompt/data/audit paths. Staged bytes matched local files; five requested languages
+have 500 unique forms each; source/license metadata, links and offline reproducibility
+passed. Normal authorized push b56df6b..f675162 succeeded; post-push fetch verified
+main == origin/main and clean tree. Prior product fix preserved. Workers/runtime calls
+0; documentation/data acceptance only. This separate receipt records that known hash.
+Next: deliver links; later execution requires the user's instruction to start building.

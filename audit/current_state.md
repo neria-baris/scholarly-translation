@@ -1,5 +1,5 @@
 # Current state
-Updated: 2026-10-06T00:17:51.2437685+03:00 | LEARN-PROMPTS + WORDLISTS ready for Git closure
+Updated: 2026-10-06T00:23:03+03:00 | LEARN-PROMPTS + WORDLISTS delivered; push verified
 
 Prior product fix preserved: b56df6b (Claude; untranslatable units no longer block
 translation). Its checkpoint reports 803 tests OK and no provider calls, not rerun
@@ -31,11 +31,12 @@ ranking or ready Hebrew-gloss/grammar catalog. No paid model/runtime calls; Sol
 internal usage unknown. No product tests rerun for this delivery.
 
 Git initially stopped on concurrent changes. Owner committed them separately as
-b56df6b; fresh fetch reconciled the tree. Only intended package/data/audits remain.
-Explicit-path reviewed commit/push and separate receipt follow. All unrelated
+b56df6b; fresh fetch reconciled the tree; delivery committed intended package/data/audits only.
+Delivery f675162c4a29a80d8ddcc6681ae31d8f81d0d02a pushed; fresh fetch verified
+main == origin/main and clean tree. Separate receipt records this hash. All unrelated
 worktrees/outputs preserved. Prior automation/library acceptance and Gate10 quality
 blockers remain: genuine examples, runtime credentials/authorization and judgments.
 No new language-quality/pedagogical/release claim.
 
-Next exact action: close delivery Git receipt and deliver links. Later user-authorized
+Next exact action: deliver links, then await user instruction to build. Later user-authorized
 execution starts at prompts/language_learning/00_conductor.md with frozen bootstrap.
