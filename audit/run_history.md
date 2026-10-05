@@ -629,3 +629,11 @@ Implementation `59a06d6d06320ca600b42dc38da6c099b18be3bb` passed659 offline test
 ## 2026-10-05T10:20:42.387338+00:00 | BOOK-REFERENCE | verified push receipt
 
 Implementation `d695978e93e853b464cec691ebcc32e988463aaf` passed22 focused HTTP tests, reproducible40-frame XML/pixel bounds/mirrored endpoints and served asset checks, plus documented Edge visual acceptance. Reviewed complete and staged diffs, ten intended paths and exact staged bytes; no source documents, secrets, output screenshots or local fixture server committed. Normal authorized fast-forward push succeeded; post-push fetch confirms main==origin/main and clean tree. This separate receipt records the verified implementation hash; quality/pilot status unchanged.
+
+## 2026-10-05T11:41:40+00:00 | BOOK-REFERENCE-2 | PASS visual software
+
+- Trigger: user feedback that the closed book did not look like a book; same reference sheet. Contract `audit/contracts/book_reference_animation.md` (amended frame layout). Base `9753e61`.
+- Change: `tools/build_book_sprite.py` rebuilt from the reference's palette and sequence; 48 frames 32x40: closed front cover with spine, label, page edges and back board (0); hinge cover swing with perspective lift (1-6); page block flips onto inside cover (7-11); two page turns per loop with cast shadow (12-35); mirrored reversed opening ending on back cover (36-47). `ui.css` offsets/timing updated (opening/closing 1.1s, loop 2.4s). Phases, percentage and processing unchanged.
+- Acceptance: `BOOK-REFERENCE-2-VERIFY`; deterministic regeneration, XML 48 frames, Edge render and animation-time probe of every phase; full 659 offline tests 59.422s OK. Ignored preview `outputs/automation/book-reference-v2-frames.png`.
+- Cost/calls: internal not_metered; external/runtime calls 0, billed cost 0. No delegated builder (small deterministic change).
+- Git: explicit-path local commit; push awaits user confirmation. Gate10 and documented gaps unchanged.
