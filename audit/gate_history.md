@@ -371,3 +371,10 @@ Implementation `d695978e93e853b464cec691ebcc32e988463aaf` passed22 focused HTTP 
 - Acceptance: `BOOK-REFERENCE-2-VERIFY`; deterministic regeneration, XML 48 frames, Edge render and animation-time probe of every phase; full 659 offline tests 59.422s OK. Ignored preview `outputs/automation/book-reference-v2-frames.png`.
 - Cost/calls: internal not_metered; external/runtime calls 0, billed cost 0. No delegated builder (small deterministic change).
 - Git: explicit-path local commit; push awaits user confirmation. Gate10 and documented gaps unchanged.
+
+## 2026-10-05T11:58:00+00:00 | GOLD-THEME | PASS visual software
+
+- Trigger: user accepted BOOK-REFERENCE-2 and asked to adjust the website colour and push to main.
+- Change: `scholarly_translation/ui.css` palette only: teal/green hues mapped to the book gold (42deg, lightness kept), parchment page background, gold-brown accent `#644d16`, warm ink/muted text; error colours unchanged.
+- Acceptance: `GOLD-THEME-VERIFY`; contrast >= 5.2:1 for text, Edge home/processing render (ignored `outputs/automation/gold-theme-preview.png`), 659 offline tests OK. External/runtime calls 0, billed cost 0.
+- Git: explicit-path commit; normal push of main with BOOK-REFERENCE-2 per user authorization; separate receipt follows.
