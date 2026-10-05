@@ -330,3 +330,7 @@ Initial scoped Claude Sonnet5 builder:58 turns,789.075s, list estimate$3.2998919
 - Cost:two external Sonnet CLI calls/list$4.8185541, actual subscription billing unknown. Four automation builder calls cumulative$9.6286177; internal usage unknown. Runtime0/Astra0/Opus0.
 - Git:main from5c185fc, intended remote fetched unchanged; normal commit/push pending receipt.
 - Limits:software only, Gate10 representative source/credentials/expert judgment still BLOCKED. Next:verified push and UI automation_3/4.
+
+## 2026-10-05T07:43:56.119153+00:00 | AUTOMATION-2 | pre-push font-byte correction
+
+Implementation f929030 passed635 runtime tests, but a new staged-public-source hash check caught one David Libre OFL CRLF normalization mismatch. The commit was already local when this result was inspected; no push occurred. Scoped byte-preserving attributes and explicit restaging restore the verbatim upstream notice in a follow-up commit, without history rewrite. All staged public font hashes now match the recorded manifests; eight font tests passed again. The accepted push will include both commits, followed by its receipt. Original runtime prompt LF attribute retained.
