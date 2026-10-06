@@ -387,7 +387,30 @@ function renderProcessing(){
   const canPauseResume=currentJob.settings&&currentJob.settings.automation;
   $('pause-button').hidden=!(canPauseResume&&['translating','reviewing','queued','reading'].includes(currentJob.status));
   $('resume-button').hidden=!(canPauseResume&&!blocker&&['paused','interrupted','failed'].includes(currentJob.status));
+  renderRecheck(canPauseResume);
   renderResumeKeyFields();
+}
+function renderRecheck(automation){
+  const count=currentJob.recheck_candidates||0,report=currentJob.recheck_report;
+  const idle=automation&&['paused','interrupted','failed'].includes(currentJob.status);
+  $('recheck-box').hidden=!(idle&&(count>0||report));
+  if(report){
+    $('recheck-message').textContent='נקראו מחדש '+report.unit_reviews_recovered+' ביקורות מקטעים ו־'+report.chapter_qa_recovered+
+      ' בדיקות פרקים. '+(report.reopened_chapters.length?report.reopened_chapters.length+' פרקים נפתחו מחדש, וכ־'+report.units_to_correct+
+      ' מקטעים יקבלו תיקון ובדיקה חוזרת כשהעבודה תמשיך.':'לא נמצאו תיקונים חדשים.')+
+      (report.still_needs_human?' '+report.still_needs_human+' תשובות עדיין דורשות בדיקה אנושית.':'');
+    $('recheck-button').hidden=true;
+  } else {
+    $('recheck-message').textContent=count+' תשובות בקורת שמורות סומנו בעבר "דורש בדיקה אנושית" בגלל בדיקה מחמירה מדי של הציטוטים. אפשר לקרוא אותן שוב עם הבדיקה המעודכנת.';
+    $('recheck-button').hidden=false;
+  }
+}
+async function recheckReviews(){
+  $('recheck-error').hidden=true;$('recheck-button').disabled=true;
+  try{const result=await request('/document-recheck-reviews',{job_id:currentJob.job_id});
+    currentJob={...result,settings:result.settings||currentJob.settings};renderProcessing();
+  }catch(error){$('recheck-error').textContent=error.message;$('recheck-error').hidden=false}
+  finally{$('recheck-button').disabled=false}
 }
 function renderDecision(blocker){
   const box=$('decision-box'),options=$('decision-options');
@@ -715,7 +738,7 @@ $('translation-form').onsubmit=translate;$('connection-button').onclick=showConn
 $('close-connection').onclick=()=>$('connection-dialog').close();
 $('close-connection-ok').onclick=()=>$('connection-dialog').close();
 $('sample-button').onclick=sample;$('download-pdf').onclick=download;$('download-notebook').onclick=downloadNotebook;
-$('save-keys').onclick=saveKeys;$('pause-button').onclick=pauseJob;$('resume-button').onclick=resumeJob;
+$('save-keys').onclick=saveKeys;$('pause-button').onclick=pauseJob;$('resume-button').onclick=resumeJob;$('recheck-button').onclick=recheckReviews;
 $('resume-save-keys').onclick=saveResumeKeys;
 $('library-button').onclick=openLibrary;$('library-start-button').onclick=openLibrary;$('library-back').onclick=closeLibrary;
 $('library-tab-done').onclick=()=>setLibraryTab('done');$('library-tab-progress').onclick=()=>setLibraryTab('progress');

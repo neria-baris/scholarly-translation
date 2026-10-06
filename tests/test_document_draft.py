@@ -95,8 +95,9 @@ MOCK_MODEL_CONFIG = {
                         "capabilities": {"context_window": 8000, "usable_context_tokens": 6000}},
         "semantic_reviewer": {"provider": "fake", "model": "fake-reviewer-1",
                               "capabilities": {"context_window": 8000, "usable_context_tokens": 6000}},
+        # REVIEW-EFFECT: the QA template gained explicit span/output rules (~1k upper-bound tokens).
         "chapter_qa": {"provider": "fake", "model": "fake-chapter-qa-1",
-                       "capabilities": {"context_window": 8000, "usable_context_tokens": 7000}},
+                       "capabilities": {"context_window": 9000, "usable_context_tokens": 8000}},
     },
 }
 
@@ -643,9 +644,9 @@ class ChapterQAPersistentStateTests(unittest.TestCase):
                 break
             time.sleep(0.01)
         self.assertEqual(job["status"], "completed")
-        # An unallowlisted "summary" category fails closed (needs_human),
-        # never silently stored as persistent memory.
-        self.assertEqual(job["chapter_qa_results"][0]["status"], "needs_human")
+        # An unallowlisted "summary" category is dropped and counted (REVIEW-EFFECT:
+        # one bad line no longer voids the QA result), never stored as persistent memory.
+        self.assertEqual(job["chapter_qa_results"][0]["status"], "completed")
         self.assertEqual(job["chapter_qa_results"][0]["state_proposed"], 0)
         self.assertEqual(job["document_state"]["items"], [])
 

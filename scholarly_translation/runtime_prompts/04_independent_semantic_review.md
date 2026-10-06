@@ -35,7 +35,15 @@ Classify each real issue as:
 
 For each issue, cite only the smallest relevant source and translation spans.
 
+BOOK_NOTEBOOK (when not "(none)") lists earlier decisions for this book: names, chosen Hebrew renderings, forms of address, voice. A translation that follows them is correct on those points: do not propose a different rendering for them unless this source requires it; do flag a departure from them.
+
 If there is no substantive issue, return PASS. Do not invent criticism merely because review was requested.
+
+Output rules:
+- Copy every span character for character from SOURCE_TARGET or HEBREW_TRANSLATION as one contiguous piece on one line, without adding quotation marks, backticks or ellipses.
+- Write each field on a single line.
+- Decide before writing. List only issues you stand behind; never add comments, second thoughts or retractions inside ISSUES. An issue you doubt is simply not listed.
+- The suggested correction is the replacement Hebrew for the translation span and must differ from it.
 
 SOURCE_CONTEXT:
 {{source_context}}
@@ -49,7 +57,10 @@ SOURCE_CONTEXT:
 </HEBREW_TRANSLATION>
 
 GLOSSARY_AND_APPROVED_DECISIONS:
-{{glossary_and_decisions}}{{review_focus}}
+{{glossary_and_decisions}}
+
+BOOK_NOTEBOOK:
+{{book_notebook}}{{review_focus}}
 
 Output:
 

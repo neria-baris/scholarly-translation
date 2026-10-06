@@ -1,72 +1,42 @@
 # Current state
-Updated: 2026-10-06 | BLOCK-DECISIONS integrated (Claude continuity, user-directed)
+Updated: 2026-10-06 | REVIEW-EFFECT integrated (Claude continuity, user-directed)
 
-BLOCK-DECISIONS (contract audit/contracts/user_decided_blocks.md, base 9898011):
-user job c69bb5fc stopped at chapter 30/64 because the book-notebook keeper output
-was truncated at 4096 tokens; settle() held the call as uncertain and stopped the
-task; the job was invisible in the library. Implemented:
-- Keeper default output cap 4096 -> 16384 (bounded by role max output and usable
-  context / 3). story_so_far has no word cap by default: the keeper is told to keep
-  every plot line/subplot and compress instead of dropping; stored safety bound
-  60000 chars (warned); notebook context budget 6000 -> 24000 tokens; an oversized
-  story is middle-trimmed in the excerpt, never dropped. Job overrides
-  keeper_output_cap and notebook_story_words (user "shorten" = 300 words).
-- ControlStore user actions (append-only events): user_settle (observed usage, else
-  held worst case), user_resume, user_raise_limits (increase only). Integrity check
-  takes the latest settlement per reservation; anomaly stops until user_resumed.
-- Journal reset_for_retry (explicit decision only; prior raw kept in job retry_history).
-- job_blocks.diagnose/apply_decision: notebook_truncated (raise cap / shorten story to 300 words /
-  skip chapter), failed_call, unknown_outcome, over_cap_anomaly, stopped, call_limit,
-  budget_limit. Decisions never send; resume is the only sender.
-- UI: library tabs "מוכנים" / "בתהליך עבודה"; in-progress entries with progress,
-  spend, blocker, partial PDF/EPUB/HTML download; decision box in processing panel
-  that applies the choice then resumes.
-Evidence: 816 offline tests OK; offline replay of a copy of c69bb5fc reaches the
-chapter-30 keeper call with cap 16384 after raise_notebook_cap; live loopback smoke
-on a copy lists it in progress (29/64 chapters, 213/378 units, $0.2244), offers the
-three notebook options and serves partial EPUB/HTML. Not verified: real browser
-click-through of the new tab/decision box. No provider calls.
+REVIEW-EFFECT (contract audit/contracts/review_effect.md, base 05748c8). Audit of job
+c69bb5fc (Jade City, stopped at chapter 52/64, $0.48 list for 51 chapters) found:
+the chapter-48 translation held all units but lacked the final `]`; "send again"
+replayed the cached broken answer; 140/267 unit reviews and 47/51 chapter QA results
+were discarded (quoted spans, self-retracting text, one bad STATE_UPDATES line), so
+only 4 corrections ran; proper_name_candidate (16,909) made every unit "risky"; late
+chapters saw 3-4 of 177 notebook entries; keeper prompts wrote cache and never read it.
+- Commit 1 (UNBLOCK, da6beb2): missing final `]` accepted (coverage checks unchanged);
+  ControlStore.user_evict_cache (audited) used by accept_and_retry after a validation
+  failure so the resend reaches the provider.
+- Commit 2: span grounding (quote/backtick/period unwrapping), per-issue drop+count
+  instead of failing the whole answer; chapter QA auto-corrects only consistency/
+  continuity (user decision); `checked` reviews every translatable unit except <=3-word
+  headings (user decision); unit-review cap grows with unit length; proper names no
+  longer trigger review or exceptions and are stored once per token; reviewer sees the
+  notebook entries matching its unit; notebook-job QA writes STATE_UPDATES none;
+  notebook excerpt: matching entries before other globals, story <=40% (keeper sees
+  all); keeper reads the chapter from the translation's cached prefix; prompts 04/06/07
+  tightened (verbatim spans, no retractions, notebook coordination, fewer/shorter
+  global entries). Salvage: review_salvage + POST /document-recheck-reviews + button
+  in the processing panel re-read saved answers (no call) and reopen changed chapters.
+Evidence: 861 offline tests OK. Offline replay on copies of c69bb5fc: chapter 48
+validates from the saved answer with no provider call; salvage recovers 133/140 unit
+reviews and 47/47 QA results (7 still human, 186 issues dropped), reopens 51 chapters,
+~112 units to correct; resume replays chapters 1-2 without calls and the next call is a
+local correction. No provider calls. Not verified: browser click-through of the new
+button. Known limit: reopening early chapters reserves later chapters' full planned
+ceilings; with a tight budget this can surface the existing budget decision.
 
-LIMITS-RELAX (user audit request): notebook chapter summary 1200 -> 5000 chars,
-entry note 600 -> 2000, rendering 200 -> 600, match terms 12 -> 24, all clips now
-warned; prompt asks for complete chapter summaries; chapter bridge 1200 -> 4000
-chars. Provider adapters resend automatically only after an explicit unprocessed
-rejection (HTTP 429/500/502/503/504/529 before any output; backoff 2/8/20 s,
-Retry-After <= 60 s honoured); connection errors, timeouts and mid-stream
-failures still become user decisions. Targeted suites OK (not full suite).
-
-SCANNED-OCR (contract audit/contracts/scanned_ocr_vision.md): scanned PDF pages are
-read in the job's reading stage: local Tesseract (parallel, per-page cache, bundled
-pinned fra/jpn tessdata_fast), then per-page vision review by the translator model
-(ImagePrompt via OpenAI/Anthropic/compatible adapters, journaled+budgeted, stage
-ocr-vision; output aligned onto Tesseract word boxes; bundle stage local-ocr+vision@1;
-strong disagreement -> job exception). Scanned jobs fix max_calls from page count;
-resume before structure reruns reading without resend; preview estimates vision
-cost; decision option skip_ocr_review. Setting ocr_review vision|off. 848 tests OK.
-Tesseract must be installed on the machine (present here: v5.4).
-
-SCHOLARLY-MATH (contract audit/contracts/scholarly_profile_and_math.md): keeper prompt
-and tags per profile (scholarly = argument so far + terminology rules); BOOK_NOTEBOOK
-header: follow unless source contradicts, approved terminology overrides. Academic
-risk triggers (10 types, en/fr + language-independent) for the scholarly chapter
-pipeline, passed to the unit reviewer as REVIEW_FOCUS (legacy prompt unchanged).
-Maths: math tokens are non-lexical (formula-only units pass through), Unicode display
-formulas become formula nodes, PDF per-glyph fallback to bundled Noto Sans Math/Noto
-Sans (OFL), HTML formula LTR + math font stack, EPUB MathML carried as protected
-⟦…⟧ tokens (validated) and re-inserted on export. No math OCR. 840 tests OK.
-
-LIBRARY-DELETE + HELP: library entries (both tabs) can be deleted permanently after
-a confirm prompt (POST /document-delete requires confirm:true; refused while that
-job runs; removes only that job folder). help.html gains Library, "When translation
-stops" (decision table, automatic-resend policy) and Book-notebook sections.
-Batch parser accepts stray closers/code fence after a complete array (59122a4).
-
-Earlier today: b56df6b and 9898011 fixed untranslatable (URL-only) units blocking
-translation and review. Side project LEARN-PROMPTS/WORDLISTS delivered separately
-(f675162, 5a46350); user asked to keep it out of this product line of work.
+Earlier today (integrated): BLOCK-DECISIONS (user-decided stops, in-progress library),
+LIMITS-RELAX, SCANNED-OCR (05748c8), SCHOLARLY-MATH (367d07f), LIBRARY-DELETE + help.
+Side project LEARN-PROMPTS/WORDLISTS stays out of this product line.
 
 Gate10 remains blocked on genuine sources/references, runtime authorization and
 expert judgments. Existing unrelated builder worktrees and outputs preserved.
 
-Next exact action: user restarts the UI, opens Library -> "בתהליך עבודה", chooses an
-option for Jade City and resumes; then await user direction.
+Next exact action: user restarts the UI, opens Jade City (בתהליך עבודה), clicks
+"לבדוק אותן מחדש", then "להמשיך עם התשובה השמורה" (resumes: corrections for
+chapters 1-51, then chapter 52 onward); then await user direction.

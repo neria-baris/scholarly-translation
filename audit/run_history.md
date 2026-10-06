@@ -705,3 +705,16 @@ passed. Normal authorized push b56df6b..f675162 succeeded; post-push fetch verif
 main == origin/main and clean tree. Prior product fix preserved. Workers/runtime calls
 0; documentation/data acceptance only. This separate receipt records that known hash.
 Next: deliver links; later execution requires the user's instruction to start building.
+
+## 2026-10-06T11:40+03:00 | UNBLOCK + REVIEW-EFFECT | Claude continuity, user-directed
+
+User asked what the Jade City run (c69bb5fc) showed and why it stopped again. Audit
+of 51 chapters: chapter-48 answer complete but missing the final `]`; resend replayed
+the cached answer; most review/QA output discarded by over-strict span grounding;
+proper-name findings made every unit risky; notebook excerpt starved late chapters.
+User decisions: QA auto-corrects consistency/continuity only; `checked` reviews all
+units except short headings; salvage chapters 1-51; improve keeper/reviewer/QA prompts.
+UNBLOCK da6beb2 and REVIEW-EFFECT committed under audit/contracts/review_effect.md.
+861 offline tests OK; offline replays on job copies (no provider calls) confirm
+chapter 48 validates from the saved answer and salvage reopens 51 chapters with ~112
+corrections queued. Paid/model calls: 0. Next: user rechecks and resumes in the UI.

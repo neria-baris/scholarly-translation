@@ -35,7 +35,7 @@ from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import chapter_pipeline, job_blocks, scanned_ocr
+from . import chapter_pipeline, job_blocks, review_salvage, scanned_ocr
 from . import context_strategy, document_state as document_state_module
 from . import epub_extract, pdf_extract, segmentation
 from .work_journal import WorkJournal
@@ -1047,6 +1047,27 @@ class DocumentJobs:
             self._persist(job)
         job = self.get(job_id)
         job["blocker"] = self.blocker(job_id, job)
+        return job
+
+    def recheck_saved_reviews(self, job_id):
+        """Re-read saved review/QA answers with the current parser (no provider call)
+        and reopen chapters whose results changed; the caller resumes afterwards."""
+        folder = self._folder(job_id)
+        journal_path = folder / "journal.sqlite3"
+        with self.lock:
+            if self.active is not None:
+                raise DocumentDraftError("מסמך מתורגם כרגע. המתינו לסיום או השהו אותו.")
+            job = self.get(job_id)
+            if not job["settings"].get("automation") or not journal_path.is_file() or not job.get("chapter_groups"):
+                raise DocumentDraftError("אין תשובות בקורת שמורות לבדיקה בעבודה זו.")
+            with WorkJournal(journal_path, create=False) as journal:
+                report = review_salvage.recheck_saved_reviews(job, journal)
+            for transient in ("budget_status", "remaining_budget_usd", "estimated_cost_usd"):
+                job.pop(transient, None)
+            self._persist(job)
+        job = self.get(job_id)
+        job["blocker"] = self.blocker(job_id, job)
+        job["recheck_report"] = report
         return job
 
     def delete(self, job_id):

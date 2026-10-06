@@ -27,6 +27,29 @@ ENVELOPE_TOKENS = 1024
 _HEBREW_RE = re.compile(r'[֑-׿]')
 _MATH_TOKEN_RE = re.compile(MATH_OPEN + '[^' + MATH_OPEN + MATH_CLOSE + ']*' + MATH_CLOSE)
 _MATERIAL_SEVERITIES = {'CRITICAL', 'MAJOR'}
+# Chapter QA corrects automatically only what a single unit review cannot see
+# (user decision 2026-10-06); its other findings stay as retained notes.
+QA_AUTO_CORRECT_CATEGORIES = {'consistency', 'continuity'}
+
+def _material_findings(findings):
+    # A proper-name candidate is a pointer for a human reader, not a defect.
+    return [f for f in findings or [] if f.get('type') != 'proper_name_candidate']
+
+def _unit_findings(source, target, language):
+    """Formal findings for a unit, each proper-name candidate kept once per token."""
+    seen, findings = set(), []
+    for finding in run_formal_checks(source, target, language):
+        if finding.get('type') == 'proper_name_candidate':
+            if finding.get('source_token') in seen:
+                continue
+            seen.add(finding.get('source_token'))
+        findings.append(finding)
+    return findings
+
+def _corrects_automatically(issue):
+    """Unit-review issues have no category; chapter-QA issues do."""
+    return (issue.get('severity') in _MATERIAL_SEVERITIES
+            and ('category' not in issue or issue['category'] in QA_AUTO_CORRECT_CATEGORIES))
 
 class ChapterPipelineError(ValueError):
     pass
@@ -201,6 +224,21 @@ def _review_cap(selection, count=1):
     # Bounded structured findings, not a translation-length output allowance.
     return min(selection.capabilities.max_output_tokens or 4096, 2048 + min(count, 16) * 128)
 
+def _unit_review_cap(selection, record):
+    # A long unit can carry more findings: one extra token per 6 source characters.
+    return min(selection.capabilities.max_output_tokens or 4096, 2048 + 128 + len(record['source_text']) // 6)
+
+SHORT_UNIT_WORDS = 3
+
+def _short_unit(record):
+    """Headings and labels (at most three words): chapter QA still sees them, but the
+    'checked' quality does not spend a separate unit review on them."""
+    return len(re.findall(r'\w+', record['source_text'])) <= SHORT_UNIT_WORDS
+
+UNIT_NOTEBOOK_TOKEN_BUDGET = 3000
+NOTEBOOK_QA_STATE_RULE = ('\n\nIn this job the BOOK_NOTEBOOK is the persistent state for later chapters: '
+                          'write `STATE_UPDATES: none`.')
+
 def _fits(prompt, selection, cap):
     return (cap <= (selection.capabilities.max_output_tokens or 128000)
             and len(prompt.encode('utf-8')) <= 2_000_000
@@ -238,15 +276,18 @@ def _review_request(role, records, configuration, profile, cap, policy='all', bo
             configuration, policy=policy, risk_flags=detect_risk_triggers(record, profile))
     return replace(request, capabilities=replace(selection.capabilities, max_output_tokens=cap))
 
-def _render_review(request, role):
+def _render_review(request, role, unit_notebook=''):
     if role == 'chapter_qa':
+        notebook = getattr(request, 'book_notebook', '') or ''
         return rq._render(rq.CHAPTER_QA_PROMPT_ID, {'source_chapter': request.source_chapter,
             'hebrew_chapter': request.hebrew_chapter, 'profile': request.profile or '(none)',
-            'book_notebook': getattr(request, 'book_notebook', '') or '(none)',
-            'glossary_and_decisions': rq._glossary_text(request.glossary_decisions)})
+            'book_notebook': notebook or '(none)',
+            'glossary_and_decisions': rq._glossary_text(request.glossary_decisions)}) + (
+            NOTEBOOK_QA_STATE_RULE if notebook.strip() else '')
     return rq._render(rq.UNIT_REVIEW_PROMPT_ID, {'source_text': request.source_text,
         'translation': request.translation, 'source_context': rq._context_text(request.source_context),
         'glossary_and_decisions': rq._glossary_text(request.glossary_decisions),
+        'book_notebook': unit_notebook or '(none)',
         'review_focus': _review_focus(request.risk_flags.get('configured_risk_flags', []))})
 
 # What the unit reviewer should check for each deterministic trigger type.
@@ -564,10 +605,14 @@ def _keeper_note(job, text):
     if text not in job.setdefault('review_notes', []):
         job['review_notes'].append(text)
 
+KEEPER_SOURCE_REFERENCE = '(This chapter is the literal SOURCE_UNITS above, in reading order.)'
+
 def _run_keeper(job, key, index, records, configuration, profile, store, journal, hard, max_calls,
-                shared_cap, adapter_factory, tail_usd):
+                shared_cap, adapter_factory, tail_usd, prefix=None):
     """Update the book notebook from chapter ``index``. Never fails the job for the keeper:
-    unparsable output, budget exhaustion or a failed call degrade to 'no update' with a note."""
+    unparsable output, budget exhaustion or a failed call degrade to 'no update' with a note.
+    ``prefix`` is the chapter's cached source prefix (as written by the translation call);
+    when given, the keeper reads the chapter from it instead of a second full copy."""
     job_id = job['job_id']
     source = '\n\n'.join(r['source_text'] for r in records)
     hebrew = '\n\n'.join(r['target_text'] for r in records)
@@ -576,9 +621,13 @@ def _run_keeper(job, key, index, records, configuration, profile, store, journal
     settings = job.get('settings', {})
     cap = keeper_output_cap(selection, settings.get('keeper_output_cap'))
     notebook = job['book_notebook']
-    excerpt = bn.render_for_chapter(notebook, source, notebook_budget(selection), lambda t: _ub(t))
+    excerpt = bn.render_for_chapter(notebook, source, notebook_budget(selection), lambda t: _ub(t), story_share=1)
     prompt, fits = _bounded_keeper_prompt(source, hebrew, excerpt, index, profile, selection, cap,
                                           settings.get('notebook_story_words') or DEFAULT_STORY_WORDS)
+    if fits and prefix and source.strip() and source in prompt:
+        transport = CacheablePrompt(prefix, prompt.replace(source, KEEPER_SOURCE_REFERENCE, 1))
+        if _fits(transport, selection, cap):
+            prompt = transport
     report = None
     if not fits:
         _keeper_note(job, '\u05de\u05d7\u05d1\u05e8\u05ea \u05d4\u05e1\u05e4\u05e8 \u05dc\u05d0 \u05e2\u05d5\u05d3\u05db\u05e0\u05d4 \u05d0\u05d7\u05e8\u05d9 \u05e4\u05e8\u05e7 %d: \u05d4\u05e4\u05e8\u05e7 \u05d2\u05d3\u05d5\u05dc \u05de\u05d3\u05d9 \u05e2\u05d1\u05d5\u05e8 \u05de\u05d5\u05d3\u05dc \u05d4\u05de\u05d7\u05d1\u05e8\u05ea.' % (index + 1))
@@ -684,14 +733,15 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
             qa_plans.append({'unit_ids': [r['unit_id'] for r in group], 'call_output_cap': cap,
                              'conservative_cost_usd': q['ceiling'] * 2})
         reviewer, _ = roles['semantic_reviewer']
+        unit_notebook = _synthetic_notebook_excerpt(UNIT_NOTEBOOK_TOKEN_BUDGET) if keeper else ''
         for record in records:
-            cap = _review_cap(reviewer)
+            cap = _unit_review_cap(reviewer, record)
             request = _review_request('semantic_reviewer', [record], configuration, profile_id, cap)
             prefix = full_prefix
-            prompt = _review_transport(_render_review(request, 'semantic_reviewer'), request, 'semantic_reviewer', prefix, [record['unit_id']])
+            prompt = _review_transport(_render_review(request, 'semantic_reviewer', unit_notebook), request, 'semantic_reviewer', prefix, [record['unit_id']])
             if not _fits(prompt, reviewer, cap):
                 prefix = _prefix(structure, glossary, [record['unit_id']], profile_id, resolver)
-                prompt = _review_transport(_render_review(request, 'semantic_reviewer'), request, 'semantic_reviewer', prefix, [record['unit_id']])
+                prompt = _review_transport(_render_review(request, 'semantic_reviewer', unit_notebook), request, 'semantic_reviewer', prefix, [record['unit_id']])
             _require(_fits(prompt, reviewer, cap), 'required unit review does not fit')
             add('semantic_reviewer', prompt, cap, calls=2)
             # One correction per unit uses only grounded local input, not the book.
@@ -904,11 +954,12 @@ def repartition_qa_groups(unit_records, capabilities, headroom_fraction=None):
 def detect_risk_triggers(record, profile=None):
     language = record.get('source_language', 'en')
     unit = {'text': record['source_text'], 'warnings': record.get('source_warnings', [])}
-    triggers = semantic_risks(unit, language, record.get('findings', []), profile=profile,
+    findings = _material_findings(record.get('findings'))
+    triggers = semantic_risks(unit, language, findings, profile=profile,
                              academic=profile == 'scholarly')
     return {'configured_risk_flags': sorted({t['type'] for t in triggers}),
         'translation_notes': bool(record.get('translation_note')),
-        'formal_check_failure': bool(record.get('findings')),
+        'formal_check_failure': bool(findings),
         'extraction_or_ocr_risk': any(t['type'] == 'ocr_source_uncertainty' for t in triggers)}
 
 def _correction_prompt(record, issues):
@@ -1155,14 +1206,17 @@ def dispatch_batch_translation(job_id, structure, glossary, unit_ids, profile_id
 def _run_review(job_id, role, records, configuration, profile, store, journal, hard_list_usd,
                 max_calls, shared_output_cap, adapter_factory, prefix, tail, stage='pass', policy='all',
                 book_notebook=''):
+    """``book_notebook``: the chapter excerpt for chapter QA, or the entries relevant to
+    the unit for the unit reviewer."""
     selection, _ = configuration.resolve(role)
-    cap = _review_cap(selection, len(records))
-    request = _review_request(role, records, configuration, profile, cap, policy, book_notebook)
-    if role == 'semantic_reviewer' and (policy == 'off' or
+    unit = role == 'semantic_reviewer'
+    cap = _unit_review_cap(selection, records[0]) if unit else _review_cap(selection, len(records))
+    request = _review_request(role, records, configuration, profile, cap, policy, '' if unit else book_notebook)
+    if unit and (policy == 'off' or
             policy == 'risk_based' and not rq._unit_review_is_risky(request.risk_flags)):
         return rq.run_unit_review(request, generate=None), True
     ids = [r['unit_id'] for r in records]
-    prompt = _resolved_review_prompt(request, role, records, prefix)
+    prompt = _resolved_review_prompt(request, role, records, prefix, book_notebook if unit else '')
 
     validator = lambda raw: (rq.run_chapter_qa(request, generate=lambda *_: raw) if role == 'chapter_qa'
                              else rq.run_unit_review(request, generate=lambda *_: raw))
@@ -1170,9 +1224,9 @@ def _run_review(job_id, role, records, configuration, profile, store, journal, h
         hard_list_usd, max_calls, shared_output_cap, validator,
         {'ids': ids, 'profile': profile, 'targets': fingerprint([r['target_text'] for r in records])}, adapter_factory, tail)
 
-def _resolved_review_prompt(request, role, records, prefix):
+def _resolved_review_prompt(request, role, records, prefix, unit_notebook=''):
     ids = [r['unit_id'] for r in records]
-    prompt = _review_transport(_render_review(request, role), request, role, prefix, ids)
+    prompt = _review_transport(_render_review(request, role, unit_notebook), request, role, prefix, ids)
     selection_cap = request.capabilities.max_output_tokens
     # Resolved capabilities contain the actual call cap, not the model maximum.
     from types import SimpleNamespace
@@ -1181,7 +1235,7 @@ def _resolved_review_prompt(request, role, records, prefix):
         # Explicit local source partition for a reviewer with a smaller window.
         local_prefix = 'SOURCE_UNITS:\n' + '\n'.join(json.dumps({'unit_id': r['unit_id'],
             'source_text': r['source_text']}, ensure_ascii=False) for r in records) + '\n\n'
-        prompt = _review_transport(_render_review(request, role), request, role, local_prefix, ids)
+        prompt = _review_transport(_render_review(request, role, unit_notebook), request, role, local_prefix, ids)
     return prompt
 
 def _issue_unit(issue, records):
@@ -1301,7 +1355,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         'source_char_start': unit['source_char_start'], 'source_char_end': unit['source_char_end'],
                         'target_text': translated['translation'], 'translation_note': translated['translation_note'],
                         'approved': False, 'human_edited': False, 'status': 'draft_unapproved', 'review': None,
-                        'findings': run_formal_checks(unit['text'], translated['translation'], unit['language']),
+                        'findings': _unit_findings(unit['text'], translated['translation'], unit['language']),
                         'document_state_version': state_version, 'target_versions': []}
                     job['units'].append(record)
                     existing[uid] = record
@@ -1311,7 +1365,8 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
             if notebook_mode and not job.setdefault('notebook_applied', {}).get(key):
                 keeper_cost = (plan.get('notebook_keeper') or {}).get('conservative_cost_usd', 0.0)
                 _run_keeper(job, key, index, records, configuration, profile, store, journal, hard, max_calls, shared_cap,
-                            adapter_factory, future + max(plan['qa_tail_usd'] - keeper_cost, 0.0))
+                            adapter_factory, future + max(plan['qa_tail_usd'] - keeper_cost, 0.0),
+                            prefix=_prefix(structure, glossary, ids, profile))
                 save()
             qa_notebook = job.get('qa_notebooks', {}).get(key, '') if notebook_mode else ''
             if quality != 'fast':
@@ -1334,11 +1389,14 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                     pending['qa:'+str(qa_index)] = _quote(qa_selection, qa_definition, transport, cap)['ceiling']
                 reviewer, reviewer_def = configuration.resolve('semantic_reviewer')
                 translator, translator_def = configuration.resolve('translator')
+                def unit_notebook(record):
+                    return (bn.render_entries_for_text(job['book_notebook'], record['source_text'],
+                            UNIT_NOTEBOOK_TOKEN_BUDGET, lambda t: _ub(t)) if notebook_mode else '')
                 for record in records:
                     uid = record['unit_id']
-                    cap = _review_cap(reviewer)
+                    cap = _unit_review_cap(reviewer, record)
                     request = _review_request('semantic_reviewer', [record], configuration, profile, cap)
-                    prompt = _resolved_review_prompt(request, 'semantic_reviewer', [record], prefix)
+                    prompt = _resolved_review_prompt(request, 'semantic_reviewer', [record], prefix, unit_notebook(record))
                     review_cost = _quote(reviewer, reviewer_def, prompt, cap)['ceiling']
                     if record['review'] is None:
                         pending['review:'+uid] = review_cost
@@ -1358,10 +1416,17 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 job['status'], job['stage_label'] = 'reviewing', 'ביקורת מקטעים ו־QA פרקי'
                 persist(job)
                 for record in records:
+                    if record['review'] is None and quality == 'checked' and _short_unit(record):
+                        record['review'] = {'status': 'skipped', 'skip_reason': 'short_unit_chapter_qa_only',
+                                            'verdict': None, 'issues': []}
+                        pending.pop('review:'+record['unit_id'], None)
+                        save()
                     if record['review'] is None:
+                        # 'checked' and 'thorough' review every translatable unit; the
+                        # deterministic risk flags only focus the review.
                         record['review'], replay = _run_review(job_id, 'semantic_reviewer', [record], configuration,
                             profile, store, journal, hard, max_calls, shared_cap, adapter_factory, prefix,
-                            tail('review:'+record['unit_id']), policy='all' if quality == 'thorough' else 'risk_based')
+                            tail('review:'+record['unit_id']), policy='all', book_notebook=unit_notebook(record))
                         pending.pop('review:'+record['unit_id'], None)
                         job['local_replays'] = job.get('local_replays', 0) + int(replay)
                         save()
@@ -1390,7 +1455,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         if exception not in job.setdefault('exceptions', []):
                             job['exceptions'].append(exception)
                     for issue in result.get('issues', []):
-                        if issue.get('severity') not in _MATERIAL_SEVERITIES:
+                        if not _corrects_automatically(issue):
                             exception = {'type': 'qa_note_retained', 'chapter': index+1,
                                          'issue': issue}
                             if exception not in job.setdefault('exceptions', []):
@@ -1426,7 +1491,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         pending.pop('correct:'+record['unit_id'], None)
                         record['target_versions'].append({'text': record['target_text'], 'reason': 'bounded_model_correction'})
                         record['target_text'] = corrected[record['unit_id']]['translation']
-                        record['findings'] = run_formal_checks(record['source_text'], record['target_text'], record['source_language'])
+                        record['findings'] = _unit_findings(record['source_text'], record['target_text'], record['source_language'])
                         record['correction_done'], record['correction_pending_recheck'] = True, True
                         job['revision'] += 1
                         save()
@@ -1459,5 +1524,5 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
             job['chapter_completion'][key] = True
             save()
     job['quality_status'] = ('unreviewed_draft' if quality == 'fast' else
-        'draft_with_exceptions' if job.get('exceptions') or any(r.get('unresolved') or r['findings'] or
+        'draft_with_exceptions' if job.get('exceptions') or any(r.get('unresolved') or _material_findings(r['findings']) or
             (r.get('review') or {}).get('status') in ('failed', 'needs_human') for r in job['units']) else 'checked_draft')
