@@ -204,8 +204,8 @@ def _review_cap(selection, count=1):
 def _fits(prompt, selection, cap):
     return (cap <= (selection.capabilities.max_output_tokens or 128000)
             and len(prompt.encode('utf-8')) <= 2_000_000
-            and _count_prompt(prompt, selection.model)['upper_bound'] + cap + ENVELOPE_TOKENS
-            <= selection.capabilities.usable_context_tokens)
+            and _count_prompt(prompt, selection.model)['upper_bound'] + getattr(prompt, 'image_tokens', 0)
+            + cap + ENVELOPE_TOKENS <= selection.capabilities.usable_context_tokens)
 
 def _resolve_required_roles(configuration, quality):
     _require(quality in {'fast', 'checked', 'thorough'}, 'unsupported quality mode')

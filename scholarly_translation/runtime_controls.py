@@ -539,7 +539,8 @@ class PersistentBudget:
             raise TranslationBudgetError("oversized or invalid controlled prompt")
         if self.pricing_provider == "mock":
             return 0.0
-        input_bound = count_tokens(prompt_text, self.model)['upper_bound'] + 1024
+        input_bound = (count_tokens(prompt_text, self.model)['upper_bound'] + 1024
+                       + getattr(prompt_text, 'image_tokens', 0))   # attached page image, if any
         quote = estimate_cost(
             self.pricing_provider, self.model, {"input": input_bound, "output": self.call_output_cap},
             custom_rates=self.custom_rates,

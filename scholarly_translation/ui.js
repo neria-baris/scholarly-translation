@@ -9,7 +9,7 @@ let qaTouched=false,chapterQaTouched=false;
 let previewCounter=0,previewTimer=null;
 let previewState={fingerprint:null,valid:false,withinBudget:false};
 function previewFingerprint(chosen){
-  return JSON.stringify([uploaded&&uploaded.path,chosen.use_server_config,chosen.role_selections,chosen.quality,chosen.profile,chosen.budget_usd,chosen.language]);
+  return JSON.stringify([uploaded&&uploaded.path,chosen.use_server_config,chosen.role_selections,chosen.quality,chosen.profile,chosen.budget_usd,chosen.language,chosen.ocr_review]);
 }
 function isReal(){return $('model').value!=='auto'}
 function isServer(){return $('model').value==='server'}
@@ -211,7 +211,7 @@ async function runPreview(){
     if(id!==previewCounter)return; // stale response, ignore: input changed since this request started
     const currentFingerprint=previewFingerprint(settings());
     if(fingerprint!==currentFingerprint)return; // input changed mid-flight
-    previewState={fingerprint,valid:true,
+    previewState={fingerprint,valid:!preview.scanned||preview.ocr_ready,
       withinBudget:preview.conservative_total_ceiling_usd<=chosen.budget_usd};
     renderPreview(preview);
     updateSettings();
@@ -220,6 +220,14 @@ async function runPreview(){
 }
 function renderPreview(preview){
   $('preview-card').hidden=false;
+  if(preview.scanned){
+    const review=preview.vision_review?`בדיקת המודל מול תמונות העמודים: צפוי כ־$${Number(preview.expected_total_cost_usd).toFixed(4)}, תקרה $${Number(preview.conservative_total_ceiling_usd).toFixed(4)}.`:'ללא בדיקת מודל (זיהוי מקומי בלבד, ללא עלות).';
+    $('preview-body').innerHTML=`<p><strong>קובץ סרוק:</strong> ${esc(preview.scanned_pages)} מתוך ${esc(preview.total_pages)} עמודים בלי טקסט מוטמע. הטקסט יזוהה ב־OCR במחשב שלכם לפני התרגום.</p>
+      ${preview.ocr_ready?'':`<p class="message">${esc(preview.ocr_problem)}</p>`}
+      <p>${review}</p>
+      <p class="advanced-note">עלות התרגום עצמו תחושב אחרי זיהוי הטקסט, מול אותו תקציב. אם היא תחרוג ממנו, התרגום ייעצר ותתבקשו להחליט אם להעלות את התקציב. בחרו את שפת המקור במפורש: בקובץ סרוק אין טקסט לזיהוי השפה.</p>`;
+    return;
+  }
   const rows=[];
   for(const chapter of preview.chapters){
     for(const [role,usage] of Object.entries(chapter.role_usage)){
@@ -240,7 +248,7 @@ function settings(){
   const model=isReal()?'configured':'auto';
   const result={profile:$('profile').value,quality:$('quality').value,language:$('language').value,
     budget_usd:$('budget').value.trim()===''?null:Number($('budget').value),model,automation:model==='configured',
-    font_id:$('font-before').value||null};
+    font_id:$('font-before').value||null,ocr_review:$('ocr-review').value};
   if(isServer())result.use_server_config=true;
   else if(model==='configured'&&roleSelections.translator)result.role_selections={...roleSelections};
   return result;
@@ -356,7 +364,10 @@ function renderProcessing(){
   const pct=renderBook();
   progress.value=pct;$('processing-percentage').textContent=pct+'%';
   let detail;
-  if(currentJob.progress&&currentJob.progress.total_chapters){
+  if(currentJob.ocr_progress){
+    const ocr=currentJob.ocr_progress;
+    detail=(ocr.phase==='vision'?'בדיקת המודל מול תמונות העמודים: ':'זיהוי טקסט בעמודים סרוקים: ')+ocr.done+' מתוך '+ocr.total+' עמודים.';
+  } else if(currentJob.progress&&currentJob.progress.total_chapters){
     detail='פרק '+currentJob.progress.completed_chapters+' מתוך '+currentJob.progress.total_chapters+' הושלם. '+
       (currentJob.progress.phase||'')+' · '+currentJob.progress.completed_steps+'/'+currentJob.progress.total_steps+' קריאות.';
   } else if(currentJob.total_units){
@@ -709,6 +720,7 @@ $('resume-save-keys').onclick=saveResumeKeys;
 $('library-button').onclick=openLibrary;$('library-start-button').onclick=openLibrary;$('library-back').onclick=closeLibrary;
 $('library-tab-done').onclick=()=>setLibraryTab('done');$('library-tab-progress').onclick=()=>setLibraryTab('progress');
 $('font-before').addEventListener('change',schedulePreview);
+$('ocr-review').addEventListener('change',schedulePreview);
 $('review-button').onclick=()=>{if($('review-panel').hidden){$('review-panel').hidden=false;renderReview();$('review-panel').scrollIntoView({behavior:'smooth',block:'start'})}else if(confirmDiscard())$('review-panel').hidden=true};
 $('close-review').onclick=()=>{if(confirmDiscard())$('review-panel').hidden=true};
 $('unit-select').onchange=()=>{if(confirmDiscard()){unitIndex=Number($('unit-select').value);renderReview()}else $('unit-select').value=unitIndex};

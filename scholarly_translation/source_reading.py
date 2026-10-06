@@ -147,6 +147,10 @@ CANDIDATE_FIELDS = {"origin", "usable", "document_id", "page_id", "page_number",
                     "image", "error", "status", "provenance", "candidate_hash"}
 
 
+# Local Tesseract OCR whose text a vision model then reviewed against the page image.
+OCR_VISION_STAGE = "local-ocr+vision@1"
+
+
 def validate_candidate(c):
     require(isinstance(c, dict) and set(c) == CANDIDATE_FIELDS, "invalid evidence candidate shape")
     require(c["origin"] in ("digital", "ocr", "digital-text") and type(c["usable"]) is bool
@@ -168,9 +172,12 @@ def validate_candidate(c):
         require(set(p) == {"base_extraction_hash", "stage"} and p["stage"] == "digital-text-epub@1"
                 and c["image"] is None and c["error"] is None, "invalid digital-text provenance")
     else:
-        require(set(p) == {"base_extraction_hash", "stage", "language", "engine_version", "model_file_hash"}
-                and p["stage"] == "local-ocr@1" and nonempty(p["language"])
-                and nonempty(p["engine_version"]) and (p["model_file_hash"] is None or sha(p["model_file_hash"])),
+        ocr_keys = {"base_extraction_hash", "stage", "language", "engine_version", "model_file_hash"}
+        reviewed = p.get("stage") == OCR_VISION_STAGE
+        require(set(p) == (ocr_keys | {"vision_model"} if reviewed else ocr_keys)
+                and p["stage"] in ("local-ocr@1", OCR_VISION_STAGE) and nonempty(p["language"])
+                and nonempty(p["engine_version"]) and (p["model_file_hash"] is None or sha(p["model_file_hash"]))
+                and (not reviewed or nonempty(p["vision_model"])),
                 "invalid OCR provenance")
         if c["error"] is not None:
             require(isinstance(c["error"], dict) and set(c["error"]) == {"code", "message"}
@@ -221,8 +228,10 @@ def _digital_text_candidate(document, page):
 def validate_ocr_bundle(document, bundle):
     """Gate 3 consumer; validates declared evidence, never opens image files."""
     require(isinstance(bundle, dict) and type(bundle.get("schema_version")) is int
-            and bundle["schema_version"] == 1 and bundle.get("stage") == "local-ocr@1",
+            and bundle["schema_version"] == 1 and bundle.get("stage") in ("local-ocr@1", OCR_VISION_STAGE),
             "unsupported OCR schema/stage")
+    require(bundle["stage"] != OCR_VISION_STAGE or nonempty(bundle.get("vision_model")),
+            "model-reviewed OCR must name its vision model")
     require(bundle.get("document_id") == document.document_id and bundle.get("source_hash") == document.input_hash
             and bundle.get("base_extraction_hash") == fingerprint(document.to_dict()), "OCR document lineage mismatch")
     require(nonempty(bundle.get("engine_version")) and bundle.get("language") == document.language
@@ -253,6 +262,8 @@ def validate_ocr_bundle(document, bundle):
                                 image_uri=entry.get("image_uri"), image_hash=entry.get("image_hash")))
         require("error" in entry, "OCR error field missing")
         provenance = {k: bundle[k] for k in ("base_extraction_hash", "stage", "language", "engine_version", "model_file_hash")}
+        if bundle["stage"] == OCR_VISION_STAGE:
+            provenance["vision_model"] = bundle["vision_model"]
         result[page_id] = _candidate(document, page, "ocr", entry["transcription"], anchors,
                                       list(dict.fromkeys(document.warnings + entry["warnings"])), image,
                                       entry["error"], provenance)

@@ -17,6 +17,8 @@ from .runtime_controls import RuntimeControlsError
 
 _BUDGET_PHRASES = ("list-price reservation limit", "more reserved funds", "exceed the document budget")
 _NOTEBOOK_STAGE = "chapter-notebook"
+_VISION_STAGE = "ocr-vision"
+_SKIP_VISION_LABEL = "להמשיך בלי בדיקת המודל (טקסט ה־OCR המקומי בלבד)"
 SHORT_STORY_WORDS = 300
 
 
@@ -76,7 +78,9 @@ def diagnose(job, store, journal):
     steps = journal.job_steps(job_id)
     stuck = [s for s in steps if s["status"] in ("failed", "unknown", "dispatched")]
     # A failed keeper step never blocks the job (the keeper degrades to "no update").
-    blocking = [s for s in stuck if s["stage"] != _NOTEBOOK_STAGE or s["status"] != "failed"]
+    blocking = [s for s in stuck if not (s["status"] == "failed" and (
+        s["stage"] == _NOTEBOOK_STAGE
+        or s["stage"] == _VISION_STAGE and job["settings"].get("ocr_review") == "off"))]
     details = {"spent_usd": status["list_estimated_spent_usd"], "budget_usd": status["hard_list_usd"],
                "calls": status["attempted_calls"], "max_calls": status["max_calls"]}
     uncertain = store.uncertain_calls(job_id)
@@ -84,12 +88,14 @@ def diagnose(job, store, journal):
         call = uncertain[0]
         details["call"] = call
         notebook = call["stage"] == _NOTEBOOK_STAGE
+        vision = [_option("skip_ocr_review", _SKIP_VISION_LABEL)] if call["stage"] == _VISION_STAGE else []
         if call["known_usd"] is None:
             return {"kind": "unknown_outcome", "details": details,
                     "message": "קריאה לספק הסתיימה בלי מידע ודאי על השימוש (למשל ניתוק). ייתכן שהספק חייב עליה. "
                                "אפשר לרשום את מלוא הסכום השמור (%s) ולנסות שוב; ייתכן חיוב כפול." % _usd(call["held_usd"]),
                     "options": [_option("accept_worst_case_and_retry", "לרשום %s ולנסות שוב" % _usd(call["held_usd"]))]
-                               + ([_option("skip_notebook_chapter", "לרשום ולדלג על עדכון המחברת בפרק זה")] if notebook else [])}
+                               + ([_option("skip_notebook_chapter", "לרשום ולדלג על עדכון המחברת בפרק זה")] if notebook else [])
+                               + vision}
         if notebook and call["provider_outcome"] == "failed_truncated":
             current, maximum = _keeper_limit(job)
             step = next((s for s in stuck if s["stage"] == _NOTEBOOK_STAGE), None)
@@ -111,7 +117,8 @@ def diagnose(job, store, journal):
                 "message": "תשובת הספק נכשלה או נקטעה (%s). השימוש ידוע: %s לפי המחירון. "
                            "אפשר לרשום את העלות ולנסות שוב את אותו שלב." % (call["provider_outcome"], _usd(call["known_usd"])),
                 "options": [_option("accept_and_retry", "לרשום %s ולנסות שוב" % _usd(call["known_usd"]))]
-                           + ([_option("skip_notebook_chapter", "לרשום ולדלג על עדכון המחברת בפרק זה")] if notebook else [])}
+                           + ([_option("skip_notebook_chapter", "לרשום ולדלג על עדכון המחברת בפרק זה")] if notebook else [])
+                           + vision}
     if _unresolved_anomaly(status):
         return {"kind": "over_cap_anomaly", "details": details,
                 "message": "עלות קריאה חרגה מהסכום שנשמר לה או מהתקציב. בדקו את ההוצאה לפני שממשיכים.",
@@ -139,6 +146,8 @@ def diagnose(job, store, journal):
             options.insert(0, _option("reuse_saved_response", "להמשיך עם התשובה השמורה (בלי קריאה חדשה)"))
             message = ("שלב %s נכשל בבדיקת התשובה (%s). התשובה של הספק נשמרה: אפשר לבדוק אותה שוב בלי "
                        "קריאה חדשה, או לשלוח את השלב מחדש." % (step["stage"], step["error"]))
+        if step["stage"] == _VISION_STAGE:
+            options.append(_option("skip_ocr_review", _SKIP_VISION_LABEL))
         return {"kind": "failed_call", "details": dict(details, stage=step["stage"]),
                 "message": message, "options": options}
     return None
@@ -194,6 +203,11 @@ def apply_decision(job, store, journal, option_id, value=None):
     elif option_id == "shorten_notebook":
         settings["notebook_story_words"] = int(offered[option_id]["value"])
         _reopen_failed_keeper(job, journal)
+    elif option_id == "skip_ocr_review":
+        settings["ocr_review"] = "off"
+        for step in journal.job_steps(job_id):
+            if step["stage"] == _VISION_STAGE and step["status"] in ("unknown", "dispatched"):
+                journal.mark_failed(step["identity"], "vision review skipped by user decision")
     elif option_id == "skip_notebook_chapter":
         for step in journal.job_steps(job_id):
             if step["stage"] == _NOTEBOOK_STAGE and step["status"] in ("unknown", "dispatched"):

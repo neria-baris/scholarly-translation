@@ -35,10 +35,11 @@ from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import chapter_pipeline, job_blocks
+from . import chapter_pipeline, job_blocks, scanned_ocr
 from . import context_strategy, document_state as document_state_module
 from . import epub_extract, pdf_extract, segmentation
 from .work_journal import WorkJournal
+from .source_reading import text_hash
 from .export_common import ExportError
 from .formal_checks import run_formal_checks
 from .export_epub import export_epub_from_document_structure as _export_epub
@@ -175,7 +176,7 @@ def _detect_language(document) -> str:
     return "en"
 
 
-def _auto_accept_decisions(document, unit_policy=None):
+def _auto_accept_decisions(document, unit_policy=None, ocr_bundle=None):
     """Resolve each page's sole usable (digital) candidate automatically.
 
     This simple flow offers no OCR and no alternative source candidate to
@@ -185,7 +186,7 @@ def _auto_accept_decisions(document, unit_policy=None):
     unresolved -- same unsupported spirit as before, surfaced later as a
     clear error if it leaves the whole document with no translatable text.
     """
-    draft_structure = segmentation.build_structure(document, unit_policy=unit_policy)
+    draft_structure = segmentation.build_structure(document, ocr_bundle=ocr_bundle, unit_policy=unit_policy)
     decisions = {}
     for reading in draft_structure["readings"]:
         if reading["status"] == "resolved":
@@ -193,16 +194,20 @@ def _auto_accept_decisions(document, unit_policy=None):
         usable = next((c for c in reading["alternatives"] if c["usable"]), None)
         if usable is None:
             continue
+        reason = ("single available digital-extraction candidate; automatically accepted by "
+                  "the simple upload-and-translate flow (no OCR offered, no alternative to choose between)")
+        if usable["origin"] == "ocr":
+            reason = ("scanned page with no digital text: the OCR reading (local Tesseract%s) is the only "
+                      "usable candidate; accepted by the simple flow and flagged for OCR-aware review"
+                      % (", model-reviewed" if usable["provenance"]["stage"] != "local-ocr@1" else ""))
         decisions[reading["page_id"]] = {
             "origin": usable["origin"], "candidate_hash": usable["candidate_hash"],
-            "actor": "simple-upload-flow (initiating user)", "actor_kind": "human",
-            "reason": "single available digital-extraction candidate; automatically accepted by "
-                      "the simple upload-and-translate flow (no OCR offered, no alternative to choose between)",
+            "actor": "simple-upload-flow (initiating user)", "actor_kind": "human", "reason": reason,
         }
     if not decisions:
         return draft_structure
-    return segmentation.build_structure(document, decisions=decisions, previous=draft_structure,
-                                        unit_policy=unit_policy)
+    return segmentation.build_structure(document, ocr_bundle=ocr_bundle, decisions=decisions,
+                                        previous=draft_structure, unit_policy=unit_policy)
 
 
 def source_kind_for(path):
@@ -279,24 +284,20 @@ def _spine_groups(units):
     return groups
 
 
-def _planned_structure(path, language, configuration):
+def _planned_structure(path, language, configuration, document=None, ocr_bundle=None):
     """Structure for a planned run: default units unless an actual unit is too
     large for the configured translator's output; only then re-segment with
     the narrower unit policy (default structures stay byte-identical)."""
-    structure = extract_structure(path, language)
+    document = document if document is not None else extract_document(path, language)
+    structure = structure_from_document(document, ocr_bundle=ocr_bundle)
     if chapter_pipeline.units_fit_translator(structure, configuration):
         return structure
-    return extract_structure(path, language, unit_policy=chapter_pipeline.unit_policy_for(configuration))
+    return structure_from_document(document, unit_policy=chapter_pipeline.unit_policy_for(configuration),
+                                   ocr_bundle=ocr_bundle)
 
 
-def extract_structure(path, language="auto", unit_policy=None):
-    """Extract a PDF or EPUB into the canonical schema-2 document_structure,
-    with every resolvable page's sole candidate auto-accepted. Raises
-    DocumentDraftError for anything invalid, oversized, or with no
-    extractable text at all (same spirit as the historical OCR-required
-    message). EPUB uses the same "digital-text" source-evidence origin and
-    the same segmentation/translation pipeline as PDF -- no second,
-    EPUB-specific interpretation of structure."""
+def extract_document(path, language="auto"):
+    """Validated schema-3 extraction with the source language resolved (no OCR yet)."""
     path = Path(path)
     if not path.is_file() or not 0 < path.stat().st_size <= MAX_FILE_BYTES:
         raise DocumentDraftError("בחרו קובץ תקין עד 25 MB.")
@@ -323,8 +324,14 @@ def extract_structure(path, language="auto", unit_policy=None):
         raise DocumentDraftError(f"המסמך ארוך מדי כרגע. המגבלה היא {MAX_SOURCE_CHARS:,} תווי מקור.")
     if language == "auto":
         document = _dc_replace(document, language=_detect_language(document))
+    return document
+
+
+def structure_from_document(document, unit_policy=None, ocr_bundle=None):
+    """Canonical structure from an extracted document (and its OCR bundle, if any)."""
+    kind = document.source_kind
     try:
-        structure = _auto_accept_decisions(document, unit_policy=unit_policy)
+        structure = _auto_accept_decisions(document, unit_policy=unit_policy, ocr_bundle=ocr_bundle)
     except segmentation.StructureError as exc:
         raise DocumentDraftError(f"מבנה המסמך אינו תקין: {exc}") from None
     if not structure["units"]:
@@ -332,6 +339,17 @@ def extract_structure(path, language="auto", unit_policy=None):
             raise DocumentDraftError("קובץ ה־EPUB אינו מכיל טקסט הניתן לתרגום.")
         raise DocumentDraftError("ה־PDF מכיל עמודים סרוקים ללא טקסט. נדרש OCR לפני התרגום.")
     return structure
+
+
+def extract_structure(path, language="auto", unit_policy=None, ocr_bundle=None):
+    """Extract a PDF or EPUB into the canonical schema-2 document_structure,
+    with every resolvable page's sole candidate auto-accepted. Raises
+    DocumentDraftError for anything invalid, oversized, or with no
+    extractable text at all (same spirit as the historical OCR-required
+    message). EPUB uses the same "digital-text" source-evidence origin and
+    the same segmentation/translation pipeline as PDF -- no second,
+    EPUB-specific interpretation of structure."""
+    return structure_from_document(extract_document(path, language), unit_policy, ocr_bundle)
 
 
 def validate_settings(settings):
@@ -346,6 +364,9 @@ def validate_settings(settings):
         # UI sets this True for a real translation run; it is the
     # new planned/batched/journaled chapter_pipeline.py flow.
     automation = settings.get("automation", False)
+    ocr_review = settings.get("ocr_review", "vision")
+    if ocr_review not in ("vision", "off"):
+        raise DocumentDraftError("הגדרת בדיקת ה־OCR אינה תקינה.")
     font_id = settings.get('font_id')
     if font_id is not None:
         from .export_common import list_pdf_fonts
@@ -386,7 +407,7 @@ def validate_settings(settings):
         "profile": profile, "quality": quality, "language": language,
         "budget_usd": float(budget), "model": model_choice, "model_config": model_config_data,
         "automation": automation,
-        'font_id': font_id,
+        'font_id': font_id, "ocr_review": ocr_review,
     }
 
 
@@ -643,11 +664,14 @@ class DocumentJobs:
         try:
             job["status"], job["stage_label"] = "reading", "קריאת המסמך"
             self._persist(job)
+            document = extract_document(path, job["settings"]["language"])
+            ocr_bundle = self._read_scanned_pages(job, path, document) if document.source_kind == "pdf" else None
             if job["settings"]["model"] == "configured" and job["settings"].get("automation"):
                 structure = _planned_structure(path, job["settings"]["language"],
-                                               ModelConfiguration.from_dict(job["settings"]["model_config"]))
+                                               ModelConfiguration.from_dict(job["settings"]["model_config"]),
+                                               document=document, ocr_bundle=ocr_bundle)
             else:
-                structure = extract_structure(path, job["settings"]["language"])
+                structure = structure_from_document(document, ocr_bundle=ocr_bundle)
             job["structure"] = structure
             page_number_by_id = {r["page_id"]: r["page_number"] for r in structure["readings"]}
             units = sorted(
@@ -710,6 +734,76 @@ class DocumentJobs:
             finally:
                 with self.lock:
                     self.active = None
+
+    def _read_scanned_pages(self, job, path, document):
+        """OCR stage for scanned PDF pages (None when every page has digital text):
+        local Tesseract, then -- for configured models with ocr_review "vision" --
+        one journaled, budgeted vision-review call per page."""
+        pages = scanned_ocr.scanned_pages(document)
+        if not pages:
+            return None
+        folder = self._folder(job["job_id"])
+        settings = job["settings"]
+
+        def progress(label):
+            def report(done, total):
+                job["ocr_progress"] = {"phase": label, "done": done, "total": total}
+                if done == total or done % 5 == 0:
+                    self._persist(job)
+            return report
+
+        job["stage_label"] = "זיהוי טקסט (OCR) בעמודים סרוקים"
+        self._persist(job)
+        try:
+            bundle = scanned_ocr.run_local_ocr(path, document, folder, progress("ocr"))
+        except scanned_ocr.ScannedOcrError as exc:
+            raise DocumentDraftError(str(exc)) from None
+        if settings["model"] == "configured" and settings.get("ocr_review", "vision") == "vision":
+            bundle = self._vision_review(job, bundle, document, progress("vision"))
+        (folder / "ocr" / "bundle.json").write_text(json.dumps(bundle, ensure_ascii=False), encoding="utf-8")
+        summary = scanned_ocr.ocr_summary(bundle)
+        job["ocr_summary"] = summary
+        for page_number in summary["disagreement_pages"]:
+            exception = {"type": "ocr_vision_disagreement", "page": page_number}
+            if exception not in job.setdefault("exceptions", []):
+                job["exceptions"].append(exception)
+        for page_number in summary["errors"]:
+            exception = {"type": "ocr_page_failed", "page": page_number}
+            if exception not in job.setdefault("exceptions", []):
+                job["exceptions"].append(exception)
+        job.pop("ocr_progress", None)
+        self._persist(job)
+        return bundle
+
+    def _vision_review(self, job, bundle, document, progress):
+        settings = job["settings"]
+        configuration = ModelConfiguration.from_dict(settings["model_config"])
+        selection, _ = configuration.resolve("translator")
+        folder = self._folder(job["job_id"])
+        # The task's call policy is fixed by its first call; units do not exist yet, so a
+        # scanned job's call limit comes from its page count (the pipeline honours it).
+        settings.setdefault("max_calls", len(document.pages) * 24 + 64)
+        shared_cap = max(sel.capabilities.max_output_tokens or 4096 for sel in configuration.models.values())
+        job["stage_label"] = "בדיקת ה־OCR בעזרת המודל"
+        self._persist(job)
+        store = ControlStore(validate_store_path(folder / "controls.sqlite3"), create=True)
+        try:
+            with WorkJournal(folder / "journal.sqlite3", create=True) as journal:
+                def run_call(entry, prompt):
+                    cap = scanned_ocr.vision_output_cap(entry, selection.capabilities.max_output_tokens)
+                    parsed, replay = chapter_pipeline._controlled(
+                        job["job_id"], "translator", scanned_ocr.VISION_STAGE, prompt, configuration, cap,
+                        store, journal, settings["budget_usd"], settings["max_calls"], shared_cap,
+                        lambda result: scanned_ocr.parse_vision_text(result.text),
+                        {"page": entry["page_number"], "image": entry["image_hash"],
+                         "ocr": text_hash(entry["transcription"])},
+                        self._job_adapter_factories.get(job["job_id"], self.adapter_factory))
+                    job["local_replays"] = job.get("local_replays", 0) + int(replay)
+                    job["budget_status"] = store.status(job["job_id"])
+                    return parsed
+                return scanned_ocr.review_with_vision(bundle, document.language, run_call, selection.model, progress)
+        finally:
+            store.close()
 
     def _run_auto_mode(self, job, structure, glossary, units):
         """Auto/mock mode: no configured provider, so no real cost and no
@@ -1000,23 +1094,28 @@ class DocumentJobs:
         job = self.get(job_id)
         if job["status"] == "completed":
             return job
-        if job["structure"] is None or job["settings"]["model"] != "configured" or not job["settings"].get("automation"):
+        if job["settings"]["model"] != "configured" or not job["settings"].get("automation"):
             raise DocumentDraftError("ניתן להמשיך רק עבודת אוטומציה שהתחילה עם מודל מוגדר.")
         journal_path = self._folder(job_id) / "journal.sqlite3"
-        if not journal_path.is_file():
+        # Stopped before its structure existed (e.g. during OCR/vision review): rerun the
+        # reading stage -- cached OCR pages and journaled vision answers are reused, not resent.
+        rerun_reading = job["structure"] is None
+        if not rerun_reading and not journal_path.is_file():
             raise DocumentDraftError("לא נמצא יומן עבודה להמשך.")
         with self.lock:
             if self.active:
                 raise DocumentDraftError("מסמך אחר מתורגם כרגע. המתינו לסיום.")
-            with WorkJournal(journal_path, create=False) as journal:
-                journal.resume(job_id)
+            if journal_path.is_file():
+                with WorkJournal(journal_path, create=False) as journal:
+                    journal.resume(job_id)
             if adapter_factory is not None:
                 self._job_adapter_factories[job_id] = adapter_factory
             job["status"], job["error"] = "translating", None
             self._persist(job)
             self.active = job_id
         source_path = self.source_path(job_id, job["source_kind"])
-        threading.Thread(target=self._resume_run, args=(job, source_path), daemon=True).start()
+        target = self._run if rerun_reading else self._resume_run
+        threading.Thread(target=target, args=(job, source_path), daemon=True).start()
         return {"job_id": job_id}
 
     def _resume_run(self, job, source_path):
@@ -1086,7 +1185,10 @@ class DocumentJobs:
         if settings["model"] != "configured":
             raise DocumentDraftError("תצוגה מקדימה של עלות דורשת מודל מוגדר.")
         configuration = ModelConfiguration.from_dict(settings["model_config"])
-        structure = _planned_structure(path, settings["language"], configuration)
+        document = extract_document(path, settings["language"])
+        if document.source_kind == "pdf" and scanned_ocr.scanned_pages(document):
+            return self._scanned_preview(document, settings, configuration)
+        structure = _planned_structure(path, settings["language"], configuration, document=document)
         glossary = _new_glossary_store()
         page_number_by_id = {r["page_id"]: r["page_number"] for r in structure["readings"]}
         units = sorted(
@@ -1113,6 +1215,35 @@ class DocumentJobs:
             "chapter_count": len(groups), "chapters": chapters,
             "expected_total_cost_usd": total_expected,
             "conservative_total_ceiling_usd": total_conservative,
+        }
+
+    def _scanned_preview(self, document, settings, configuration):
+        """Preview for a PDF with scanned pages: the text does not exist before OCR,
+        so only the OCR/vision-review part is estimated; translation is planned after
+        OCR against the same budget (over budget -> a decision for the user)."""
+        from .model_catalog import estimate_cost
+        pages = scanned_ocr.scanned_pages(document)
+        ready, reason = scanned_ocr.ocr_ready(document.language)
+        review = settings.get("ocr_review", "vision") == "vision"
+        expected = ceiling = 0.0
+        if review:
+            selection, definition = configuration.resolve("translator")
+            image = scanned_ocr.IMAGE_TOKEN_ALLOWANCE
+            for usage, bound in (({"input": 1500 + image, "output": 1500}, False),
+                                 ({"input": 3000 + image, "output": 4096}, True)):
+                quote = estimate_cost(definition.provider_type, selection.model, usage,
+                                      custom_rates=selection.capabilities.custom_pricing)
+                if quote is None:
+                    raise DocumentDraftError("אין מחיר ידוע למודל עבור בדיקת ה־OCR.")
+                if bound:
+                    ceiling = quote["cost_usd"] * len(pages)
+                else:
+                    expected = quote["cost_usd"] * len(pages)
+        return {
+            "scanned": True, "scanned_pages": len(pages), "total_pages": len(document.pages),
+            "ocr_ready": ready, "ocr_problem": reason, "vision_review": review,
+            "chapter_count": 0, "chapters": [],
+            "expected_total_cost_usd": expected, "conservative_total_ceiling_usd": ceiling,
         }
 
     def review(self, job_id, unit_index, target_text, expected_revision):

@@ -501,6 +501,33 @@ class CacheablePrompt(str):
         return self
 
 
+IMAGE_TOKEN_ALLOWANCE = 3000   # conservative per-image input-token reservation (page scans)
+
+
+class ImagePrompt(str):
+    """A text prompt plus one image (PNG/JPEG bytes). The string value is the
+    text followed by the image's SHA-256, so prompt hashes, journal identities
+    and caches distinguish different pages; adapters send the image itself."""
+
+    def __new__(cls, text: str, image_bytes: bytes, media_type: str = "image/png"):
+        import hashlib
+        if media_type not in ("image/png", "image/jpeg") or not isinstance(image_bytes, (bytes, bytearray)) or not image_bytes:
+            raise RequestValidationError("image prompt needs PNG/JPEG bytes")
+        digest = hashlib.sha256(image_bytes).hexdigest()
+        self = str.__new__(cls, text + "\n[attached page image sha256:" + digest + "]")
+        self.text, self.image_bytes, self.media_type = text, bytes(image_bytes), media_type
+        self.image_tokens = IMAGE_TOKEN_ALLOWANCE
+        return self
+
+    def data_url(self):
+        import base64
+        return "data:%s;base64,%s" % (self.media_type, base64.b64encode(self.image_bytes).decode("ascii"))
+
+    def base64_data(self):
+        import base64
+        return base64.b64encode(self.image_bytes).decode("ascii")
+
+
 class MockTextGenerationAdapter(TextGenerationAdapter):
     """No network, no secret needed. Conspicuous non-Hebrew placeholder, never a real translation."""
 
@@ -596,7 +623,12 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
             # the historical single opaque `input` string. No cache warming:
             # this is the same single generation call either way, just with
             # a breakpoint hint on the stable block.
-            if (isinstance(prompt_text, CacheablePrompt) and prompt_text.stable_prefix
+            if isinstance(prompt_text, ImagePrompt):
+                payload["input"] = [{"role": "user", "content": [
+                    {"type": "input_text", "text": prompt_text.text},
+                    {"type": "input_image", "image_url": prompt_text.data_url()},
+                ]}]
+            elif (isinstance(prompt_text, CacheablePrompt) and prompt_text.stable_prefix
                     and model_catalog.resolve('openai', model) is not None):
                 payload["input"] = [{
                     "role": "user",
@@ -752,7 +784,13 @@ class AnthropicTextGenerationAdapter(TextGenerationAdapter):
         # block list with an `ephemeral` cache_control breakpoint on the
         # stable prefix only when the caller marked one via CacheablePrompt;
         # a plain string keeps the historical single-string content.
-        if isinstance(prompt_text, CacheablePrompt) and prompt_text.stable_prefix:
+        if isinstance(prompt_text, ImagePrompt):
+            content = [
+                {"type": "image", "source": {"type": "base64", "media_type": prompt_text.media_type,
+                                             "data": prompt_text.base64_data()}},
+                {"type": "text", "text": prompt_text.text},
+            ]
+        elif isinstance(prompt_text, CacheablePrompt) and prompt_text.stable_prefix:
             content = [
                 {"type": "text", "text": prompt_text.stable_prefix,
                  "cache_control": {"type": "ephemeral", "ttl": "5m"}},
@@ -860,8 +898,11 @@ class OpenAICompatibleTextGenerationAdapter(TextGenerationAdapter):
         client = self._client or self._build_client()
         start = time.monotonic()
         try:
+            content = ([{"type": "text", "text": prompt_text.text},
+                        {"type": "image_url", "image_url": {"url": prompt_text.data_url()}}]
+                       if isinstance(prompt_text, ImagePrompt) else prompt_text)
             response = _with_rejection_retry(lambda progress: client.chat.completions.create(
-                model=model, messages=[{"role": "user", "content": prompt_text}],
+                model=model, messages=[{"role": "user", "content": content}],
                 max_tokens=self._max_output_tokens,
             ), start, 3600, self._sleep)
         except Exception:

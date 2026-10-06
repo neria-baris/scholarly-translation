@@ -35,6 +35,16 @@ rejection (HTTP 429/500/502/503/504/529 before any output; backoff 2/8/20 s,
 Retry-After <= 60 s honoured); connection errors, timeouts and mid-stream
 failures still become user decisions. Targeted suites OK (not full suite).
 
+SCANNED-OCR (contract audit/contracts/scanned_ocr_vision.md): scanned PDF pages are
+read in the job's reading stage: local Tesseract (parallel, per-page cache, bundled
+pinned fra/jpn tessdata_fast), then per-page vision review by the translator model
+(ImagePrompt via OpenAI/Anthropic/compatible adapters, journaled+budgeted, stage
+ocr-vision; output aligned onto Tesseract word boxes; bundle stage local-ocr+vision@1;
+strong disagreement -> job exception). Scanned jobs fix max_calls from page count;
+resume before structure reruns reading without resend; preview estimates vision
+cost; decision option skip_ocr_review. Setting ocr_review vision|off. 848 tests OK.
+Tesseract must be installed on the machine (present here: v5.4).
+
 SCHOLARLY-MATH (contract audit/contracts/scholarly_profile_and_math.md): keeper prompt
 and tags per profile (scholarly = argument so far + terminology rules); BOOK_NOTEBOOK
 header: follow unless source contradicts, approved terminology overrides. Academic
