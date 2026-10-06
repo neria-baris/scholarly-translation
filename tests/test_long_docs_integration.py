@@ -54,7 +54,7 @@ class LongDocsIntegrationTests(unittest.TestCase):
         self.keeper_calls = 0
 
     def job(self, quality="fast"):
-        return {"job_id": "long-job", "settings": {"quality": quality, "profile": "literary", "budget_usd": 30},
+        return {"job_id": "long-job", "settings": {"quality": quality, "profile": "literary", "budget_usd": 40},
                 "units": [], "revision": 0, "chapter_qa_results": [], "completed_units": 0}
 
     def factory(self, pause_after=None):

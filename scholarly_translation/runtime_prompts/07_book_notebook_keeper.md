@@ -16,6 +16,7 @@ Chapter index: {{CHAPTER_INDEX}}
 - "scope": "global" for facts that apply across the whole book (main characters, core terms, voice); "local" otherwise.
 - Update an existing entry (by its entry_id) when it changes; "supersede" an entry that is now outdated or wrong; do not duplicate an existing entry.
 - Entries marked pinned or human must not be changed.
+- "story_so_far" is the translation's only memory of the plot. Rewrite it from the existing STORY_SO_FAR plus this chapter, keeping every plot line, subplot, relationship, secret and open question that may still matter. Compress older or resolved events instead of dropping threads.
 
 ## Existing notebook (relevant excerpt)
 {{NOTEBOOK_EXCERPT}}
@@ -31,4 +32,4 @@ Return strict JSON only, no prose and no code fences:
 
 {"ops":[{"op":"add|update|supersede","entry_id":"(update/supersede only)","tags":["..."],"title":"short title","note":"what to remember and why it matters (max 600 chars)","hebrew_rendering":"chosen Hebrew, if any","match_terms":["..."],"scope":"global|local"}],
  "chapter_summary":"3-8 sentences summarising the plot/argument of THIS chapter",
- "story_so_far":"updated running summary of the whole book so far, at most {{STORY_WORDS}} words"}
+ "story_so_far":"updated running summary of the whole book so far, {{STORY_LENGTH}}"}

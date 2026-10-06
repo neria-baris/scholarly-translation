@@ -48,7 +48,7 @@ class BookNotebookTests(unittest.TestCase):
         op = add("T" * 500, tags=["  Word Play ", "a" * 100, "b", "c", "d", "e"],
                  note="n" * 2000, hebrew_rendering="h" * 999,
                  match_terms=["m%d" % i for i in range(40)] + [7])
-        nb, rep = bn.apply_keeper_response(self.nb, resp([op], summary="s" * 5000, story="t" * 9000), 2)
+        nb, rep = bn.apply_keeper_response(self.nb, resp([op], summary="s" * 5000, story="t" * (bn.MAX_STORY + 5000)), 2)
         bn.validate_notebook(nb)
         e = nb["entries"][0]
         self.assertEqual(len(e["title"]), bn.MAX_TITLE)
@@ -60,7 +60,19 @@ class BookNotebookTests(unittest.TestCase):
         self.assertEqual(len(e["match_terms"]), bn.MAX_MATCH_TERMS)
         self.assertEqual(len(nb["chapter_summaries"]["2"]), bn.MAX_SUMMARY)
         self.assertEqual(len(nb["story_so_far"]), bn.MAX_STORY)
+        self.assertTrue(any("story_so_far exceeded" in w for w in rep["warnings"]))
         self.assertEqual(rep["added"], 1)
+
+    def test_long_story_is_kept_whole_and_trimmed_not_dropped_in_excerpt(self):
+        story = " ".join("thread%d" % i for i in range(1500))   # ~13k chars, like a real novel summary
+        nb, _ = bn.apply_keeper_response(self.nb, resp([], story=story), 0)
+        self.assertEqual(nb["story_so_far"], story)
+        excerpt = bn.render_for_chapter(nb, "", token_budget=600, count_tokens=lambda t: len(t) // 4)
+        self.assertIn("STORY_SO_FAR:", excerpt)
+        self.assertIn("thread0 ", excerpt)
+        self.assertIn("thread1499", excerpt)
+        self.assertIn("omitted for length", excerpt)
+        self.assertLessEqual(len(excerpt) // 4, 600)
 
     def test_deterministic_ids_stable_across_updates(self):
         a, _ = bn.apply_keeper_response(self.nb, resp([add("Mr. Darcy", ["name", "character"])]), 0)

@@ -30,7 +30,7 @@ MAX_RENDERING = 200
 MAX_MATCH_TERMS = 12
 MAX_MATCH_TERM_LEN = 60
 MAX_SUMMARY = 1200
-MAX_STORY = 6000   # room for the default 600-word running summary
+MAX_STORY = 60000  # safety bound only; the summary keeps every thread the book needs
 SCOPES = ("global", "local")
 STATUSES = ("active", "superseded")
 ORIGINS = ("model", "human")
@@ -145,14 +145,15 @@ def validate_notebook(nb):
 # ---------------------------------------------------------------- prompt
 
 def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, chapter_index, profile_id,
-                        story_words=600):
+                        story_words=None):
     text = _PROMPT_PATH.read_text(encoding="utf-8")
     subs = {
         "PROFILE_ID": str(profile_id), "CHAPTER_INDEX": str(chapter_index),
         "SUGGESTED_TAGS": ", ".join(SUGGESTED_TAGS),
         "NOTEBOOK_EXCERPT": notebook_excerpt_text or "(empty)",
         "SOURCE_CHAPTER": source_chapter or "", "HEBREW_CHAPTER": hebrew_chapter or "",
-        "STORY_WORDS": str(int(story_words)),
+        "STORY_LENGTH": ("as long as the book needs to keep every thread" if not story_words
+                         else "at most %d words" % int(story_words)),
     }
     return re.sub(r"\{\{(" + "|".join(subs) + r")\}\}", lambda m: subs[m.group(1)], text)
 
@@ -213,7 +214,10 @@ def apply_keeper_response(notebook, raw_text, chapter_index):
         warn.append("chapter_summary invalid")
     sf = obj.get("story_so_far")
     if isinstance(sf, str) and sf.strip():
-        nb["story_so_far"] = " ".join(sf.split())[:MAX_STORY].strip()
+        story = " ".join(sf.split())
+        if len(story) > MAX_STORY:
+            warn.append("story_so_far exceeded %d characters and was shortened" % MAX_STORY)
+        nb["story_so_far"] = story[:MAX_STORY].strip()
     elif sf is not None:
         warn.append("story_so_far invalid")
     nb["revision"] += 1
@@ -387,10 +391,18 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
         body = header + ":\n" + ("\n".join(lines) if lines else "(no relevant entries)")
         return body + ("\n\n" + tail if tail else "") + "\n"
 
-    # Drop lowest priority first: story_so_far, then the previous summary.
+    # Never drop story_so_far (the keeper rebuilds it from this excerpt): shorten its
+    # middle, keeping the opening and the latest events; drop the previous summary last.
     tail_text = "\n\n".join(tail_parts)
+    story = notebook["story_so_far"]
     while counter(assemble([], tail_text)) > token_budget and tail_parts:
-        tail_parts.pop(0)
+        if story and len(story) > 400:
+            keep = int(len(story) * .8) // 2
+            story = story[:keep] + " [... earlier middle of the story omitted for length ...] " + story[-keep:]
+            tail_parts[0] = "STORY_SO_FAR:\n" + story
+        else:
+            tail_parts.pop()
+            story = ""
         tail_text = "\n\n".join(tail_parts)
     used = counter(assemble([], tail_text))
     lines = []

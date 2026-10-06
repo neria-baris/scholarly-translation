@@ -6,8 +6,11 @@ user job c69bb5fc stopped at chapter 30/64 because the book-notebook keeper outp
 was truncated at 4096 tokens; settle() held the call as uncertain and stopped the
 task; the job was invisible in the library. Implemented:
 - Keeper default output cap 4096 -> 16384 (bounded by role max output and usable
-  context / 3); story_so_far default 600 words (stored max 6000 chars); job
-  overrides keeper_output_cap and notebook_story_words.
+  context / 3). story_so_far has no word cap by default: the keeper is told to keep
+  every plot line/subplot and compress instead of dropping; stored safety bound
+  60000 chars (warned); notebook context budget 6000 -> 24000 tokens; an oversized
+  story is middle-trimmed in the excerpt, never dropped. Job overrides
+  keeper_output_cap and notebook_story_words (user "shorten" = 300 words).
 - ControlStore user actions (append-only events): user_settle (observed usage, else
   held worst case), user_resume, user_raise_limits (increase only). Integrity check
   takes the latest settlement per reservation; anomaly stops until user_resumed.

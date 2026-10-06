@@ -99,7 +99,7 @@ def diagnose(job, store, journal):
             if raised > used:
                 options.append(_option("raise_notebook_cap", "להגדיל את חלון הפלט של המחברת ל־%d טוקנים" % raised, raised))
             words = job["settings"].get("notebook_story_words") or DEFAULT_STORY_WORDS
-            if words > SHORT_STORY_WORDS:
+            if words is None or words > SHORT_STORY_WORDS:
                 options.append(_option("shorten_notebook", "לקצר את סיכום הספר ל־%d מילים לכל היותר" % SHORT_STORY_WORDS,
                                        SHORT_STORY_WORDS))
             options.append(_option("skip_notebook_chapter", "לדלג על עדכון המחברת בפרק זה"))

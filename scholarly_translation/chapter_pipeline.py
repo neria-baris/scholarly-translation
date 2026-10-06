@@ -425,10 +425,10 @@ def _pack_qa(records, qa_selection, configuration, profile_id, resolver, full_pr
 
 
 # --- LIT-NOTEBOOK: book notebook context and keeper step ---------------------
-BOOK_NOTEBOOK_TOKEN_BUDGET = 6000
+BOOK_NOTEBOOK_TOKEN_BUDGET = 24000
 BRIDGE_CHARS = 1200
 KEEPER_MAX_OUTPUT_TOKENS = 16384
-DEFAULT_STORY_WORDS = 600
+DEFAULT_STORY_WORDS = None   # no word cap unless the user chose one
 KEEPER_ROLES = ('context_state_builder', 'chapter_qa', 'translator')
 _KEEPER_STAGE = 'notebook'
 KEEPER_TOO_LARGE_NOTE = 'מחברת הספר לא עודכנה אחרי פרק %d: הפרק גדול מדי עבור מודל המחברת.'
@@ -478,7 +478,7 @@ def _bounded_keeper_prompt(source, hebrew, excerpt, chapter_index, profile_id, s
     return prompt, False
 
 def notebook_budget(selection):
-    """Notebook excerpt budget: up to 6000 tokens, at most 1/10 of the role's usable context."""
+    """Notebook excerpt budget: up to 24000 tokens, at most 1/10 of the role's usable context."""
     return max(300, min(BOOK_NOTEBOOK_TOKEN_BUDGET, selection.capabilities.usable_context_tokens // 10))
 
 def bridge_chars(selection):

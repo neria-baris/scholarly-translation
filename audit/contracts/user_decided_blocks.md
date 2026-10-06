@@ -13,8 +13,9 @@ web_ui routes, ui.html/ui.js/ui.css (library tabs, decision box).
 Owns:
 - Keeper output default cap 4096 -> 16384 (still bounded by role max output and
   usable context / 3). Job override `settings.keeper_output_cap`; story length
-  override `settings.notebook_story_words` (default 250, prompt text unchanged
-  at the default).
+  override `settings.notebook_story_words` (default: no word cap; the keeper keeps
+  every thread; stored bound 60000 chars; excerpt budget 24000 tokens; an oversized
+  story is middle-trimmed in the excerpt, never dropped).
 - ControlStore user actions, each append-only audited, never silent:
   `user_settle(task_id, event_id)` turns an `uncertain` reservation into
   `settled` at its observed list estimate when usage is known, else at its full
