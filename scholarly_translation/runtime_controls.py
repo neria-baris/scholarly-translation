@@ -226,16 +226,25 @@ class ControlStore:
                 or row["calls_settled"] != sum(r["state"] in ("settled", "uncertain") for r in reservations)
                 or row["reserved_nanos"] != sum(r["amount_nanos"] for r in reservations if r["state"] in ("reserved", "uncertain"))):
             raise StoreCorruptionError("task counters differ from durable reservations")
-        settlements = self._conn.execute("""SELECT e.observed_usd,e.outcome FROM events e JOIN reservations r
-            ON e.parent_event_id=r.event_id WHERE r.task_id=? AND r.state='settled'
-            AND e.outcome IN ('settled','anomaly_over_cap')""", (task_id,)).fetchall()
+        # A user_settled event supersedes the automatic settlement of the same reservation.
+        latest = {}
+        for e in self._conn.execute("""SELECT e.event_id,e.parent_event_id,e.observed_usd,e.outcome FROM events e
+                JOIN reservations r ON e.parent_event_id=r.event_id WHERE r.task_id=? AND r.state='settled'
+                AND e.outcome IN ('settled','anomaly_over_cap','user_settled') ORDER BY e.event_id""", (task_id,)):
+            latest[e["parent_event_id"]] = e
+        settlements = list(latest.values())
         try:
             spent = sum(_money(json.loads(e["observed_usd"])) for e in settlements)
         except (ValueError, TypeError):
             raise StoreCorruptionError("invalid persisted usage settlement") from None
+        # An over-cap anomaly keeps the task stopped until a later explicit user resume.
+        resumed = self._conn.execute("SELECT MAX(event_id) FROM events WHERE task_id=? AND outcome='user_resumed'",
+                                     (task_id,)).fetchone()[0] or 0
+        anomaly = self._conn.execute("SELECT 1 FROM events WHERE task_id=? AND outcome='anomaly_over_cap' AND event_id>?",
+                                     (task_id, resumed)).fetchone() is not None
         if (len(settlements) != sum(r["state"] == "settled" for r in reservations)
                 or spent != row["spent_nanos"]
-                or (any(r["state"] == "uncertain" for r in reservations) or any(e["outcome"] == "anomaly_over_cap" for e in settlements)) and not row["stopped"]):
+                or (any(r["state"] == "uncertain" for r in reservations) or anomaly) and not row["stopped"]):
             raise StoreCorruptionError("task spending or stop state differs from durable settlements")
         return row
 
@@ -331,6 +340,72 @@ class ControlStore:
             notices.append("provider_failure_or_reservation_anomaly_stop")
         notices.extend(f"budget_observed_{n}_percent" for n in (50, 80) if total / _money(task["hard_list_usd"], floor=True) >= n / 100)
         return notices
+
+    # --- explicit user decisions (never automatic) --------------------------
+
+    def uncertain_calls(self, task_id):
+        """Uncertain reservations with their settlement facts: ``known_usd`` is the
+        observed list estimate when the provider reported usage, else None."""
+        self._task(task_id)
+        calls = []
+        for res in self._conn.execute("SELECT * FROM reservations WHERE task_id=? AND state='uncertain' ORDER BY event_id", (task_id,)):
+            settlement = self._conn.execute("""SELECT * FROM events WHERE parent_event_id=? AND outcome IN
+                ('failed_held','stopped_not_metered','anomaly_over_cap') ORDER BY event_id DESC""", (res["event_id"],)).fetchone()
+            observed = json.loads(settlement["observed_usd"]) if settlement is not None else None
+            meta = json.loads(settlement["metadata_json"]) if settlement is not None else {}
+            calls.append({"event_id": res["event_id"], "stage": settlement["stage"] if settlement is not None else None,
+                          "held_usd": res["amount_nanos"] / SCALE,
+                          "known_usd": observed if type(observed) in (int, float) else None,
+                          "provider_outcome": meta.get("provider_outcome"), "token_usage": meta.get("token_usage")})
+        return calls
+
+    def user_settle(self, task_id, event_id):
+        """User accepts an uncertain call's charge: the observed list estimate when
+        usage is known, otherwise the whole held worst-case reservation."""
+        with self._transaction():
+            self._task(task_id)
+            res = self._conn.execute("SELECT * FROM reservations WHERE event_id=? AND task_id=?", (event_id, task_id)).fetchone()
+            if res is None or res["state"] != "uncertain":
+                raise RuntimeControlsError("not an uncertain reservation of this task")
+            call = next(c for c in self.uncertain_calls(task_id) if c["event_id"] == event_id)
+            # Spend exactly what the persisted float re-reads as (integrity sums re-parse it).
+            estimate = call["known_usd"] if call["known_usd"] is not None else res["amount_nanos"] / SCALE
+            charge = _money(estimate)
+            basis = "observed_usage" if call["known_usd"] is not None else "held_worst_case"
+            self._conn.execute("UPDATE tasks SET reserved_nanos=reserved_nanos-?,spent_nanos=spent_nanos+? WHERE task_id=?",
+                               (res["amount_nanos"], charge, task_id))
+            self._conn.execute("UPDATE reservations SET state='settled' WHERE event_id=?", (event_id,))
+            original = self._conn.execute("SELECT stage FROM events WHERE event_id=?", (event_id,)).fetchone()
+            self._event(task_id, original["stage"], "user_settled", {"basis": basis, "decided_by": "user"},
+                        estimate=estimate, parent=event_id)
+        return {"event_id": event_id, "charged_usd": charge / SCALE, "basis": basis}
+
+    def user_resume(self, task_id):
+        """User releases the stop flag; refused while any call is still uncertain."""
+        with self._transaction():
+            self._task(task_id)
+            if self._conn.execute("SELECT 1 FROM reservations WHERE task_id=? AND state='uncertain'", (task_id,)).fetchone():
+                raise RuntimeControlsError("an uncertain call must be decided before resuming")
+            self._event(task_id, "user-decision", "user_resumed", {"decided_by": "user"}, actual="no_provider_call")
+            self._conn.execute("UPDATE tasks SET stopped=0 WHERE task_id=?", (task_id,))
+
+    def user_raise_limits(self, task_id, *, max_calls=None, hard_list_usd=None):
+        """User raises the task's call count and/or list-price ceiling (never lowers)."""
+        with self._transaction():
+            row = self._task(task_id)
+            new_calls = row["max_calls"] if max_calls is None else max_calls
+            new_hard = row["hard_list_usd"] if hard_list_usd is None else float(hard_list_usd)
+            if (type(new_calls) is not int or new_calls < row["max_calls"] or new_hard < row["hard_list_usd"]
+                    or (new_calls, new_hard) == (row["max_calls"], row["hard_list_usd"])
+                    or not self._valid_policy(new_calls, new_hard, row["pricing_version"], row["output_cap"])):
+                raise RuntimeControlsError("limits can only be raised to valid values")
+            policy = _policy_fingerprint(new_calls, new_hard, row["pricing_version"], row["output_cap"])
+            self._event(task_id, "user-decision", "user_policy_raised",
+                        {"decided_by": "user", "max_calls": [row["max_calls"], new_calls],
+                         "hard_list_usd": [row["hard_list_usd"], new_hard]}, actual="no_provider_call")
+            self._conn.execute("UPDATE tasks SET max_calls=?,hard_list_usd=?,policy_fingerprint=? WHERE task_id=?",
+                               (new_calls, new_hard, policy, task_id))
+        return {"max_calls": new_calls, "hard_list_usd": new_hard}
 
     def cache_lookup(self, cache_key, expected=None):
         row = self._conn.execute("SELECT * FROM cache WHERE cache_key=?", (cache_key,)).fetchone()

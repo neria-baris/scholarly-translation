@@ -248,6 +248,19 @@ class WorkJournal:
             self._conn.execute("UPDATE steps SET status='received', error=NULL, updated_at=? WHERE identity=?",
                                (_now(), identity))
 
+    def reset_for_retry(self, identity):
+        """Explicit user decision only: a failed or outcome-unknown step may be
+        sent again. Returns the prior row (callers keep its raw evidence)."""
+        with self._transaction():
+            row = self._require_status(identity, ("failed", "unknown", "dispatched"))
+            prior = dict(row)
+            self._conn.execute(
+                "UPDATE steps SET status='planned', raw_json=NULL, raw_hash=NULL, event_id=NULL, error=?, updated_at=? "
+                "WHERE identity=?",
+                (("retry authorized by user after: " + str(row["error"] or row["status"]))[:4000], _now(), identity),
+            )
+        return prior
+
     def mark_failed(self, identity, error):
         with self._transaction():
             row = self._conn.execute("SELECT status FROM steps WHERE identity=?", (identity,)).fetchone()

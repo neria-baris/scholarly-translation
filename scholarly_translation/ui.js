@@ -363,7 +363,9 @@ function renderProcessing(){
     detail=currentJob.completed_units+' מתוך '+currentJob.total_units+' מקטעים הושלמו.';
     if(currentJob.chapter_progress)detail='פרק '+currentJob.chapter_progress.current+' מתוך '+currentJob.chapter_progress.total+'. '+detail;
   } else detail='מחלצים את הטקסט ומכינים את התרגום.';
-  $('processing-detail').textContent=(currentJob.error?currentJob.error+' ':'')+detail+' אפשר לחזור לחלון הזה בהמשך.';
+  const blocker=currentJob.blocker;
+  $('processing-detail').textContent=(currentJob.error&&!blocker?currentJob.error+' ':'')+detail+' אפשר לחזור לחלון הזה בהמשך.';
+  renderDecision(blocker);
   renderUsage('processing-usage');renderResumeKeyFields();
   if(currentJob.budget_status){
     $('processing-budget').hidden=false;
@@ -373,8 +375,40 @@ function renderProcessing(){
   } else $('processing-budget').hidden=true;
   const canPauseResume=currentJob.settings&&currentJob.settings.automation;
   $('pause-button').hidden=!(canPauseResume&&['translating','reviewing','queued','reading'].includes(currentJob.status));
-  $('resume-button').hidden=!(canPauseResume&&['paused','interrupted','failed'].includes(currentJob.status));
+  $('resume-button').hidden=!(canPauseResume&&!blocker&&['paused','interrupted','failed'].includes(currentJob.status));
   renderResumeKeyFields();
+}
+function renderDecision(blocker){
+  const box=$('decision-box'),options=$('decision-options');
+  const waiting=blocker&&['paused','interrupted','failed'].includes(currentJob.status);
+  box.hidden=!waiting;if(!waiting){options.replaceChildren();return}
+  if(box.dataset.rendered===JSON.stringify(blocker))return;
+  box.dataset.rendered=JSON.stringify(blocker);
+  $('decision-message').textContent=blocker.message;$('decision-error').hidden=true;
+  options.replaceChildren();
+  blocker.options.forEach((option,index)=>{
+    const row=document.createElement('div');row.className='decision-option';
+    if(option.input==='usd'){
+      row.innerHTML=`<label for="decision-input-${index}">${esc(option.label)}</label><input id="decision-input-${index}" type="number" min="0" step="0.01" inputmode="decimal" dir="ltr">
+        <button type="button" class="secondary-button">אישור והמשך</button>`;
+      row.querySelector('button').onclick=()=>decide(option,Number(row.querySelector('input').value),row.querySelector('button'));
+    } else {
+      row.innerHTML=`<button type="button" class="${index===0?'primary-button':'secondary-button'}">${esc(option.label)}</button>`;
+      row.querySelector('button').onclick=()=>decide(option,null,row.querySelector('button'));
+    }
+    options.append(row);
+  });
+}
+async function decide(option,value,button){
+  if(option.input==='usd'&&!(value>0)){$('decision-error').textContent='הזינו סכום בדולרים.';$('decision-error').hidden=false;return}
+  $('decision-error').hidden=true;
+  for(const control of $('decision-options').querySelectorAll('button,input'))control.disabled=true;
+  try{const result=await request('/document-decide',{job_id:currentJob.job_id,option:option.id,value:option.input?value:null});
+    currentJob={...result,settings:result.settings||currentJob.settings};delete $('decision-box').dataset.rendered;
+    renderProcessing();
+    if(!currentJob.blocker)await resumeJob();
+  }catch(error){$('decision-error').textContent=error.message;$('decision-error').hidden=false;
+    for(const control of $('decision-options').querySelectorAll('button,input'))control.disabled=false}
 }
 async function pauseJob(){
   try{currentJob=await request('/document-pause',{job_id:currentJob.job_id});renderProcessing()}
@@ -542,12 +576,53 @@ function renderLibrary(documents){
     list.append(item);
   });
 }
+const IN_PROGRESS_STATUS={failed:'נעצר',paused:'מושהה',interrupted:'הופסק',queued:'ממתין',reading:'קורא',translating:'מתרגם כעת',reviewing:'בבדיקה',rebuilding:'בונה את הקובץ'};
+function renderInProgress(documents){
+  const list=$('library-list');list.replaceChildren();
+  $('library-empty').hidden=documents.length>0;
+  documents.forEach((doc,index)=>{
+    const kind=doc.source_kind==='epub'?'epub':'pdf',detailId='library-detail-'+index;
+    const item=document.createElement('li');item.className='library-item in-progress';item.dataset.jobId=doc.job_id;
+    const parts=[IN_PROGRESS_STATUS[doc.status]||doc.status];
+    if(doc.total_chapters)parts.push('פרק '+doc.completed_chapters+' מתוך '+doc.total_chapters);
+    parts.push(doc.translated_units+' מתוך '+doc.total_units+' מקטעים');
+    if(doc.spent_usd!=null)parts.push('$'+Number(doc.spent_usd).toFixed(4)+(doc.budget_usd?' מתוך $'+Number(doc.budget_usd).toFixed(2):''));
+    const notice=doc.blocker?`<p class="library-blocker">${esc(doc.blocker.message)}</p>`:(doc.error?`<p class="library-blocker">${esc(doc.error)}</p>`:'');
+    const fontField=kind==='pdf'&&doc.formats.length?`<div class="field library-font"><label for="library-font-${index}">גופן להורדה</label><select id="library-font-${index}" class="library-font-select">${libraryFontOptions(null)}</select></div>`:'';
+    const downloads=doc.formats.length?`<button type="button" class="secondary-button library-download" data-format="${kind}" data-partial="1">הורדה חלקית ${kind.toUpperCase()} <span aria-hidden="true">↓</span></button>
+      <button type="button" class="secondary-button library-download" data-format="html" data-partial="1">HTML חלקי <span aria-hidden="true">↓</span></button>`:'';
+    item.innerHTML=`<button type="button" class="library-entry" aria-expanded="false" aria-controls="${detailId}">
+      <span class="library-kind" data-kind="${kind}">${kind.toUpperCase()}</span>
+      <span class="library-entry-text"><strong dir="auto">${esc(doc.filename)}</strong><span class="library-meta">${esc(libraryDate(doc.updated_at))} · ${esc(parts.join(' · '))}</span>${doc.blocker?'<span class="library-flag">נדרשת החלטה</span>':''}</span>
+      <span class="chevron" aria-hidden="true">⌄</span></button>
+      <div id="${detailId}" class="library-detail" hidden>${notice}${fontField}
+      <div class="library-actions"><button type="button" class="primary-button library-open">${doc.blocker?'פתיחה והחלטה':'פתיחה והמשך'} <span aria-hidden="true">←</span></button>${downloads}</div>
+      ${doc.formats.length?'<p class="library-partial-note">בהורדה חלקית, מה שעדיין לא תורגם נשאר בשפת המקור.</p>':''}
+      <p class="message library-error" role="alert" hidden></p></div>`;
+    const entry=item.querySelector('.library-entry'),detail=item.querySelector('.library-detail');
+    entry.onclick=()=>{const open=entry.getAttribute('aria-expanded')!=='true';entry.setAttribute('aria-expanded',String(open));detail.hidden=!open;item.classList.toggle('open',open)};
+    item.querySelectorAll('.library-download').forEach(button=>button.onclick=()=>libraryDownload(doc,button,item));
+    item.querySelector('.library-open').onclick=()=>libraryOpen(doc);
+    list.append(item);
+  });
+}
+let libraryTab='done';
+function setLibraryTab(tab){
+  libraryTab=tab;
+  $('library-tab-done').setAttribute('aria-selected',String(tab==='done'));
+  $('library-tab-progress').setAttribute('aria-selected',String(tab==='progress'));
+  $('library-intro').textContent=tab==='done'?'כל המסמכים שתרגומם הושלם ונשמר במחשב שלכם. לחצו על מסמך כדי להוריד אותו.':
+    'תרגומים שעדיין לא הושלמו: אפשר להמשיך אותם, להחליט מה לעשות כשהם נעצרו, ולהוריד את מה שכבר תורגם.';
+  $('library-empty').textContent=tab==='done'?'עדיין אין בספרייה תרגומים שהושלמו. מסמך שתרגומו יושלם יופיע כאן.':'אין כרגע תרגומים בתהליך עבודה.';
+  loadLibrary();
+}
 async function loadLibrary(){
-  const id=++libraryCounter;
+  const id=++libraryCounter,tab=libraryTab;
   $('library-message').hidden=true;$('library-empty').hidden=true;$('library-list').replaceChildren();
   $('library-status').textContent='טוען את הספרייה…';
-  try{const result=await request('/document-library',{});if(id!==libraryCounter)return;
-    $('library-status').textContent='';renderLibrary(Array.isArray(result.documents)?result.documents:[]);
+  try{const result=await request(tab==='done'?'/document-library':'/document-in-progress',{});if(id!==libraryCounter)return;
+    $('library-status').textContent='';const documents=Array.isArray(result.documents)?result.documents:[];
+    (tab==='done'?renderLibrary:renderInProgress)(documents);
   }catch(error){if(id!==libraryCounter)return;$('library-status').textContent='';$('library-message').textContent=error.message;$('library-message').hidden=false}
 }
 function openLibrary(){
@@ -565,10 +640,11 @@ function closeLibrary(){
 async function libraryDownload(doc,button,item){
   const format=button.dataset.format,error=item.querySelector('.library-error'),select=item.querySelector('.library-font-select');
   error.hidden=true;button.disabled=true;
-  try{const payload={job_id:doc.job_id,format};
-    if(doc.source_kind!=='epub'&&select&&select.value)payload.font_id=select.value;
+  try{const payload={job_id:doc.job_id,format},partial=button.dataset.partial==='1';
+    if(partial)payload.partial=true;
+    if(format!=='epub'&&select&&select.value)payload.font_id=select.value;
     const blob=await request('/document-download',payload,true);
-    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=libraryStem(doc.filename)+'.he.'+format;
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=libraryStem(doc.filename)+(partial?'.he.partial.':'.he.')+format;
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(caught){error.textContent=caught.message;error.hidden=false}finally{button.disabled=false}
 }
@@ -616,6 +692,7 @@ $('sample-button').onclick=sample;$('download-pdf').onclick=download;$('download
 $('save-keys').onclick=saveKeys;$('pause-button').onclick=pauseJob;$('resume-button').onclick=resumeJob;
 $('resume-save-keys').onclick=saveResumeKeys;
 $('library-button').onclick=openLibrary;$('library-start-button').onclick=openLibrary;$('library-back').onclick=closeLibrary;
+$('library-tab-done').onclick=()=>setLibraryTab('done');$('library-tab-progress').onclick=()=>setLibraryTab('progress');
 $('font-before').addEventListener('change',schedulePreview);
 $('review-button').onclick=()=>{if($('review-panel').hidden){$('review-panel').hidden=false;renderReview();$('review-panel').scrollIntoView({behavior:'smooth',block:'start'})}else if(confirmDiscard())$('review-panel').hidden=true};
 $('close-review').onclick=()=>{if(confirmDiscard())$('review-panel').hidden=true};

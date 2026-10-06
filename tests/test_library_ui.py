@@ -68,12 +68,12 @@ class LibraryUiStaticTests(unittest.TestCase):
         self.assertEqual(panels, ["start-panel", "processing-panel", "result-panel", "library-panel"])
 
     def test_routes_and_formats(self):
-        self.assertIn("request('/document-library',{})", self.js)
+        self.assertIn("request(tab==='done'?'/document-library':'/document-in-progress',{})", self.js)
         self.assertIn("request('/document-download',payload,true)", self.js)
         self.assertIn('data-format="html"', self.js)
         self.assertIn('data-format="${kind}"', self.js)
         self.assertIn("payload={job_id:doc.job_id,format}", self.js)
-        self.assertIn("'.he.'+format", self.js)
+        self.assertIn("(partial?'.he.partial.':'.he.')+format", self.js)
         for label in ("הורדת HTML", "הורדת ${kind.toUpperCase()}", "פתיחה"):
             self.assertIn(label, self.js)
 

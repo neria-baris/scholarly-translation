@@ -31,4 +31,4 @@ Return strict JSON only, no prose and no code fences:
 
 {"ops":[{"op":"add|update|supersede","entry_id":"(update/supersede only)","tags":["..."],"title":"short title","note":"what to remember and why it matters (max 600 chars)","hebrew_rendering":"chosen Hebrew, if any","match_terms":["..."],"scope":"global|local"}],
  "chapter_summary":"3-8 sentences summarising the plot/argument of THIS chapter",
- "story_so_far":"updated running summary of the whole book so far, at most 250 words"}
+ "story_so_far":"updated running summary of the whole book so far, at most {{STORY_WORDS}} words"}

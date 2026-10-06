@@ -216,7 +216,8 @@ class LitNotebookTests(unittest.TestCase):
                 self.assertEqual(row['calls'], 1)
                 self.assertGreater(row['conservative_cost_usd'], 0)
                 self.assertEqual(with_keeper['notebook_keeper']['role'], 'chapter_qa')
-                self.assertEqual(with_keeper['notebook_keeper']['call_output_cap'], 4096)
+                self.assertEqual(with_keeper['notebook_keeper']['call_output_cap'],
+                                 pipeline.keeper_output_cap(self.config.resolve('chapter_qa')[0]))
                 self.assertNotIn('notebook_keeper', without['role_usage'])
                 self.assertGreater(with_keeper['conservative_total_ceiling_usd'], without['conservative_total_ceiling_usd'])
                 self.assertGreater(with_keeper['expected_total_cost_usd'], without['expected_total_cost_usd'])

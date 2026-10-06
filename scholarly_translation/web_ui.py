@@ -179,6 +179,42 @@ def _document_library(document_jobs) -> list[dict]:
     return documents
 
 
+def _document_in_progress(document_jobs) -> list[dict]:
+    """Unfinished automation jobs with saved work, newest first: progress, spend
+    and the current block (if any). No source text or local paths."""
+    try:
+        stamped = sorted(((c.stat().st_mtime, c) for c in document_jobs.root.glob("*/job.json")), reverse=True)
+    except OSError:
+        return []
+    documents = []
+    for mtime, candidate in stamped:
+        if len(documents) >= MAX_LIBRARY_DOCUMENTS:
+            break
+        try:
+            job = document_jobs.get(candidate.parent.name)
+            settings = job.get("settings") if isinstance(job.get("settings"), dict) else {}
+            if job.get("status") == "completed" or not settings.get("automation") or not job.get("structure"):
+                continue
+            source_kind = job.get("source_kind", "pdf")
+            units = job.get("units") if isinstance(job.get("units"), list) else []
+            progress = job.get("progress") if isinstance(job.get("progress"), dict) else {}
+            blocker = document_jobs.blocker(job["job_id"], job)
+            budget = job.get("budget_status") or {}
+            documents.append({
+                "job_id": job["job_id"], "filename": Path(job.get("filename") or "document").name,
+                "source_kind": source_kind, "status": job.get("status"), "updated_at": mtime,
+                "error": None if blocker else job.get("error"),
+                "translated_units": len(units), "total_units": len(job["structure"].get("units", [])),
+                "completed_chapters": progress.get("completed_chapters"), "total_chapters": progress.get("total_chapters"),
+                "spent_usd": budget.get("list_estimated_spent_usd"), "budget_usd": settings.get("budget_usd"),
+                "blocker": {"kind": blocker["kind"], "message": blocker["message"]} if blocker else None,
+                "formats": [source_kind, "html"] if units else [],
+            })
+        except (ValueError, TypeError, KeyError, AttributeError, OSError):
+            continue
+    return documents
+
+
 def make_handler(token: str, model_config_path: str | None = None):
     from .document_draft import (
         DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download, validate_settings,
@@ -475,7 +511,16 @@ def make_handler(token: str, model_config_path: str | None = None):
                     self._json(200, document_jobs.start(source, settings, paid_confirm=data.get("paid_confirm"),
                                                          adapter_factory=adapter_factory))
                 elif route.path == "/document-job":
-                    self._json(200, document_jobs.get(data.get("job_id")))
+                    job = document_jobs.get(data.get("job_id"))
+                    job["blocker"] = document_jobs.blocker(job["job_id"], job)
+                    self._json(200, job)
+                elif route.path == "/document-decide":
+                    value = data.get("value")
+                    if value is not None and (type(value) not in (int, float) or isinstance(value, bool)):
+                        raise DocumentDraftError("ערך ההחלטה אינו תקין.")
+                    self._json(200, document_jobs.decide(data.get("job_id"), data.get("option"), value))
+                elif route.path == "/document-in-progress":
+                    self._json(200, {"documents": _document_in_progress(document_jobs)})
                 elif route.path == "/document-pause":
                     self._json(200, document_jobs.pause(data.get("job_id")))
                 elif route.path == "/document-resume":
@@ -558,7 +603,8 @@ def make_handler(token: str, model_config_path: str | None = None):
                                data.get("target_text"), data.get("expected_revision")))
                 elif route.path == "/document-download":
                     job = document_jobs.get(data.get("job_id"))
-                    if job["status"] != "completed":
+                    partial = data.get("partial") is True
+                    if job["status"] != "completed" and not partial:
                         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
                     source_kind = job.get("source_kind", "pdf")
                     requested = data.get("format")
@@ -575,11 +621,11 @@ def make_handler(token: str, model_config_path: str | None = None):
                         }:
                             raise DocumentDraftError("בחרו פונט PDF זמין מהרשימה.")
                     source_path = document_jobs.source_path(job["job_id"], "epub") if kind == "epub" else None
-                    body = render_download(job, kind, source_path=source_path, font_id=font_id)
+                    body = render_download(job, kind, source_path=source_path, font_id=font_id, partial=partial)
                     content_type = {"epub": "application/epub+zip", "html": "text/html; charset=utf-8"}.get(kind, "application/pdf")
                     self.send_response(200)
                     self.send_header("Content-Type", content_type)
-                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + f".he.{kind}"))
+                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + (".he.partial" if partial else ".he") + f".{kind}"))
                     self.send_header("Content-Length", str(len(body)))
                     self.send_header("Cache-Control", "no-store")
                     self.send_header("X-Content-Type-Options", "nosniff")

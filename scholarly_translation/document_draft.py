@@ -35,7 +35,7 @@ from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import chapter_pipeline
+from . import chapter_pipeline, job_blocks
 from . import context_strategy, document_state as document_state_module
 from . import epub_extract, pdf_extract, segmentation
 from .work_journal import WorkJournal
@@ -403,7 +403,15 @@ def _build_translations_mapping(units):
     }
 
 
-def render_download(job, kind, source_path=None, font_id=None):
+def _partial_translations_mapping(job):
+    """Translated units plus every not-yet-translated unit in its source text."""
+    translations = _build_translations_mapping(job["units"])
+    for unit in job["structure"]["units"]:
+        translations.setdefault(unit["unit_id"], {"text": unit["text"], "approved": False, "status": "untranslated"})
+    return translations
+
+
+def render_download(job, kind, source_path=None, font_id=None, partial=False):
     """Rebuild the translated document from the job's current (possibly
     human-edited) unit texts; never a frozen completion-time snapshot.
 
@@ -420,9 +428,15 @@ def render_download(job, kind, source_path=None, font_id=None):
     """
     if kind != "html" and kind != job.get("source_kind", "pdf"):
         raise DocumentDraftError("סוג הורדה לא תואם את קובץ המקור.")
-    if job["status"] not in ("completed",) or not job.get("units"):
+    if partial:
+        if job["status"] == "completed" or not job.get("units") or not job.get("structure"):
+            raise DocumentDraftError("אין תרגום חלקי להורדה.")
+        translations = (_build_translations_mapping(job["units"]) if kind == "epub"
+                        else _partial_translations_mapping(job))
+    elif job["status"] not in ("completed",) or not job.get("units"):
         raise DocumentDraftError("עדיין אין תוצאה להורדה.")
-    translations = _build_translations_mapping(job["units"])
+    else:
+        translations = _build_translations_mapping(job["units"])
     if kind == "html":
         from .export_html import export_html as _export_html
         try:
@@ -904,6 +918,42 @@ class DocumentJobs:
         chapter_pipeline.execute_document_chapters(job, structure, glossary, units, configuration,
             store, self._folder(job["job_id"]), self._persist,
             self._job_adapter_factories.get(job["job_id"], self.adapter_factory))
+
+    def blocker(self, job_id, job=None):
+        """Why this automation job cannot continue and the user's choices, or None."""
+        job = job or self.get(job_id)
+        folder = self._folder(job_id)
+        controls, journal_path = folder / "controls.sqlite3", folder / "journal.sqlite3"
+        if not job.get("settings", {}).get("automation") or not controls.is_file() or not journal_path.is_file():
+            return None
+        try:
+            with ControlStore(controls, create=False) as store, WorkJournal(journal_path, create=False) as journal:
+                return job_blocks.diagnose(job, store, journal)
+        except (RuntimeControlsError, ValueError):
+            return None
+
+    def decide(self, job_id, option_id, value=None):
+        """Apply the user's explicit choice for the current block. Sends nothing;
+        the caller resumes afterwards."""
+        folder = self._folder(job_id)
+        controls, journal_path = folder / "controls.sqlite3", folder / "journal.sqlite3"
+        with self.lock:
+            if self.active is not None:
+                raise DocumentDraftError("מסמך מתורגם כרגע. המתינו לסיום או השהו אותו.")
+            job = self.get(job_id)
+            if job["status"] == "completed" or not controls.is_file() or not journal_path.is_file():
+                raise DocumentDraftError("אין חסימה שדורשת החלטה בעבודה זו.")
+            try:
+                with ControlStore(controls, create=True) as store, WorkJournal(journal_path, create=False) as journal:
+                    job_blocks.apply_decision(job, store, journal, option_id, value)
+            except job_blocks.BlockDecisionError as exc:
+                raise DocumentDraftError(str(exc)) from None
+            for transient in ("budget_status", "remaining_budget_usd", "estimated_cost_usd"):
+                job.pop(transient, None)
+            self._persist(job)
+        job = self.get(job_id)
+        job["blocker"] = self.blocker(job_id, job)
+        return job
 
     def pause(self, job_id):
         """Request a safe pause of a running automation job: the in-flight

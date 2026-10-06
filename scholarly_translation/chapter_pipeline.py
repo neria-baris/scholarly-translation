@@ -427,7 +427,8 @@ def _pack_qa(records, qa_selection, configuration, profile_id, resolver, full_pr
 # --- LIT-NOTEBOOK: book notebook context and keeper step ---------------------
 BOOK_NOTEBOOK_TOKEN_BUDGET = 6000
 BRIDGE_CHARS = 1200
-KEEPER_MAX_OUTPUT_TOKENS = 4096
+KEEPER_MAX_OUTPUT_TOKENS = 16384
+DEFAULT_STORY_WORDS = 250
 KEEPER_ROLES = ('context_state_builder', 'chapter_qa', 'translator')
 _KEEPER_STAGE = 'notebook'
 KEEPER_TOO_LARGE_NOTE = 'מחברת הספר לא עודכנה אחרי פרק %d: הפרק גדול מדי עבור מודל המחברת.'
@@ -448,8 +449,11 @@ def resolve_keeper_role(configuration):
             continue
     raise ChapterPipelineError('all required translator and QA roles must be configured')
 
-def keeper_output_cap(selection):
-    return min(selection.capabilities.max_output_tokens or KEEPER_MAX_OUTPUT_TOKENS, KEEPER_MAX_OUTPUT_TOKENS,
+def keeper_output_cap(selection, override=None):
+    """Keeper output bound; ``override`` is a user decision (job setting) that may
+    exceed the default but never the role's own output or context limits."""
+    wanted = override or KEEPER_MAX_OUTPUT_TOKENS
+    return min(selection.capabilities.max_output_tokens or wanted, wanted,
                max(512, selection.capabilities.usable_context_tokens // 3))
 
 def _middle_trim(text, limit):
@@ -459,14 +463,15 @@ def _middle_trim(text, limit):
     head = keep // 2
     return text[:head] + _OMIT_MARKER + (text[len(text) - (keep - head):] if keep - head else '')
 
-def _bounded_keeper_prompt(source, hebrew, excerpt, chapter_index, profile_id, selection, cap):
+def _bounded_keeper_prompt(source, hebrew, excerpt, chapter_index, profile_id, selection, cap,
+                           story_words=DEFAULT_STORY_WORDS):
     """Keeper prompt that fits the keeper role; the middle of the chapter source and
     Hebrew is trimmed (deterministically) when needed. Returns ``(prompt, fits)``."""
     src_limit, heb_limit = len(source), len(hebrew)
     prompt = ''
     for _ in range(16):
         prompt = bn.build_keeper_prompt(excerpt, _middle_trim(source, src_limit), _middle_trim(hebrew, heb_limit),
-                                        chapter_index, profile_id)
+                                        chapter_index, profile_id, story_words)
         if _fits(prompt, selection, cap):
             return prompt, True
         src_limit, heb_limit = int(src_limit * .7), int(heb_limit * .7)
@@ -532,10 +537,12 @@ def _run_keeper(job, key, index, records, configuration, profile, store, journal
     hebrew = '\n\n'.join(r['target_text'] for r in records)
     role = resolve_keeper_role(configuration)
     selection, _ = configuration.resolve(role)
-    cap = keeper_output_cap(selection)
+    settings = job.get('settings', {})
+    cap = keeper_output_cap(selection, settings.get('keeper_output_cap'))
     notebook = job['book_notebook']
     excerpt = bn.render_for_chapter(notebook, source, notebook_budget(selection), lambda t: _ub(t))
-    prompt, fits = _bounded_keeper_prompt(source, hebrew, excerpt, index, profile, selection, cap)
+    prompt, fits = _bounded_keeper_prompt(source, hebrew, excerpt, index, profile, selection, cap,
+                                          settings.get('notebook_story_words') or DEFAULT_STORY_WORDS)
     report = None
     if not fits:
         _keeper_note(job, '\u05de\u05d7\u05d1\u05e8\u05ea \u05d4\u05e1\u05e4\u05e8 \u05dc\u05d0 \u05e2\u05d5\u05d3\u05db\u05e0\u05d4 \u05d0\u05d7\u05e8\u05d9 \u05e4\u05e8\u05e7 %d: \u05d4\u05e4\u05e8\u05e7 \u05d2\u05d3\u05d5\u05dc \u05de\u05d3\u05d9 \u05e2\u05d1\u05d5\u05e8 \u05de\u05d5\u05d3\u05dc \u05d4\u05de\u05d7\u05d1\u05e8\u05ea.' % (index + 1))
@@ -1139,7 +1146,7 @@ def _job_chapter_groups(job, structure, glossary, units, configuration, quality,
 def execute_document_chapters(job, structure, glossary, units, configuration, store, folder, persist, adapter_factory=None):
     job_id, quality, profile = job['job_id'], job['settings']['quality'], job['settings']['profile']
     groups = _job_chapter_groups(job, structure, glossary, units, configuration, quality, profile)
-    hard, max_calls = job['settings']['budget_usd'], len(units)*8+16
+    hard, max_calls = job['settings']['budget_usd'], job['settings'].get('max_calls') or len(units)*8+16
     shared_cap = max(sel.capabilities.max_output_tokens or 4096 for sel in configuration.models.values())
     # Persist plans before sending anything. Preview assumptions are revisited
     # against real Hebrew before QA, within the user's original ceiling.

@@ -60,6 +60,13 @@
 <div class="key-fields" id="resume-key-fields"></div>
 <div class="field"><button id="resume-save-keys" type="button" class="secondary-button">שמירת מפתחות API</button><span id="resume-key-message" class="key-message" role="status"></span></div>
 </div>
+<div id="decision-box" class="decision-box" role="region" aria-labelledby="decision-title" hidden>
+<h2 id="decision-title">נדרשת החלטה שלכם כדי להמשיך</h2>
+<p id="decision-message"></p>
+<div id="decision-options" class="decision-options"></div>
+<p class="decision-note">ההחלטה נרשמת ביומן העלויות. שום קריאה לספק לא נשלחת עד שהעבודה ממשיכה.</p>
+<p id="decision-error" class="message" role="alert" hidden></p>
+</div>
 <div class="processing-actions"><button id="pause-button" class="secondary-button" hidden>השהיה</button><button id="resume-button" class="secondary-button" hidden>המשך</button></div>
 </section>
 <section id="result-panel" hidden aria-labelledby="result-title">
@@ -81,7 +88,8 @@
 <div class="result-bottom"><button id="new-document" class="text-button">← תרגום מסמך נוסף</button><p>טיוטה אוטומטית; אפשר להוריד מיד, ואפשר לבדוק קודם.</p></div>
 </section>
 <section id="library-panel" class="library-panel" aria-labelledby="library-title" hidden>
-<div class="library-heading"><span class="eyebrow">הספרייה</span><h1 id="library-title" tabindex="-1">התרגומים שלכם</h1><p>כל המסמכים שתרגומם הושלם ונשמר במחשב שלכם. לחצו על מסמך כדי להוריד אותו.</p></div>
+<div class="library-heading"><span class="eyebrow">הספרייה</span><h1 id="library-title" tabindex="-1">התרגומים שלכם</h1><p id="library-intro">כל המסמכים שתרגומם הושלם ונשמר במחשב שלכם. לחצו על מסמך כדי להוריד אותו.</p>
+<div class="library-tabs" role="tablist" aria-label="סוג המסמכים בספרייה"><button type="button" role="tab" id="library-tab-done" class="library-tab" aria-selected="true" aria-controls="library-list">מוכנים</button><button type="button" role="tab" id="library-tab-progress" class="library-tab" aria-selected="false" aria-controls="library-list">בתהליך עבודה</button></div></div>
 <div class="library-card">
 <p id="library-status" class="library-status" role="status"></p>
 <p id="library-message" class="message" role="alert" hidden></p>

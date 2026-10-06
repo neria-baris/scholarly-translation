@@ -144,13 +144,15 @@ def validate_notebook(nb):
 
 # ---------------------------------------------------------------- prompt
 
-def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, chapter_index, profile_id):
+def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, chapter_index, profile_id,
+                        story_words=250):
     text = _PROMPT_PATH.read_text(encoding="utf-8")
     subs = {
         "PROFILE_ID": str(profile_id), "CHAPTER_INDEX": str(chapter_index),
         "SUGGESTED_TAGS": ", ".join(SUGGESTED_TAGS),
         "NOTEBOOK_EXCERPT": notebook_excerpt_text or "(empty)",
         "SOURCE_CHAPTER": source_chapter or "", "HEBREW_CHAPTER": hebrew_chapter or "",
+        "STORY_WORDS": str(int(story_words)),
     }
     return re.sub(r"\{\{(" + "|".join(subs) + r")\}\}", lambda m: subs[m.group(1)], text)
 

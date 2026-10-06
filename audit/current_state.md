@@ -1,42 +1,34 @@
 # Current state
-Updated: 2026-10-06T00:23:03+03:00 | LEARN-PROMPTS + WORDLISTS delivered; push verified
+Updated: 2026-10-06 | BLOCK-DECISIONS integrated (Claude continuity, user-directed)
 
-Prior product fix preserved: b56df6b (Claude; untranslatable units no longer block
-translation). Its checkpoint reports 803 tests OK and no provider calls, not rerun
-by this task. Next product action: user restarts UI and resumes the stuck job.
-The fix accepts non-Hebrew targets only for non-translatable URL/email/domain/digit
-units and revalidates preserved completed responses locally without resend.
+BLOCK-DECISIONS (contract audit/contracts/user_decided_blocks.md, base 9898011):
+user job c69bb5fc stopped at chapter 30/64 because the book-notebook keeper output
+was truncated at 4096 tokens; settle() held the call as uncertain and stopped the
+task; the job was invisible in the library. Implemented:
+- Keeper default output cap 4096 -> 16384 (bounded by role max output and usable
+  context / 3); job overrides keeper_output_cap and notebook_story_words.
+- ControlStore user actions (append-only events): user_settle (observed usage, else
+  held worst case), user_resume, user_raise_limits (increase only). Integrity check
+  takes the latest settlement per reservation; anomaly stops until user_resumed.
+- Journal reset_for_retry (explicit decision only; prior raw kept in job retry_history).
+- job_blocks.diagnose/apply_decision: notebook_truncated (raise cap / shorten story /
+  skip chapter), failed_call, unknown_outcome, over_cap_anomaly, stopped, call_limit,
+  budget_limit. Decisions never send; resume is the only sender.
+- UI: library tabs "מוכנים" / "בתהליך עבודה"; in-progress entries with progress,
+  spend, blocker, partial PDF/EPUB/HTML download; decision box in processing panel
+  that applies the choice then resumes.
+Evidence: 816 offline tests OK; offline replay of a copy of c69bb5fc reaches the
+chapter-30 keeper call with cap 16384 after raise_notebook_cap; live loopback smoke
+on a copy lists it in progress (29/64 chapters, 213/378 units, $0.2244), offers the
+three notebook options and serves partial EPUB/HTML. Not verified: real browser
+click-through of the new tab/decision box. No provider calls.
 
-Current task: prompt package plus 500 word candidates per requested language:
-fr/de/es/yi/it (2500 total). Index LANGUAGE_LEARNING_PROMPTS_HE.md; contract
-audit/contracts/language_learning_prompt_package.md; seven conductor/shared/A/B/C/D/
-runtime prompts; wordlists/ README, five lists, JSON and reproduction helper.
-User authorizes >2 agents for this extension: three disjoint builders after frozen
-bootstrap, sequential A->B->C integration, then service/UI. No workers launched and
-no product implementation performed. The proposed first slice is French, not an
-explicit chosen pilot; data files alone don't establish language support.
+Earlier today: b56df6b and 9898011 fixed untranslatable (URL-only) units blocking
+translation and review. Side project LEARN-PROMPTS/WORDLISTS delivered separately
+(f675162, 5a46350); user asked to keep it out of this product line of work.
 
-Completion "קראתי" commits accumulated learner/language state exactly once;
-within-book projected state stays separate. Next book inherits effort/support and
-all prior introduced words/grammar. Hebrew EPUB and library-copy inputs converge;
-separate window, one Luna role with recap in same call, no critic/quizzes/mastery
-claims. Runtime requires user budget/authorization and current memory-only keys.
+Gate10 remains blocked on genuine sources/references, runtime authorization and
+expert judgments. Existing unrelated builder worktrees and outputs preserved.
 
-LEARN-PROMPTS/WORDLISTS checks passed: 15 UTF-8 documents, 15 local links, runtime
-JSON shape, disjoint ownership, 5x500 unique forms, ranks/counts, Yiddish Unicode
-marks and byte-identical offline regeneration. CC-BY-SA-4.0 source/license/change
-notices included. Sources pinned: FrequencyWords 525f9b560de45753a5ea01069454e72e9aa541c6
-and Wiktionary yi oldid71268025. Corpus-biased forms, not a universal usefulness
-ranking or ready Hebrew-gloss/grammar catalog. No paid model/runtime calls; Sol
-internal usage unknown. No product tests rerun for this delivery.
-
-Git initially stopped on concurrent changes. Owner committed them separately as
-b56df6b; fresh fetch reconciled the tree; delivery committed intended package/data/audits only.
-Delivery f675162c4a29a80d8ddcc6681ae31d8f81d0d02a pushed; fresh fetch verified
-main == origin/main and clean tree. Separate receipt records this hash. All unrelated
-worktrees/outputs preserved. Prior automation/library acceptance and Gate10 quality
-blockers remain: genuine examples, runtime credentials/authorization and judgments.
-No new language-quality/pedagogical/release claim.
-
-Next exact action: deliver links, then await user instruction to build. Later user-authorized
-execution starts at prompts/language_learning/00_conductor.md with frozen bootstrap.
+Next exact action: user restarts the UI, opens Library -> "בתהליך עבודה", chooses an
+option for Jade City and resumes; then await user direction.
