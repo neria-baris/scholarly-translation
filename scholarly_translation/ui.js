@@ -567,12 +567,14 @@ function renderLibrary(documents){
       <div id="${detailId}" class="library-detail" hidden>${fontField}
       <div class="library-actions"><button type="button" class="primary-button library-download" data-format="${kind}">הורדת ${kind.toUpperCase()} <span aria-hidden="true">↓</span></button>
       <button type="button" class="secondary-button library-download" data-format="html">הורדת HTML <span aria-hidden="true">↓</span></button>
-      <button type="button" class="text-button library-open">פתיחה <span aria-hidden="true">←</span></button></div>
+      <button type="button" class="text-button library-open">פתיחה <span aria-hidden="true">←</span></button>
+      <button type="button" class="text-button library-delete">מחיקה</button></div>
       <p class="message library-error" role="alert" hidden></p></div>`;
     const entry=item.querySelector('.library-entry'),detail=item.querySelector('.library-detail');
     entry.onclick=()=>{const open=entry.getAttribute('aria-expanded')!=='true';entry.setAttribute('aria-expanded',String(open));detail.hidden=!open;item.classList.toggle('open',open)};
     item.querySelectorAll('.library-download').forEach(button=>button.onclick=()=>libraryDownload(doc,button,item));
     item.querySelector('.library-open').onclick=()=>libraryOpen(doc);
+    item.querySelector('.library-delete').onclick=()=>libraryDelete(doc,item,false);
     list.append(item);
   });
 }
@@ -596,15 +598,28 @@ function renderInProgress(documents){
       <span class="library-entry-text"><strong dir="auto">${esc(doc.filename)}</strong><span class="library-meta">${esc(libraryDate(doc.updated_at))} · ${esc(parts.join(' · '))}</span>${doc.blocker?'<span class="library-flag">נדרשת החלטה</span>':''}</span>
       <span class="chevron" aria-hidden="true">⌄</span></button>
       <div id="${detailId}" class="library-detail" hidden>${notice}${fontField}
-      <div class="library-actions"><button type="button" class="primary-button library-open">${doc.blocker?'פתיחה והחלטה':'פתיחה והמשך'} <span aria-hidden="true">←</span></button>${downloads}</div>
+      <div class="library-actions"><button type="button" class="primary-button library-open">${doc.blocker?'פתיחה והחלטה':'פתיחה והמשך'} <span aria-hidden="true">←</span></button>${downloads}
+      <button type="button" class="text-button library-delete">מחיקה</button></div>
       ${doc.formats.length?'<p class="library-partial-note">בהורדה חלקית, מה שעדיין לא תורגם נשאר בשפת המקור.</p>':''}
       <p class="message library-error" role="alert" hidden></p></div>`;
     const entry=item.querySelector('.library-entry'),detail=item.querySelector('.library-detail');
     entry.onclick=()=>{const open=entry.getAttribute('aria-expanded')!=='true';entry.setAttribute('aria-expanded',String(open));detail.hidden=!open;item.classList.toggle('open',open)};
     item.querySelectorAll('.library-download').forEach(button=>button.onclick=()=>libraryDownload(doc,button,item));
     item.querySelector('.library-open').onclick=()=>libraryOpen(doc);
+    item.querySelector('.library-delete').onclick=()=>libraryDelete(doc,item,true);
     list.append(item);
   });
+}
+async function libraryDelete(doc,item,inProgress){
+  const spent=inProgress&&doc.spent_usd?' העבודה שכבר שולמה ($'+Number(doc.spent_usd).toFixed(4)+') תאבד.':'';
+  if(!confirm('למחוק לצמיתות את "'+doc.filename+'"? יימחקו התרגום, ההעתק של קובץ המקור, מחברת הספר ויומן העלויות שלו.'+spent+' אי אפשר לבטל את המחיקה.'))return;
+  const error=item.querySelector('.library-error');error.hidden=true;
+  item.querySelectorAll('button,select').forEach(control=>control.disabled=true);
+  try{await request('/document-delete',{job_id:doc.job_id,confirm:true});
+    try{if(localStorage.getItem('document-last-job')===doc.job_id)forget('document-last-job')}catch(_){}
+    if(currentJob?.job_id===doc.job_id)currentJob=null;
+    loadLibrary();
+  }catch(caught){error.textContent=caught.message;error.hidden=false;item.querySelectorAll('button,select').forEach(control=>control.disabled=false)}
 }
 let libraryTab='done';
 function setLibraryTab(tab){

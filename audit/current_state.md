@@ -35,6 +35,12 @@ rejection (HTTP 429/500/502/503/504/529 before any output; backoff 2/8/20 s,
 Retry-After <= 60 s honoured); connection errors, timeouts and mid-stream
 failures still become user decisions. Targeted suites OK (not full suite).
 
+LIBRARY-DELETE + HELP: library entries (both tabs) can be deleted permanently after
+a confirm prompt (POST /document-delete requires confirm:true; refused while that
+job runs; removes only that job folder). help.html gains Library, "When translation
+stops" (decision table, automatic-resend policy) and Book-notebook sections.
+Batch parser accepts stray closers/code fence after a complete array (59122a4).
+
 Earlier today: b56df6b and 9898011 fixed untranslatable (URL-only) units blocking
 translation and review. Side project LEARN-PROMPTS/WORDLISTS delivered separately
 (f675162, 5a46350); user asked to keep it out of this product line of work.

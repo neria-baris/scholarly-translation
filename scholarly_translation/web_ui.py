@@ -519,6 +519,10 @@ def make_handler(token: str, model_config_path: str | None = None):
                     if value is not None and (type(value) not in (int, float) or isinstance(value, bool)):
                         raise DocumentDraftError("ערך ההחלטה אינו תקין.")
                     self._json(200, document_jobs.decide(data.get("job_id"), data.get("option"), value))
+                elif route.path == "/document-delete":
+                    if data.get("confirm") is not True:
+                        raise DocumentDraftError("המחיקה דורשת אישור.")
+                    self._json(200, document_jobs.delete(data.get("job_id")))
                 elif route.path == "/document-in-progress":
                     self._json(200, {"documents": _document_in_progress(document_jobs)})
                 elif route.path == "/document-pause":

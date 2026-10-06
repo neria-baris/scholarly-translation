@@ -955,6 +955,21 @@ class DocumentJobs:
         job["blocker"] = self.blocker(job_id, job)
         return job
 
+    def delete(self, job_id):
+        """Permanently remove a saved job folder (source copy, translation, journal,
+        cost log). Refused while that job is running. Sends nothing to any provider."""
+        folder = self._folder(job_id)
+        with self.lock:
+            if self.active == job_id:
+                raise DocumentDraftError("המסמך מתורגם כרגע. השהו אותו לפני המחיקה.")
+            if not (folder / "job.json").is_file():
+                raise DocumentDraftError("מסמך לא נמצא.")
+            if folder.resolve().parent != self.root.resolve():
+                raise DocumentDraftError("מסמך לא נמצא.")
+            self._job_adapter_factories.pop(job_id, None)
+            shutil.rmtree(folder)
+        return {"deleted": job_id}
+
     def pause(self, job_id):
         """Request a safe pause of a running automation job: the in-flight
         step finishes and persists its result, then the worker stops before any further

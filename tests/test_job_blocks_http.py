@@ -77,5 +77,37 @@ class InProgressHttpTests(unittest.TestCase):
             self.post("/document-decide", {"job_id": job_id, "option": "accept_and_retry", "value": True})
 
 
+    def test_delete_requires_confirmation_and_removes_the_job_folder(self):
+        job_id = self.stuck_job()
+        folder = Path(self.temp.name) / "documents" / job_id
+        with self.assertRaises(HTTPError) as caught:
+            self.post("/document-delete", {"job_id": job_id})
+        self.assertEqual(caught.exception.code, 400)
+        self.assertTrue(folder.is_dir())
+        self.assertEqual(self.post("/document-delete", {"job_id": job_id, "confirm": True}), {"deleted": job_id})
+        self.assertFalse(folder.exists())
+        self.assertEqual(self.post("/document-in-progress", {})["documents"], [])
+        for bad in (job_id, "../" + job_id, "x" * 32):
+            with self.assertRaises(HTTPError):
+                self.post("/document-delete", {"job_id": bad, "confirm": True})
+
+    def test_running_job_cannot_be_deleted(self):
+        from scholarly_translation.document_draft import DocumentDraftError, DocumentJobs
+        job_id = self.stuck_job()
+        jobs = DocumentJobs(Path(self.temp.name))
+        jobs.active = job_id
+        with self.assertRaises(DocumentDraftError):
+            jobs.delete(job_id)
+        self.assertTrue((Path(self.temp.name) / "documents" / job_id / "job.json").is_file())
+
+    def test_help_documents_library_blocks_and_notebook(self):
+        with urlopen(self.url + "/help", timeout=10) as response:
+            page = response.read().decode("utf-8")
+        for anchor in ('id="library"', 'id="blocks"', 'id="notebook"', 'href="#library"', 'href="#blocks"', 'href="#notebook"'):
+            self.assertIn(anchor, page)
+        for text in ("בתהליך עבודה", "הורדה חלקית", "מחיקה", "תיבת החלטה", "429", "60,000"):
+            self.assertIn(text, page)
+
+
 if __name__ == "__main__":
     unittest.main()
