@@ -50,7 +50,7 @@ def _select_items(introduced_ids, catalog, level_numeric, new_limit, review_limi
         if item['kind'] == 'grammar':
             return True
         senses = re.sub(r'\([^)]*\)', '', item['sense_he']).split('/')
-        return any(re.search(r'(?<![\w])' + re.escape(sense.strip()) + r'(?![\w])', source)
+        return any(re.search(r'(?<![\w])[ובכלמשה]{0,2}' + re.escape(sense.strip()) + r'(?![\w])', source)
                    for sense in senses if len(sense.strip()) > 1)
     candidates = sorted(
         (item for item in catalog["items"] if item["min_level"] <= level_numeric),
@@ -61,7 +61,7 @@ def _select_items(introduced_ids, catalog, level_numeric, new_limit, review_limi
     for item in candidates:
         item_id = item["item_id"]
         if item_id in introduced_ids:
-            if len(review_ids) < review_limit:
+            if (review_limit is None and opportunity(item)) or (review_limit is not None and len(review_ids) < review_limit):
                 review_ids.append(item_id)
             continue
         if len(new_ids) >= new_limit:
@@ -72,11 +72,19 @@ def _select_items(introduced_ids, catalog, level_numeric, new_limit, review_limi
     return new_ids, review_ids
 
 
+def _review_targets(review_ids, learner):
+    counts = {row['item_id']: row['introduced_count'] for row in learner['items']}
+    return {item_id: {'seen_count': counts[item_id],
+                     'target_share': round(min(.95, .55 + .10 * counts[item_id]), 2)}
+            for item_id in review_ids}
+
+
 def _build_plan(source, chapter, chunk_index, units, learner, catalog, level, policy_version):
     introduced_ids = {row["item_id"] for row in learner["items"]}
     level_numeric = int(level["level_id"])
     new_ids, review_ids = _select_items(
-        introduced_ids, catalog, level_numeric, level["new_items_per_chunk"], level["new_items_per_chunk"], units,
+        introduced_ids, catalog, level_numeric, level["new_items_per_chunk"],
+        level["new_items_per_chunk"] if policy_version == 'learning-policy@1' else None, units,
     )
     selected = new_ids + review_ids
     chunk_id = f"{chapter['chapter_id']}-chunk-{chunk_index}"
@@ -103,6 +111,10 @@ def _build_plan(source, chapter, chunk_index, units, learner, catalog, level, po
         "review_item_ids": review_ids,
         "limits": dict(level),
     }
+    if policy_version != 'learning-policy@1':
+        plan['review_targets'] = _review_targets(review_ids, learner)
+        plan['plan_id'] = 'plan-' + fingerprint({'seed': seed, 'policy_version': policy_version,
+                                                'review_targets': plan['review_targets']})[:32]
     return validate_plan(plan)
 
 
@@ -133,7 +145,9 @@ def replan_chunk(provisional_plan, projected_learner, catalog):
     introduced_ids = {row["item_id"] for row in projected_learner["items"]}
     level_numeric = int(level["level_id"])
     new_ids, review_ids = _select_items(
-        introduced_ids, catalog, level_numeric, level["new_items_per_chunk"], level["new_items_per_chunk"], provisional_plan['units'],
+        introduced_ids, catalog, level_numeric, level["new_items_per_chunk"],
+        level["new_items_per_chunk"] if provisional_plan['policy_version'] == 'learning-policy@1' else None,
+        provisional_plan['units'],
     )
     selected = new_ids + review_ids
     seed = {
@@ -152,4 +166,8 @@ def replan_chunk(provisional_plan, projected_learner, catalog):
         "review_item_ids": review_ids,
         "limits": dict(level),
     })
+    if provisional_plan['policy_version'] != 'learning-policy@1':
+        final_plan['review_targets'] = _review_targets(review_ids, projected_learner)
+        final_plan['plan_id'] = 'plan-' + fingerprint({'seed': seed,
+            'policy_version': provisional_plan['policy_version'], 'review_targets': final_plan['review_targets']})[:32]
     return validate_plan(final_plan)

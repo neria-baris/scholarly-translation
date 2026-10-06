@@ -11,6 +11,7 @@ input:focus{outline:2px solid #ae9252;outline-offset:2px}
 .workspace{max-width:900px;margin:auto;padding:0 24px 60px;display:grid;gap:18px}
 .workspace>#upload-section{order:1}.workspace>#effort-section{order:2}.workspace>#books-section{order:3}.workspace>#progress-section{order:4}.workspace>#key-section{order:5}.workspace>#languages-section{order:6}
 .reading .workspace>section:not(#reader-section){display:none}.reading #reader-section{order:0}
+.reading.progress-open .workspace>section#progress-section{display:block;order:0}.reading.progress-open #reader-section{display:none}
 summary{cursor:pointer;font-weight:650;font-size:16px}details[open]>summary{margin-bottom:14px}
 .app-footer{text-align:center;color:var(--muted);font-size:12px;padding:16px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 8px 30px #18372e08}
@@ -42,16 +43,22 @@ input[type=number],input[type=password],input[type=text]{min-height:40px;border:
 .budget-form{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
 .budget-form label{margin:0}
 
-.reader-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.reader-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .reader-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0}
 .reader-html{font-size:18px;line-height:2;padding:10px 0}
 .learning-unit{margin:0 0 14px}
 .learning-foreign{color:#7a5420;font-weight:600}
-.learning-foreign-click{border-bottom:1px dashed #b89a5e;background:none;padding:0}
-.learning-gloss-inline{color:var(--muted);font-size:14px}
-.learning-gloss-toggle{color:var(--muted);font-size:14px;margin-inline-start:4px}
 .recap-list{list-style:disc;margin:6px 0 10px;padding-inline-start:22px;font-size:13px;color:var(--ink)}
 .recap-list.warnings{color:#8a453c}
 .completion-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
 
-@media(max-width:650px){.workspace{padding:0 14px 40px}.card{padding:14px}.app-header{padding:16px}}
+#progress-detail{margin-top:14px;display:grid;gap:14px}
+.progress-subtitle{font-size:14px;margin:0 0 8px;font-weight:650}
+.progress-current{border:1px solid var(--line);border-radius:10px;padding:12px}
+.progress-search{display:grid;gap:6px;max-width:360px}
+.vocab-columns{display:grid;gap:18px;grid-template-columns:1fr 1fr}
+.vocab-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.vocab-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.vocab-tags{display:flex;gap:6px;flex-wrap:wrap}
+
+@media(max-width:650px){.workspace{padding:0 14px 40px}.card{padding:14px}.app-header{padding:16px}.vocab-columns{grid-template-columns:1fr}}

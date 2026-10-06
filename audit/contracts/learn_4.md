@@ -45,6 +45,9 @@ exposures per actual edit. Known repeated meanings receive increasing replacemen
 targets (most suitable occurrences), within effort caps and semantic ambiguity.
 No deterministic blanket replacement of homonyms. Plan optional review_targets
 metadata and prompt version2 express this; source/dispatch hashes include changes.
+Effort-policy2 share and grammar quotas apply to NEW material only; known words
+do not spend these quotas. Total foreign density may grow across chapters/books.
+Policy1 remains total-share limited for already-pinned legacy preparations.
 
 Versioning: keep v1 catalog available for pinned old sessions and completion;
 upgrade inactive learner to latest catalog preserving IDs/history/level. Catalog

@@ -733,3 +733,7 @@ Four builders completed; D list1.1052398 USD,371038ms,33 turns, Sonnet5/auxiliar
 
 ## 2026-10-06T04:31:45.974175+00:00 | LEARN-3 | verified local commit receipt
 Delivery64cc48231ccb67c97f94a0c6091b4c908b868355 contains exactly12 reviewed UI/documentation/audit paths, staged diff checked and matched working files. Feature worktree was clean after commit.925 tests passed(1 skip),121 learning checks; browser acceptance on synthetic data only. Backend predecessor b411b82. Remote feature push not attempted; no merge/deploy into main, which remains9898011 clean. D input-scope recorder correction appended without replacing original event. No additional model/runtime calls. This receipt commit changes audit only.
+
+
+## 2026-10-06T05:11:15.744912+00:00 | LEARN-4 | correction, cap stop and final verification
+E completed UI; F stopped safely at2 USD cap with219 new forms. Conductor completed248 missing meanings, artifact deferral and beyond500 word, without another external invocation. Interim test1325-char provenance refusal fixed; obsolete click expectation revised; browser CSS specificity fix verified.138 learning tests and942 full tests(1 skip) passed;26 UI retest after CSS fix. Two new Sonnet calls list2.7367588 USD; all6 LEARN calls6.8220652 USD; actual unknown, Sol unmetered, Opus/Astra0, runtime paid0. Preview3 fake calls on own synthetic data only. Main now has concurrent external changes; isolate feature Git closure, no main merge/push/restart.

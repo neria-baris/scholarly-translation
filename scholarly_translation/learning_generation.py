@@ -17,7 +17,7 @@ from .learning_contracts import (
     validate_generated, validate_plan, validate_recap, word_count,
 )
 
-PROMPT_VERSION = "learning-generation@1"
+PROMPT_VERSION = "learning-generation@2"
 DEFAULT_PROVIDER = "openai"
 DEFAULT_MODEL = "gpt-6-luna"
 _ALLOWED_WARNING_CODES = ("coverage_shortfall", "ambiguous_meaning")
@@ -26,8 +26,14 @@ _INSTRUCTIONS_MARKER = "## Instructions (sent verbatim before the data sections)
 _DATA_SECTIONS_MARKER = "## Data sections"
 
 
-def _load_instructions():
-    text = _PROMPT_ASSET_PATH.read_text(encoding="utf-8")
+def _prompt_version(plan):
+    return 'learning-generation@1' if plan['policy_version'] == 'learning-policy@1' else PROMPT_VERSION
+
+
+def _load_instructions(plan):
+    asset = (_PROMPT_ASSET_PATH if _prompt_version(plan) == 'learning-generation@1' else
+             _PROMPT_ASSET_PATH.with_name('09_learning_cumulative_generation.md'))
+    text = asset.read_text(encoding="utf-8")
     start = text.index(_INSTRUCTIONS_MARKER) + len(_INSTRUCTIONS_MARKER)
     end = text.index(_DATA_SECTIONS_MARKER)
     return text[start:end].strip() + '\n\n' + text[text.index('## Output JSON only'):].strip()
@@ -56,7 +62,9 @@ def build_request(plan, catalog, context=""):
         "selected_item_ids": sorted(plan["selected_item_ids"]), "new_item_ids": sorted(plan["new_item_ids"]),
         "limits": plan["limits"],
     }
-    instructions = _load_instructions()
+    if 'review_targets' in plan:
+        plan_view['review_targets'] = plan['review_targets']
+    instructions = _load_instructions(plan)
     prompt = "\n\n".join([
         instructions,
         _section("PLAN", plan_view),
@@ -67,7 +75,7 @@ def build_request(plan, catalog, context=""):
     ])
     input_hash = fingerprint({
         "prompt": prompt,
-        "prompt_version": PROMPT_VERSION, "plan": plan, "catalog_version": catalog["version"],
+        "prompt_version": _prompt_version(plan), "plan": plan, "catalog_version": catalog["version"],
         "selected_items": selected_items, "context": context,
         "provider": DEFAULT_PROVIDER, "model": DEFAULT_MODEL,
     })
@@ -127,6 +135,7 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
     occupied = {}
     grammar_used = set()
     foreign_words = 0
+    new_foreign_words = 0
     removed_words = 0
     new_items_used = set()
 
@@ -188,6 +197,8 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         occupied.setdefault(unit_id, []).append((start, end))
         grammar_used.update(grammar_ids)
         foreign_words += rep_words
+        if set(item_ids + grammar_ids) & set(plan['new_item_ids']):
+            new_foreign_words += rep_words
         removed_words += word_count(original)
         new_items_used |= set(item_ids + grammar_ids) & set(plan["new_item_ids"])
 
@@ -197,8 +208,11 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
             require(prev_end <= next_start, "invalid_generation", "overlapping_edits")
 
     total_words = max(sum(word_count(unit["text"]) for unit in plan["units"] if unit['kind'] == 'paragraph') - removed_words + foreign_words, 1)
-    require(len(grammar_used) <= limits["max_grammar_per_chunk"], "invalid_generation", "grammar_per_chunk")
-    require(foreign_words / total_words <= limits["max_foreign_share"] + 1e-9,
+    cumulative = plan['policy_version'] != 'learning-policy@1'
+    grammar_objectives = grammar_used & set(plan['new_item_ids']) if cumulative else grammar_used
+    require(len(grammar_objectives) <= limits["max_grammar_per_chunk"], "invalid_generation", "grammar_per_chunk")
+    counted_foreign = new_foreign_words if cumulative else foreign_words
+    require(counted_foreign / total_words <= limits["max_foreign_share"] + 1e-9,
             "invalid_generation", "foreign_share")
     require(len(new_items_used) <= limits["new_items_per_chunk"], "invalid_generation", "new_items_per_chunk")
 
@@ -219,7 +233,7 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         warnings.append({'code': 'coverage_shortfall', 'unit_id': None})
     chunk = {
         "schema_version": 1, "plan_id": plan["plan_id"], "response_version": 1,
-        "provider": provider, "model": model, "prompt_version": PROMPT_VERSION,
+        "provider": provider, "model": model, "prompt_version": _prompt_version(plan),
         "input_hash": input_hash, "edits": edits, "warnings": warnings,
         "language": catalog['language'],
         "coverage_item_ids": coverage_item_ids,

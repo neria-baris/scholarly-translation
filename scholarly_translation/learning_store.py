@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .learning_contracts import (
     check_id,
+    POLICY_VERSION,
     new_learner,
     prepared_hash,
     require,
@@ -139,7 +140,7 @@ class LearningStore:
             session = validate_session({
                 "schema_version": 1, "session_id": session_id, "learner_id": learner["learner_id"],
                 "language": learner["language"], "book_id": source["book_id"], "source_hash": source["source_hash"],
-                "base_learner_revision": learner["revision"], "policy_version": "learning-policy@1",
+                "base_learner_revision": learner["revision"], "policy_version": POLICY_VERSION,
                 "catalog_version": learner["catalog_version"], "level_id": learner["level_id"],
                 "support_mode": learner["support_mode"], "status": "imported", "prepared_hash": None,
                 "chunk_ids": [], "read_cursor": None,
@@ -224,7 +225,7 @@ class LearningStore:
             from .learning_planner import plan_book
             source = validate_source(_read_json(self._source_path(session['book_id'])))
             learner = self._read_learner_locked(session['language'])
-            expected_count = len(plan_book(source, learner, load_catalog(session['language']), policy_version=session['policy_version']))
+            expected_count = len(plan_book(source, learner, load_catalog(session['language'], version=session['catalog_version']), policy_version=session['policy_version']))
             full_coverage = (len(chunks) == expected_count and recap_hashes == all_hashes and
                 len(recaps) == len(source['chapters']) and
                 {r['chapter_id'] for r in recaps} == {c['chapter_id'] for c in source['chapters']})

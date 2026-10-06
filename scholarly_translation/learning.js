@@ -81,9 +81,9 @@ async function loadState(){
 // ---- effort ----
 function renderEffort(){
   const active=!!state.learner.active_book_id;
-  $('effort-note').textContent=active?'לא ניתן לשנות רמת מאמץ בזמן שספר פעיל.':'בחרו עד כמה טקסט בשפה הנלמדת יופיע בתוך הקריאה.';
+  $('effort-note').textContent=active?'לא ניתן לשנות רמת מאמץ בזמן שספר פעיל.':'בחרו את קצב שילוב החומר החדש. החזרה על מילים מוכרות מצטברת מעבר לכך.';
   const host=$('effort-levels');host.replaceChildren();
-  const labels={'1':'1 — עד 10%, פירוש לצד המילה','2':'2 — עד 20%, פירוש בלחיצה','3':'3 — עד 30%, ביטויים קצרים'};
+  const labels={'1':'1 — עד 10% חומר חדש','2':'2 — עד 20% חומר חדש','3':'3 — עד 30% חומר חדש וביטויים קצרים'};
   for(const level of state.levels){
     const button=document.createElement('button');
     button.type='button';button.className='level-button';button.setAttribute('role','radio');
@@ -206,9 +206,79 @@ function abandonButton(session){
 }
 
 function renderProgress(){
-  const count=state.learner.items.reduce((sum,row)=>sum+row.introduced_count,0);
-  $('progress-summary').textContent=`ספרים שקראת: ${state.learner.completed_books.length} · מילים ומבנים שפגשת: ${state.learner.items.length} · הופעות בקריאה: ${count}.`;
+  const progress=state.progress||(state.summary&&state.summary.progress)||null;
+  if(!progress){
+    // staged compatibility: older servers may not yet send the progress field.
+    const count=state.learner.items.reduce((sum,row)=>sum+row.introduced_count,0);
+    $('progress-summary').textContent=`ספרים שקראת: ${state.learner.completed_books.length} · מילים ומבנים שפגשת: ${state.learner.items.length} · הופעות בקריאה: ${count}.`;
+    $('progress-detail').hidden=true;
+    return;
+  }
+  $('progress-detail').hidden=false;
+  $('progress-summary').textContent=`ספרים שקראת: ${state.learner.completed_books.length} · מילים שנשמרו: ${progress.completed_word_count} · מבנים שנשמרו: ${progress.completed_structure_count} · מילים בקטלוג הנוכחי: ${progress.catalog_word_count}.`;
+  const goal=progress.initial_word_goal,completed=progress.completed_word_count;
+  $('progress-milestone').textContent=completed>=goal?
+    `עברתם את אבן הדרך הראשונה של ${goal} מילים — הלמידה ממשיכה בלי תקרה קבועה.`:
+    `אבן הדרך הראשונה: ${completed} מתוך ${goal} מילים. זו התחלה, לא תקרה סופית.`;
+  const current=progress.active_book;
+  $('progress-current-book').hidden=!current;
+  if(current){
+    $('progress-current-title').textContent=current.title;
+    $('progress-current-counts').textContent=
+      `הוכנו ${current.prepared_chunks} מתוך ${current.total_chunks} קטעים`+
+      (current.chapter_index!=null?` · פרק ${current.chapter_index+1} מתוך ${current.chapter_count}`:' · טרם התחילה קריאה');
+  }
+  renderVocabLists(progress);
 }
+
+function renderVocabLists(progress){
+  const query=($('vocab-search').value||'').trim().normalize('NFC').toLocaleLowerCase('fr');
+  const savedMap=new Map();
+  for(const item of progress.completed_items||[])savedMap.set(item.item_id,item);
+  const currentMap=new Map();
+  if(progress.active_book)for(const item of progress.active_book.read_items||[])currentMap.set(item.item_id,item);
+  const ids=new Set([...savedMap.keys(),...currentMap.keys()]);
+  const words=[],grammar=[];
+  for(const id of ids){
+    const saved=savedMap.get(id),current=currentMap.get(id);
+    const base=saved||current;
+    if(query&&!base.foreign.normalize('NFC').toLocaleLowerCase('fr').includes(query)&&!base.hebrew.includes(query))continue;
+    (base.kind==='grammar'?grammar:words).push({base,saved,current});
+  }
+  const byForeign=(a,b)=>a.base.foreign.localeCompare(b.base.foreign);
+  renderVocabColumn($('vocab-words-list'),words.sort(byForeign),query);
+  renderVocabColumn($('vocab-grammar-list'),grammar.sort(byForeign),query);
+}
+function renderVocabColumn(host,rows,query){
+  host.replaceChildren();
+  if(!rows.length){
+    const empty=document.createElement('li');empty.className='muted';
+    empty.textContent=query?'לא נמצאו פריטים מתאימים.':'עדיין אין פריטים כאן.';
+    host.append(empty);return;
+  }
+  for(const row of rows){
+    const li=document.createElement('li');li.className='vocab-item';
+    const foreign=document.createElement('bdi');foreign.dir='ltr';foreign.textContent=row.base.foreign;
+    const hebrew=document.createElement('span');hebrew.textContent=' — '+row.base.hebrew;
+    const tags=document.createElement('span');tags.className='vocab-tags';
+    if(row.saved){
+      const tag=document.createElement('span');tag.className='tag available';
+      tag.textContent=row.saved.last_book_title?`נשמר מ-${row.saved.last_book_title} (${row.saved.encounters})`:`נשמר (${row.saved.encounters})`;
+      tags.append(tag);
+    }
+    if(row.current){
+      const tag=document.createElement('span');tag.className='tag';
+      tag.textContent=`בספר הנוכחי — טרם נשמר (${row.current.encounters})`;
+      tags.append(tag);
+    }
+    li.append(foreign,hebrew,tags);
+    host.append(li);
+  }
+}
+$('vocab-search').oninput=()=>{
+  const progress=state&&(state.progress||(state.summary&&state.summary.progress));
+  if(progress)renderVocabLists(progress);
+};
 
 // ---- upload ----
 $('epub-choose').onclick=()=>$('epub-file').click();
@@ -237,10 +307,19 @@ $('save-key').onclick=async()=>{
 function openReader(session,book){
   activeReader={session_id:session.session_id,chapter_index:session.read_cursor?session.read_cursor.chapter_index:0,book};
   document.body.classList.add('reading');
+  document.body.classList.remove('progress-open');$('progress-return').hidden=true;
   $('reader-section').hidden=false;window.scrollTo({top:0,behavior:'auto'});
   loadChapter(activeReader.chapter_index);
 }
-$('reader-close').onclick=()=>{$('reader-section').hidden=true;activeReader=null;chapterRequest++;document.body.classList.remove('reading');$('books-title').scrollIntoView({behavior:'auto'})};
+$('reader-close').onclick=()=>{$('reader-section').hidden=true;activeReader=null;chapterRequest++;document.body.classList.remove('reading','progress-open');$('progress-return').hidden=true;$('reader-progress').setAttribute('aria-expanded','false');$('books-title').scrollIntoView({behavior:'auto'})};
+$('reader-progress').onclick=async()=>{
+  const reader=activeReader;
+  try{await loadState();if(activeReader!==reader||!reader)return;
+    document.body.classList.add('progress-open');$('progress-return').hidden=false;
+    $('reader-progress').setAttribute('aria-expanded','true');$('progress-title').scrollIntoView({behavior:'auto'});
+  }catch(error){$('import-error').textContent=error.message;$('import-error').hidden=false}
+};
+$('progress-return').onclick=()=>{document.body.classList.remove('progress-open');$('progress-return').hidden=true;$('reader-progress').setAttribute('aria-expanded','false');$('reader-title').scrollIntoView({behavior:'auto'})};
 $('reader-prev').onclick=()=>{if(activeReader&&activeReader.chapter_index>0)loadChapter(activeReader.chapter_index-1)};
 $('reader-next').onclick=()=>{if(activeReader&&activeReader.chapter_index<activeReader.chapter_count-1)loadChapter(activeReader.chapter_index+1)};
 
@@ -258,12 +337,13 @@ async function loadChapter(index){
     $('reader-prev').disabled=result.chapter_index===0;
     $('reader-next').disabled=result.chapter_index>=result.chapter_count-1;
     $('reader-html').innerHTML=result.html;
-    $('gloss-popup').hidden=true;
     activeReader.completed=result.session.status==='completed';
     $('complete-button').disabled=activeReader.completed;
     $('complete-button').textContent=activeReader.completed?'הספר כבר סומן כקראתי':'קראתי את הספר';
     renderRecap(result.recap,result.items);
     await request('/learning/cursor',{session_id:activeReader.session_id,chapter_index:result.chapter_index});
+    if(activeReader!==reader||serial!==chapterRequest)return;
+    await loadState();
     $('completion-message').textContent='';
   }catch(error){$('import-error').textContent=error.message;$('import-error').hidden=false}
 }
@@ -295,24 +375,6 @@ function renderRecap(recap,items={}){
     if(![...warningsHost.children].some(x=>x.textContent===li.textContent))warningsHost.append(li);
   }
 }
-
-function toggleGloss(element){
-  const next=element.nextElementSibling;
-  if(next&&next.classList.contains('learning-gloss-toggle')){
-    next.remove();element.setAttribute('aria-expanded','false');return;
-  }
-  const span=document.createElement('span');span.className='learning-gloss-toggle';span.setAttribute('dir','rtl');span.setAttribute('lang','he');
-  span.textContent='('+(element.getAttribute('data-gloss-he')||'')+')';
-  element.after(span);element.setAttribute('aria-expanded','true');
-}
-$('reader-html').addEventListener('click',(event)=>{
-  const target=event.target.closest('.learning-foreign-click');
-  if(target)toggleGloss(target);
-});
-$('reader-html').addEventListener('keydown',(event)=>{
-  const target=event.target.closest('.learning-foreign-click');
-  if(target&&(event.key==='Enter'||event.key===' ')){event.preventDefault();toggleGloss(target)}
-});
 
 $('complete-button').onclick=async()=>{
   if(!activeReader||activeReader.completed)return;

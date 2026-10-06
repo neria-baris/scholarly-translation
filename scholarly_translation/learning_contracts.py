@@ -8,16 +8,16 @@ import math
 import re
 
 SCHEMA_VERSION = 1
-POLICY_VERSION = "learning-policy@1"
+POLICY_VERSION = "learning-policy@2"
 SUPPORTED_LANGUAGE_CODES = ("fr", "de", "es", "yi", "it")
 MAX_CHUNK_CHARS = 2400
 DEFAULT_LEVELS = [
     {"level_id": "1", "new_items_per_chunk": 3, "max_foreign_share": .10,
-     "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 1, "support_mode": "inline"},
+     "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 1, "support_mode": "context"},
     {"level_id": "2", "new_items_per_chunk": 3, "max_foreign_share": .20,
-     "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 2, "support_mode": "click"},
+     "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 2, "support_mode": "context"},
     {"level_id": "3", "new_items_per_chunk": 4, "max_foreign_share": .30,
-     "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 5, "support_mode": "click"},
+     "max_grammar_per_chunk": 1, "max_foreign_words_per_edit": 5, "support_mode": "context"},
 ]
 
 
@@ -151,14 +151,14 @@ def validate_catalog(catalog):
             _integer(level[key], 1)
         require(type(level["max_foreign_share"]) in (int, float)
                 and math.isfinite(level["max_foreign_share"]) and 0 < level["max_foreign_share"] <= 1)
-        require(level["support_mode"] in ("inline", "click"))
+        require(level["support_mode"] in ("context", "inline", "click"))
     return catalog
 
 
-def new_learner(language="fr", learner_id="local", catalog_version="fr-common@1"):
+def new_learner(language="fr", learner_id="local", catalog_version="fr-common@2"):
     result = {"schema_version": 1, "learner_id": learner_id, "language": language,
               "revision": 0, "catalog_version": catalog_version, "level_id": "1",
-              "support_mode": "inline", "items": [], "completed_books": [], "active_book_id": None}
+              "support_mode": "context", "items": [], "completed_books": [], "active_book_id": None}
     return validate_learner(result)
 
 
@@ -171,7 +171,7 @@ def validate_learner(learner):
     _integer(learner["revision"])
     check_id(learner["level_id"])
     _text(learner["catalog_version"], 128)
-    require(learner["support_mode"] in ("inline", "click"))
+    require(learner["support_mode"] in ("context", "inline", "click"))
     _ids(learner["items"], "item_id")
     for row in learner["items"]:
         require_fields(row, ("item_id", "introduced_count", "last_completed_book_id"))
@@ -197,7 +197,7 @@ def validate_session(session):
     _integer(session["base_learner_revision"])
     require(session["language"] in SUPPORTED_LANGUAGE_CODES, "unsupported_language")
     require(session["status"] in ("imported", "preparing", "ready", "completed", "paused", "failed"))
-    require(session["support_mode"] in ("inline", "click"))
+    require(session["support_mode"] in ("context", "inline", "click"))
     require(isinstance(session["chunk_ids"], list) and len(set(session["chunk_ids"])) == len(session["chunk_ids"]))
     for cid in session["chunk_ids"]:
         check_id(cid)
@@ -212,7 +212,7 @@ def validate_session(session):
 def validate_plan(plan):
     require_fields(plan, ("schema_version", "plan_id", "book_id", "chapter_id", "chunk_id", "source_hash", "units",
                           "base_learner_revision", "catalog_version", "policy_version", "level_id", "support_mode",
-                          "selected_item_ids", "new_item_ids", "review_item_ids", "limits"), ("language",))
+                          "selected_item_ids", "new_item_ids", "review_item_ids", "limits"), ("language", "review_targets"))
     _version(plan)
     for key in ("plan_id", "book_id", "chapter_id", "chunk_id", "level_id"):
         check_id(plan[key])
@@ -229,9 +229,21 @@ def validate_plan(plan):
             check_id(item)
     require(set(plan["new_item_ids"]) <= set(plan["selected_item_ids"]) and
             set(plan["review_item_ids"]) <= set(plan["selected_item_ids"]), "invalid_plan")
+    if plan['policy_version'] != 'learning-policy@1':
+        require(not set(plan['new_item_ids']) & set(plan['review_item_ids']) and
+                set(plan['selected_item_ids']) == set(plan['new_item_ids']) | set(plan['review_item_ids']), 'invalid_plan')
     require_fields(plan["limits"], DEFAULT_LEVELS[0].keys())
     require(len(plan["new_item_ids"]) <= plan["limits"]["new_items_per_chunk"], "invalid_plan")
     require(plan["limits"]["level_id"] == plan["level_id"], "invalid_plan")
+    require(plan['support_mode'] in ('context', 'inline', 'click'), 'invalid_plan')
+    if 'review_targets' in plan:
+        require(isinstance(plan['review_targets'], dict) and
+                set(plan['review_targets']) == set(plan['review_item_ids']), 'invalid_plan')
+        for target in plan['review_targets'].values():
+            require_fields(target, ('seen_count', 'target_share'), code='invalid_plan')
+            _integer(target['seen_count'], 1)
+            require(type(target['target_share']) in (int, float) and
+                    math.isfinite(target['target_share']) and .5 < target['target_share'] <= 1, 'invalid_plan')
     return plan
 
 

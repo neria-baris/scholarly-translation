@@ -23,7 +23,8 @@
 
 <section id="effort-section" class="card" aria-labelledby="effort-title">
 <h2 id="effort-title">רמת מאמץ</h2>
-<p class="muted">כרגע לומדים צרפתית. אלה תקרות לשילוב בספר, ולא כמות מובטחת של מילים חדשות.</p>
+<p class="muted">כרגע לומדים צרפתית. האחוזים מגבילים חומר חדש; מילים שכבר פגשתם ממשיכות להצטבר בפרקים הבאים.</p>
+<p class="muted">מילים וביטויים בשפה הנלמדת מובנים מההקשר בקריאה; אין פירוש אוטומטי צמוד למילה בשום רמה.</p>
 <p class="muted" id="effort-note"></p>
 <div id="effort-levels" class="levels" role="radiogroup" aria-labelledby="effort-title"></div>
 </section>
@@ -40,7 +41,7 @@
 
 <section id="languages-section" class="card" aria-labelledby="languages-title">
 <details><summary id="languages-title">500 מילים בכל אחת מחמש השפות</summary>
-<p class="muted">רשימות שכיחות, ללא פירוש. צרפתית זמינה כרגע לקריאה משולבת עם קטלוג פתיחה קטן.</p>
+<p class="muted">רשימות שכיחות בחמש שפות. בצרפתית זמין קטלוג למידה עם פירושים לסיכומים; 500 מילים הן יעד ראשון והלמידה יכולה להמשיך מעבר לו.</p>
 <ul id="language-list" class="language-list"></ul>
 </details>
 </section>
@@ -54,6 +55,7 @@
 <section id="reader-section" class="card" hidden aria-labelledby="reader-title">
 <div class="reader-toolbar">
 <h2 id="reader-title"></h2>
+<button id="reader-progress" type="button" class="secondary-button" aria-controls="progress-section" aria-expanded="false">התקדמות ומילים</button>
 <button id="reader-close" type="button" class="quiet-button" aria-label="סגירת הקריאה">✕</button>
 </div>
 <p id="reader-chapter-title" class="muted"></p>
@@ -63,7 +65,6 @@
 <button id="reader-next" type="button" class="secondary-button">הבא →</button>
 </nav>
 <div id="reader-html" class="reader-html" tabindex="-1"></div>
-<div id="gloss-popup" class="gloss-popup" role="status" hidden></div>
 <section id="recap-section" aria-labelledby="recap-title">
 <h3 id="recap-title">סיכום פרק</h3>
 <p id="recap-empty" class="muted" hidden></p>
@@ -80,7 +81,24 @@
 
 <section id="progress-section" class="card" aria-labelledby="progress-title">
 <h2 id="progress-title">התקדמות</h2>
+<button id="progress-return" type="button" class="quiet-button" hidden>חזרה לקריאה</button>
 <p id="progress-summary" class="muted"></p>
+<div id="progress-detail" hidden>
+<p id="progress-milestone" class="muted"></p>
+<div id="progress-current-book" class="progress-current" hidden>
+<h3 class="progress-subtitle">הספר הנוכחי</h3>
+<p id="progress-current-title" class="muted" dir="auto"></p>
+<p id="progress-current-counts" class="muted"></p>
+</div>
+<div class="progress-search">
+<label for="vocab-search">חיפוש באוצר המילים (זר או עברית)</label>
+<input id="vocab-search" type="text" dir="auto" autocomplete="off">
+</div>
+<div class="vocab-columns">
+<div><h3 class="progress-subtitle">מילים וביטויים</h3><ul id="vocab-words-list" class="vocab-list"></ul></div>
+<div><h3 class="progress-subtitle">מבנים לשוניים</h3><ul id="vocab-grammar-list" class="vocab-list"></ul></div>
+</div>
+</div>
 </section>
 </main>
 <footer class="app-footer"><span>כל הנתונים נשמרים במחשב שלכם.</span></footer>

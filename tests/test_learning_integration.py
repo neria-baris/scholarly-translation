@@ -125,7 +125,7 @@ class LearningIntegrationTests(unittest.TestCase):
     def test_effort_carries_into_next_book(self):
         self.service.set_effort('2')
         ready = self.prepare()
-        self.assertEqual(ready['support_mode'], 'click')
+        self.assertEqual(ready['support_mode'], 'context')
         self.service.complete(ready['session_id'], ready['prepared_hash'], 'complete-one')
         self.assertEqual(self.service.store.get_learner()['level_id'], '2')
         with self.assertRaises(LearningError):

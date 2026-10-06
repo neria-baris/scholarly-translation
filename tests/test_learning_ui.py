@@ -33,6 +33,16 @@ class LearningHtmlTests(unittest.TestCase):
         self.assertNotIn('source_text', self.html)
         self.assertNotIn('.pdf', self.html)
 
+    def test_no_automatic_gloss_popup(self):
+        # LEARN-4: foreign words are understood from context; no adjacent
+        # automatic gloss popup markup remains in the reader.
+        self.assertNotIn('gloss-popup', self.html)
+
+    def test_progress_panel_markup_present(self):
+        for marker in ('id="progress-detail"', 'id="progress-milestone"', 'id="vocab-search"',
+                       'id="vocab-words-list"', 'id="vocab-grammar-list"', 'id="progress-current-book"'):
+            self.assertIn(marker, self.html)
+
 
 class LearningJsTests(unittest.TestCase):
     def setUp(self):
@@ -57,17 +67,47 @@ class LearningJsTests(unittest.TestCase):
         self.assertIn('history.replaceState', self.js)
         self.assertIn('/learning/import-translation', self.js)
 
-    def test_gloss_toggle_handlers_present(self):
-        self.assertIn('learning-foreign-click', self.js)
-        self.assertIn("event.key==='Enter'", self.js)
-        self.assertIn("event.key===' '", self.js)
+    def test_no_inline_gloss_interaction(self):
+        # LEARN-4: foreign words are understood from context, not an
+        # automatic or click-triggered adjacent gloss.
+        self.assertNotIn('learning-foreign-click', self.js)
+        self.assertNotIn('toggleGloss', self.js)
+        self.assertNotIn('gloss-popup', self.js)
 
     def test_recap_rendered_through_textcontent_only(self):
         # Only the trusted server 'html' field may use innerHTML; the recap
         # object (vocabulary/grammar/warnings) must be escaped via textContent.
         self.assertIn("result.html;", self.js)  # reader fragment, server-trusted
-        recap_section = self.js[self.js.index('function renderRecap'):]
-        self.assertNotIn('innerHTML', recap_section[:recap_section.index('function toggleGloss')])
+        recap_section = self.js[self.js.index('function renderRecap'):self.js.index("$('complete-button').onclick")]
+        self.assertNotIn('innerHTML', recap_section)
+
+    def test_progress_panel_handles_missing_progress_field(self):
+        # Staged compatibility: an older /learning/state response may not
+        # yet include the progress field.
+        render_fn = self.js[self.js.index('function renderProgress'):self.js.index('function renderVocabLists')]
+        self.assertIn('state.progress', render_fn)
+        self.assertIn('if(!progress)', render_fn)
+
+    def test_progress_milestone_is_not_a_fixed_ceiling(self):
+        render_fn = self.js[self.js.index('function renderProgress'):self.js.index('function renderVocabLists')]
+        self.assertIn('initial_word_goal', render_fn)
+        self.assertIn('בלי תקרה', render_fn)
+
+    def test_vocabulary_distinguishes_words_and_grammar_and_is_searchable(self):
+        self.assertIn('vocab-words-list', self.js)
+        self.assertIn('vocab-grammar-list', self.js)
+        self.assertIn("$('vocab-search')", self.js)
+
+    def test_vocabulary_distinguishes_saved_from_current_book(self):
+        vocab_fn = self.js[self.js.index('function renderVocabLists'):self.js.index('function renderVocabColumn')]
+        self.assertIn('completed_items', vocab_fn)
+        self.assertIn('active_book', vocab_fn)
+        self.assertIn('read_items', vocab_fn)
+
+    def test_effort_levels_make_no_gloss_mode_claim(self):
+        effort_fn = self.js[self.js.index('function renderEffort'):self.js.index('// ---- languages')]
+        self.assertNotIn('פירוש לצד המילה', effort_fn)
+        self.assertNotIn('פירוש בלחיצה', effort_fn)
 
     def test_explicit_completion_action(self):
         self.assertIn('/learning/complete', self.js)
@@ -85,7 +125,9 @@ class LearningCssTests(unittest.TestCase):
     def test_file_exists_and_non_empty(self):
         css = (ROOT / 'learning.css').read_text(encoding='utf-8')
         self.assertTrue(css.strip())
-        self.assertIn('.learning-foreign-click', css)
+        self.assertIn('.learning-foreign', css)
+        self.assertIn('.vocab-list', css)
+        self.assertNotIn('.learning-foreign-click', css)
 
 
 class UiHtmlLearningLinkTests(unittest.TestCase):

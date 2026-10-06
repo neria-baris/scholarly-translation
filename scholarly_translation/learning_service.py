@@ -9,7 +9,7 @@ from pathlib import Path
 import secrets
 import threading
 
-from .learning_contracts import LearningError, POLICY_VERSION, check_id, require, validate_source
+from .learning_contracts import LearningError, POLICY_VERSION, check_id, require, validate_source, word_count
 from .learning_catalog import load_catalog
 from .learning_import import import_hebrew_epub, import_translation_job
 from .learning_planner import plan_book, replan_chunk
@@ -19,6 +19,15 @@ from .learning_store import LearningStore
 
 
 class LearningService:
+    @staticmethod
+    def _dense_output_cap(plan, configuration):
+        selection, _ = configuration.resolve('translator')
+        words = sum(word_count(unit['text']) for unit in plan['units'] if unit['kind'] == 'paragraph')
+        # Each accepted occurrence has a structured offset/ID envelope. A growing
+        # known vocabulary can replace most words, unlike the sparse first chapter.
+        return min(selection.capabilities.max_output_tokens or 6000,
+                   max(6000, min(64000, 2048 + words * 128)))
+
     def __init__(self, root):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -38,7 +47,8 @@ class LearningService:
                 source = self.store.get_source(session['book_id'])
                 self._data['jobs'][sid] = {'session_id': sid, 'status': 'paused', 'budget_usd': None,
                     'configuration': build_configuration({'translator': {'source': 'catalog', 'provider': 'openai', 'model': 'gpt-6-luna'}}).to_dict(),
-                    'plans': plan_book(source, learner, load_catalog(session['language'])),
+                    'plans': plan_book(source, learner, load_catalog(session['language'], version=session['catalog_version']),
+                                       policy_version=session['policy_version']),
                     'current_plan': None, 'chunks': [], 'proposals': [], 'projected': learner,
                     'error_code': 'budget_required'}
         # A process restart never restarts model calls or borrows credentials.
@@ -83,10 +93,67 @@ class LearningService:
                           'error_code': j.get('error_code'), 'status': j['status'], 'budget_usd': j['budget_usd'],
                           'usage': self._usage(sid)}
                     for sid, j in self._data['jobs'].items()}
+            learner = self.store.get_learner('fr')
             return {'books': deepcopy(list(self._data['books'].values())), 'sessions': sessions,
-                    'learner': self.store.get_learner('fr'), 'jobs': jobs,
+                    'learner': learner, 'jobs': jobs, 'progress': self._progress(learner, sessions),
                     'languages': [{'id': code, 'available': code == 'fr'} for code in ('fr', 'de', 'es', 'yi', 'it')],
                     'levels': load_catalog('fr')['levels'], 'model': 'gpt-6-luna'}
+
+    def _progress(self, learner, sessions):
+        catalog = load_catalog(learner['language'])
+        items = {item['item_id']: item for item in catalog['items']}
+        def rows(counts, book_ids):
+            result = []
+            for item_id, count in counts.items():
+                item = items.get(item_id, {})
+                result.append({'item_id': item_id, 'kind': item.get('kind', 'unknown'),
+                    'foreign': item.get('lemma', item_id), 'hebrew': item.get('sense_he', ''),
+                    'encounters': count, 'last_book_title': self._data['books'].get(book_ids[item_id], {}).get('title', '')})
+            return sorted(result, key=lambda row: (items.get(row['item_id'], {}).get('priority_tier', 999999), row['item_id']))
+        completed = rows({row['item_id']: row['introduced_count'] for row in learner['items']},
+                         {row['item_id']: row['last_completed_book_id'] for row in learner['items']})
+        active = None
+        if learner['active_book_id']:
+            session = next((s for s in sessions if s['book_id'] == learner['active_book_id'] and
+                            s['base_learner_revision'] == learner['revision']), None)
+            if session:
+                source = self.store.get_source(session['book_id'])
+                job = self._data['jobs'].get(session['session_id'], {})
+                cursor = session['read_cursor']
+                chapter_index = cursor.get('chapter_index') if cursor else None
+                furthest = cursor.get('furthest_chapter_index', chapter_index) if cursor else None
+                visited = {chapter['chapter_id'] for i, chapter in enumerate(source['chapters'])
+                           if furthest is not None and i <= furthest}
+                counts = {}
+                for plan, chunk in zip(job.get('plans', []), job.get('chunks', [])):
+                    if plan['chapter_id'] in visited:
+                        for edit in chunk['edits']:
+                            for item_id in edit['item_ids'] + edit['grammar_ids']:
+                                counts[item_id] = counts.get(item_id, 0) + 1
+                active = {'book_id': session['book_id'], 'title': source['title'],
+                    'chapter_index': chapter_index, 'chapter_count': len(source['chapters']),
+                    'read_items': rows(counts, {item_id: session['book_id'] for item_id in counts}),
+                    'prepared_chunks': len(job.get('chunks', [])), 'total_chunks': len(job.get('plans', []))}
+        return {'initial_word_goal': 500,
+            'catalog_word_count': sum(item['kind'] == 'word' and
+                item['min_level'] <= max(int(level['level_id']) for level in catalog['levels']) for item in catalog['items']),
+            'completed_word_count': sum(row['kind'] == 'word' for row in completed),
+            'completed_structure_count': sum(row['kind'] != 'word' for row in completed),
+            'completed_items': completed, 'active_book': active}
+
+    def _upgrade_inactive_learner(self, learner, catalog):
+        require(learner['active_book_id'] is None, 'active_book_conflict')
+        if learner['catalog_version'] != catalog['version'] or learner['support_mode'] != 'context':
+            previous = load_catalog(learner['language'], version=learner['catalog_version'])
+            old = {item['item_id']: item for item in previous['items']}
+            latest = {item['item_id']: item for item in catalog['items']}
+            require(all(row['item_id'] in latest and old.get(row['item_id']) == latest[row['item_id']]
+                        for row in learner['items']), 'catalog_changed')
+            learner = deepcopy(learner)
+            learner.update({'catalog_version': catalog['version'], 'support_mode': 'context',
+                            'revision': learner['revision'] + 1})
+            self.store.save_learner(learner)
+        return learner
 
     def _usage(self, sid):
         from .runtime_controls import ControlStore, RuntimeControlsError
@@ -117,7 +184,8 @@ class LearningService:
                 and math.isfinite(budget_usd) and 0 < budget_usd <= 100, 'invalid_budget')
         with self._lock:
             source = self.store.get_source(check_id(book_id))
-            learner, catalog = self.store.get_learner('fr'), load_catalog('fr')
+            catalog = load_catalog('fr')
+            learner = self._upgrade_inactive_learner(self.store.get_learner('fr'), catalog)
             plans = plan_book(source, learner, catalog, policy_version=POLICY_VERSION)
             session = self.store.create_session(source, learner)
             sid = session['session_id']
@@ -137,7 +205,7 @@ class LearningService:
             session = self.store.get_session(sid)
             require(session['status'] in ('imported', 'preparing', 'paused', 'failed'), 'invalid_status')
             require(self.store.get_learner(session['language'])['revision'] == session['base_learner_revision'], 'stale_learner')
-            require(load_catalog(session['language'])['version'] == session['catalog_version'], 'catalog_changed')
+            load_catalog(session['language'], version=session['catalog_version'])
             job = self._data['jobs'][sid]
             if job['budget_usd'] is None:
                 require(type(budget_usd) in (int, float) and math.isfinite(budget_usd) and 0 < budget_usd <= 100, 'invalid_budget')
@@ -191,7 +259,8 @@ class LearningService:
                         index = len(job['chunks'])
                         if index == len(job['plans']):
                             break
-                        catalog = load_catalog('fr')
+                        session = self.store.get_session(sid)
+                        catalog = load_catalog(session['language'], version=session['catalog_version'])
                         if job['current_plan'] is None:
                             job['current_plan'] = replan_chunk(job['plans'][index], job['projected'], catalog)
                             self._save()  # Dispatch identity must survive a crash.
@@ -204,20 +273,30 @@ class LearningService:
                             provider='openai', model=result.observed_model or 'gpt-6-luna')
                         return {'chunk': chunk, 'recap': recap}
 
-                    parsed, _replay = _controlled(sid, 'translator', 'learning-generate-v1', prompt,
-                        configuration, 6000, controls, journal, budget, count, 6000, validate,
+                    stage = 'learning-generate-v1' if plan['policy_version'] == 'learning-policy@1' else 'learning-generate-v2'
+                    if plan['policy_version'] == 'learning-policy@1':
+                        output_cap = shared_cap = 6000
+                    else:
+                        shared_cap = max(self._dense_output_cap(p, configuration) for p in job['plans'])
+                        output_cap = self._dense_output_cap(plan, configuration) if plan['review_item_ids'] else min(6000, shared_cap)
+                    parsed, _replay = _controlled(sid, 'translator', stage, prompt,
+                        configuration, output_cap, controls, journal, budget, count, shared_cap, validate,
                         {'plan': plan, 'catalog_version': catalog['version']}, adapter_factory)
                     with self._lock:
                         job = self._data['jobs'][sid]
                         job['chunks'].append(parsed['chunk'])
                         job['proposals'].append({'chunk_id': parsed['chunk']['plan_id'], 'recap': parsed['recap']})
                         # Exposure projects choices within this book, without mastery or durable advancement.
-                        for item_id in parsed['chunk']['coverage_item_ids']:
+                        accepted_counts = {}
+                        for edit in parsed['chunk']['edits']:
+                            for item_id in edit['item_ids'] + edit['grammar_ids']:
+                                accepted_counts[item_id] = accepted_counts.get(item_id, 0) + 1
+                        for item_id, encounters in accepted_counts.items():
                             existing = next((x for x in job['projected']['items'] if x['item_id'] == item_id), None)
                             if existing:
-                                existing['introduced_count'] += 1
+                                existing['introduced_count'] += encounters
                             else:
-                                job['projected']['items'].append({'item_id': item_id, 'introduced_count': 1,
+                                job['projected']['items'].append({'item_id': item_id, 'introduced_count': encounters,
                                     'last_completed_book_id': plan['book_id']})
                         job['current_plan'] = None
                         self._save()
@@ -266,7 +345,7 @@ class LearningService:
             rendered = []
             for plan, chunk in zip(plans, prepared['chunks']):
                 if plan['chapter_id'] == chapter['chapter_id']:
-                    rendered.append(render_chunk(plan['units'], chunk, session['support_mode']))
+                    rendered.append(render_chunk(plan['units'], chunk, 'context'))
             recap = next(r for r in prepared['recaps'] if r['chapter_id'] == chapter['chapter_id'])
             chunks_by_id = {c['plan_id']: c for c in prepared['chunks']}
             for entry in recap['grammar']:
@@ -277,11 +356,14 @@ class LearningService:
                     'chapter_index': chapter_index, 'chapter_count': len(source['chapters']),
                     'html': ''.join(rendered), 'recap': recap,
                     'items': {item['item_id']: {'lemma': item['lemma'], 'sense_he': item['sense_he']}
-                              for item in load_catalog(session['language'])['items']}}
+                              for item in load_catalog(session['language'], version=session['catalog_version'])['items']}}
 
     def cursor(self, session_id, chapter_index):
         self.reader(session_id, chapter_index)  # Validate against this immutable source.
-        self.store.save_cursor(session_id, {'chapter_index': chapter_index})
+        with self._lock:
+            previous = self.store.get_session(session_id)['read_cursor'] or {}
+            furthest = max(previous.get('furthest_chapter_index', previous.get('chapter_index', 0)), chapter_index)
+            self.store.save_cursor(session_id, {'chapter_index': chapter_index, 'furthest_chapter_index': furthest})
         return {'saved': True}
 
     def complete(self, session_id, expected_prepared_hash, completion_id):

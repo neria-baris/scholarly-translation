@@ -17,7 +17,7 @@ _NO_NEW_ITEMS_HE = "לא נוספו פריטי לימוד חדשים בפרק ז
 def render_chunk(source_units, generated_chunk, support_mode):
     """Returns one escaped HTML fragment string for the chunk's source units."""
     require(isinstance(source_units, list) and bool(source_units), "invalid_generation", "source_units")
-    require(support_mode in ("inline", "click"), "invalid_generation", "support_mode")
+    require(support_mode in ("context", "inline", "click"), "invalid_generation", "support_mode")
     require(isinstance(generated_chunk, dict) and isinstance(generated_chunk.get("edits"), list),
             "invalid_generation", "generated_chunk")
     language = generated_chunk.get('language', 'und')
@@ -58,6 +58,9 @@ def _render_occurrence(unit_id, index, edit, support_mode, language):
     occurrence_id = html.escape(f"{unit_id}-{index}", quote=True)
     gloss = html.escape(edit.get("gloss_he", ""), quote=True)
     foreign = html.escape(edit["replacement"])
+    if support_mode == 'context':
+        return (f'<bdi lang="{language}" dir="{"rtl" if language == "yi" else "ltr"}" '
+                f'data-occurrence-id="{occurrence_id}" class="learning-foreign">{foreign}</bdi>')
     css_class = "learning-foreign" + (" learning-foreign-click" if support_mode == "click" else "")
     attrs = (
         f'lang="{language}" dir="{"rtl" if language == "yi" else "ltr"}" data-occurrence-id="{occurrence_id}" '
