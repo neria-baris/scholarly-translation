@@ -1,5 +1,5 @@
 # Current state — LEARN-5 optional click meaning, isolated delivery
-Latest known commit b032b44 receipt; LEARN-4 delivery019d140.
+Verified LEARN-5 delivery f4e0efc445dabd03b3b18e3bc02c9eb5607f39e9.
 Current contract audit/contracts/learn_5.md: optional display only.
 Feature branch codex/language-learning in .claude/worktrees/learning-conductor,
 base9898011; main concurrent translation/library/job-block edits preserved.
@@ -12,7 +12,7 @@ Display does not affect immutable prepared hash, source, effort or advancement.
 Own preview session1410 on127.0.0.1:62144 reuses only synthetic isolated data;
 synthetic_calls0 on restart. Screenshot outputs/learning-click-gloss-verified.png.
 Active main translator never edited/stopped/restarted. Local reviewed feature
-commit/receipt pending; remote feature push not attempted, no main merge/deploy.
+delivery committed, clean tree; remote push not attempted, no main merge/deploy.
 Cumulative policy2 and explicit completion history remain. French500 eligible
 words; other4 bare500-form lists, teaching/selection not available. No live model
 quality or linguistic review claim. Initial500 goal has no hard ceiling but
