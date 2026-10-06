@@ -20,6 +20,7 @@ from .source_reading import (
     StructureError, build_readings, fingerprint, integer, nonempty, require, sha,
     strings, validate_candidate, validate_decision,
 )
+from . import article_layout
 from .formal_checks import has_translatable_words
 from .store import deterministic_id
 
@@ -205,14 +206,44 @@ def _build_nodes_for_digital_text_reading(reading: dict, previous_nodes) -> list
     return nodes
 
 
-def _build_nodes_for_reading(reading: dict, previous_nodes) -> list:
+def _apply_layout_overrides(text: str, overrides: dict) -> list:
+    """Classified lines with ARTICLE-NOTES layout overrides applied: an overridden line takes
+    the override's kind/level, and consecutive lines of one override group (a multi-line note
+    or reference entry) form one span. Other lines keep the usual paragraph merging."""
+    raw = _classified_lines(text)
+    if not overrides:
+        return _merge_paragraph_lines(text, raw)
+    out, plain = [], []
+    def flush():
+        if plain:
+            out.extend(_merge_paragraph_lines(text, plain))
+            plain.clear()
+    last_group = None
+    for start, end, kind, level in raw:
+        override = overrides.get(start)
+        if override is None:
+            plain.append((start, end, kind, level))
+            last_group = None
+            continue
+        flush()
+        o_kind, o_level, group = override
+        if last_group == (o_kind, group) and out:
+            out[-1] = (out[-1][0], end, o_kind, o_level)
+        else:
+            out.append((start, end, o_kind, o_level))
+        last_group = (o_kind, group)
+    flush()
+    return out
+
+
+def _build_nodes_for_reading(reading: dict, previous_nodes, overrides=None) -> list:
     origin = reading["selected"]["origin"] if reading["selected"] else None
     if origin == "digital-text":
         return _build_nodes_for_digital_text_reading(reading, previous_nodes)
     text = reading["text"]
     previous_nodes = previous_nodes or []
     previous_by_id = {n["node_id"]: n for n in previous_nodes}
-    groups = _merge_paragraph_lines(text, _classified_lines(text))
+    groups = _apply_layout_overrides(text, overrides)
     nodes = []
     for start, end, kind, level in groups:
         node_id = deterministic_id(
@@ -408,6 +439,8 @@ def build_structure_v2(document, ocr_bundle=None, decisions=None, boundaries=Non
         reading["selected_anchors"] = selected_candidate["anchors"] if selected_candidate else []
         reading["selected_warnings"] = selected_candidate["warnings"] if selected_candidate else []
 
+    layout = article_layout.analyze_readings(readings_raw)
+
     previous_nodes_by_page, previous_units_by_page = {}, {}
     if effective_previous:
         for n in effective_previous.get("nodes", []):
@@ -421,7 +454,8 @@ def build_structure_v2(document, ocr_bundle=None, decisions=None, boundaries=Non
             raise StructureError("boundaries require a resolved reading")
         if reading["status"] != "resolved":
             continue
-        nodes = _build_nodes_for_reading(reading, previous_nodes_by_page.get(reading["page_id"]))
+        nodes = _build_nodes_for_reading(reading, previous_nodes_by_page.get(reading["page_id"]),
+                                         layout.get(reading["page_id"]))
         all_nodes.extend(nodes)
 
         page_boundary = boundaries.get(reading["page_id"])
