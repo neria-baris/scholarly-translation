@@ -164,3 +164,34 @@ call and fail the job); the keeper trim loop runs up to 32 rounds; completed boo
 entry point in the result view's notebook section (status completed shows no processing view).
 Out of plan: cross-QA and name-table calls are not part of the per-chapter conservative plan;
 they protect the remaining chapters' reserve and are skipped with a note on shortage.
+
+Addendum 2 — SOURCE-PASS (2026-10-06, user report after delivery 0885287):
+the name table was built from capitalized candidates with one snippet each, not from reading
+the original book; the UI text said the cross check "reads the translation"; a finished book
+(Jade City) had no visible way to run the check, and a completed check could not run again.
+B2 (owns name_table.py, runtime_prompts/09_name_table.md, tests/test_name_table.py):
+- `build_source_pass_prompt(chapters, names_text, candidates, profile_id, source_language)`
+  replaces `build_prepass_prompt`. chapters `[{"index","source"}]` (0-based; rendered
+  `=== CHAPTER k ===` 1-based) are consecutive ORIGINAL chapters; names_text is the table so far
+  (render_names, "(none)" when empty); candidates `[{"name","count"}]` are capitalized words
+  found in these chapters (a hint only, may be empty). Prompt 09: read the original chapters;
+  list every person, place, organization, title/rank and invented term that appears in them and
+  is NOT in NAMES_SO_FAR (including lowercase invented terms); decide gender from the text;
+  group aliases; distinctness against NAMES_SO_FAR and each other (prefixes, vav doubling,
+  niqqud allowed); established Hebrew forms for real people/places; never repeat or change a
+  name in NAMES_SO_FAR; strict JSON `{"names":[...]}`; `{"names":[]}` when nothing is new.
+- `name_candidates(..., snippet_chars=0)` allowed (no snippet key needed by the new prompt).
+Pipeline (conductor): the pre-pass reads the whole original in chunks of consecutive chapters in
+reading order, each chunk one `name-table` step (inputs.chunk), bounded so the prompt fits the
+keeper role (and at most 300000 tokens of source per chunk); chunk bounds and progress persist
+in the table (`chunks`, `chunks_done`); entries merge add-only after every chunk; a failed chunk
+leaves status skipped (entries so far kept); retry/enable resumes from the next chunk.
+`cross_review_available` is also true when every window is completed (run again); enabling then
+moves the finished windows to `cross_qa.history` and starts a new pass (unchanged prompts replay
+from the journal, so only changed text costs calls).
+E2 (owns ui.html, ui.js, help.html, tests/test_cross_review_action.py and UI tests): the result
+view shows a visible cross-check box (not inside the collapsed notebook section) when
+`cross_review_available`; label "להכין בדיקה רוחבית" or, when `cross_qa.windows` exist and all
+are completed, "להריץ שוב בדיקה רוחבית"; copy states that the name table is built by reading
+the ORIGINAL book and that each window compares the original with the translation. Same copy
+fix in the processing box and help.
