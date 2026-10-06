@@ -311,7 +311,8 @@ class DocumentDraftTests(unittest.TestCase):
                 break
             time.sleep(0.01)
         self.assertEqual(job["status"], "completed")
-        self.assertTrue(any(limit["kind"] == "footnotes_rendered_inline" for limit in job["export_limitations"]))
+        # A note with no mark in the text stays where it stood (ARTICLE-NOTES).
+        self.assertTrue(any(limit["kind"] == "note_without_mark" for limit in job["export_limitations"]))
 
     # --- job surviving/resuming the same way as before --------------------------
 
