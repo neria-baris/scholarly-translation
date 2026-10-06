@@ -193,7 +193,7 @@ def name_candidates(texts, language, limit=400, min_count=2, snippet_chars=160):
 # -------------------------------------------------------------------- prompt
 
 _PLACEHOLDER_RE = re.compile(
-    r"\{\{(NAMES_SO_FAR|CANDIDATES|PROFILE_ID|PROFILE_GUIDANCE|SOURCE_LANGUAGE|CHAPTERS)\}\}")
+    r"\{\{(NAMES_SO_FAR|CANDIDATES|PROFILE_ID|PROFILE_GUIDANCE|SOURCE_LANGUAGE|CHAPTERS|VOICE_TASK)\}\}")
 _PROFILE_GUIDANCE = {
     "literary": (
         "- List every person, place, organization, title or rank, and invented term that appears in these "
@@ -214,9 +214,44 @@ _PROFILE_GUIDANCE = {
         "\"note\". \"gender\" of an author matters: Hebrew verbs agree with it (טוען / טוענת)."),
 }
 
+# BOOK-VOICE: the first source-pass step also fixes the book's register and key words.
+_VOICE_TASK = (
+    "- VOICE (this first step only): add to the same JSON object a field \"voice\": "
+    "{{\"register\":\"\",\"key_words\":[{{\"source\":\"\",\"forms\":[],\"hebrew\":\"\",\"note\":\"\"}}]}}. "
+    "Every later translation call follows it, so decide it now from the original.\n"
+    "- \"register\" (written in Hebrew, <= 1500 characters): {register}\n"
+    "- \"key_words\" (at most 20): {key_words} Not names: names go in \"names\". \"source\" is the base "
+    "word, \"forms\" the other source forms that occur (ascends, ascent), \"hebrew\" the chosen Hebrew base "
+    "form without niqqud (it inflects as Hebrew grammar requires), \"note\" why it fits the register "
+    "(<= 300 characters).\n")
+_VOICE_GUIDANCE = {
+    "literary": {
+        "register": ("the book's voice and the matching Hebrew register: the narrator (person, distance, irony "
+                     "or humor), period and flavor of the language, formality, sentence rhythm, how dialogue "
+                     "sounds, and which layer of Hebrew fits (for example literary Hebrew with light archaic "
+                     "touches and no slang)."),
+        "key_words": ("recurring ordinary words, motifs and the words of the book's title whose Hebrew choice "
+                      "carries the register and must stay the same throughout (for example a title verb such as "
+                      "\"ascend\": עולה, נוסק or מטפס)."),
+    },
+    "scholarly": {
+        "register": ("the author's voice and the matching academic Hebrew register: first person singular or "
+                     "plural or impersonal, formality, hedging habits, polemical or neutral tone, and sentence "
+                     "length and structure."),
+        "key_words": ("recurring non-technical words of the title, thesis and framing whose Hebrew choice "
+                      "carries the register and must stay the same throughout (technical terms go in "
+                      "\"names\" as kind term)."),
+    },
+}
+MAX_REGISTER = 1500
+MAX_KEY_WORDS = 20
+MAX_KEY_WORD = 80
+MAX_KEY_WORD_FORMS = 8
 
-def build_source_pass_prompt(chapters, names_text, candidates, profile_id, source_language):
-    """Prompt for one source-pass step: consecutive ORIGINAL chapters ``[{"index","source"}]``."""
+
+def build_source_pass_prompt(chapters, names_text, candidates, profile_id, source_language, ask_voice=False):
+    """Prompt for one source-pass step: consecutive ORIGINAL chapters ``[{"index","source"}]``.
+    ``ask_voice`` (the first step) also asks for the book's register and key words."""
     blocks = []
     for ch in chapters or []:
         if not isinstance(ch, dict):
@@ -236,6 +271,8 @@ def build_source_pass_prompt(chapters, names_text, candidates, profile_id, sourc
         "PROFILE_GUIDANCE": _PROFILE_GUIDANCE["scholarly" if profile_id == "scholarly" else "literary"],
         "SOURCE_LANGUAGE": str(source_language or "unknown"),
         "CHAPTERS": "\n\n".join(blocks),
+        "VOICE_TASK": (_VOICE_TASK.format(**_VOICE_GUIDANCE["scholarly" if profile_id == "scholarly" else "literary"])
+                       if ask_voice else ""),
     }
     template = _PROMPT_PATH.read_text(encoding="utf-8")
     # Single pass: text inserted for one placeholder is never scanned for others.
@@ -301,6 +338,41 @@ def parse_prepass_response(raw):
     if not isinstance(obj, dict) or not isinstance(obj.get("names"), list):
         raise NameTableError("no JSON object with a names list in the model response")
     return parse_names(obj["names"], "prepass")
+
+
+def parse_voice(raw):
+    """The optional ``voice`` of a first source-pass answer -> cleaned dict or ``None``; never raises."""
+    from scholarly_translation import book_notebook
+    try:
+        obj, _repaired = book_notebook.extract_json_object(raw, ("names", "voice"))
+    except Exception:
+        return None
+    voice = obj.get("voice") if isinstance(obj, dict) else None
+    if not isinstance(voice, dict):
+        return None
+    register = _clip(voice.get("register"), MAX_REGISTER)
+    words, seen = [], set()
+    raw_words = voice.get("key_words")
+    for item in raw_words if isinstance(raw_words, list) else []:
+        if not isinstance(item, dict):
+            continue
+        source, hebrew = _clip(item.get("source"), MAX_KEY_WORD), _clip(item.get("hebrew"), MAX_KEY_WORD)
+        if not source or not _has_hebrew(hebrew) or _key(source) in seen:
+            continue
+        seen.add(_key(source))
+        forms, form_keys = [], {_key(source)}
+        raw_forms = item.get("forms")
+        for f in raw_forms if isinstance(raw_forms, list) else []:
+            f = _clip(f, MAX_KEY_WORD) if isinstance(f, str) else ""
+            if f and _key(f) not in form_keys and len(forms) < MAX_KEY_WORD_FORMS:
+                form_keys.add(_key(f))
+                forms.append(f)
+        words.append({"source": source, "forms": forms, "hebrew": hebrew, "note": _clip(item.get("note"), MAX_NOTE)})
+        if len(words) >= MAX_KEY_WORDS:
+            break
+    if not register and not words:
+        return None
+    return {"register": register, "key_words": words}
 
 
 # --------------------------------------------------------------------- merge

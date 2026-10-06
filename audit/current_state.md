@@ -1,4 +1,11 @@
-# Current state — EXPORT-NIQQUD delivered to main (after PUNCT-RHYTHM f87addb)
+# Current state — BOOK-VOICE delivered to main (after EXPORT-NIQQUD)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/book_voice.md`.
+The first name-table source-pass call also decides the book's register and key words (title words
+included); they become global notebook entries (`voice`, `key-word`) that translator, reviewers and
+keeper see; the keeper may refine them. No new calls. New jobs only (ready tables do not rerun).
+Open (a) from EXPORT-NIQQUD below is resolved by this delivery.
+
+## Previous: EXPORT-NIQQUD delivered to main (after PUNCT-RHYTHM f87addb)
 Updated: 2026-10-06. Claude continuity, user-directed. Contract `audit/contracts/export_niqqud.md`.
 From the Senlin Ascends job (dccf6947, completed 50/50, $1.14): EPUB export now spreads a merged
 unit's translation one line per original block (no English left behind); NAMES shows plain

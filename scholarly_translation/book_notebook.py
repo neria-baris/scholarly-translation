@@ -313,6 +313,50 @@ def apply_keeper_response(notebook, raw_text, chapter_index):
     return nb, rep
 
 
+VOICE_TITLE = "משלב וקול הספר"
+KEY_WORD_TITLE = "מילת מפתח: %s"
+
+
+def add_voice_entries(notebook, voice, chapter_index=0):
+    """BOOK-VOICE: the register and key words decided before chapter 1 as ordinary global entries
+    (the keeper may refine them). ``(new_notebook, report)``; never mutates, never raises on ``voice``."""
+    rep = _report("ok")
+    if not isinstance(voice, dict):
+        return notebook, _report("skipped", ["no voice"])
+    ops = []
+    if isinstance(voice.get("register"), str) and voice["register"].strip():
+        ops.append({"op": "add", "tags": ["voice"], "title": VOICE_TITLE, "note": voice["register"],
+                    "scope": "global"})
+    for word in voice.get("key_words") if isinstance(voice.get("key_words"), list) else []:
+        if not isinstance(word, dict) or not word.get("source"):
+            continue
+        forms = [word["source"]] + [f for f in word.get("forms") or [] if isinstance(f, str)]
+        ops.append({"op": "add", "tags": ["key-word"], "title": KEY_WORD_TITLE % word["source"],
+                    "note": word.get("note") or "", "hebrew_rendering": word.get("hebrew") or "",
+                    "match_terms": forms, "scope": "global"})
+    if not ops:
+        return notebook, _report("skipped", ["empty voice"])
+    nb = copy.deepcopy(notebook)
+    by_id = {e["entry_id"]: e for e in nb["entries"]}
+    by_title = {}
+    for e in nb["entries"]:
+        if e["status"] == "active":
+            by_title.setdefault(_norm_text(e["title"]), e)
+    for i, op in enumerate(ops):
+        try:
+            _apply_op(nb, op, i, chapter_index, by_id, by_title, rep)
+        except Exception:  # defensive: model output must never raise
+            rep["skipped"] += 1
+            rep["warnings"].append("voice op %d: could not be applied" % i)
+    nb["revision"] += 1
+    record = {"revision": nb["revision"], "chapter_index": chapter_index, "warnings": len(rep["warnings"])}
+    for k in ("added", "updated", "superseded", "skipped"):
+        record[k] = rep[k]
+    nb["history"].append(record)
+    nb["history"] = nb["history"][-MAX_HISTORY:]
+    return nb, rep
+
+
 def _protected(entry):
     return bool(entry.get("pinned")) or entry.get("origin") == "human"
 

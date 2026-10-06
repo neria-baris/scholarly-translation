@@ -976,3 +976,15 @@ before (known limitation). Full offline suite 1164 OK after the revision. Paid/p
 no restart; job data untouched. Open: register guidance in the name-table pass (user: "to be
 considered"); niqqud already inside finished Senlin/Jade City text is not removed.
 
+
+## 2026-10-07T00:30+03:00 | BOOK-VOICE | Claude continuity, user-directed
+User proposal after Senlin (title "Senlin Ascends" -> "סנלין עולה", QA disputing its sense): the
+name-table pass should grasp the book's register and set it from the start. User approved the
+recommendation: no approval pause, visible in the notebook, keeper may refine. Contract
+book_voice.md, branch feat/book-voice. The first source-pass chunk now also asks for a "voice"
+field (register in Hebrew, <=20 key words incl. title words, with source forms and plain Hebrew);
+parse_voice is tolerant and bounded; add_voice_entries adds one global `voice` entry and one global
+`key-word` entry per word (keeper add semantics, not pinned). Other chunks and names parsing
+unchanged; a broken voice changes nothing else. No new calls or steps. 11 new tests; full
+offline suite 1175 OK (543s). Paid/provider calls 0; no restart.
+

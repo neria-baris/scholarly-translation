@@ -274,5 +274,54 @@ class NiqqudTests(unittest.TestCase):
         self.assertEqual(t["entries"][0]["hebrew"], "שֵׁאי")
 
 
+class VoiceTests(unittest.TestCase):
+    """BOOK-VOICE: the first source-pass step also asks for register and key words."""
+
+    def prompt(self, profile="literary", ask_voice=False):
+        return nt.build_source_pass_prompt([{"index": 0, "source": "Senlin Ascends"}], "", [], profile, "en",
+                                           ask_voice=ask_voice)
+
+    def test_only_first_step_asks(self):
+        self.assertNotIn("VOICE", self.prompt())
+        self.assertNotIn("{{", self.prompt())
+        literary = self.prompt(ask_voice=True)
+        self.assertIn('- VOICE (this first step only)', literary)
+        self.assertIn('"key_words"', literary)
+        self.assertIn("נוסק", literary)
+        self.assertIn("Output strict JSON only", literary)
+        scholarly = self.prompt("scholarly", ask_voice=True)
+        self.assertIn("academic Hebrew register", scholarly)
+        self.assertNotIn("נוסק", scholarly)
+
+    def test_parse_voice(self):
+        raw = json.dumps({"names": [], "voice": {
+            "register": "  עברית ספרותית,\n מעט ארכאית ", "key_words": [
+                {"source": "ascend", "forms": ["ascends", "Ascend", "ascent", 7], "hebrew": "נסק", "note": "גבוה"},
+                {"source": "ASCEND", "hebrew": "עלה"},
+                {"source": "tower", "hebrew": "tower"},
+                "junk"]}}, ensure_ascii=False)
+        voice = nt.parse_voice(raw)
+        self.assertEqual(voice["register"], "עברית ספרותית, מעט ארכאית")
+        self.assertEqual(voice["key_words"], [{"source": "ascend", "forms": ["ascends", "ascent"],
+                                               "hebrew": "נסק", "note": "גבוה"}])
+
+    def test_parse_voice_absent_or_broken(self):
+        for raw in (None, "", "not json", json.dumps({"names": []}), json.dumps({"names": [], "voice": "x"}),
+                    json.dumps({"names": [], "voice": {"register": "", "key_words": []}})):
+            self.assertIsNone(nt.parse_voice(raw), raw)
+
+    def test_parse_voice_bounds(self):
+        words = [{"source": "w%d" % i, "forms": ["f%d" % j for j in range(20)], "hebrew": "מילה"} for i in range(40)]
+        voice = nt.parse_voice(json.dumps({"names": [], "voice": {"register": "א" * 5000, "key_words": words}}))
+        self.assertEqual(len(voice["register"]), nt.MAX_REGISTER)
+        self.assertEqual(len(voice["key_words"]), nt.MAX_KEY_WORDS)
+        self.assertEqual(len(voice["key_words"][0]["forms"]), nt.MAX_KEY_WORD_FORMS)
+
+    def test_names_parsing_unchanged_by_voice(self):
+        raw = json.dumps({"names": [SHAE], "voice": {"register": "x"}}, ensure_ascii=False)
+        entries, dropped = nt.parse_prepass_response(raw)
+        self.assertEqual([e["source"] for e in entries], ["Shae"])
+
+
 if __name__ == "__main__":
     unittest.main()

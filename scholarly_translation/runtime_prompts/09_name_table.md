@@ -26,7 +26,7 @@ Task:
 - DISTINCTNESS: every Hebrew form must differ from every Hebrew form in NAMES_SO_FAR and from every other form you list, also after the Hebrew prefixes ו ה ב כ ל מ ש are attached. A word starting with ו doubles that letter after a prefix: ון + ל gives לוון, identical to ל + וון, so Wen and Woon must not be ון and וון.
 - NIQQUD: write each Hebrew form without niqqud, exactly as it will appear in the running Hebrew text (plain spelling with matres lectionis, for example אדם בוריאס, not אָדָם בּוֹרֵיאַס). Add niqqud only when two names would otherwise be written alike or misread as each other, and then only the marks that tell them apart (for example שֵׁאי against שיי).
 - "hebrew" holds only the Hebrew name itself (no Latin letters, no explanation). "note" is optional and short (<= 300 characters).
-
+{{VOICE_TASK}}
 Output strict JSON only, with no text before or after it and no code fence:
 {"names":[{"source":"","aliases":[],"hebrew":"","kind":"other","gender":"unknown","note":""}]}
 When nothing new appears, output {"names":[]}.

@@ -270,6 +270,36 @@ class NamesCrossQATests(unittest.TestCase):
         pipeline._clear_keeper_notes(job, 2)
         self.assertEqual(job['review_notes'], [pipeline.KEEPER_SKIPPED_NOTE % 4])
 
+    def test_first_chunk_sets_the_book_voice(self):
+        # BOOK-VOICE: only the first source-pass step asks; its register and key words reach the notebook.
+        job = self.job('fast')
+        def answer(chunk):
+            names = {'names': [{'source': 'Shae', 'hebrew': RIGHT, 'kind': 'character', 'gender': 'female'}]}
+            if chunk[0] == '1':
+                names['voice'] = {'register': 'עברית ספרותית מאופקת', 'key_words': [
+                    {'source': 'harbour', 'forms': ['harbours'], 'hebrew': 'נמל', 'note': 'קבוע'}]}
+            return json.dumps(names, ensure_ascii=False) if chunk[0] in ('1', '2') else json.dumps({'names': []})
+        with unittest.mock.patch.object(pipeline, 'NAME_SOURCE_CHUNK_TOKENS', 1):
+            self.execute(job, self.factory(names_text=answer))
+        prompts = self.prompts('names')
+        self.assertIn('- VOICE (this first step only)', prompts[0])
+        self.assertFalse(any('- VOICE' in p for p in prompts[1:]))
+        titles = [e['title'] for e in job['book_notebook']['entries']]
+        self.assertIn('משלב וקול הספר', titles)
+        self.assertIn('מילת מפתח: harbour', titles)
+        self.assertEqual(job['name_table']['status'], 'ready')
+        self.assertTrue(all('עברית ספרותית מאופקת' in p for p in self.prompts('translate')))
+
+    def test_broken_voice_changes_nothing_else(self):
+        job = self.job('fast')
+        def answer(chunk):
+            return json.dumps({'names': [{'source': 'Shae', 'hebrew': RIGHT, 'kind': 'character',
+                                          'gender': 'female'}], 'voice': 'garbage'}, ensure_ascii=False)
+        self.execute(job, self.factory(names_text=answer))
+        self.assertEqual(job['name_table']['status'], 'ready')
+        self.assertEqual(job['name_table']['entries'][0]['origin'], 'prepass')
+        self.assertNotIn('משלב וקול הספר', [e['title'] for e in job['book_notebook']['entries']])
+
 
 if __name__ == '__main__':
     unittest.main()

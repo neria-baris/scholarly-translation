@@ -744,15 +744,16 @@ def _remaining_reserve(job):
     return sum(plan['conservative_total_ceiling_usd'] for i, plan in enumerate(job.get('chapter_plans', []))
                if not job.get('chapter_completion', {}).get(str(i)))
 
-def _source_prompt(job, groups, first, last, selection, profile, language):
-    """Source-pass prompt for chapters ``first..last`` of the ORIGINAL book and the names so far."""
+def _source_prompt(job, groups, first, last, selection, profile, language, ask_voice=False):
+    """Source-pass prompt for chapters ``first..last`` of the ORIGINAL book and the names so far;
+    the first chunk (``ask_voice``) also asks for the book's register and key words (BOOK-VOICE)."""
     chapters = [{'index': i, 'source': '\n\n'.join(u['text'] for u in groups[i])} for i in range(first, last + 1)]
     candidates = [{'name': c['name'], 'count': c['count']}
                   for c in nt.name_candidates([c['source'] for c in chapters], language, snippet_chars=0)]
     return nt.build_source_pass_prompt(chapters, _names_text(job, None, selection, notebook_budget(selection)),
-                                       candidates, profile, language)
+                                       candidates, profile, language, ask_voice)
 
-def _source_chunk(job, groups, first, selection, profile, language, cap):
+def _source_chunk(job, groups, first, selection, profile, language, cap, ask_voice=False):
     """Last chapter of the next chunk from ``first``: consecutive chapters within
     NAME_SOURCE_CHUNK_TOKENS whose prompt fits the role; ``None`` when chapter ``first`` alone
     cannot fit."""
@@ -762,7 +763,8 @@ def _source_chunk(job, groups, first, selection, profile, language, cap):
     while last + 1 < len(groups) and total + size(last + 1) <= limit:
         last += 1
         total += size(last)
-    while not _fits(_source_prompt(job, groups, first, last, selection, profile, language), selection, cap):
+    while not _fits(_source_prompt(job, groups, first, last, selection, profile, language, ask_voice),
+                    selection, cap):
         if last == first:
             return None
         last = first + (last - first) // 2
@@ -789,7 +791,8 @@ def _run_name_table(job, groups, configuration, profile, store, journal, hard, m
             entries, dropped = nt.parse_prepass_response(result.text if isinstance(result.text, str) else '')
         except nt.NameTableError as exc:
             raise ChapterPipelineError('name table response was not usable: %s' % exc) from None
-        return {'entries': entries, 'dropped': len(dropped) if isinstance(dropped, list) else dropped}
+        return {'entries': entries, 'dropped': len(dropped) if isinstance(dropped, list) else dropped,
+                'voice': nt.parse_voice(result.text if isinstance(result.text, str) else '')}
     def skip():
         job['name_table']['status'] = 'skipped'
         _keeper_note(job, NAME_TABLE_SKIPPED_NOTE)
@@ -800,13 +803,13 @@ def _run_name_table(job, groups, configuration, profile, store, journal, hard, m
         if first >= len(groups):
             break
         if done == len(chunks):
-            last = _source_chunk(job, groups, first, selection, profile, language, cap)
+            last = _source_chunk(job, groups, first, selection, profile, language, cap, done == 0)
             if last is None:
                 skip()
                 return
             chunks.append([first, last])
         last = chunks[done][1]
-        prompt = _source_prompt(job, groups, first, last, selection, profile, language)
+        prompt = _source_prompt(job, groups, first, last, selection, profile, language, done == 0)
         try:
             parsed, replay = _controlled(job['job_id'], role, _NAME_TABLE_STAGE, prompt, configuration, cap, store,
                 journal, hard, max_calls, shared_cap, validator,
@@ -819,6 +822,8 @@ def _run_name_table(job, groups, configuration, profile, store, journal, hard, m
             return
         job['local_replays'] = job.get('local_replays', 0) + int(replay)
         _merge_names(job, parsed['entries'], first, 'prepass')
+        if done == 0 and parsed.get('voice') and job.get('book_notebook'):
+            job['book_notebook'], _ = bn.add_voice_entries(job['book_notebook'], parsed['voice'], first)
         job['name_table']['chunks_done'] = done + 1
     job['name_table']['status'] = 'ready'
     if NAME_TABLE_SKIPPED_NOTE in job.get('review_notes', []):

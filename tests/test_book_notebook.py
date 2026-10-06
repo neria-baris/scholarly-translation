@@ -373,5 +373,44 @@ class BookNotebookTests(unittest.TestCase):
         self.assertLess(time.time() - t, 20.0)
 
 
+class VoiceEntriesTests(unittest.TestCase):
+    """BOOK-VOICE: register and key words become ordinary global notebook entries."""
+
+    VOICE = {"register": "עברית ספרותית עם נגיעות ארכאיות", "key_words": [
+        {"source": "ascend", "forms": ["ascends", "ascent"], "hebrew": "נסק", "note": "מרומם"}]}
+
+    def test_entries_added_without_mutation(self):
+        nb = bn.new_notebook("doc1")
+        new, rep = bn.add_voice_entries(nb, self.VOICE)
+        self.assertEqual(nb["entries"], [])
+        self.assertEqual(rep["added"], 2)
+        self.assertTrue(bn.validate_notebook(new))
+        voice, word = new["entries"]
+        self.assertEqual((voice["title"], voice["tags"], voice["scope"], voice["pinned"]),
+                         (bn.VOICE_TITLE, ["voice"], "global", False))
+        self.assertEqual(voice["note"], self.VOICE["register"])
+        self.assertEqual((word["tags"], word["hebrew_rendering"], word["match_terms"]),
+                         (["key-word"], "נסק", ["ascend", "ascends", "ascent"]))
+
+    def test_rendered_for_translation(self):
+        nb, _ = bn.add_voice_entries(bn.new_notebook("doc1"), self.VOICE)
+        out = bn.render_for_chapter(nb, "Senlin ascends the Tower.")
+        self.assertIn(self.VOICE["register"], out)
+        self.assertIn("נסק", out)
+
+    def test_repeat_updates_instead_of_duplicating(self):
+        nb, _ = bn.add_voice_entries(bn.new_notebook("doc1"), self.VOICE)
+        nb, rep = bn.add_voice_entries(nb, self.VOICE)
+        self.assertEqual(len(nb["entries"]), 2)
+        self.assertEqual(rep["added"], 0)
+
+    def test_nothing_usable(self):
+        nb = bn.new_notebook("doc1")
+        for voice in (None, "x", {}, {"register": " ", "key_words": ["x", {"hebrew": "א"}]}):
+            new, rep = bn.add_voice_entries(nb, voice)
+            self.assertIs(new, nb)
+            self.assertEqual(rep["status"], "skipped")
+
+
 if __name__ == "__main__":
     unittest.main()
