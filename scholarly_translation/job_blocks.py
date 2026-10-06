@@ -153,9 +153,14 @@ def diagnose(job, store, journal):
     return None
 
 
-def _reset_stuck(job, journal, stage=None):
+def _reset_stuck(job, journal, stage=None, store=None):
     for step in journal.job_steps(job["job_id"]):
         if step["status"] in ("failed", "unknown", "dispatched") and (stage is None or step["stage"] == stage):
+            saved = json.loads(step["raw_json"]) if step["raw_json"] else None
+            if store is not None and step["status"] == "failed" and saved and saved.get("status") in ("completed", "mock_placeholder"):
+                # The provider answered but the answer failed validation: a resend must
+                # not replay the same cached answer.
+                store.user_evict_cache(job["job_id"], stage=step["stage"], prompt_hash=step["prompt_hash"])
             prior = journal.reset_for_retry(step["identity"])
             job.setdefault("retry_history", []).append({
                 "identity": prior["identity"], "stage": prior["stage"], "status": prior["status"],
@@ -213,7 +218,7 @@ def apply_decision(job, store, journal, option_id, value=None):
             if step["stage"] == _NOTEBOOK_STAGE and step["status"] in ("unknown", "dispatched"):
                 journal.mark_failed(step["identity"], "notebook update skipped by user decision")
     elif option_id in ("accept_and_retry", "accept_worst_case_and_retry"):
-        _reset_stuck(job, journal, block["details"].get("call", {}).get("stage") or block["details"].get("stage"))
+        _reset_stuck(job, journal, block["details"].get("call", {}).get("stage") or block["details"].get("stage"), store)
     elif option_id == "raise_calls":
         settings["max_calls"] = store.user_raise_limits(job_id, max_calls=int(offered[option_id]["value"]))["max_calls"]
     elif option_id == "raise_budget":

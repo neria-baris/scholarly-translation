@@ -1,0 +1,64 @@
+# REVIEW-EFFECT — unblock, grounded review that actually corrects, notebook context
+
+Date: 2026-10-06. Base: 05748c8. Requested by the user after job c69bb5fc stopped at
+chapter 52/64 and an audit of that run (51 chapters, $0.48 list):
+- chapter-translate response held all 5 units but lacked the closing `]`;
+- "send again" replayed the same broken response from the runtime cache (event 869, cache_hit);
+- 140/267 unit reviews and 47/51 chapter QA results were discarded: spans wrapped in
+  quotes/backticks (exact 7/436 and 99/411; after unwrapping 356 and 351), self-retracting
+  free text inside ISSUES, one STATE_UPDATES `established`; only 4 corrections ran;
+- proper_name_candidate (16,909 findings) made every unit "risky";
+- late chapters saw 3-4 of 177 notebook entries (story/summary consumed the budget; 151
+  entries `global`); keeper prompts wrote 568k cache tokens and read none.
+User decisions (2026-10-06): chapter QA corrects automatically only consistency/continuity;
+"checked" reviews every translatable unit except tiny headings; salvage chapters 1-51 of
+c69bb5fc; improve keeper/reviewer/QA prompts (cache reuse, notebook size, coordination).
+
+Component / owns:
+A. UNBLOCK (commit 1)
+- chapter_pipeline `_loads_json_array`: a top-level array whose only defect is a missing final
+  `]` after a complete object is accepted; batch coverage/order/Hebrew checks are unchanged.
+- runtime_controls `ControlStore.user_evict_cache(task_id, stage, prompt_hash)`: deletes the
+  cache rows recorded for that task/stage/prompt and appends a `user_cache_evicted` event
+  (actual `no_provider_call`). job_blocks `accept_and_retry` evicts for steps whose preserved
+  response failed validation, so the resend really reaches the provider.
+B. REVIEW-EFFECT (commit 2)
+- review_qa span grounding: exact match first, else strip matching wrapper pairs
+  (" “” „” ״ ' ‘’ ` « ») and a final period, repeatedly; the stored span is the grounded one.
+  Applies to unit source/translation spans, chapter QA spans, STATE_UPDATES spans.
+- Per-issue tolerance: an issue that cannot be grounded, is followed by stray text, has a
+  non-allowlisted category/severity, or whose correction equals its span is dropped and counted
+  (`dropped_issues`); STATE_UPDATES lines that are malformed/`established` are dropped and
+  counted. VERDICT missing, no parseable section, or REVISE with every issue dropped stays
+  `needs_human` as before.
+- Corrections: unit-review CRITICAL/MAJOR as before; chapter QA CRITICAL/MAJOR only for
+  `consistency`/`continuity`; other QA issues are retained notes.
+- Review policy: quality `checked` and `thorough` review every translatable unit; `checked`
+  skips units of at most 3 words (headings), which chapter QA still sees. Unit review output
+  cap grows with unit length (bounded by the role maximum).
+- formal_checks proper_name_candidate is no longer a review trigger, no longer makes
+  `quality_status` draft_with_exceptions, and is stored once per token per unit.
+- Prompts: reviewer/QA spans are bare verbatim single-line substrings; one line per field;
+  decide before writing, never retract or comment inside ISSUES; do not report a correction
+  identical to the current text; follow BOOK_NOTEBOOK renderings unless the source contradicts.
+  Unit reviewer receives the notebook entries relevant to its unit. In notebook jobs chapter QA
+  writes `STATE_UPDATES: none` (the notebook is the persistent state).
+- Notebook: excerpt priority pinned > entries matching the chapter > story/summary (at most
+  40% of the budget) > other globals > recent; keeper prompt keeps `global` for facts needed in
+  most chapters, concise notes; keeper prompt reuses the chapter's cached source prefix
+  (same transport as reviewers).
+- Salvage: `job_blocks`/document action `recheck_saved_reviews` re-parses preserved review and
+  QA responses of completed chapters with the current parser (no provider call), replaces the
+  stored results/exceptions and reopens chapters with new material issues so the normal resume
+  runs bounded corrections and focused rechecks (new provider calls, user-started).
+
+Invariants: no provider call during a decision or re-parse; completed translation steps are
+never resent; a dropped issue never becomes a correction; prior Hebrew kept in target_versions;
+cache eviction and salvage are audited and never lower spend or counts; budget ceilings unchanged.
+Errors: salvage on a running/non-automation job or a job without preserved responses is refused.
+Out of scope: segmentation changes, structured-output transport, budget estimate display,
+Gate10 quality claims.
+Acceptance: tests per parser rule (positive/negative), eviction leads to a real dispatch,
+QA category routing, review policy, notebook excerpt priority, keeper cache transport,
+salvage re-parse and reopen; offline replay of a copy of c69bb5fc: chapter 48 validates from the
+saved response without a call; salvage counts reported; full suite green.

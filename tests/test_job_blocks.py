@@ -145,6 +145,24 @@ class JobBlocksTests(unittest.TestCase):
         self.assertEqual(run(lenient), ([1], True))
         self.assertEqual(len(self.sent), 1)
 
+    def test_resend_after_failed_validation_reaches_provider_not_cache(self):
+        strict = lambda r: json.loads(r.text)
+        answers = [raw(text='[1]]}'), raw(text='[2]')]
+        def run():
+            return pipeline._controlled(JOB, "translator", "chapter-translate", CacheablePrompt("s\n", "p"), self.config,
+                1000, self.store, self.journal, 1.0, 20, 4096, strict, {"source": 1},
+                lambda role, d: SimpleNamespace(generate=lambda text, model: (self.sent.append(1), answers.pop(0))[1]))
+        with self.assertRaises(ValueError):
+            run()
+        self.job["error"] = "התרגום האוטומטי נעצר: response validation failed"
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_and_retry")
+        self.assertEqual(run(), ([2], False))
+        self.assertEqual(len(self.sent), 2)
+        events = self.store.status(JOB)["events"]
+        self.assertIn("user_cache_evicted", [e["outcome"] for e in events])
+        self.assertNotIn("cache_hit", [e["outcome"] for e in events])
+        self.store.status(JOB)   # integrity still holds
+
     def test_unknown_outcome_retry_after_worst_case_acceptance(self):
         self.fail(RuntimeError("connection lost"))
         block = job_blocks.diagnose(self.job, self.store, self.journal)

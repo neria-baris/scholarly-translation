@@ -389,6 +389,27 @@ class ControlStore:
             self._event(task_id, "user-decision", "user_resumed", {"decided_by": "user"}, actual="no_provider_call")
             self._conn.execute("UPDATE tasks SET stopped=0 WHERE task_id=?", (task_id,))
 
+    def user_evict_cache(self, task_id, *, stage, prompt_hash):
+        """User asked to send a step again after its saved response failed validation:
+        drop the cached response(s) this task recorded for that stage/prompt so the
+        resend reaches the provider instead of replaying the same answer. Audited;
+        events and spend are untouched. Returns the number of evicted entries."""
+        with self._transaction():
+            self._task(task_id)
+            keys = set()
+            for row in self._conn.execute("""SELECT metadata_json FROM events WHERE task_id=? AND stage=?
+                    AND outcome IN ('reserved','cache_hit')""", (task_id, stage)):
+                meta = json.loads(row["metadata_json"])
+                if isinstance(meta, dict) and meta.get("prompt_hash") == prompt_hash and meta.get("cache_hash"):
+                    keys.add(meta["cache_hash"])
+            evicted = sorted(k for k in keys
+                             if self._conn.execute("DELETE FROM cache WHERE cache_key=?", (k,)).rowcount)
+            if evicted:
+                self._event(task_id, stage, "user_cache_evicted",
+                            {"decided_by": "user", "prompt_hash": prompt_hash, "cache_hashes": evicted},
+                            actual="no_provider_call")
+        return len(evicted)
+
     def user_raise_limits(self, task_id, *, max_calls=None, hard_list_usd=None):
         """User raises the task's call count and/or list-price ceiling (never lowers)."""
         with self._transaction():

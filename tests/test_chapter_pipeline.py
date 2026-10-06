@@ -127,6 +127,16 @@ class ChapterPipelineTests(unittest.TestCase):
             with self.assertRaises(ChapterPipelineError):
                 parse_batch_translation_response(raw, ["u1"])
 
+    def test_tolerates_only_a_missing_final_bracket_after_a_complete_item(self):
+        items = [{"unit_id": u, "translation": HEBREW, "translation_note": None} for u in ("u1", "u2")]
+        body = json.dumps(items)[:-1]   # complete items, final "]" missing
+        self.assertEqual(set(parse_batch_translation_response(body, ["u1", "u2"])), {"u1", "u2"})
+        for raw, ids in ((body, ["u1", "u2", "u3"]),          # a unit is still missing -> coverage fails
+                         (body + ",", ["u1", "u2"]),           # dangling comma
+                         (body[:-1], ["u1", "u2"])):           # cut inside the last item
+            with self.assertRaises(ChapterPipelineError):
+                parse_batch_translation_response(raw, ids)
+
     def test_never_falls_back_to_source_text(self):
         source_text = "Some scholars argue that the point holds."
         raw = json.dumps([{"unit_id": "u1", "translation": source_text}])

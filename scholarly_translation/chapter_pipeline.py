@@ -930,14 +930,21 @@ _FENCE_RE = re.compile(r'^```[A-Za-z]*\s*|\s*```$')
 
 def _loads_json_array(raw_text):
     """Strict JSON, except that a complete top-level array may be wrapped in a code
-    fence or followed by stray closing brackets/braces (a common model slip such as
-    ``...}]}``). Anything else -- leading prose, truncation, extra content -- fails."""
+    fence, followed by stray closing brackets/braces (a common model slip such as
+    ``...}]}``) or lack only its final ``]`` after a complete object. Anything
+    else -- leading prose, truncation inside an item, extra content -- fails.
+    Callers still check that every expected item is present."""
     text = _FENCE_RE.sub('', raw_text.strip())
     try:
         return json.loads(text)
     except ValueError:
         if not text.startswith('['):
             raise
+        if text.endswith('}'):
+            try:
+                return json.loads(text + ']')
+            except ValueError:
+                pass
         value, end = json.JSONDecoder().raw_decode(text)
         if text[end:].strip(' \t\r\n]}`'):
             raise
