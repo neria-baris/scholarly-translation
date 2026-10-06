@@ -725,3 +725,7 @@ C Sonnet list0.795209 USD,1475103ms,21 turns; Sonnet5/auxiliaryHaiku4.5; actual 
 
 ## 2026-10-05T23:04:12.6191027Z | LEARN-2 hardening
 Sol deterministic integration fixes only; no additional model invocation. Four Sonnet builders dispatched in total (D running, cap2/shared10); ABC observable total2.9800666 USD. Phase timestamps in prior entries are phase labels; this UTC entry records the checkpoint time. Git closure is local feature; remote push not attempted.
+
+
+## 2026-10-06T04:30:37.313304+00:00 | LEARN-3 | final integrated run
+Four builders completed; D list1.1052398 USD,371038ms,33 turns, Sonnet5/auxiliaryHaiku4.5, actual charge unknown. Observable total4.0853064 USD under shared10 stop-loss; no runtime paid calls or fix-model calls.925 tests/284.829s OK,1 skip;121 learning tests. Synthetic browser acceptance and isolated restart passed. Full-page screenshot viewport artifacts are a tool limitation; visible overview proof saved locally. Main clean at9898011, active translator untouched. Local feature commit pending, feature push not attempted, merge/deploy deferred while book runs. No linguistic acceptance or paid pilot claimed.
