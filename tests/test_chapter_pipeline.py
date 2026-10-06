@@ -119,13 +119,45 @@ class ChapterPipelineTests(unittest.TestCase):
         with self.assertRaises(ChapterPipelineError):
             parse_batch_translation_response(raw, ["u1"])
 
-    def test_tolerates_only_trailing_closers_or_code_fence(self):
+    def test_tolerates_closers_fence_and_leading_text_but_not_trailing_text(self):
         item = {"unit_id": "u1", "translation": HEBREW, "translation_note": None}
-        for raw in (json.dumps([item]) + "}", json.dumps([item]) + "]}\n", "```json\n" + json.dumps([item]) + "\n```"):
+        for raw in (json.dumps([item]) + "}", json.dumps([item]) + "]}\n", "```json\n" + json.dumps([item]) + "\n```",
+                    "Here it is: " + json.dumps([item])):
             self.assertEqual(parse_batch_translation_response(raw, ["u1"])["u1"]["translation"], HEBREW)
-        for raw in ("Here it is: " + json.dumps([item]), json.dumps([item]) + " and more", json.dumps([item])[:-2]):
+        for raw in (json.dumps([item]) + " and more", json.dumps([item])[:-2], "Here it is: " + json.dumps([item])[:-2]):
             with self.assertRaises(ChapterPipelineError):
                 parse_batch_translation_response(raw, ["u1"])
+
+    def test_text_before_the_answer_is_skipped_and_counted(self):
+        # job c69bb5fc local corrections: stray characters, or reasoning, before the array
+        items = [{"unit_id": u, "translation": HEBREW, "translation_note": None} for u in ("u1", "u2")]
+        body = json.dumps(items, ensure_ascii=False)
+        draft = json.dumps([{"unit_id": "u1", "translation": "טיוטה"}], ensure_ascii=False)
+        for raw in (" ntirho" + body,
+                    "We need only grounded issues. {weak} vs [strong]? Fix both.\n" + body,
+                    "Draft: " + draft + " hmm, u2 is missing; final:\n" + body):
+            repairs = []
+            result = parse_batch_translation_response(raw, ["u1", "u2"], on_format_repair=lambda: repairs.append(1))
+            self.assertEqual([result[u]["translation"] for u in ("u1", "u2")], [HEBREW, HEBREW], raw)
+            self.assertEqual(repairs, [1], raw)
+        for raw in ("Draft: " + draft,                               # coverage still decides
+                    "Answer: " + body[:-30],                         # truncated after a preamble
+                    "Answer: " + body + " and that is all"):         # text after the answer
+            with self.assertRaises(ChapterPipelineError, msg=raw):
+                parse_batch_translation_response(raw, ["u1", "u2"])
+
+    def test_approved_echo_and_empty_note_are_repaired(self):
+        for extra in ({"approved": False}, {"approved": True}, {"translation_note": ""}, {"translation_note": "  "},
+                      {"translation_note": "", "approved": False}):
+            item = dict({"unit_id": "u1", "translation": HEBREW, "translation_note": None}, **extra)
+            repairs = []
+            result = parse_batch_translation_response(json.dumps([item]), ["u1"], on_format_repair=lambda: repairs.append(1))
+            self.assertEqual(result["u1"], {"translation": HEBREW, "translation_note": None}, extra)
+            self.assertEqual(repairs, [1], extra)
+        for extra in ({"approved": "no"}, {"status": "draft"}, {"translation_note": 5}):
+            item = dict({"unit_id": "u1", "translation": HEBREW}, **extra)
+            with self.assertRaises(ChapterPipelineError, msg=extra):
+                parse_batch_translation_response(json.dumps([item]), ["u1"])
 
     def test_punctuation_slips_around_complete_items_are_tolerated(self):
         items = [{"unit_id": u, "translation": HEBREW, "translation_note": None} for u in ("u1", "u2")]

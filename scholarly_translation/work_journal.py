@@ -248,6 +248,16 @@ class WorkJournal:
             self._conn.execute("UPDATE steps SET status='received', error=NULL, updated_at=? WHERE identity=?",
                                (_now(), identity))
 
+    def note_rejection(self, identity, code):
+        """Record which validator code (fingerprint) last rejected this step's saved
+        answer, so a later re-check is offered only once the code has changed."""
+        with self._transaction():
+            self._conn.execute("INSERT OR REPLACE INTO meta VALUES(?, ?)", ("rejected_by:" + identity, str(code)))
+
+    def rejection_code(self, identity):
+        row = self._conn.execute("SELECT value FROM meta WHERE key=?", ("rejected_by:" + identity,)).fetchone()
+        return row[0] if row else None
+
     def reset_for_retry(self, identity):
         """Explicit user decision only: a failed or outcome-unknown step may be
         sent again. Returns the prior row (callers keep its raw evidence)."""

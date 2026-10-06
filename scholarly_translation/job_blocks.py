@@ -11,6 +11,7 @@ import json
 import math
 import time
 
+from . import chapter_pipeline
 from .chapter_pipeline import DEFAULT_STORY_WORDS, KEEPER_MAX_OUTPUT_TOKENS, keeper_output_cap, resolve_keeper_role
 from .model_config import ModelConfiguration
 from .runtime_controls import RuntimeControlsError
@@ -137,25 +138,33 @@ def diagnose(job, store, journal):
                            % (_usd(status["hard_list_usd"]), _usd(status["list_estimated_spent_usd"])),
                 "options": _budget_options(status)}
     if blocking and error:
-        step = blocking[0]
+        # The step that stopped the job is the one failed (or re-checked) last; an older
+        # failure later in the book must not stand in for it.
+        step = max(blocking, key=lambda s: (s["updated_at"], s["created_at"]))
         saved = json.loads(step["raw_json"]) if step["status"] == "failed" and step["raw_json"] else None
         options = [_option("accept_and_retry", "לשלוח את השלב מחדש (קריאה חדשה לספק)")]
         message = "שלב %s נכשל (%s). ניסיון חוזר ישלח קריאה חדשה לספק." % (step["stage"], step["error"] or step["status"])
         if saved and saved.get("status") in ("completed", "mock_placeholder"):
-            # A completed provider answer was kept; resuming re-checks it locally, never resends.
-            options.insert(0, _option("reuse_saved_response", "להמשיך עם התשובה השמורה (בלי קריאה חדשה)"))
-            message = ("שלב %s נכשל בבדיקת התשובה (%s). התשובה של הספק נשמרה: אפשר לבדוק אותה שוב בלי "
-                       "קריאה חדשה, או לשלוח את השלב מחדש." % (step["stage"], step["error"]))
+            if journal.rejection_code(step["identity"]) != chapter_pipeline.VALIDATOR_CODE:
+                # The code changed since this answer was rejected: resuming re-checks it
+                # first (it is the step the run stopped at), never resends.
+                options.insert(0, _option("reuse_saved_response", "להמשיך עם התשובה השמורה (בלי קריאה חדשה)"))
+                message = ("שלב %s נכשל בבדיקת התשובה (%s). התשובה של הספק נשמרה והקוד עודכן מאז: אפשר לבדוק "
+                           "אותה שוב בלי קריאה חדשה, או לשלוח את השלב מחדש." % (step["stage"], step["error"]))
+            else:
+                message = ("שלב %s נכשל בבדיקת התשובה (%s). התשובה השמורה כבר נבדקה בקוד הנוכחי ונדחתה; "
+                           "ניסיון חוזר ישלח קריאה חדשה לספק." % (step["stage"], step["error"]))
         if step["stage"] == _VISION_STAGE:
             options.append(_option("skip_ocr_review", _SKIP_VISION_LABEL))
-        return {"kind": "failed_call", "details": dict(details, stage=step["stage"]),
+        return {"kind": "failed_call", "details": dict(details, stage=step["stage"], identity=step["identity"]),
                 "message": message, "options": options}
     return None
 
 
-def _reset_stuck(job, journal, stage=None, store=None):
+def _reset_stuck(job, journal, stage=None, store=None, identity=None):
     for step in journal.job_steps(job["job_id"]):
-        if step["status"] in ("failed", "unknown", "dispatched") and (stage is None or step["stage"] == stage):
+        if step["status"] in ("failed", "unknown", "dispatched") and (stage is None or step["stage"] == stage) \
+                and (identity is None or step["identity"] == identity):
             saved = json.loads(step["raw_json"]) if step["raw_json"] else None
             if store is not None and step["status"] == "failed" and saved and saved.get("status") in ("completed", "mock_placeholder"):
                 # The provider answered but the answer failed validation: a resend must
@@ -218,7 +227,9 @@ def apply_decision(job, store, journal, option_id, value=None):
             if step["stage"] == _NOTEBOOK_STAGE and step["status"] in ("unknown", "dispatched"):
                 journal.mark_failed(step["identity"], "notebook update skipped by user decision")
     elif option_id in ("accept_and_retry", "accept_worst_case_and_retry"):
-        _reset_stuck(job, journal, block["details"].get("call", {}).get("stage") or block["details"].get("stage"), store)
+        # A failed call resets only the step shown; other saved answers stay for their re-check.
+        _reset_stuck(job, journal, block["details"].get("call", {}).get("stage") or block["details"].get("stage"), store,
+                     block["details"].get("identity") if block["kind"] == "failed_call" else None)
     elif option_id == "raise_calls":
         settings["max_calls"] = store.user_raise_limits(job_id, max_calls=int(offered[option_id]["value"]))["max_calls"]
     elif option_id == "raise_budget":

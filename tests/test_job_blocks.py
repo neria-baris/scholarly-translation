@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 from scholarly_translation import book_notebook as bn
 from scholarly_translation import chapter_pipeline as pipeline
@@ -138,12 +139,68 @@ class JobBlocksTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             run(strict)
         self.job["error"] = "התרגום האוטומטי נעצר: previous call failed"
-        block = job_blocks.diagnose(self.job, self.store, self.journal)
-        self.assertEqual([o["id"] for o in block["options"]], ["reuse_saved_response", "accept_and_retry"])
-        job_blocks.apply_decision(self.job, self.store, self.journal, "reuse_saved_response")
-        self.assertIsNone(self.job["error"])
-        self.assertEqual(run(lenient), ([{"a": 1}], True))
+        with mock.patch.object(pipeline, "VALIDATOR_CODE", "updated-code"):   # the fix shipped, server restarted
+            block = job_blocks.diagnose(self.job, self.store, self.journal)
+            self.assertEqual([o["id"] for o in block["options"]], ["reuse_saved_response", "accept_and_retry"])
+            job_blocks.apply_decision(self.job, self.store, self.journal, "reuse_saved_response")
+            self.assertIsNone(self.job["error"])
+            self.assertEqual(run(lenient), ([{"a": 1}], True))
         self.assertEqual(len(self.sent), 1)
+
+    def test_reuse_not_offered_when_current_code_already_rejected_the_answer(self):
+        strict = lambda r: json.loads(r.text)
+        def run():
+            return pipeline._controlled(JOB, "translator", "chapter-translate", CacheablePrompt("s\n", "p"), self.config,
+                1000, self.store, self.journal, 1.0, 20, 4096, strict, {"source": 1},
+                lambda role, d: SimpleNamespace(generate=lambda text, model: (self.sent.append(1), raw(text='[1]]}'))[1]))
+        with self.assertRaises(ValueError):
+            run()
+        self.job["error"] = "התרגום האוטומטי נעצר: response validation failed"
+        block = job_blocks.diagnose(self.job, self.store, self.journal)
+        self.assertEqual([o["id"] for o in block["options"]], ["accept_and_retry"])
+        self.assertIn("כבר נבדקה בקוד הנוכחי", block["message"])
+        with mock.patch.object(pipeline, "VALIDATOR_CODE", "updated-code"):
+            # a re-check under updated code that still rejects it records that code too
+            self.assertEqual([o["id"] for o in job_blocks.diagnose(self.job, self.store, self.journal)["options"]],
+                             ["reuse_saved_response", "accept_and_retry"])
+            with self.assertRaises(pipeline.ChapterPipelineError):
+                run()
+            self.assertEqual([o["id"] for o in job_blocks.diagnose(self.job, self.store, self.journal)["options"]],
+                             ["accept_and_retry"])
+        self.assertEqual(len(self.sent), 1)
+
+    def test_block_shows_the_step_that_stopped_the_run_and_resets_only_it(self):
+        # job c69bb5fc: an old failed chapter translation (valid under new code, reached only
+        # later in the book) masked each new local-correction failure, and "send again"
+        # evicted that old answer instead of resetting the step that had stopped the run.
+        validator = lambda r: json.loads(r.text)
+        def run(stage, prompt, text):
+            return pipeline._controlled(JOB, "translator", stage, CacheablePrompt("s\n", prompt), self.config,
+                1000, self.store, self.journal, 1.0, 20, 4096, validator, {"source": prompt},
+                lambda role, d: SimpleNamespace(generate=lambda t, model: (self.sent.append(stage), raw(text=text))[1]))
+        with self.assertRaises(ValueError):
+            run("chapter-translate", "old", "[1]]")
+        with self.assertRaises(ValueError):
+            run("local-correction", "new", "[2]]")
+        self.job["error"] = "התרגום האוטומטי נעצר: response validation failed"
+        block = job_blocks.diagnose(self.job, self.store, self.journal)
+        self.assertEqual(block["details"]["stage"], "local-correction")
+        # the old step, re-checked when the run reaches it and still rejected, becomes the one shown
+        with self.assertRaises(pipeline.ChapterPipelineError):
+            run("chapter-translate", "old", "unused")
+        self.assertEqual(job_blocks.diagnose(self.job, self.store, self.journal)["details"]["stage"], "chapter-translate")
+        with self.assertRaises(pipeline.ChapterPipelineError):
+            run("local-correction", "new", "unused")
+        block = job_blocks.diagnose(self.job, self.store, self.journal)
+        self.assertEqual(block["details"]["stage"], "local-correction")
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_and_retry")
+        statuses = {s["stage"]: s["status"] for s in self.journal.job_steps(JOB)}
+        self.assertEqual(statuses, {"chapter-translate": "failed", "local-correction": "planned"})
+        self.assertEqual([h["stage"] for h in self.job["retry_history"]], ["local-correction"])
+        evicted = [e for e in self.store.status(JOB)["events"] if e["outcome"] == "user_cache_evicted"]
+        self.assertEqual(len(evicted), 1)
+        self.assertEqual(run("local-correction", "new", "[3]"), ([3], False))
+        self.assertEqual(self.sent, ["chapter-translate", "local-correction", "local-correction"])
 
     def test_resend_after_failed_validation_reaches_provider_not_cache(self):
         strict = lambda r: json.loads(r.text)

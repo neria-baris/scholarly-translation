@@ -71,3 +71,26 @@ items or an object cut off before its end still fails; coverage/order/duplicate/
 formula checks decide validity. Every accepted answer that needed this is counted once
 in job `format_repairs` (also for local corrections). Provider-enforced structured
 output ("layer 2") is out of scope until model support is verified in documentation.
+
+Addendum (2026-10-06, user-requested "reuse-recheck"): job c69bb5fc still needed ~12 user
+decisions for 6 failures after FORMAT-TOLERANCE. Causes, from its journal and an offline
+replay of a copy: (a) the block showed the oldest failed step (chapter 48, group 51, valid
+under new code but reached only after reopened groups 39-50) instead of the step that had
+stopped the run; "reuse" therefore re-checked nothing, and "send again" reset/evicted every
+failed step of the shown stage; (b) reuse was offered even when the current code had just
+rejected that answer; (c) local corrections added `"approved":false`, an empty note, or
+text before the array.
+- The block shows the most recently failed step; a re-check that still fails re-marks the
+  step (it is the one that stopped the run). `accept_and_retry` on a failed call resets
+  and evicts only that step; other saved answers stay for their re-check.
+- The journal records which package-code fingerprint (`VALIDATOR_CODE`, taken at process
+  start) rejected a saved answer (`meta` key `rejected_by:<identity>`, no schema change);
+  reuse is offered only when that differs from the running code or is unknown.
+- Batch parser: text before the answer is skipped when everything from an array start
+  `[{` to the end reads as complete items (earliest such start); trailing text and
+  truncation still fail. A boolean `approved` is dropped; an empty note reads as null.
+  Each counts as a format repair. The correction prompt is unchanged (step identities
+  of completed corrections must not change).
+Acceptance: parser positive/negative tests, block shows/resets the stopping step, reuse
+offered only after a code change, full suite green; all 8 saved completed answers of
+c69bb5fc rejected today validate under the new code without a call.

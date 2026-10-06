@@ -199,7 +199,9 @@ class ScannedFlowTests(unittest.TestCase):
         source = " ".join(u["text"] for u in job["structure"]["units"])
         self.assertIn("⟦p + q⟧", source)
         journal = self.root / "documents" / job["job_id"] / "journal.sqlite3"
-        stages = [r[0] for r in sqlite3.connect(journal).execute("select stage from steps")]
+        connection = sqlite3.connect(journal)
+        self.addCleanup(connection.close)   # Windows cannot delete an open database file
+        stages = [r[0] for r in connection.execute("select stage from steps")]
         self.assertIn(scanned_ocr.VISION_STAGE, stages)
         self.assertEqual(job["settings"]["max_calls"], 1 * 24 + 64)
 

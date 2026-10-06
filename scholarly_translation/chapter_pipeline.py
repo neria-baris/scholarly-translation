@@ -1,10 +1,12 @@
 """Chapter planning and bounded, journalled execution. All outputs are drafts."""
 from __future__ import annotations
+import hashlib
 import json
 import math
 import re
 from collections import deque
 from dataclasses import dataclass, replace
+from pathlib import Path
 from . import book_notebook as bn, context_strategy, document_state as document_state_module, review_qa as rq
 from .formal_checks import has_translatable_words, run_formal_checks
 from .epub_archive import MATH_CLOSE, MATH_OPEN
@@ -30,6 +32,17 @@ _MATERIAL_SEVERITIES = {'CRITICAL', 'MAJOR'}
 # Chapter QA corrects automatically only what a single unit review cannot see
 # (user decision 2026-10-06); its other findings stay as retained notes.
 QA_AUTO_CORRECT_CATEGORIES = {'consistency', 'continuity'}
+
+def _package_code_fingerprint():
+    digest = hashlib.sha256()
+    for path in sorted(Path(__file__).resolve().parent.glob('*.py')):
+        digest.update(path.name.encode() + b'\0' + path.read_bytes() + b'\0')
+    return digest.hexdigest()[:16]
+
+# The code this process validates with, taken when it starts. A saved answer this
+# code already rejected would be rejected again, so re-checking it is offered only
+# once the code has changed (job_blocks.diagnose).
+VALIDATOR_CODE = _package_code_fingerprint()
 
 def _material_findings(findings):
     # A proper-name candidate is a pointer for a human reader, not a defect.
@@ -977,12 +990,15 @@ def _correction_issue_limit(record, selection, cap):
 
 
 _ITEM_PUNCTUATION = ' \t\r\n[],}'
+_ARRAY_START_RE = re.compile(r'\[\s*\{')
 
 
 def _json_items(raw_text):
     """``(value, repaired)``. Strict JSON first. Otherwise the answer is read as a
     stream of complete JSON objects: brackets, commas, stray closing braces and code
-    fences around or between them are punctuation slips and are skipped. Any other
+    fences around or between them are punctuation slips and are skipped. Text before
+    the answer (stray characters, reasoning) is skipped when everything from an array
+    start ``[{`` to the end reads that way; the earliest such start is used. Any other
     text, or an object cut off before its end (truncation), fails. Validity is then
     decided by the caller's content checks (every expected item, once, in order)."""
     text = raw_text.strip()
@@ -990,7 +1006,20 @@ def _json_items(raw_text):
         return json.loads(text), False
     except ValueError:
         pass
-    decoder, items, pos = json.JSONDecoder(), [], 0
+    try:
+        return _item_stream(text, 0), True
+    except ValueError as exc:
+        failure = exc
+    for match in _ARRAY_START_RE.finditer(text):
+        try:
+            return _item_stream(text, match.start()), True
+        except ValueError:
+            continue
+    raise failure
+
+
+def _item_stream(text, pos):
+    decoder, items = json.JSONDecoder(), []
     while pos < len(text):
         if text[pos] in _ITEM_PUNCTUATION:
             pos += 1
@@ -1005,7 +1034,7 @@ def _json_items(raw_text):
             raise ValueError('unexpected text between items')
     if not items:
         raise ValueError('no JSON items')
-    return items, True
+    return items
 
 
 def _untranslatable_passthrough(record):
@@ -1018,7 +1047,8 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
     ids and empty/non-Hebrew targets. Never returns source text as a
     translation. Raises ``ChapterPipelineError`` (never a partial/best-effort
     result) on any violation, including JSON truncation. Punctuation slips
-    around complete items are tolerated (see ``_json_items``);
+    around complete items and text before them are tolerated (see ``_json_items``),
+    as are a boolean ``approved`` key (dropped) and an empty note (read as null);
     ``on_format_repair()`` is called once when an accepted answer needed that.
 
     ``source_texts`` (unit_id -> source text) enables one narrow exemption: a
@@ -1038,6 +1068,10 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
     seen_order = []
     by_id = {}
     for item in data:
+        if isinstance(item, dict) and isinstance(item.get("approved"), bool):
+            # Echo of "the result remains unapproved"; approval is never taken from a model.
+            item = {key: value for key, value in item.items() if key != "approved"}
+            repaired = True
         if (not isinstance(item, dict) or not {"unit_id", "translation"} <= set(item)
                 or set(item) - {"unit_id", "translation", "translation_note"}):
             raise ChapterPipelineError("translation response item is malformed")
@@ -1060,7 +1094,9 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
                     or has_translatable_words(translation)):
                 raise ChapterPipelineError("translation response target is not Hebrew")
         note = item.get("translation_note")
-        if note is not None and (not isinstance(note, str) or not note.strip()):
+        if isinstance(note, str) and not note.strip():
+            note, repaired = None, True   # an empty note means no note
+        if note is not None and not isinstance(note, str):
             raise ChapterPipelineError("translation_note must be a nonempty string or null")
         by_id[unit_id] = {"translation": translation, "translation_note": note}
         seen_order.append(unit_id)
@@ -1134,15 +1170,18 @@ def _controlled(job_id, role, stage, prompt, configuration, cap, store, journal,
         # Re-validate a preserved response (the validator may have been fixed);
         # the provider is never called again for this identity.
         raw = journal.read_raw(identity)
-        parsed = None
+        parsed, error = None, row['error']
         if (raw is not None and raw['status'] in ('completed', 'mock_placeholder')
                 and not store.status(job_id)['stopped']):
             try:
                 parsed = validator(TextGenerationResult(**raw, duration_seconds=0))
-            except Exception:
-                parsed = None
+            except Exception as exc:
+                error = f'response validation failed: {exc}; raw result preserved'
+                journal.note_rejection(identity, VALIDATOR_CODE)
         if parsed is None:
-            raise ChapterPipelineError(f"previous call failed ({row['error']}); automatic resend refused")
+            # Re-marked so this step, the one that stopped the job now, is the one shown.
+            journal.mark_failed(identity, error or 'failed')
+            raise ChapterPipelineError(f"previous call failed ({error}); automatic resend refused")
         journal.reopen_failed_received(identity)
         journal.mark_validated(identity, parsed)
         journal.mark_completed(identity)
@@ -1195,6 +1234,7 @@ def _controlled(job_id, role, stage, prompt, configuration, cap, store, journal,
         parsed = validator(result)
     except Exception as exc:
         journal.mark_failed(identity, f'response validation failed: {exc}; raw result preserved')
+        journal.note_rejection(identity, VALIDATOR_CODE)
         raise
     journal.mark_validated(identity, parsed)
     journal.mark_completed(identity)
