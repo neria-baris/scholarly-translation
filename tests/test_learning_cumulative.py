@@ -168,6 +168,21 @@ class CumulativeServiceTests(unittest.TestCase):
         self.assertEqual(ready['base_learner_revision'], learner['revision'] + 1)
         self.assertEqual(load_catalog(version='fr-common@1')['version'], 'fr-common@1')
 
+    def test_click_gloss_is_display_only_and_requires_boolean_opt_in(self):
+        ready = self.prepare()
+        before = self.service.store.get_prepared(ready['session_id'])
+        calls = self.adapter.calls
+        fragment = self.service.reader(ready['session_id'], gloss_on_click=True)['html']
+        self.assertIn('learning-foreign-click', fragment)
+        self.assertIn('aria-controls="gloss-popup"', fragment)
+        self.assertNotIn('learning-gloss-inline', fragment)
+        self.assertNotIn('aria-label="שלום"', fragment)
+        self.assertNotIn('data-gloss-he', self.service.reader(ready['session_id'])['html'])
+        self.assertEqual(self.adapter.calls, calls)
+        self.assertEqual(self.service.store.get_prepared(ready['session_id']), before)
+        with self.assertRaises(LearningError):
+            self.service.reader(ready['session_id'], gloss_on_click='true')
+
 
 if __name__ == '__main__':
     unittest.main()

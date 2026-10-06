@@ -240,7 +240,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         if path == "/learning/abandon":
             return service.abandon(data.get("session_id"))
         if path == "/learning/read":
-            return service.reader(data.get("session_id"), data.get("chapter_index", 0))
+            return service.reader(data.get("session_id"), data.get("chapter_index", 0),
+                                  gloss_on_click=data.get("gloss_on_click", False))
         if path == "/learning/cursor":
             return service.cursor(data.get("session_id"), data.get("chapter_index"))
         if path == "/learning/complete":

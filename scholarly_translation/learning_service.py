@@ -332,8 +332,9 @@ class LearningService:
         self._data['jobs'][sid]['status'] = status
         self._save()
 
-    def reader(self, session_id, chapter_index=0):
+    def reader(self, session_id, chapter_index=0, *, gloss_on_click=False):
         require(type(chapter_index) is int and chapter_index >= 0, 'invalid_cursor')
+        require(type(gloss_on_click) is bool, 'invalid_learning_request')
         with self._lock:
             session = self.store.get_session(check_id(session_id))
             require(session['status'] in ('ready', 'completed'), 'book_not_ready')
@@ -345,7 +346,7 @@ class LearningService:
             rendered = []
             for plan, chunk in zip(plans, prepared['chunks']):
                 if plan['chapter_id'] == chapter['chapter_id']:
-                    rendered.append(render_chunk(plan['units'], chunk, 'context'))
+                    rendered.append(render_chunk(plan['units'], chunk, 'click' if gloss_on_click else 'context'))
             recap = next(r for r in prepared['recaps'] if r['chapter_id'] == chapter['chapter_id'])
             chunks_by_id = {c['plan_id']: c for c in prepared['chunks']}
             for entry in recap['grammar']:

@@ -45,6 +45,7 @@ async function request(route,data={}){
 let state=null;
 let activeReader=null; // {session_id, chapter_index, chapter_count, title}
 let pollTimer=null, chapterRequest=0;
+let glossTarget=null;
 
 function completionKey(sessionId){return 'learning-completion-'+sessionId}
 function completionIdFor(sessionId){
@@ -311,11 +312,11 @@ function openReader(session,book){
   $('reader-section').hidden=false;window.scrollTo({top:0,behavior:'auto'});
   loadChapter(activeReader.chapter_index);
 }
-$('reader-close').onclick=()=>{$('reader-section').hidden=true;activeReader=null;chapterRequest++;document.body.classList.remove('reading','progress-open');$('progress-return').hidden=true;$('reader-progress').setAttribute('aria-expanded','false');$('books-title').scrollIntoView({behavior:'auto'})};
+$('reader-close').onclick=()=>{closeGloss();$('reader-section').hidden=true;activeReader=null;chapterRequest++;document.body.classList.remove('reading','progress-open');$('progress-return').hidden=true;$('reader-progress').setAttribute('aria-expanded','false');$('books-title').scrollIntoView({behavior:'auto'})};
 $('reader-progress').onclick=async()=>{
   const reader=activeReader;
   try{await loadState();if(activeReader!==reader||!reader)return;
-    document.body.classList.add('progress-open');$('progress-return').hidden=false;
+    closeGloss();document.body.classList.add('progress-open');$('progress-return').hidden=false;
     $('reader-progress').setAttribute('aria-expanded','true');$('progress-title').scrollIntoView({behavior:'auto'});
   }catch(error){$('import-error').textContent=error.message;$('import-error').hidden=false}
 };
@@ -325,9 +326,11 @@ $('reader-next').onclick=()=>{if(activeReader&&activeReader.chapter_index<active
 
 async function loadChapter(index){
   const reader=activeReader, serial=++chapterRequest;
+  closeGloss();
   $('reader-prev').disabled=true;$('reader-next').disabled=true;
   try{
-    const result=await request('/learning/read',{session_id:reader.session_id,chapter_index:index});
+    const result=await request('/learning/read',{session_id:reader.session_id,chapter_index:index,
+      gloss_on_click:$('reader-gloss').checked});
     if(activeReader!==reader||serial!==chapterRequest)return;
     activeReader.chapter_index=result.chapter_index;activeReader.chapter_count=result.chapter_count;
     activeReader.prepared_hash=result.session.prepared_hash;
@@ -347,6 +350,33 @@ async function loadChapter(index){
     $('completion-message').textContent='';
   }catch(error){$('import-error').textContent=error.message;$('import-error').hidden=false}
 }
+
+// Meanings are revealed only on request, in a separate panel; no model call.
+function closeGloss(restoreFocus=false){
+  const target=glossTarget;
+  if(target)target.setAttribute('aria-expanded','false');
+  glossTarget=null;$('gloss-popup').hidden=true;
+  if(restoreFocus&&target?.isConnected)target.focus();
+}
+function showGloss(target){
+  if(glossTarget===target){closeGloss();return}
+  closeGloss();glossTarget=target;target.setAttribute('aria-expanded','true');
+  $('gloss-word').textContent=target.textContent;
+  $('gloss-word').dir=target.dir;$('gloss-word').lang=target.lang;
+  $('gloss-meaning').textContent=target.getAttribute('data-gloss-he')||'אין פירוש זמין.';
+  $('gloss-popup').hidden=false;
+}
+$('gloss-close').onclick=()=>closeGloss(true);
+$('reader-gloss').onchange=()=>{if(activeReader)loadChapter(activeReader.chapter_index)};
+$('reader-html').addEventListener('click',event=>{
+  const target=event.target.closest('.learning-foreign-click');
+  if(target)showGloss(target);
+});
+$('reader-html').addEventListener('keydown',event=>{
+  const target=event.target.closest('.learning-foreign-click');
+  if(target&&(event.key==='Enter'||event.key===' ')){event.preventDefault();showGloss(target)}
+});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')closeGloss(true)});
 
 function renderRecap(recap,items={}){
   const vocabHost=$('recap-vocabulary'),grammarHost=$('recap-grammar'),warningsHost=$('recap-warnings');

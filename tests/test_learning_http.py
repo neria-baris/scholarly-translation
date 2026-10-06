@@ -73,6 +73,13 @@ class LearningHttpTests(unittest.TestCase):
         self.assertEqual(response['code'], 'missing_api_key')
         self.assertEqual(self.service.summary()['sessions'], [])
 
+    def test_reader_forwards_display_choice_without_starting_generation(self):
+        with patch.object(self.service, 'reader', return_value={'html': 'fixture'}) as reader:
+            status, response = self.post('/learning/read', {'session_id': 'demo', 'gloss_on_click': True})
+            self.assertEqual(status, 200)
+            self.assertEqual(response['html'], 'fixture')
+            reader.assert_called_once_with('demo', 0, gloss_on_click=True)
+
     def test_legacy_home_and_wordlists_still_available(self):
         with urlopen(self.base + '/') as response:
             self.assertIn('תרגום מסמכים', response.read().decode())

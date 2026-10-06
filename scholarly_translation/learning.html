@@ -24,7 +24,7 @@
 <section id="effort-section" class="card" aria-labelledby="effort-title">
 <h2 id="effort-title">רמת מאמץ</h2>
 <p class="muted">כרגע לומדים צרפתית. האחוזים מגבילים חומר חדש; מילים שכבר פגשתם ממשיכות להצטבר בפרקים הבאים.</p>
-<p class="muted">מילים וביטויים בשפה הנלמדת מובנים מההקשר בקריאה; אין פירוש אוטומטי צמוד למילה בשום רמה.</p>
+<p class="muted">לומדים מההקשר, עם אפשרות לבקש פירוש בלחיצה. אין פירוש אוטומטי צמוד למילה בשום רמה.</p>
 <p class="muted" id="effort-note"></p>
 <div id="effort-levels" class="levels" role="radiogroup" aria-labelledby="effort-title"></div>
 </section>
@@ -55,6 +55,7 @@
 <section id="reader-section" class="card" hidden aria-labelledby="reader-title">
 <div class="reader-toolbar">
 <h2 id="reader-title"></h2>
+<label class="click-gloss-option"><input id="reader-gloss" type="checkbox" checked> פירוש בלחיצה</label>
 <button id="reader-progress" type="button" class="secondary-button" aria-controls="progress-section" aria-expanded="false">התקדמות ומילים</button>
 <button id="reader-close" type="button" class="quiet-button" aria-label="סגירת הקריאה">✕</button>
 </div>
@@ -65,6 +66,10 @@
 <button id="reader-next" type="button" class="secondary-button">הבא →</button>
 </nav>
 <div id="reader-html" class="reader-html" tabindex="-1"></div>
+<aside id="gloss-popup" class="gloss-popup" role="status" aria-live="polite" hidden>
+<p><bdi id="gloss-word" dir="auto"></bdi> — <span id="gloss-meaning"></span></p>
+<button id="gloss-close" type="button" class="quiet-button" aria-label="סגירת הפירוש">✕</button>
+</aside>
 <section id="recap-section" aria-labelledby="recap-title">
 <h3 id="recap-title">סיכום פרק</h3>
 <p id="recap-empty" class="muted" hidden></p>

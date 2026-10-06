@@ -33,10 +33,10 @@ class LearningHtmlTests(unittest.TestCase):
         self.assertNotIn('source_text', self.html)
         self.assertNotIn('.pdf', self.html)
 
-    def test_no_automatic_gloss_popup(self):
-        # LEARN-4: foreign words are understood from context; no adjacent
-        # automatic gloss popup markup remains in the reader.
-        self.assertNotIn('gloss-popup', self.html)
+    def test_gloss_panel_starts_hidden_and_is_opt_in_per_occurrence(self):
+        self.assertRegex(self.html, r'id="gloss-popup"[^>]* hidden')
+        self.assertIn('id="reader-gloss"', self.html)
+        self.assertNotIn('learning-gloss-inline', self.html)
 
     def test_progress_panel_markup_present(self):
         for marker in ('id="progress-detail"', 'id="progress-milestone"', 'id="vocab-search"',
@@ -67,12 +67,12 @@ class LearningJsTests(unittest.TestCase):
         self.assertIn('history.replaceState', self.js)
         self.assertIn('/learning/import-translation', self.js)
 
-    def test_no_inline_gloss_interaction(self):
-        # LEARN-4: foreign words are understood from context, not an
-        # automatic or click-triggered adjacent gloss.
-        self.assertNotIn('learning-foreign-click', self.js)
-        self.assertNotIn('toggleGloss', self.js)
-        self.assertNotIn('gloss-popup', self.js)
+    def test_click_gloss_is_separate_escaped_keyboard_accessible_and_optional(self):
+        self.assertNotIn('learning-gloss-inline', self.js)
+        self.assertIn("gloss_on_click:$('reader-gloss').checked", self.js)
+        self.assertIn("$('gloss-meaning').textContent=", self.js)
+        self.assertIn("event.key==='Enter'", self.js)
+        self.assertIn("event.key==='Escape'", self.js)
 
     def test_recap_rendered_through_textcontent_only(self):
         # Only the trusted server 'html' field may use innerHTML; the recap
@@ -127,7 +127,8 @@ class LearningCssTests(unittest.TestCase):
         self.assertTrue(css.strip())
         self.assertIn('.learning-foreign', css)
         self.assertIn('.vocab-list', css)
-        self.assertNotIn('.learning-foreign-click', css)
+        self.assertIn('.learning-foreign-click', css)
+        self.assertIn('.gloss-popup:not([hidden])', css)
 
 
 class UiHtmlLearningLinkTests(unittest.TestCase):

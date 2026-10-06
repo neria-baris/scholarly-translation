@@ -67,7 +67,8 @@ def _render_occurrence(unit_id, index, edit, support_mode, language):
         f'class="{css_class}" data-gloss-he="{gloss}"'
     )
     if support_mode == "click":
-        return f'<bdi {attrs} tabindex="0" role="button" aria-label="{gloss}" aria-expanded="false">{foreign}</bdi>'
+        return (f'<bdi {attrs} tabindex="0" role="button" aria-label="הצג פירוש: {foreign}" '
+                f'aria-controls="gloss-popup" aria-expanded="false">{foreign}</bdi>')
     return f'<bdi {attrs}>{foreign}<span class="learning-gloss-inline" dir="rtl" lang="he">({gloss})</span></bdi>'
 
 
