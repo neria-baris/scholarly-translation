@@ -60,6 +60,8 @@ class LongDocsIntegrationTests(unittest.TestCase):
     def factory(self, pause_after=None):
         def make(role, descriptor):
             def generate(prompt, model):
+                if "NAME TABLE of a book" in prompt:  # name-table pass over the original (not a translation call)
+                    return TextGenerationResult("completed", '{"names": []}', {"input": 100, "output": 10}, model, 0)
                 if "rolling NOTEBOOK for a book" in prompt:  # book-notebook keeper step (not a translation call)
                     self.keeper_calls += 1
                     return TextGenerationResult("completed", '{"ops": []}', {"input": 100, "output": 10}, model, 0)

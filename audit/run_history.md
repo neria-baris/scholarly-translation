@@ -932,3 +932,15 @@ new test modules name_table 24, cross_chapter_qa 17, cross_review_action
 6, names_crossqa_integration 8; node --check OK. Offline replay: the 3 lost keeper answers of
 c69bb5fc (chapters 31, 42, 59) now parse fully. Paid/provider calls 0; no live restart; jobs
 untouched (Senlin Ascension paused 1/50 under old code: restart UI before resuming).
+
+
+## 2026-10-06T18:40+03:00 | NAMES-CROSSQA SOURCE-PASS | Claude continuity, user-directed
+User reported that the pre-translation step did not read the original book and that the
+finished Jade City translation had no way to run the check again. Verified: name table came from
+capitalized candidates + one snippet; UI copy said "reads the translation"; entry point hidden in
+the collapsed notebook section; completed checks could not rerun; running UI processes started
+before delivery 0885287. Contract addendum 2 (36c4eb3). Builders B2 (name_table source-pass
+prompt) and E2 (visible rerun entry, copy) in parallel; conductor integrated the chunked
+pre-pass and rerun in chapter_pipeline.py. Offline dry run on c69bb5fc data: available, 4 source
+chunks, <= 1.14M upper-bound input tokens, 9 windows. Full offline suite 1143 OK (447s); mocks in
+four modules now answer or exclude the name-table call. Paid/provider calls 0; no restart.

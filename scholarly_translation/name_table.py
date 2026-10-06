@@ -185,17 +185,33 @@ def name_candidates(texts, language, limit=400, min_count=2, snippet_chars=160):
 
 # -------------------------------------------------------------------- prompt
 
-def build_prepass_prompt(candidates, profile_id, source_language):
+_PLACEHOLDER_RE = re.compile(r"\{\{(NAMES_SO_FAR|CANDIDATES|PROFILE_ID|SOURCE_LANGUAGE|CHAPTERS)\}\}")
+
+
+def build_source_pass_prompt(chapters, names_text, candidates, profile_id, source_language):
+    """Prompt for one source-pass step: consecutive ORIGINAL chapters ``[{"index","source"}]``."""
+    blocks = []
+    for ch in chapters or []:
+        if not isinstance(ch, dict):
+            continue
+        blocks.append(f"=== CHAPTER {int(ch.get('index') or 0) + 1} ===\n{ch.get('source') or ''}")
     lines = []
     for c in candidates or []:
         if not isinstance(c, dict):
             continue
-        lines.append(f"- {_clip(c.get('name'), MAX_SOURCE)} ({int(c.get('count') or 0)}): "
-                     f"{_clip(c.get('snippet'), 400)}")
+        name = _clip(c.get("name"), MAX_SOURCE)
+        if name:
+            lines.append(f"- {name} ({int(c.get('count') or 0)})")
+    values = {
+        "NAMES_SO_FAR": str(names_text or "").strip() or "(none)",
+        "CANDIDATES": "\n".join(lines) if lines else "(none)",
+        "PROFILE_ID": str(profile_id or "literary"),
+        "SOURCE_LANGUAGE": str(source_language or "unknown"),
+        "CHAPTERS": "\n\n".join(blocks),
+    }
     template = _PROMPT_PATH.read_text(encoding="utf-8")
-    return (template.replace("{{CANDIDATES}}", "\n".join(lines) if lines else "(none)")
-            .replace("{{PROFILE_ID}}", str(profile_id or "literary"))
-            .replace("{{SOURCE_LANGUAGE}}", str(source_language or "unknown")))
+    # Single pass: text inserted for one placeholder is never scanned for others.
+    return _PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], template)
 
 
 # ------------------------------------------------------------------- parsing

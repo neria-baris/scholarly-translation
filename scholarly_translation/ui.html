@@ -77,9 +77,9 @@
 </div>
 <div id="cross-review-box" class="decision-box" role="region" aria-labelledby="cross-review-title" hidden>
 <h2 id="cross-review-title">בדיקה רוחבית של הספר</h2>
-<p id="cross-review-message">הבדיקה קוראת את התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …), מתקנת אוטומטית שמות, מונחים ורצף עלילה לא עקביים, ובונה קודם טבלת שמות.</p>
+<p id="cross-review-message">קודם נבנית טבלת שמות: המודל קורא את הספר המקורי, קטע אחר קטע, ומרכז שמות, תארים ומונחים מומצאים (מותר ניקוד); הטבלה ננעלת. אחר כך הבדיקה משווה את המקור עם התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …); הפרק החופף, שכבר נבדק, הוא הקובע. שמות, מונחים ורצף לא עקביים מתוקנים אוטומטית ונבדקים שוב, והנוסח העברי הקודם נשמר.</p>
 <div class="decision-options"><div class="decision-option"><button id="cross-review-button" type="button" class="secondary-button">להכין בדיקה רוחבית</button></div></div>
-<p class="decision-note">הבדיקה משתמשת בקריאות בתשלום לספק, והן מתחילות רק כשתלחצו ״המשך״. הנוסח העברי הקודם נשמר.</p>
+<p class="decision-note">קריאות בתשלום לספק מתחילות רק כשתלחצו ״המשך״. הרצה חוזרת שולחת מחדש רק טקסט שהשתנה.</p>
 <p id="cross-review-done" class="message" role="status" hidden>הבדיקה הוכנה. לחצו ״המשך״ כדי להריץ אותה.</p>
 <p id="cross-review-error" class="message" role="alert" hidden></p>
 </div>
@@ -93,7 +93,8 @@
 <p id="result-limitations" class="result-notice" hidden></p>
 <p id="result-exceptions" class="result-notice" hidden></p>
 <div id="result-usage" class="usage-summary" hidden></div>
-<details id="result-notebook" class="options" hidden><summary><span class="options-label">מחברת הספר (אופציונלי)</span><span class="chevron" aria-hidden="true">⌄</span></summary><p class="usage-summary">המודל מתעד במהלך התרגום שמות, מונחים ובחירות תרגום לשמירה על עקביות. אין צורך לעשות דבר; אפשר להוריד לעיון.</p><button id="download-notebook" class="text-button">הורדת המחברת (Markdown) <span aria-hidden="true">↓</span></button><div id="result-cross-review" hidden><p class="usage-summary">בדיקה רוחבית: טבלת שמות ובדיקת עקביות בחלונות של 8 פרקים עם פרק חופף (1–8, 8–15 …), עם תיקון אוטומטי. קריאות בתשלום לספק, רק אחרי ״המשך״.</p><button id="result-cross-review-button" type="button" class="secondary-button">להכין בדיקה רוחבית</button><p id="result-cross-review-error" class="message" role="alert" hidden></p></div><ol id="notebook-summaries" class="usage-summary"></ol></details>
+<div id="result-cross-review" class="decision-box" role="region" aria-labelledby="result-cross-review-title" hidden><h2 id="result-cross-review-title">בדיקה רוחבית של הספר</h2><p>קודם נבנית טבלת שמות: המודל קורא את הספר המקורי, קטע אחר קטע, ומרכז שמות, תארים ומונחים מומצאים (מותר ניקוד); הטבלה ננעלת. אחר כך הבדיקה משווה את המקור עם התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …); הפרק החופף, שכבר נבדק, הוא הקובע. שמות, מונחים ורצף לא עקביים מתוקנים אוטומטית ונבדקים שוב, והנוסח העברי הקודם נשמר.</p><div class="decision-options"><div class="decision-option"><button id="result-cross-review-button" type="button" class="secondary-button">להכין בדיקה רוחבית</button></div></div><p class="decision-note">קריאות בתשלום לספק מתחילות רק כשתלחצו ״המשך״. הרצה חוזרת שולחת מחדש רק טקסט שהשתנה.</p><p id="result-cross-review-error" class="message" role="alert" hidden></p></div>
+<details id="result-notebook" class="options" hidden><summary><span class="options-label">מחברת הספר (אופציונלי)</span><span class="chevron" aria-hidden="true">⌄</span></summary><p class="usage-summary">המודל מתעד במהלך התרגום שמות, מונחים ובחירות תרגום לשמירה על עקביות. אין צורך לעשות דבר; אפשר להוריד לעיון.</p><button id="download-notebook" class="text-button">הורדת המחברת (Markdown) <span aria-hidden="true">↓</span></button><ol id="notebook-summaries" class="usage-summary"></ol></details>
 <div class="field" id="font-after-field" hidden><label for="font-after">גופן PDF (לאחר תרגום)</label><select id="font-after"></select><small>החלפת גופן בונה מחדש את ה־PDF בלבד; אינה שולחת קריאה למודל.</small></div>
 <div class="result-actions"><button id="download-pdf" class="primary-button">הורדת הקובץ המתורגם <span aria-hidden="true">↓</span></button></div>
 <div class="result-secondary"><button id="review-button" class="text-button">בדיקה ועריכה (לבחירתכם) <span aria-hidden="true">←</span></button><span id="cost-summary"></span></div></div>

@@ -5,6 +5,7 @@ import json
 import re
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -73,11 +74,18 @@ class NamesCrossQATests(unittest.TestCase):
                                        for uid in ids], ensure_ascii=False)
                 elif NAMES_MARK in prompt:
                     kind = 'names'
-                    text = names_text if names_text is not None else json.dumps({'names': [
-                        {'source': 'Shae', 'aliases': ['Kaul Shae'], 'hebrew': RIGHT, 'kind': 'character',
-                         'gender': 'female'},
-                        {'source': 'Woon', 'hebrew': 'ווּן', 'kind': 'character', 'gender': 'male',
-                         'note': 'distinct from Wen'}]}, ensure_ascii=False)
+                    chunk = re.findall(r'=== CHAPTER (\d+) ===', prompt)
+                    if names_text is not None:
+                        text = names_text if not callable(names_text) else names_text(chunk)
+                    elif '1' in chunk:
+                        text = json.dumps({'names': [
+                            {'source': 'Shae', 'aliases': ['Kaul Shae'], 'hebrew': RIGHT, 'kind': 'character',
+                             'gender': 'female'},
+                            {'source': 'Woon', 'hebrew': 'ווּן', 'kind': 'character', 'gender': 'male',
+                             'note': 'distinct from Wen'}]}, ensure_ascii=False)
+                    else:
+                        text = json.dumps({'names': [{'source': 'Gate Chapter %s' % chunk[0],
+                                                      'hebrew': 'שער %s' % chunk[0], 'kind': 'place'}]})
                 elif CROSS_MARK in prompt:
                     kind = 'cross'
                     windows = len([c for c in self.calls if c[0] == 'cross'])
@@ -200,6 +208,50 @@ class NamesCrossQATests(unittest.TestCase):
         self.assertFalse({'translate', 'keeper', 'qa', 'review'} & set(self.kinds()))
         self.assertEqual(job['name_table']['status'], 'ready')
         self.assertTrue(job['name_table']['entries'])
+        self.assertEqual({k: w['status'] for k, w in job['cross_qa']['windows'].items()},
+                         {'0-7': 'completed', '7-9': 'completed'})
+
+    def test_name_table_reads_the_original_book_in_chunks(self):
+        job = self.job('fast')
+        with unittest.mock.patch.object(pipeline, 'NAME_SOURCE_CHUNK_TOKENS', 1):   # one chapter per chunk
+            self.execute(job, self.factory())
+        prompts = self.prompts('names')
+        self.assertEqual(len(prompts), CHAPTER_COUNT)
+        self.assertIn('=== CHAPTER 1 ===', prompts[0])
+        self.assertIn('Shae walked home along the harbour in chapter 1.', prompts[0])   # the original text itself
+        self.assertNotIn(HEBREW, prompts[0])
+        self.assertIn('→ ' + RIGHT, prompts[1])          # later chunks see the names decided so far
+        table = job['name_table']
+        self.assertEqual((table['status'], table['chunks_done'], len(table['chunks'])), ('ready', 10, 10))
+        self.assertEqual(self.kinds()[:CHAPTER_COUNT], ['names'] * CHAPTER_COUNT)   # all before chapter 1
+
+    def test_failed_chunk_keeps_names_and_resume_continues_with_the_next_chunk(self):
+        job = self.job('fast')
+        def answer(chunk):
+            return 'not json' if chunk == ['2'] else json.dumps({'names': []})
+        with unittest.mock.patch.object(pipeline, 'NAME_SOURCE_CHUNK_TOKENS', 1):
+            self.execute(job, self.factory())   # build normally first to have a journal ...
+        # ... then simulate an older job whose table stopped after chunk 1.
+        job['name_table'] = dict(job['name_table'], status='pending', chunks=job['name_table']['chunks'][:1],
+                                 chunks_done=1)
+        self.calls = []
+        with unittest.mock.patch.object(pipeline, 'NAME_SOURCE_CHUNK_TOKENS', 1):
+            self.execute(job, self.factory(names_text=answer))
+        self.assertEqual(re.findall(r'=== CHAPTER (\d+) ===', self.prompts('names')[0]), ['2'])
+        self.assertEqual(job['name_table']['status'], 'skipped')
+        self.assertEqual(job['name_table']['chunks_done'], 1)
+        self.assertIn(pipeline.NAME_TABLE_SKIPPED_NOTE, job['review_notes'])
+
+    def test_completed_check_can_run_again(self):
+        job = self.job()
+        self.execute(job, self.factory())
+        self.assertTrue(pipeline.cross_review_available(job))     # every window completed
+        self.assertEqual(pipeline.enable_cross_review(job), {'windows': 2, 'rerun': True})
+        self.assertEqual(len(job['cross_qa']['history']), 1)
+        self.assertEqual(job['cross_qa']['windows'], {})
+        self.calls = []
+        self.execute(job, self.factory(cross_issue_window=99))
+        self.assertFalse({'translate', 'keeper', 'names'} & set(self.kinds()))
         self.assertEqual({k: w['status'] for k, w in job['cross_qa']['windows'].items()},
                          {'0-7': 'completed', '7-9': 'completed'})
 

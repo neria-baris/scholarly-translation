@@ -1,4 +1,4 @@
-# Current state — NAMES-CROSSQA delivered to main
+# Current state — NAMES-CROSSQA + SOURCE-PASS delivered to main
 Updated: 2026-10-06. Claude continuity, user-directed. Contract
 `audit/contracts/names_cross_qa.md` (+ integration addendum). Base f61958c (contract) on
 b23a217. Feature branch `feat/names-crossqa`; main fast-forward and normal push follow the
@@ -33,3 +33,11 @@ the per-chapter plan (protected reserve, skipped with a note on shortage). Gate1
 quality acceptance remains BLOCKED.
 Next: user restarts the UI at a safe time, then (optionally) prepares the cross check for
 Senlin before resuming and for Jade City.
+
+SOURCE-PASS (addendum 2, same day, user report): the name table is now built by reading the
+whole ORIGINAL book in chunks of consecutive chapters (<=300000 tokens of source each; Jade City:
+4 calls, chapters 1-16/17-33/34-49/50-64, <= $0.14 input at Luna list price), each chunk seeing the
+names so far; progress persists per chunk. A completed cross check can run again (history kept;
+unchanged windows replay). Result view shows a visible cross-check box (was hidden in the
+collapsed notebook section); UI/help copy states original-vs-translation. Running UI servers
+(several instances, latest started 15:11) predate both deliveries: restart required to see it.

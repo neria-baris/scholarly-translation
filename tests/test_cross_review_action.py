@@ -113,8 +113,17 @@ class CrossReviewActionTests(unittest.TestCase):
         for needle in ("/document-cross-review", "cross_review_available", "renderCrossReview", "prepareCrossReview",
                        "$('cross-review-button').onclick=prepareCrossReview"):
             self.assertIn(needle, js)
-        # A completed book shows the result view: the entry point lives in its notebook section.
+        # A completed book shows the result view: a visible box, not inside the collapsed notebook.
         self.assertIn('id="result-cross-review-button"', html)
+        box = html.index('id="result-cross-review"')
+        self.assertLess(box, html.index('<details id="result-notebook"'))
+        self.assertNotIn('id="result-cross-review"', html[html.index('<details id="result-notebook"'):])
+        self.assertIn("הספר המקורי", html)
+        self.assertIn("מקור עם התרגום", html)
+        self.assertNotIn("קוראת את התרגום", html)
+        for label in ("להכין בדיקה רוחבית", "להריץ שוב בדיקה רוחבית"):
+            self.assertIn(label, js)
+        self.assertIn("cross_qa", js)
         self.assertIn("$('result-cross-review-button').onclick=prepareCrossReviewFromResult", js)
         self.assertIn("show('processing-panel')", js[js.index('async function prepareCrossReviewFromResult'):])
 
@@ -123,7 +132,7 @@ class CrossReviewActionTests(unittest.TestCase):
             page = response.read().decode("utf-8")
         section = page.split('id="notebook"')[1].split('id="scanned"')[0]
         for text in ("טבלת שמות", "ננעלת אוטומטית", "ניקוד", "בדיקה רוחבית", "חלונות של 8 פרקים",
-                     "להכין בדיקה רוחבית"):
+                     "להכין בדיקה רוחבית", "הספר המקורי", "להריץ שוב"):
             self.assertIn(text, section)
 
 

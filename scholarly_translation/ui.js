@@ -413,11 +413,15 @@ async function recheckReviews(){
   finally{$('recheck-button').disabled=false}
 }
 let crossReviewPrepared=null;
+function crossReviewLabel(){
+  const windows=Object.values((currentJob.cross_qa&&currentJob.cross_qa.windows)||{});
+  return windows.length&&windows.every(w=>w&&w.status==='completed')?'להריץ שוב בדיקה רוחבית':'להכין בדיקה רוחבית';
+}
 function renderCrossReview(automation){
   const idle=automation&&['paused','interrupted','failed'].includes(currentJob.status);
   const prepared=crossReviewPrepared===currentJob.job_id&&currentJob.cross_review_report;
   $('cross-review-box').hidden=!(idle&&(currentJob.cross_review_available||prepared));
-  $('cross-review-button').hidden=!!prepared;
+  $('cross-review-button').hidden=!!prepared;$('cross-review-button').textContent=crossReviewLabel();
   $('cross-review-done').hidden=!prepared;
 }
 async function prepareCrossReviewFromResult(){
@@ -535,6 +539,7 @@ function renderNotebook(){
   const summaries=nb&&nb.chapter_summaries?Object.entries(nb.chapter_summaries).sort((a,b)=>Number(a[0])-Number(b[0])):[];
   box.hidden=!nb||currentJob.status!=='completed';
   $('result-cross-review').hidden=!(currentJob.cross_review_available&&currentJob.settings&&currentJob.settings.automation);
+  $('result-cross-review-button').textContent=crossReviewLabel();
   for(const [index,text] of summaries){const item=document.createElement('li');item.textContent='פרק '+(Number(index)+1)+': '+text;list.append(item)}
 }
 async function downloadNotebook(){

@@ -430,14 +430,21 @@ class DocumentDraftTests(unittest.TestCase):
                 )
 
         class FakeKeeperAdapter:
-            """Book-notebook keeper (role chapter_qa): an empty update."""
+            """Book-notebook keeper (role chapter_qa): an empty update; the name-table pass
+            over the original book (same role) finds no names."""
             def __init__(self):
                 self.calls = 0
+                self.name_calls = 0
 
             def generate(self, prompt_text, model):
-                self.calls += 1
+                if "NAME TABLE of a book" in str(prompt_text):
+                    self.name_calls += 1
+                    text = '{"names": []}'
+                else:
+                    self.calls += 1
+                    text = '{"ops": []}'
                 return TextGenerationResult(
-                    status="completed", text='{"ops": []}', token_usage={"input": 10, "output": 5},
+                    status="completed", text=text, token_usage={"input": 10, "output": 5},
                     observed_model=model, duration_seconds=0.0, observed_provider="fake",
                 )
 

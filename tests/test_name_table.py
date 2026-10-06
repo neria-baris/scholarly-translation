@@ -1,7 +1,6 @@
 import copy
 import json
 import unittest
-from unittest import mock
 
 from scholarly_translation import name_table as nt
 
@@ -93,13 +92,35 @@ class CandidateTests(unittest.TestCase):
 
 
 class PromptTests(unittest.TestCase):
+    CH = [{"index": 0, "source": "Wen ran."}, {"index": 1, "source": "Woon sat."}]
+
     def test_build(self):
-        p = nt.build_prepass_prompt([{"name": "Wen", "count": 3, "snippet": "said Wen"}], "literary", "en")
-        self.assertIn("- Wen (3): said Wen", p)
+        p = nt.build_source_pass_prompt(self.CH, "  NAMES block  ", [{"name": "Wen", "count": 3}],
+                                        "literary", "en")
+        self.assertIn("=== CHAPTER 1 ===\nWen ran.\n\n=== CHAPTER 2 ===\nWoon sat.", p)
+        self.assertLess(p.index("=== CHAPTER 1 ==="), p.index("=== CHAPTER 2 ==="))
+        self.assertIn("\nNAMES block\n", p)
+        self.assertIn("- Wen (3)\n", p)
         self.assertIn("literary", p)
         self.assertNotIn("{{", p)
         self.assertIn('"names"', p)
-        self.assertIn("(none)", nt.build_prepass_prompt([], "scholarly", "fr"))
+
+    def test_none_defaults(self):
+        p = nt.build_source_pass_prompt(self.CH, "", [], "scholarly", "fr")
+        self.assertEqual(p.count("(none)"), 2)
+        p = nt.build_source_pass_prompt(self.CH, None, None, None, None)
+        self.assertEqual(p.count("(none)"), 2)
+
+    def test_placeholder_injection_safe(self):
+        chs = [{"index": 4, "source": "Text {{NAMES_SO_FAR}} and {{CANDIDATES}} {{PROFILE_ID}}"}]
+        p = nt.build_source_pass_prompt(chs, "KNOWN", [{"name": "Zed", "count": 2}], "lit", "en")
+        self.assertIn("=== CHAPTER 5 ===\nText {{NAMES_SO_FAR}} and {{CANDIDATES}} {{PROFILE_ID}}", p)
+
+    def test_candidates_without_snippet_and_old_function_gone(self):
+        got = nt.name_candidates(["x Shae y Shae"], "en", snippet_chars=0)
+        self.assertEqual(got[0]["name"], "Shae")
+        self.assertEqual(got[0].get("snippet", ""), "")
+        self.assertFalse(hasattr(nt, "build_prepass_prompt"))
 
 
 class ParseTests(unittest.TestCase):
@@ -122,17 +143,15 @@ class ParseTests(unittest.TestCase):
 
     def test_prepass_response(self):
         obj = {"names": [{"source": "Wen", "hebrew": "ון"}]}
-        with mock.patch("scholarly_translation.book_notebook.extract_json_object",
-                        create=True, return_value=(obj, False)) as m:
-            entries, dropped = nt.parse_prepass_response(json.dumps(obj))
-        m.assert_called_once()
-        self.assertEqual(m.call_args[0][1], ("names",))
+        entries, dropped = nt.parse_prepass_response(json.dumps(obj))
         self.assertEqual(entries[0]["origin"], "prepass")
-        for bad in ((None, False), ({"names": "x"}, False), ({"other": []}, False)):
-            with mock.patch("scholarly_translation.book_notebook.extract_json_object",
-                            create=True, return_value=bad):
-                with self.assertRaises(nt.NameTableError):
-                    nt.parse_prepass_response("junk")
+        self.assertEqual(dropped, [])
+        entries, _ = nt.parse_prepass_response("```json\n" + json.dumps(obj) + "\n```")
+        self.assertEqual(entries[0]["source"], "Wen")
+        self.assertEqual(nt.parse_prepass_response('{"names":[]}'), ([], []))
+        for bad in ("junk", '{"names": "x"}', '{"other": []}'):
+            with self.assertRaises(nt.NameTableError):
+                nt.parse_prepass_response(bad)
 
 
 class MergeTests(unittest.TestCase):

@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import re
+import time
 from collections import deque
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -520,6 +521,7 @@ BOOK_NOTEBOOK_TOKEN_BUDGET = 60000
 NAMES_TOKEN_BUDGET = 8000          # binding NAMES block (matched to the text), outside the notebook budget
 UNIT_NAMES_TOKEN_BUDGET = 1000     # the names of one unit
 NAME_TABLE_OUTPUT_TOKENS = 32768
+NAME_SOURCE_CHUNK_TOKENS = 300000  # original-book source per name-table call
 BRIDGE_CHARS = 4000
 KEEPER_MAX_OUTPUT_TOKENS = 16384
 DEFAULT_STORY_WORDS = None   # no word cap unless the user chose one
@@ -742,50 +744,83 @@ def _remaining_reserve(job):
     return sum(plan['conservative_total_ceiling_usd'] for i, plan in enumerate(job.get('chapter_plans', []))
                if not job.get('chapter_completion', {}).get(str(i)))
 
-def _run_name_table(job, structure, configuration, profile, store, journal, hard, max_calls, shared_cap,
+def _source_prompt(job, groups, first, last, selection, profile, language):
+    """Source-pass prompt for chapters ``first..last`` of the ORIGINAL book and the names so far."""
+    chapters = [{'index': i, 'source': '\n\n'.join(u['text'] for u in groups[i])} for i in range(first, last + 1)]
+    candidates = [{'name': c['name'], 'count': c['count']}
+                  for c in nt.name_candidates([c['source'] for c in chapters], language, snippet_chars=0)]
+    return nt.build_source_pass_prompt(chapters, _names_text(job, None, selection, notebook_budget(selection)),
+                                       candidates, profile, language)
+
+def _source_chunk(job, groups, first, selection, profile, language, cap):
+    """Last chapter of the next chunk from ``first``: consecutive chapters within
+    NAME_SOURCE_CHUNK_TOKENS whose prompt fits the role; ``None`` when chapter ``first`` alone
+    cannot fit."""
+    limit = min(NAME_SOURCE_CHUNK_TOKENS, selection.capabilities.usable_context_tokens // 2)
+    size = lambda i: _ub('\n\n'.join(u['text'] for u in groups[i]), selection.model)
+    last, total = first, size(first)
+    while last + 1 < len(groups) and total + size(last + 1) <= limit:
+        last += 1
+        total += size(last)
+    while not _fits(_source_prompt(job, groups, first, last, selection, profile, language), selection, cap):
+        if last == first:
+            return None
+        last = first + (last - first) // 2
+    return last
+
+def _run_name_table(job, groups, configuration, profile, store, journal, hard, max_calls, shared_cap,
                     adapter_factory):
-    """One call before chapter 1 builds the book's name table from name candidates. Never
-    fails the job: a failed call, a broken answer or a budget shortage leaves status skipped
-    (the keeper still adds names chapter by chapter)."""
+    """Build the book's name table before chapter 1 by reading the whole ORIGINAL book in chunks
+    of consecutive chapters (one ``name-table`` call each); every chunk sees the names decided so
+    far and adds new ones (add-only). Chunk bounds and progress persist in the table, so a resume
+    continues with the next chunk. Never fails the job: a failed call, a broken answer or a
+    budget shortage leaves status skipped with the names found so far (the keeper still adds
+    names chapter by chapter)."""
     table = job.get('name_table')
-    if not table or table.get('status') != 'pending':
+    if not table or table.get('status') != 'pending' or not groups:
         return
-    units = structure['units']
-    language = units[0]['language'] if units else ''
-    candidates = nt.name_candidates([u['text'] for u in units], language)
-    if not candidates:
-        job['name_table'] = dict(table, status='ready')
-        return
+    language = groups[0][0].get('language', '') if groups[0] else ''
     role = resolve_keeper_role(configuration)
     selection, _ = configuration.resolve(role)
     cap = min(selection.capabilities.max_output_tokens or NAME_TABLE_OUTPUT_TOKENS, NAME_TABLE_OUTPUT_TOKENS,
               max(512, selection.capabilities.usable_context_tokens // 3), shared_cap)
-    limit = len(candidates)
-    prompt = nt.build_prepass_prompt(candidates, profile, language)
-    while not _fits(prompt, selection, cap) and limit > 20:
-        limit //= 2
-        prompt = nt.build_prepass_prompt(candidates[:limit], profile, language)
     def validator(result):
         try:
             entries, dropped = nt.parse_prepass_response(result.text if isinstance(result.text, str) else '')
         except nt.NameTableError as exc:
             raise ChapterPipelineError('name table response was not usable: %s' % exc) from None
         return {'entries': entries, 'dropped': len(dropped) if isinstance(dropped, list) else dropped}
-    try:
-        _require(_fits(prompt, selection, cap), 'name table candidates do not fit the keeper role')
-        parsed, replay = _controlled(job['job_id'], role, _NAME_TABLE_STAGE, prompt, configuration, cap, store,
-            journal, hard, max_calls, shared_cap, validator,
-            {'candidates': fingerprint(candidates[:limit]), 'profile': profile}, adapter_factory,
-            _remaining_reserve(job))
-    except PipelinePaused:
-        raise
-    except (TranslationBudgetError, ChapterPipelineError):
-        job['name_table'] = dict(table, status='skipped')
+    def skip():
+        job['name_table']['status'] = 'skipped'
         _keeper_note(job, NAME_TABLE_SKIPPED_NOTE)
-        return
-    job['local_replays'] = job.get('local_replays', 0) + int(replay)
-    job['name_table'] = dict(table, status='ready')
-    _merge_names(job, parsed['entries'], None, 'prepass')
+    while True:
+        table = job['name_table']
+        chunks, done = table.setdefault('chunks', []), table.setdefault('chunks_done', 0)
+        first = chunks[done][0] if done < len(chunks) else (chunks[-1][1] + 1 if chunks else 0)
+        if first >= len(groups):
+            break
+        if done == len(chunks):
+            last = _source_chunk(job, groups, first, selection, profile, language, cap)
+            if last is None:
+                skip()
+                return
+            chunks.append([first, last])
+        last = chunks[done][1]
+        prompt = _source_prompt(job, groups, first, last, selection, profile, language)
+        try:
+            parsed, replay = _controlled(job['job_id'], role, _NAME_TABLE_STAGE, prompt, configuration, cap, store,
+                journal, hard, max_calls, shared_cap, validator,
+                {'chunk': done, 'chapters': [first, last], 'profile': profile}, adapter_factory,
+                _remaining_reserve(job))
+        except PipelinePaused:
+            raise
+        except (TranslationBudgetError, ChapterPipelineError):
+            skip()
+            return
+        job['local_replays'] = job.get('local_replays', 0) + int(replay)
+        _merge_names(job, parsed['entries'], first, 'prepass')
+        job['name_table']['chunks_done'] = done + 1
+    job['name_table']['status'] = 'ready'
     if NAME_TABLE_SKIPPED_NOTE in job.get('review_notes', []):
         job['review_notes'].remove(NAME_TABLE_SKIPPED_NOTE)
 
@@ -980,8 +1015,11 @@ def cross_review_available(job):
     state = job.get('cross_qa')
     if state is None:
         return True
-    return (any(w.get('status') == 'skipped' for w in state.get('windows', {}).values())
-            or job.get('name_table', {}).get('status') == 'skipped')
+    windows = state.get('windows', {})
+    expected = [cq.window_key(w) for w in cq.windows(len(job['chapter_groups']))]
+    return (any(w.get('status') == 'skipped' for w in windows.values())
+            or job.get('name_table', {}).get('status') == 'skipped'
+            or all(windows.get(key, {}).get('status') == 'completed' for key in expected))   # run again
 
 def enable_cross_review(job):
     """Prepare the name table and the cross-chapter QA windows for an existing notebook job; the
@@ -999,6 +1037,12 @@ def enable_cross_review(job):
         table['status'] = 'pending'
     state = job.setdefault('cross_qa', {'windows': {}})
     windows = state.setdefault('windows', {})
+    expected = [cq.window_key(w) for w in cq.windows(len(job['chapter_groups']))]
+    if windows and all(windows.get(key, {}).get('status') == 'completed' for key in expected):
+        # Run again: the finished pass is kept; unchanged window prompts replay from the journal.
+        state.setdefault('history', []).append({'at': time.time(), 'windows': windows})
+        state['windows'] = {}
+        return {'windows': count, 'rerun': True}
     for key in [k for k, v in windows.items() if v.get('status') == 'skipped']:
         windows.pop(key)
     return {'windows': count}
@@ -1710,7 +1754,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         if notebook_mode and job.get('name_table', {}).get('status') == 'pending':
             job['status'], job['stage_label'] = 'reading', 'בניית טבלת השמות של הספר'
             persist(job)
-            _run_name_table(job, structure, configuration, profile, store, journal, hard, max_calls, shared_cap,
+            _run_name_table(job, groups, configuration, profile, store, journal, hard, max_calls, shared_cap,
                             adapter_factory)
             persist(job)
         def cross_windows():

@@ -312,7 +312,8 @@ class PipelineRecoveryAcceptanceTests(unittest.TestCase):
         job, structure = self.document_fixture()
         with self.assertRaises(pipeline.PipelinePaused):
             self.execute(job, structure, self.document_factory(pause_at="translator"))
-        self.assertEqual([call[0] for call in self.calls], ["translator"])
+        # The name-table pass over the original book runs before chapter 1 (keeper role).
+        self.assertEqual([call[0] for call in self.calls if "NAME TABLE of a book" not in call[2]], ["translator"])
         self.assertEqual(job["completed_units"], 1)
         self.resume_journal()
         self.execute(job, structure, self.document_factory())

@@ -63,7 +63,7 @@ class UIAutomationContractTests(unittest.TestCase):
 
     def adapter(self, provider, model, **kwargs):
         def generate(prompt, requested):
-            self.calls.append({'provider': provider, 'model': model, **kwargs})
+            self.calls.append({'provider': provider, 'model': model, 'name_table': 'NAME TABLE of a book' in str(prompt), **kwargs})
             if model == 'gpt-6-luna':
                 self.entered.set()
                 if self.block_translation:
@@ -129,6 +129,8 @@ class UIAutomationContractTests(unittest.TestCase):
         self.release.set()
         paused = self.wait_job(job_id)
         self.assertEqual(paused['status'], 'paused', paused.get('error'))
+        # The name-table pass over the original book (QA role, old key) runs before chapter 1.
+        self.calls = [call for call in self.calls if not call['name_table']]
         self.assertEqual(len(self.calls), 1)
         self.keys(qa='sk-test-renewed-qa')
         self.post('/document-resume', {'job_id': job_id})
