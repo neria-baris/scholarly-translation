@@ -1,5 +1,5 @@
 # Current state — LEARN-4 software acceptance, isolated delivery
-Latest known committed contract f6c85bc; prior delivery64cc482 and receipt4aaf367.
+Verified delivery019d14077c7084541711924a3cda7f0272a582a3; contract f6c85bc.
 All feature work in .claude/worktrees/learning-conductor, codex/language-learning,
 base9898011. User requests context-only reading, cumulative recurrence and visible
 vocabulary history; learn_4 contract replaces previous beside-word gloss assumptions.
@@ -19,11 +19,11 @@ Own preview on127.0.0.1:62144 uses outputs/learning-browser-check-112cce84c5 onl
 3 fake calls on synthetic data; main translator never stopped or restarted.
 Main HEAD9898011 unchanged but concurrent external edits in translation/library
 and job-block paths now present. Preserve them; do not stage/reconcile/merge/push
-main. Isolated local reviewed commit/receipt follows; feature push not attempted.
+main. Isolated delivery committed with clean tree; feature push not attempted.
 Six scoped Sonnet CLI builders total list6.8220652 USD; actual charge unknown,
 Sol usage not_metered, Astra/Opus0. E complete; F partial at cap, conductor completed
 248 meanings without extra invocation or cap increase. Runtime paid calls0.
 Data stays separate outputs/learning vs outputs/ui; single server per learning root,
 no cross-process locking. Other4 curricula unavailable; their500-form lists remain.
-Next: local clean feature closure, then human-controlled integration after active
+Next: human-controlled integration after active
 translation and parallel main changes are reconciled; optional budgeted quality pilot.
