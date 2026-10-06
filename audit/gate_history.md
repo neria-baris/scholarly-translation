@@ -629,3 +629,16 @@ Remote main observed05748c82448c62dc3257a22da7485e4bd094535c at this checkpoint;
 ancestor of integration. Root main has active concurrent review-effect changes,
 not owned/staged here. Reviewed clean integration commit follows; main checkout
 fast-forward and push require stable checked status, never forced/divergence.
+
+
+## 2026-10-06T09:51:05.465352+00:00 | LEARN-7 | clean integration receipt; user-directed wait
+Verified integration e70449bd8a2635ea06f39f942c71db412de83c2c, parents da6beb2 and
+1e21a74.65 intended merge paths reviewed; complete/staged changes checked,
+index matches files, clean integration tree after commit.108 scoped integration
+tests covered across runs; no provider/full-suite call. Feature remains clean.
+User confirms concurrent main work is still running and explicitly instructs
+waiting until it ends. Main has overlapping UI/handler and review-effect edits;
+no main checkout fast-forward/push/restart attempted. Remote main previously
+observed05748c8, ancestor; publication pending. Preserve both histories and owner
+changes; recheck updated main and resolve additively after a clean completed
+main checkpoint. Own merged preview86550 only, paid0.

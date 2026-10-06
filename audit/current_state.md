@@ -2,8 +2,9 @@
 User authorizes main/installer integration and preservation of original EPUB
 images/layout; active translation must remain uninterrupted. Feature delivery
 1e21a742fa9b7bf0bd4baf99ee724d76935dbfd3:23 reviewed intended paths, staged diff
-check/index matched, clean feature tree; receipt recorded in next integration audit.
-Integration checkout codex/learning-main-integration based on da6beb2 (main).
+check/index matched, clean feature tree; receipt recorded in integration audit.
+Verified clean integration e70449bd8a2635ea06f39f942c71db412de83c2c,
+branch codex/learning-main-integration based on da6beb2 (main).
 Merge keeps newer library delete/in-progress/partial export/job decisions, OCR
 and scholarly math. Conflicts UI/web resolved additively;108 scoped integration tests passed across runs.
 Main current concurrent review-effect edits are not owned or staged by learning.
@@ -35,5 +36,8 @@ remain included; full historical evidence in commits/contracts. Gate10 remains
 blocked on genuine sources/expert judgments and quality acceptance.
 Transient Windows destination locks retry at most6 times; persistent lock reports
 learning_save_failed, retaining prior state and complete staged file.
-Next: commit clean verified merge,
-verify root/remote state before authorized fast-forward main/push. No live restart.
+User explicitly instructs waiting: concurrent main work still running, now
+includes overlapping UI/handler edits. Do not mutate main until owner finishes.
+Next: recheck clean completed main checkpoint, merge any newer main additively
+into integration branch, focused compatibility then safe fast-forward main/push.
+No main mutation/publication or live restart yet; user wait is authoritative.
