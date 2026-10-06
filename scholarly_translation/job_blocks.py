@@ -17,7 +17,7 @@ from .runtime_controls import RuntimeControlsError
 
 _BUDGET_PHRASES = ("list-price reservation limit", "more reserved funds", "exceed the document budget")
 _NOTEBOOK_STAGE = "chapter-notebook"
-SHORT_STORY_WORDS = 120
+SHORT_STORY_WORDS = 300
 
 
 class BlockDecisionError(ValueError):

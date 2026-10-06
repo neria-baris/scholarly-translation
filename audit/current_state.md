@@ -6,12 +6,13 @@ user job c69bb5fc stopped at chapter 30/64 because the book-notebook keeper outp
 was truncated at 4096 tokens; settle() held the call as uncertain and stopped the
 task; the job was invisible in the library. Implemented:
 - Keeper default output cap 4096 -> 16384 (bounded by role max output and usable
-  context / 3); job overrides keeper_output_cap and notebook_story_words.
+  context / 3); story_so_far default 600 words (stored max 6000 chars); job
+  overrides keeper_output_cap and notebook_story_words.
 - ControlStore user actions (append-only events): user_settle (observed usage, else
   held worst case), user_resume, user_raise_limits (increase only). Integrity check
   takes the latest settlement per reservation; anomaly stops until user_resumed.
 - Journal reset_for_retry (explicit decision only; prior raw kept in job retry_history).
-- job_blocks.diagnose/apply_decision: notebook_truncated (raise cap / shorten story /
+- job_blocks.diagnose/apply_decision: notebook_truncated (raise cap / shorten story to 300 words /
   skip chapter), failed_call, unknown_outcome, over_cap_anomaly, stopped, call_limit,
   budget_limit. Decisions never send; resume is the only sender.
 - UI: library tabs "מוכנים" / "בתהליך עבודה"; in-progress entries with progress,

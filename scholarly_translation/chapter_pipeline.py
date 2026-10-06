@@ -428,7 +428,7 @@ def _pack_qa(records, qa_selection, configuration, profile_id, resolver, full_pr
 BOOK_NOTEBOOK_TOKEN_BUDGET = 6000
 BRIDGE_CHARS = 1200
 KEEPER_MAX_OUTPUT_TOKENS = 16384
-DEFAULT_STORY_WORDS = 250
+DEFAULT_STORY_WORDS = 600
 KEEPER_ROLES = ('context_state_builder', 'chapter_qa', 'translator')
 _KEEPER_STAGE = 'notebook'
 KEEPER_TOO_LARGE_NOTE = 'מחברת הספר לא עודכנה אחרי פרק %d: הפרק גדול מדי עבור מודל המחברת.'

@@ -30,7 +30,7 @@ MAX_RENDERING = 200
 MAX_MATCH_TERMS = 12
 MAX_MATCH_TERM_LEN = 60
 MAX_SUMMARY = 1200
-MAX_STORY = 1800
+MAX_STORY = 6000   # room for the default 600-word running summary
 SCOPES = ("global", "local")
 STATUSES = ("active", "superseded")
 ORIGINS = ("model", "human")
@@ -145,7 +145,7 @@ def validate_notebook(nb):
 # ---------------------------------------------------------------- prompt
 
 def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, chapter_index, profile_id,
-                        story_words=250):
+                        story_words=600):
     text = _PROMPT_PATH.read_text(encoding="utf-8")
     subs = {
         "PROFILE_ID": str(profile_id), "CHAPTER_INDEX": str(chapter_index),

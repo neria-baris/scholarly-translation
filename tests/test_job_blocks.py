@@ -114,8 +114,8 @@ class JobBlocksTests(unittest.TestCase):
         job_blocks.apply_decision(self.job, self.store, self.journal, "shorten_notebook")
         self.assertEqual(self.job["settings"]["notebook_story_words"], job_blocks.SHORT_STORY_WORDS)
         prompt = bn.build_keeper_prompt("", "src", "עברית", 0, "literary", self.job["settings"]["notebook_story_words"])
-        self.assertIn("at most 120 words", prompt)
-        self.assertIn("at most 250 words", bn.build_keeper_prompt("", "src", "עברית", 0, "literary"))
+        self.assertIn("at most 300 words", prompt)
+        self.assertIn("at most 600 words", bn.build_keeper_prompt("", "src", "עברית", 0, "literary"))
 
     def test_failed_translation_accept_and_retry_resends_same_step_once(self):
         self.fail(raw("failed_truncated", output=1000))
