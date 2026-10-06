@@ -27,6 +27,14 @@ on a copy lists it in progress (29/64 chapters, 213/378 units, $0.2244), offers 
 three notebook options and serves partial EPUB/HTML. Not verified: real browser
 click-through of the new tab/decision box. No provider calls.
 
+LIMITS-RELAX (user audit request): notebook chapter summary 1200 -> 5000 chars,
+entry note 600 -> 2000, rendering 200 -> 600, match terms 12 -> 24, all clips now
+warned; prompt asks for complete chapter summaries; chapter bridge 1200 -> 4000
+chars. Provider adapters resend automatically only after an explicit unprocessed
+rejection (HTTP 429/500/502/503/504/529 before any output; backoff 2/8/20 s,
+Retry-After <= 60 s honoured); connection errors, timeouts and mid-stream
+failures still become user decisions. Targeted suites OK (not full suite).
+
 Earlier today: b56df6b and 9898011 fixed untranslatable (URL-only) units blocking
 translation and review. Side project LEARN-PROMPTS/WORDLISTS delivered separately
 (f675162, 5a46350); user asked to keep it out of this product line of work.

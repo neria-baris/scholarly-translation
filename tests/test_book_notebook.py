@@ -46,9 +46,9 @@ class BookNotebookTests(unittest.TestCase):
 
     def test_bounds_clamped(self):
         op = add("T" * 500, tags=["  Word Play ", "a" * 100, "b", "c", "d", "e"],
-                 note="n" * 2000, hebrew_rendering="h" * 999,
-                 match_terms=["m%d" % i for i in range(40)] + [7])
-        nb, rep = bn.apply_keeper_response(self.nb, resp([op], summary="s" * 5000, story="t" * (bn.MAX_STORY + 5000)), 2)
+                 note="n" * (bn.MAX_NOTE + 500), hebrew_rendering="h" * (bn.MAX_RENDERING + 99),
+                 match_terms=["m%d" % i for i in range(bn.MAX_MATCH_TERMS + 28)] + [7])
+        nb, rep = bn.apply_keeper_response(self.nb, resp([op], summary="s" * (bn.MAX_SUMMARY + 800), story="t" * (bn.MAX_STORY + 5000)), 2)
         bn.validate_notebook(nb)
         e = nb["entries"][0]
         self.assertEqual(len(e["title"]), bn.MAX_TITLE)
@@ -60,7 +60,8 @@ class BookNotebookTests(unittest.TestCase):
         self.assertEqual(len(e["match_terms"]), bn.MAX_MATCH_TERMS)
         self.assertEqual(len(nb["chapter_summaries"]["2"]), bn.MAX_SUMMARY)
         self.assertEqual(len(nb["story_so_far"]), bn.MAX_STORY)
-        self.assertTrue(any("story_so_far exceeded" in w for w in rep["warnings"]))
+        for reported in ("story_so_far exceeded", "chapter_summary exceeded", "note longer than", "hebrew_rendering longer than"):
+            self.assertTrue(any(reported in w for w in rep["warnings"]), reported)
         self.assertEqual(rep["added"], 1)
 
     def test_long_story_is_kept_whole_and_trimmed_not_dropped_in_excerpt(self):

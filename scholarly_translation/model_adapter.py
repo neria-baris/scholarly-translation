@@ -438,8 +438,49 @@ class TextGenerationResult:
 class TextGenerationAdapter:
     """Shared adapter contract: mock and OpenAI return the same result shape."""
 
+    _sleep = staticmethod(time.sleep)   # replaced in tests
+
     def generate(self, prompt_text: str, model: str) -> TextGenerationResult:
         raise NotImplementedError
+
+
+# An HTTP error status returned before any output means the provider rejected the
+# request without processing it (rate limit, overload, server error), so it is not
+# billed and may be sent again. Connection errors, timeouts and failures after output
+# started are ambiguous and are never retried here.
+RETRYABLE_REJECTION_STATUS = frozenset({429, 500, 502, 503, 504, 529})
+REJECTION_RETRY_DELAYS = (2.0, 8.0, 20.0)
+MAX_RETRY_AFTER_SECONDS = 60.0
+
+
+def _rejected_unprocessed(exc):
+    status = getattr(exc, "status_code", None)
+    return type(status) is int and status in RETRYABLE_REJECTION_STATUS
+
+
+def _retry_delay(exc, default):
+    headers = getattr(getattr(exc, "response", None), "headers", None)
+    try:
+        value = float(headers.get("retry-after")) if headers is not None and headers.get("retry-after") is not None else None
+    except (TypeError, ValueError, AttributeError):
+        value = None
+    return max(default, value) if value is not None and 0 <= value <= MAX_RETRY_AFTER_SECONDS else default
+
+
+def _with_rejection_retry(call, start, wall_seconds, sleep):
+    """Run ``call(progress)``; repeat it only after an explicit unprocessed rejection
+    (see RETRYABLE_REJECTION_STATUS) raised before ``progress["received"]`` was set."""
+    for attempt in range(len(REJECTION_RETRY_DELAYS) + 1):
+        progress = {"received": False}
+        try:
+            return call(progress)
+        except Exception as exc:
+            if attempt == len(REJECTION_RETRY_DELAYS) or progress["received"] or not _rejected_unprocessed(exc):
+                raise
+            delay = _retry_delay(exc, REJECTION_RETRY_DELAYS[attempt])
+            if time.monotonic() - start + delay > wall_seconds:
+                raise
+            sleep(delay)
 
 
 class CacheablePrompt(str):
@@ -570,14 +611,17 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
                 payload["input"] = str(prompt_text)
             if reasoning_effort is not None:
                 payload['reasoning'] = {'effort': reasoning_effort}
-            if self._max_output_tokens > 8192 and callable(getattr(client.responses, 'stream', None)):
-                with client.responses.stream(**payload) as stream:
-                    for _event in stream:
-                        if time.monotonic() - start > self._max_wall_seconds:
-                            raise TimeoutError('generation wall limit')
-                    response = stream.get_final_response()
-            else:
-                response = client.responses.create(**payload)
+
+            def attempt(progress):
+                if self._max_output_tokens > 8192 and callable(getattr(client.responses, 'stream', None)):
+                    with client.responses.stream(**payload) as stream:
+                        for _event in stream:
+                            progress["received"] = True
+                            if time.monotonic() - start > self._max_wall_seconds:
+                                raise TimeoutError('generation wall limit')
+                        return stream.get_final_response()
+                return client.responses.create(**payload)
+            response = _with_rejection_retry(attempt, start, self._max_wall_seconds, self._sleep)
         except Exception:
             duration = time.monotonic() - start
             return TextGenerationResult(
@@ -719,14 +763,17 @@ class AnthropicTextGenerationAdapter(TextGenerationAdapter):
         try:
             payload = dict(model=model, max_tokens=self._max_output_tokens,
                            messages=[{"role": "user", "content": content}])
-            if self._max_output_tokens > 8192 and callable(getattr(client.messages, 'stream', None)):
-                with client.messages.stream(**payload) as stream:
-                    for _event in stream:
-                        if time.monotonic() - start > self._max_wall_seconds:
-                            raise TimeoutError('generation wall limit')
-                    response = stream.get_final_message()
-            else:
-                response = client.messages.create(**payload)
+
+            def attempt(progress):
+                if self._max_output_tokens > 8192 and callable(getattr(client.messages, 'stream', None)):
+                    with client.messages.stream(**payload) as stream:
+                        for _event in stream:
+                            progress["received"] = True
+                            if time.monotonic() - start > self._max_wall_seconds:
+                                raise TimeoutError('generation wall limit')
+                        return stream.get_final_message()
+                return client.messages.create(**payload)
+            response = _with_rejection_retry(attempt, start, self._max_wall_seconds, self._sleep)
         except Exception:
             return TextGenerationResult(
                 "failed_transport", None, "not_metered", None,
@@ -813,10 +860,10 @@ class OpenAICompatibleTextGenerationAdapter(TextGenerationAdapter):
         client = self._client or self._build_client()
         start = time.monotonic()
         try:
-            response = client.chat.completions.create(
+            response = _with_rejection_retry(lambda progress: client.chat.completions.create(
                 model=model, messages=[{"role": "user", "content": prompt_text}],
                 max_tokens=self._max_output_tokens,
-            )
+            ), start, 3600, self._sleep)
         except Exception:
             return TextGenerationResult(
                 "failed_transport", None, "not_metered", None,

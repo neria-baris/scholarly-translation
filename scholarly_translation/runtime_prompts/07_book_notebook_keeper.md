@@ -12,7 +12,7 @@ Chapter index: {{CHAPTER_INDEX}}
 - Record the Hebrew renderings actually chosen in this chapter for names, terms, puns, idiolects and recurring phrases.
 - Record forms of address and the grammatical gender (Hebrew is gendered) of characters and addressees, plus each character's voice and register.
 - Record running jokes, recurring wordplay, motifs, quotations and allusions, and how they were rendered in Hebrew.
-- "match_terms": up to 12 short strings in the SOURCE language that, if they appear in a future chapter, mean this entry is relevant (names, key words, phrases).
+- "match_terms": up to 24 short strings in the SOURCE language that, if they appear in a future chapter, mean this entry is relevant (names, key words, phrases).
 - "scope": "global" for facts that apply across the whole book (main characters, core terms, voice); "local" otherwise.
 - Update an existing entry (by its entry_id) when it changes; "supersede" an entry that is now outdated or wrong; do not duplicate an existing entry.
 - Entries marked pinned or human must not be changed.
@@ -30,6 +30,6 @@ Chapter index: {{CHAPTER_INDEX}}
 ## Output
 Return strict JSON only, no prose and no code fences:
 
-{"ops":[{"op":"add|update|supersede","entry_id":"(update/supersede only)","tags":["..."],"title":"short title","note":"what to remember and why it matters (max 600 chars)","hebrew_rendering":"chosen Hebrew, if any","match_terms":["..."],"scope":"global|local"}],
- "chapter_summary":"3-8 sentences summarising the plot/argument of THIS chapter",
+{"ops":[{"op":"add|update|supersede","entry_id":"(update/supersede only)","tags":["..."],"title":"short title","note":"what to remember and why it matters (max 2000 chars)","hebrew_rendering":"chosen Hebrew, if any","match_terms":["..."],"scope":"global|local"}],
+ "chapter_summary":"summary of the plot/argument of THIS chapter covering every event, character and thread it introduces or advances (as long as needed, max 5000 chars)",
  "story_so_far":"updated running summary of the whole book so far, {{STORY_LENGTH}}"}

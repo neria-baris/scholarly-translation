@@ -426,7 +426,7 @@ def _pack_qa(records, qa_selection, configuration, profile_id, resolver, full_pr
 
 # --- LIT-NOTEBOOK: book notebook context and keeper step ---------------------
 BOOK_NOTEBOOK_TOKEN_BUDGET = 24000
-BRIDGE_CHARS = 1200
+BRIDGE_CHARS = 4000
 KEEPER_MAX_OUTPUT_TOKENS = 16384
 DEFAULT_STORY_WORDS = None   # no word cap unless the user chose one
 KEEPER_ROLES = ('context_state_builder', 'chapter_qa', 'translator')
@@ -482,7 +482,7 @@ def notebook_budget(selection):
     return max(300, min(BOOK_NOTEBOOK_TOKEN_BUDGET, selection.capabilities.usable_context_tokens // 10))
 
 def bridge_chars(selection):
-    """Per-side bridge size: 1200 chars, less for small-context models."""
+    """Per-side bridge size: 4000 chars, less for small-context models."""
     return max(100, min(BRIDGE_CHARS, selection.capabilities.usable_context_tokens // 30))
 
 def _synthetic_notebook_excerpt(budget=BOOK_NOTEBOOK_TOKEN_BUDGET):

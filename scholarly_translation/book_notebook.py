@@ -25,11 +25,11 @@ MAX_HISTORY = 200
 MAX_TAGS = 4
 MAX_TAG_LEN = 32
 MAX_TITLE = 120
-MAX_NOTE = 600
-MAX_RENDERING = 200
-MAX_MATCH_TERMS = 12
+MAX_NOTE = 2000
+MAX_RENDERING = 600
+MAX_MATCH_TERMS = 24
 MAX_MATCH_TERM_LEN = 60
-MAX_SUMMARY = 1200
+MAX_SUMMARY = 5000
 MAX_STORY = 60000  # safety bound only; the summary keeps every thread the book needs
 SCOPES = ("global", "local")
 STATUSES = ("active", "superseded")
@@ -209,7 +209,10 @@ def apply_keeper_response(notebook, raw_text, chapter_index):
             warn.append("op %d: could not be applied" % i)
     cs = obj.get("chapter_summary")
     if isinstance(cs, str) and cs.strip():
-        nb["chapter_summaries"][str(chapter_index)] = " ".join(cs.split())[:MAX_SUMMARY].strip()
+        summary = " ".join(cs.split())
+        if len(summary) > MAX_SUMMARY:
+            warn.append("chapter_summary exceeded %d characters and was shortened" % MAX_SUMMARY)
+        nb["chapter_summaries"][str(chapter_index)] = summary[:MAX_SUMMARY].strip()
     elif cs is not None:
         warn.append("chapter_summary invalid")
     sf = obj.get("story_so_far")
@@ -266,6 +269,9 @@ def _apply_op(nb, op, i, chapter, by_id, by_title, rep):
         target["last_chapter"] = max(target["last_chapter"], chapter)
         rep["superseded"] += 1
         return
+    for field, limit in (("note", MAX_NOTE), ("hebrew_rendering", MAX_RENDERING)):
+        if isinstance(op.get(field), str) and len(" ".join(op[field].split())) > limit:
+            warn.append("op %d: %s longer than %d characters was shortened" % (i, field, limit))
     tags = _norm_tags(op.get("tags"))
     title = _clip(op.get("title"), MAX_TITLE)
     if kind == "add":
