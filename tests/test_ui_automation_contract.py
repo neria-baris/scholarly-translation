@@ -31,6 +31,9 @@ class UIAutomationContractTests(unittest.TestCase):
         self.output_patch = patch.object(web_ui, 'OUTPUT_ROOT', self.folder)
         self.adapter_patch = patch('scholarly_translation.model_adapter.build_translation_adapter', self.adapter)
         self.output_patch.start()
+        self._cross_review_stub = patch("scholarly_translation.chapter_pipeline.cross_review_available", create=True, return_value=False)
+        self._cross_review_stub.start()
+        self.addCleanup(self._cross_review_stub.stop)
         self.adapter_patch.start()
         self.addCleanup(self.output_patch.stop)
         self.addCleanup(self.adapter_patch.stop)
@@ -40,7 +43,7 @@ class UIAutomationContractTests(unittest.TestCase):
         self.url = f'http://127.0.0.1:{self.server.server_port}'
         self.addCleanup(self.stop)
         self.settings = {'model': 'configured', 'automation': True, 'quality': 'checked',
-            'profile': 'scholarly', 'language': 'en', 'budget_usd': 2,
+            'profile': 'scholarly', 'language': 'en', 'budget_usd': 4,   # sonnet QA/keeper; larger notebook and NAMES reserves (NAMES-CROSSQA)
             'font_id': 'david-libre', 'role_selections': {
             'translator': {'source': 'catalog', 'provider': 'openai', 'model': 'gpt-6-luna'},
             'semantic_reviewer': {'source': 'catalog', 'provider': 'anthropic', 'model': 'claude-sonnet-5-5'},

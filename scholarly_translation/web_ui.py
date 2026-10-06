@@ -634,9 +634,12 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     job = document_jobs.get(data.get("job_id"))
                     job["blocker"] = document_jobs.blocker(job["job_id"], job)
                     job["recheck_candidates"] = sum(review_salvage.candidates(job))
+                    job["cross_review_available"] = chapter_pipeline.cross_review_available(job)
                     self._json(200, job)
                 elif route.path == "/document-recheck-reviews":
                     self._json(200, document_jobs.recheck_saved_reviews(data.get("job_id")))
+                elif route.path == "/document-cross-review":
+                    self._json(200, document_jobs.cross_chapter_review(data.get("job_id")))
                 elif route.path == "/document-decide":
                     value = data.get("value")
                     if value is not None and (type(value) not in (int, float) or isinstance(value, bool)):

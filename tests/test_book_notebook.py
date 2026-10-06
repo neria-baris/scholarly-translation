@@ -259,6 +259,102 @@ class BookNotebookTests(unittest.TestCase):
         self.assertNotIn("{{", p)
         self.assertIn('"ops"', p)
 
+    KEYS = ("ops", "chapter_summary", "story_so_far", "names")
+    BROKEN = ('{"ops":[{"op":"add","tags":["name"],"title":"t","note":"n","match_terms":["X"],"scope":"local"}],'
+              '"chapter_summary":"סיכום."],"story_so_far":"סיפור."}')
+
+    def test_extract_stray_closer_repaired(self):
+        obj, repaired = bn.extract_json_object(self.BROKEN, self.KEYS)
+        self.assertTrue(repaired)
+        self.assertEqual((len(obj["ops"]), obj["chapter_summary"], obj["story_so_far"]),
+                         (1, "סיכום.", "סיפור."))
+        obj, repaired = bn.extract_json_object("```json\n" + self.BROKEN + "\n```", self.KEYS)
+        self.assertTrue(repaired and obj["story_so_far"] == "סיפור.")
+        obj, repaired = bn.extract_json_object('{"ops":[]}', self.KEYS)
+        self.assertEqual((obj, repaired), ({"ops": []}, False))
+        nb, rep = bn.apply_keeper_response(self.nb, self.BROKEN, 3)
+        self.assertEqual((rep["status"], rep["added"], rep["format_repaired"]), ("ok", 1, True))
+        self.assertEqual((nb["chapter_summaries"]["3"], nb["story_so_far"]), ("סיכום.", "סיפור."))
+        self.assertEqual(rep["warnings"], [])
+
+    def test_extract_limits_and_inner_op_never_returned(self):
+        too_many = '{"ops":[],"chapter_summary":"a"]]]]],"story_so_far":"b"}'
+        self.assertEqual(bn.extract_json_object(too_many, self.KEYS), (None, False))
+        four = '{"ops":[],"chapter_summary":"a"]]]],"story_so_far":"b"}'
+        obj, repaired = bn.extract_json_object(four, self.KEYS)
+        self.assertTrue(repaired and obj["story_so_far"] == "b")
+        # unrepairable outer object: the inner op object must not be returned
+        inner = '{"ops":[{"op":"add","tags":["a"],"title":"t"}], "chapter_summary": oops}'
+        self.assertEqual(bn.extract_json_object(inner, self.KEYS), (None, False))
+        self.assertEqual(bn.extract_json_object('{"op":"add","title":"t"}', self.KEYS), (None, False))
+        for bad in (None, 5, "", "[1]"):
+            self.assertEqual(bn.extract_json_object(bad, self.KEYS), (None, False))
+        obj, repaired = bn.extract_json_object('Sure:\n{"names":[]}\nbye', ("names",))
+        self.assertEqual((obj, repaired), ({"names": []}, False))
+        nb, rep = bn.apply_keeper_response(self.nb, inner, 0)
+        self.assertEqual((rep["status"], nb), ("unparsed", self.nb))
+
+    def test_missing_keys_warn_and_names_raw(self):
+        nb, rep = bn.apply_keeper_response(self.nb, json.dumps({"ops": []}), 0)
+        self.assertIn("chapter_summary missing", rep["warnings"])
+        self.assertIn("story_so_far missing", rep["warnings"])
+        self.assertEqual((rep["names_raw"], rep["format_repaired"]), (None, False))
+        nb, rep = bn.apply_keeper_response(
+            self.nb, json.dumps({"ops": [], "chapter_summary": 5, "story_so_far": None}), 0)
+        self.assertIn("chapter_summary invalid", rep["warnings"])
+        self.assertIn("story_so_far invalid", rep["warnings"])
+        self.assertFalse(any("missing" in w for w in rep["warnings"]))
+        names = [{"source": "Shae", "hebrew": "שֵׁאי"}]
+        nb, rep = bn.apply_keeper_response(self.nb, json.dumps(
+            {"ops": [], "chapter_summary": "s", "story_so_far": "t", "names": names}), 0)
+        self.assertEqual(rep["names_raw"], names)
+        self.assertEqual(rep["warnings"], [])
+        self.assertNotIn("names", nb)
+        bn.validate_notebook(nb)
+        nb, rep = bn.apply_keeper_response(self.nb, json.dumps({"names": "x"}), 0)
+        self.assertEqual((rep["status"], rep["names_raw"]), ("ok", "x"))
+
+    def test_entry_line_with_id(self):
+        nb, _ = bn.apply_keeper_response(self.nb, resp([add("Ana")]), 0)
+        e = nb["entries"][0]
+        self.assertTrue(bn._entry_line(e, with_id=True).endswith(" {entry_id: %s}" % e["entry_id"]))
+        self.assertNotIn("entry_id", bn._entry_line(e))
+        self.assertIn("{entry_id: %s}" % e["entry_id"],
+                      bn.render_for_chapter(nb, "Ana", count_tokens=len, with_ids=True))
+        self.assertNotIn("entry_id", bn.render_for_chapter(nb, "Ana", count_tokens=len))
+
+    def test_keep_story_never_trims_but_entries_bounded(self):
+        nb = self._book()
+        nb["story_so_far"] = "Long story. " * 400
+        text = bn.render_for_chapter(nb, "Harry", token_budget=300, count_tokens=len, keep_story=True)
+        self.assertIn(nb["story_so_far"], text)
+        self.assertIn("prev chapter ten", text)
+        self.assertNotIn("omitted for length", text)
+        entries_part = text[:text.index("STORY_SO_FAR:")]
+        self.assertLessEqual(len(entries_part), 300 + 2)
+        self.assertGreater(len(text), 300)
+        self.assertIn("Pinned rule", text)
+        self.assertNotIn("Recent thing", bn.render_for_chapter(
+            nb, "Harry", token_budget=len(entries_part) - 40, count_tokens=len, keep_story=True))
+        # default still trims
+        trimmed = bn.render_for_chapter(nb, "Harry", token_budget=3000, count_tokens=len)
+        self.assertIn("omitted for length", trimmed)
+        self.assertLessEqual(len(trimmed), 3000)
+
+    def test_story_share_default(self):
+        self.assertEqual(bn.STORY_SHARE, 0.5)
+
+    def test_names_table_placeholder(self):
+        p = bn.build_keeper_prompt("EX", "S", "H", 1, "literary", names_text="- Shae → שֵׁאי")
+        self.assertIn("## Name table (binding)\n- Shae → שֵׁאי", p)
+        self.assertNotIn("{{", p)
+        for blank in ("", "  \n", None):
+            q = bn.build_keeper_prompt("EX", "S", "H", 1, "literary", names_text=blank)
+            self.assertIn("## Name table (binding)\n(empty)", q)
+        self.assertIn('"names"', p)
+        self.assertIn("{entry_id:", p)
+        self.assertIn("לוון", p)
+
     def test_performance(self):
         nb = bn.new_notebook("big")
         base = bn.apply_keeper_response(nb, resp([add("seed")]), 0)[0]["entries"][0]

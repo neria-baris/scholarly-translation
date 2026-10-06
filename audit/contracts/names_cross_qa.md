@@ -147,3 +147,20 @@ quality claims. Acceptance: unit tests per module (positive/negative), offline r
 the 3 broken keeper answers of c69bb5fc parses fully, integration test with mock provider
 covering prepass, names in prompts, windows 1-8/8-15 and a cross correction, retry reopen;
 full suite green; zero paid calls.
+
+Addendum (2026-10-06, user decisions during integration):
+- Overlap chapter decides: in window 8-15 chapter 8 (already checked in 1-8) is the REFERENCE.
+  The prompt marks it authoritative (later chapters follow it; no issue whose span is only in
+  it); corrections never touch its units. Same rule for the overlap of split window parts.
+  The first window has no reference.
+- Default model is gpt-6-luna: cost/reserve tradeoffs are judged at Luna prices, so the larger
+  notebook budget (60000) stays. With pricier roles (e.g. claude-sonnet-5-5 QA, $4/M worst
+  input) planning ceilings rise; one UI fixture budget was raised from $2 to $4 for that.
+Integration deviations (conductor): unit reviews get only the unit's names (1000-token NAMES
+budget, planned reserve 1000) instead of 8000; keeper planning reserve = notebook + names
+budget (the dispatch reserves the real prompt); name-table, keeper and cross-QA output caps
+are bounded by the job's shared output cap (a larger cap made the control store refuse the
+call and fail the job); the keeper trim loop runs up to 32 rounds; completed books get the
+entry point in the result view's notebook section (status completed shows no processing view).
+Out of plan: cross-QA and name-table calls are not part of the per-chapter conservative plan;
+they protect the remaining chapters' reserve and are skipped with a note on shortage.

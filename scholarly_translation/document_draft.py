@@ -1070,6 +1070,32 @@ class DocumentJobs:
         job["recheck_report"] = report
         return job
 
+    def cross_chapter_review(self, job_id):
+        """Prepare a cross-chapter review (name table + windows of chapters) for an existing
+        notebook job. Sends nothing to any provider: the job is left paused and the normal
+        ``resume`` runs the review."""
+        folder = self._folder(job_id)
+        journal_path = folder / "journal.sqlite3"
+        with self.lock:
+            if self.active is not None:
+                raise DocumentDraftError("מסמך מתורגם כרגע. המתינו לסיום או השהו אותו.")
+            job = self.get(job_id)
+            if (not job.get("settings", {}).get("automation") or not job.get("book_notebook")
+                    or not journal_path.is_file()):
+                raise DocumentDraftError("הבדיקה הרוחבית זמינה רק לעבודה אוטומטית עם מחברת ספר.")
+            try:
+                report = chapter_pipeline.enable_cross_review(job)
+            except chapter_pipeline.ChapterPipelineError as exc:
+                raise DocumentDraftError(str(exc)) from None
+            job["status"], job["stage_label"] = "paused", "ממתין לבדיקה רוחבית"
+            for transient in ("budget_status", "remaining_budget_usd", "estimated_cost_usd"):
+                job.pop(transient, None)
+            self._persist(job)
+        job = self.get(job_id)
+        job["blocker"] = self.blocker(job_id, job)
+        job["cross_review_report"] = report
+        return job
+
     def delete(self, job_id):
         """Permanently remove a saved job folder (source copy, translation, journal,
         cost log). Refused while that job is running. Sends nothing to any provider."""

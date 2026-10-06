@@ -387,7 +387,7 @@ function renderProcessing(){
   const canPauseResume=currentJob.settings&&currentJob.settings.automation;
   $('pause-button').hidden=!(canPauseResume&&['translating','reviewing','queued','reading'].includes(currentJob.status));
   $('resume-button').hidden=!(canPauseResume&&!blocker&&['paused','interrupted','failed'].includes(currentJob.status));
-  renderRecheck(canPauseResume);
+  renderRecheck(canPauseResume);renderCrossReview(canPauseResume);
   renderResumeKeyFields();
 }
 function renderRecheck(automation){
@@ -411,6 +411,30 @@ async function recheckReviews(){
     currentJob={...result,settings:result.settings||currentJob.settings};renderProcessing();
   }catch(error){$('recheck-error').textContent=error.message;$('recheck-error').hidden=false}
   finally{$('recheck-button').disabled=false}
+}
+let crossReviewPrepared=null;
+function renderCrossReview(automation){
+  const idle=automation&&['paused','interrupted','failed'].includes(currentJob.status);
+  const prepared=crossReviewPrepared===currentJob.job_id&&currentJob.cross_review_report;
+  $('cross-review-box').hidden=!(idle&&(currentJob.cross_review_available||prepared));
+  $('cross-review-button').hidden=!!prepared;
+  $('cross-review-done').hidden=!prepared;
+}
+async function prepareCrossReviewFromResult(){
+  $('result-cross-review-error').hidden=true;$('result-cross-review-button').disabled=true;
+  try{const result=await request('/document-cross-review',{job_id:currentJob.job_id});
+    crossReviewPrepared=result.job_id;
+    currentJob={...result,settings:result.settings||currentJob.settings};show('processing-panel');renderProcessing();
+  }catch(error){$('result-cross-review-error').textContent=error.message;$('result-cross-review-error').hidden=false}
+  finally{$('result-cross-review-button').disabled=false}
+}
+async function prepareCrossReview(){
+  $('cross-review-error').hidden=true;$('cross-review-button').disabled=true;
+  try{const result=await request('/document-cross-review',{job_id:currentJob.job_id});
+    crossReviewPrepared=result.job_id;
+    currentJob={...result,settings:result.settings||currentJob.settings};renderProcessing();
+  }catch(error){$('cross-review-error').textContent=error.message;$('cross-review-error').hidden=false}
+  finally{$('cross-review-button').disabled=false}
 }
 function renderDecision(blocker){
   const box=$('decision-box'),options=$('decision-options');
@@ -510,6 +534,7 @@ function renderNotebook(){
   list.replaceChildren();
   const summaries=nb&&nb.chapter_summaries?Object.entries(nb.chapter_summaries).sort((a,b)=>Number(a[0])-Number(b[0])):[];
   box.hidden=!nb||currentJob.status!=='completed';
+  $('result-cross-review').hidden=!(currentJob.cross_review_available&&currentJob.settings&&currentJob.settings.automation);
   for(const [index,text] of summaries){const item=document.createElement('li');item.textContent='פרק '+(Number(index)+1)+': '+text;list.append(item)}
 }
 async function downloadNotebook(){
@@ -748,7 +773,7 @@ $('translation-form').onsubmit=translate;$('connection-button').onclick=showConn
 $('close-connection').onclick=()=>$('connection-dialog').close();
 $('close-connection-ok').onclick=()=>$('connection-dialog').close();
 $('sample-button').onclick=sample;$('download-pdf').onclick=download;$('download-notebook').onclick=downloadNotebook;
-$('save-keys').onclick=saveKeys;$('pause-button').onclick=pauseJob;$('resume-button').onclick=resumeJob;$('recheck-button').onclick=recheckReviews;
+$('save-keys').onclick=saveKeys;$('pause-button').onclick=pauseJob;$('resume-button').onclick=resumeJob;$('recheck-button').onclick=recheckReviews;$('cross-review-button').onclick=prepareCrossReview;$('result-cross-review-button').onclick=prepareCrossReviewFromResult;
 $('resume-save-keys').onclick=saveResumeKeys;
 $('library-button').onclick=openLibrary;$('library-start-button').onclick=openLibrary;$('library-back').onclick=closeLibrary;
 $('library-tab-done').onclick=()=>setLibraryTab('done');$('library-tab-progress').onclick=()=>setLibraryTab('progress');

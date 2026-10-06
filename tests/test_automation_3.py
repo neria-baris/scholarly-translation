@@ -43,6 +43,9 @@ class Automation3HTTPTests(unittest.TestCase):
         self.output_patch = __import__("unittest.mock", fromlist=["patch"]).patch.object(
             web_ui, "OUTPUT_ROOT", Path(self.temp.name))
         self.output_patch.start()
+        self._cross_review_stub = patch("scholarly_translation.chapter_pipeline.cross_review_available", create=True, return_value=False)
+        self._cross_review_stub.start()
+        self.addCleanup(self._cross_review_stub.stop)
         self.calls = []
         def builder(provider, model, **kwargs):
             def generate(prompt, requested):

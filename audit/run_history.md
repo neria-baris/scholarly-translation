@@ -914,3 +914,21 @@ review-effect and format-tolerance code retained. No live restart/job modificati
 This receipt records delivery hash (not its own hash). No cleanup of other work.
 Limitations remain: linguistic quality and IAB saved-file event not verified.
 Next: user can load updated UI at a safe future restart after active translation.
+
+
+## 2026-10-06T17:55+03:00 | NAMES-CROSSQA | Claude continuity, user-directed
+User asked for an analysis of code problems revealed by the completed Jade City run c69bb5fc,
+then decided: name table built by the model before chapter 1 and locked automatically, binding
+NAMES in every prompt, larger notebook, keeper fixes (entry_id, whole story, tolerant JSON,
+warnings, retry reopen, stale notes), cross-chapter QA every 8 chapters with one chapter of
+overlap (the overlap chapter decides), automatic corrections; no deterministic name/term
+checks, no sealed names, niqqud allowed, Luna default. User explicitly authorized more than two
+parallel builders: five Sonnet builders (A notebook, B name table, C cross QA module, D retry,
+E UI action) on disjoint files, common base b23a217/f61958c, sequential conductor integration
+of chapter_pipeline.py and tests. Integration fixes: output caps bounded by the shared cap,
+32-round keeper trim, unit names budget 1000, result-view entry point for completed books.
+Tests: full offline suite 1137 OK, rerun after the final UI entry point 1137 OK (388s);
+new test modules name_table 24, cross_chapter_qa 17, cross_review_action
+6, names_crossqa_integration 8; node --check OK. Offline replay: the 3 lost keeper answers of
+c69bb5fc (chapters 31, 42, 59) now parse fully. Paid/provider calls 0; no live restart; jobs
+untouched (Senlin Ascension paused 1/50 under old code: restart UI before resuming).

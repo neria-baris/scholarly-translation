@@ -42,7 +42,7 @@ class JobBlocksTests(unittest.TestCase):
         self.job = {"job_id": JOB, "status": "failed", "error": None, "units": [],
                     "settings": {"automation": True, "budget_usd": 1.0, "model_config": self.config.to_dict()}}
 
-    def call(self, response, stage="chapter-translate", role="translator", cap=1000, max_calls=20, hard=1.0, prompt="p"):
+    def call(self, response, stage="chapter-translate", role="translator", cap=1000, max_calls=20, hard=1.0, prompt="p", deps=None):
         def factory(role_name, descriptor):
             def generate(text, model):
                 self.sent.append((stage, descriptor.max_output_tokens))
@@ -51,7 +51,7 @@ class JobBlocksTests(unittest.TestCase):
                 return response
             return SimpleNamespace(generate=generate)
         return pipeline._controlled(JOB, role, stage, CacheablePrompt("Literal source.\n", prompt), self.config, cap,
-            self.store, self.journal, hard, max_calls, 4096, lambda r: json.loads(r.text), {"source": stage}, factory)
+            self.store, self.journal, hard, max_calls, 4096, lambda r: json.loads(r.text), deps or {"source": stage}, factory)
 
     def fail(self, response, **kwargs):
         with self.assertRaises(Exception):
@@ -227,6 +227,51 @@ class JobBlocksTests(unittest.TestCase):
         job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
         self.call(raw())
         self.assertEqual(len(self.sent), 2)
+
+    def keeper_stuck(self, response, chapter, **kwargs):
+        self.fail(response, stage="chapter-notebook", role="chapter_qa", deps={"chapter": chapter}, **kwargs)
+
+    def test_unknown_keeper_retry_reopens_uncompleted_chapter_only(self):
+        self.job["chapter_completion"] = {"1": True}
+        self.job["notebook_applied"] = {"0": True, "1": True}
+        self.job["qa_notebooks"] = {"0": "n", "1": "n"}
+        self.keeper_stuck(RuntimeError("connection lost"), 0)
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
+        self.assertEqual(self.job["notebook_applied"], {"1": True})
+        self.assertEqual(self.job["qa_notebooks"], {"1": "n"})
+
+    def test_unknown_keeper_retry_keeps_completed_chapter(self):
+        self.job["chapter_completion"] = {"0": True}
+        self.job["notebook_applied"] = {"0": True}
+        self.keeper_stuck(RuntimeError("connection lost"), 0)
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
+        self.assertEqual(self.job["notebook_applied"], {"0": True})
+
+    def test_failed_keeper_accept_and_retry_reopens_chapter(self):
+        self.job["chapter_completion"], self.job["notebook_applied"] = {}, {"0": True}
+        self.keeper_stuck(raw("failed_transport", text=""), 0)
+        block = job_blocks.diagnose(self.job, self.store, self.journal)
+        self.assertIn("accept_and_retry", [o["id"] for o in block["options"]])
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_and_retry")
+        self.assertEqual(self.job["notebook_applied"], {})
+
+    def test_name_table_skipped_becomes_pending_on_retry(self):
+        self.job["name_table"] = {"status": "skipped"}
+        self.fail(RuntimeError("connection lost"), stage="name-table", role="chapter_qa")
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
+        self.assertEqual(self.job["name_table"]["status"], "pending")
+
+    def test_cross_qa_skipped_window_popped_completed_window_kept(self):
+        self.job["cross_qa"] = {"windows": {"0-1": {"status": "skipped"}, "2-3": {"status": "completed"}}}
+        self.fail(RuntimeError("connection lost"), stage="cross-chapter-qa", role="chapter_qa", deps={"window": "0-1"})
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
+        self.assertEqual(self.job["cross_qa"]["windows"], {"2-3": {"status": "completed"}})
+
+    def test_raise_cap_reopens_unknown_keeper_step(self):
+        self.job["chapter_completion"], self.job["notebook_applied"] = {}, {"0": True}
+        self.keeper_stuck(RuntimeError("connection lost"), 0)
+        job_blocks._reopen_failed_keeper(self.job, self.journal)
+        self.assertEqual(self.job["notebook_applied"], {})
 
     def test_skip_notebook_after_unknown_outcome_unblocks_other_calls(self):
         self.fail(RuntimeError("connection lost"), stage="chapter-notebook", role="chapter_qa")

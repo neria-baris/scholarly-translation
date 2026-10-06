@@ -35,6 +35,8 @@ FILLER = ''.join('<p>The sea went on and on while the crew kept watch over the w
                  for i in 'abcdefghijklmnopqrst')
 HEADER = 'BOOK_NOTEBOOK (memory of this book'
 KEEPER_MARK = 'rolling NOTEBOOK for a book'
+NAMES_MARK = 'NAME TABLE of a book'
+CROSS_MARK = 'several consecutive chapters'
 HEBREW = 'הקפטן שאל היכן הלווייתן והים היה רגוע.'
 
 
@@ -89,6 +91,13 @@ class LitNotebookTests(unittest.TestCase):
                     ids = json.loads(re.search(r'TARGET_UNIT_IDS[^\n]*?: (\[[^\n]*\])', prompt).group(1))
                     text = json.dumps([{'unit_id': uid, 'translation': HEBREW, 'translation_note': None}
                                        for uid in ids], ensure_ascii=False)
+                elif NAMES_MARK in prompt:
+                    kind = 'names'
+                    text = json.dumps({'names': [{'source': 'Ahab', 'aliases': ['Captain Ahab'], 'hebrew': 'אחאב',
+                                                  'kind': 'character', 'gender': 'male'}]}, ensure_ascii=False)
+                elif CROSS_MARK in prompt:
+                    kind = 'cross'
+                    text = 'VERDICT: PASS\nISSUES: none\nNOTES: none'
                 elif KEEPER_MARK in prompt:
                     kind = 'keeper'
                     chapter = int(re.search(r'Chapter index: (\d+)', prompt).group(1))
@@ -122,7 +131,7 @@ class LitNotebookTests(unittest.TestCase):
     def test_fast_mode_runs_translator_then_keeper_per_chapter(self):
         job = self.job()
         self.execute(job, self.factory())
-        self.assertEqual(self.kinds(), ['translate', 'keeper', 'translate', 'keeper'])
+        self.assertEqual(self.kinds(), ['names', 'translate', 'keeper', 'translate', 'keeper'])
         nb = job['book_notebook']
         bn.validate_notebook(nb)
         self.assertEqual(sorted(nb['chapter_summaries']), ['0', '1'])
@@ -177,11 +186,11 @@ class LitNotebookTests(unittest.TestCase):
         job = self.job()
         with self.assertRaises(pipeline.PipelinePaused):
             self.execute(job, self.factory(pause_after_translation=1))
-        self.assertEqual(self.kinds(), ['translate'])
+        self.assertEqual(self.kinds(), ['names', 'translate'])
         with WorkJournal(self.folder / 'journal.sqlite3', create=False) as journal:
             journal.resume('lit-job')
         self.execute(job, self.factory())
-        self.assertEqual(self.kinds(), ['translate', 'keeper', 'translate', 'keeper'])
+        self.assertEqual(self.kinds(), ['names', 'translate', 'keeper', 'translate', 'keeper'])
         self.assertEqual([p for k, p in self.calls if k == 'keeper'], [p for k, p in clean_calls if k == 'keeper'])
         self.assertEqual([p for k, p in self.calls if k == 'translate'], [p for k, p in clean_calls if k == 'translate'])
         self.assertEqual(len(job['units']), len(self.structure['units']))

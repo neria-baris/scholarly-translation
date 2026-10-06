@@ -169,7 +169,7 @@ def validate_notebook(nb):
 # ---------------------------------------------------------------- prompt
 
 def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, chapter_index, profile_id,
-                        story_words=None):
+                        story_words=None, names_text=""):
     text = _PROMPT_PATH.read_text(encoding="utf-8")
     scholarly = profile_id == "scholarly"
     guidance, story_description = _PROFILE_GUIDANCE["scholarly" if scholarly else "literary"]
@@ -178,6 +178,7 @@ def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, c
         "SUGGESTED_TAGS": ", ".join(SCHOLARLY_SUGGESTED_TAGS if scholarly else SUGGESTED_TAGS),
         "PROFILE_GUIDANCE": guidance, "STORY_DESCRIPTION": story_description,
         "NOTEBOOK_EXCERPT": notebook_excerpt_text or "(empty)",
+        "NAMES_TABLE": (names_text or "").strip() or "(empty)",
         "SOURCE_CHAPTER": source_chapter or "", "HEBREW_CHAPTER": hebrew_chapter or "",
         "STORY_LENGTH": ("as long as the book needs to keep every thread" if not story_words
                          else "at most %d words" % int(story_words)),
@@ -187,36 +188,73 @@ def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, c
 
 # ---------------------------------------------------------------- parsing
 
-def _extract_json(raw):
-    if not isinstance(raw, str):
-        return None
+_FENCE_RE = re.compile(r"^\s*```[\w+-]*[ \t]*\r?\n?(.*?)\r?\n?[ \t]*```\s*$", re.S)
+MAX_JSON_REPAIRS = 4
+
+
+def _decode_with_repair(text, start, keys):
+    """raw_decode at ``start``; delete a stray ] or } at the error position (<= 4 times)."""
     decoder = json.JSONDecoder()
-    pos = raw.find("{")
-    while pos != -1:
+    repairs = 0
+    while True:
         try:
-            obj, _ = decoder.raw_decode(raw, pos)
-            if isinstance(obj, dict):
-                return obj
+            obj, _ = decoder.raw_decode(text, start)
+        except json.JSONDecodeError as exc:
+            if repairs >= MAX_JSON_REPAIRS or not (start <= exc.pos < len(text)) or text[exc.pos] not in "]}":
+                return None, False
+            text = text[:exc.pos] + text[exc.pos + 1:]
+            repairs += 1
+            continue
         except ValueError:
-            pass
-        pos = raw.find("{", pos + 1)
-    return None
+            return None, False
+        if isinstance(obj, dict) and any(k in obj for k in keys):
+            return obj, repairs > 0
+        return None, False
+
+
+def extract_json_object(raw_text, keys):
+    """Return ``(obj, repaired)`` for the JSON object in model output, or ``(None, False)``.
+
+    Strips surrounding code fences; parses strictly; deletes up to 4 stray ``]``/``}``
+    characters at the error position (``repaired=True``). Only a dict holding at least one of
+    ``keys`` is accepted, so an inner object such as one op is never returned. Falls back to
+    scanning ``{`` positions (prose around the JSON)."""
+    if not isinstance(raw_text, str):
+        return None, False
+    keys = tuple(keys)
+    text = raw_text.strip()
+    m = _FENCE_RE.match(text)
+    if m:
+        text = m.group(1).strip()
+    if text.startswith("{"):
+        obj, repaired = _decode_with_repair(text, 0, keys)
+        if obj is not None:
+            return obj, repaired
+    pos = text.find("{")
+    while pos != -1:
+        obj, repaired = _decode_with_repair(text, pos, keys)
+        if obj is not None:
+            return obj, repaired
+        pos = text.find("{", pos + 1)
+    return None, False
 
 
 def _report(status, warnings=None):
     return {"status": status, "added": 0, "updated": 0, "superseded": 0, "skipped": 0,
-            "warnings": list(warnings or [])}
+            "warnings": list(warnings or []), "format_repaired": False, "names_raw": None}
 
 
 def apply_keeper_response(notebook, raw_text, chapter_index):
     """Return ``(new_notebook, report)``; never mutates ``notebook``, never raises on model output."""
     if type(chapter_index) is not int or chapter_index < 0:
         raise NotebookError("chapter_index must be a nonnegative integer")
-    obj = _extract_json(raw_text)
+    obj, repaired = extract_json_object(raw_text, ("ops", "chapter_summary", "story_so_far", "names"))
     if obj is None:
         return notebook, _report("unparsed", ["keeper output was not parseable JSON"])
     nb = copy.deepcopy(notebook)
     rep = _report("ok")
+    rep["format_repaired"] = bool(repaired)
+    rep["names_raw"] = obj.get("names")
     warn = rep["warnings"]
     entries = nb["entries"]
     by_id = {e["entry_id"]: e for e in entries}
@@ -240,7 +278,9 @@ def apply_keeper_response(notebook, raw_text, chapter_index):
         if len(summary) > MAX_SUMMARY:
             warn.append("chapter_summary exceeded %d characters and was shortened" % MAX_SUMMARY)
         nb["chapter_summaries"][str(chapter_index)] = summary[:MAX_SUMMARY].strip()
-    elif cs is not None:
+    elif "chapter_summary" not in obj:
+        warn.append("chapter_summary missing")
+    else:
         warn.append("chapter_summary invalid")
     sf = obj.get("story_so_far")
     if isinstance(sf, str) and sf.strip():
@@ -248,7 +288,9 @@ def apply_keeper_response(notebook, raw_text, chapter_index):
         if len(story) > MAX_STORY:
             warn.append("story_so_far exceeded %d characters and was shortened" % MAX_STORY)
         nb["story_so_far"] = story[:MAX_STORY].strip()
-    elif sf is not None:
+    elif "story_so_far" not in obj:
+        warn.append("story_so_far missing")
+    else:
         warn.append("story_so_far invalid")
     nb["revision"] += 1
     record = {"revision": nb["revision"], "chapter_index": chapter_index, "warnings": len(warn)}
@@ -378,10 +420,12 @@ def _compile_terms(entries):
     return out
 
 
-def _entry_line(e):
+def _entry_line(e, with_id=False):
     line = "- [%s] %s — %s" % (", ".join(e["tags"]), e["title"], e["note"])
     if e.get("hebrew_rendering"):
         line += " (Hebrew: %s)" % e["hebrew_rendering"]
+    if with_id:
+        line += " {entry_id: %s}" % e["entry_id"]
     return line
 
 
@@ -406,10 +450,11 @@ def _ranked_entries(notebook, text):
     return buckets
 
 
-STORY_SHARE = 0.4  # translation/review excerpts: story + previous summary use at most 40%
+STORY_SHARE = 0.5  # translation/review excerpts: story + previous summary use at most 50%
 
 
-def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens=None, story_share=STORY_SHARE):
+def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens=None, story_share=STORY_SHARE,
+                       *, with_ids=False, keep_story=False):
     """Deterministic, budgeted excerpt of the notebook for the chapter about to be handled.
 
     STORY_SO_FAR and the previous chapter's summary get at most ``story_share`` of the
@@ -418,6 +463,11 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
     terms occur in the chapter (any scope), other global entries, entries touched in the
     last 2 summarised chapters. The keeper passes ``story_share=1`` because it rebuilds
     the story from this excerpt and must see all of it.
+
+    ``with_ids=True`` ends every entry line with ``{entry_id: ...}`` so the keeper can update
+    by id. ``keep_story=True`` never shortens STORY_SO_FAR or the previous summary; entries
+    then fill ``token_budget`` counted WITHOUT the story/summary, so the whole text may exceed
+    ``token_budget`` by the size of the story and summary.
     """
     counter = count_tokens or _default_counter
     cur = max((int(k) for k in notebook["chapter_summaries"]), default=-1)
@@ -439,7 +489,8 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
     story_limit = token_budget * min(max(story_share, 0), 1)
     tail_text = "\n\n".join(tail_parts)
     story = notebook["story_so_far"]
-    while tail_parts and (counter(assemble([], tail_text)) > token_budget or counter(tail_text) > story_limit):
+    while not keep_story and tail_parts and (
+            counter(assemble([], tail_text)) > token_budget or counter(tail_text) > story_limit):
         if story and len(story) > 400:
             keep = int(len(story) * .8) // 2
             story = story[:keep] + " [... earlier middle of the story omitted for length ...] " + story[-keep:]
@@ -448,18 +499,18 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
             tail_parts.pop()
             story = ""
         tail_text = "\n\n".join(tail_parts)
-    used = counter(assemble([], tail_text))
+    used = counter(assemble([], "" if keep_story else tail_text))
     lines = []
     for e in pinned + matching + other_global + recent:
-        line = _entry_line(e)
+        line = _entry_line(e, with_ids)
         cost = counter(line + "\n")
         if used + cost > token_budget:
             break
         lines.append(line)
         used += cost
     result = assemble(lines, tail_text)
-    while lines and counter(result) > token_budget:  # whole-text bound may exceed the sum of parts
-        lines.pop()
+    while lines and counter(assemble(lines, "" if keep_story else tail_text)) > token_budget:
+        lines.pop()  # whole-text bound may exceed the sum of parts
         result = assemble(lines, tail_text)
     return result
 

@@ -8,6 +8,7 @@ from collections import deque
 from dataclasses import dataclass, replace
 from pathlib import Path
 from . import book_notebook as bn, context_strategy, document_state as document_state_module, review_qa as rq
+from . import cross_chapter_qa as cq, name_table as nt
 from .formal_checks import has_translatable_words, run_formal_checks
 from .epub_archive import MATH_CLOSE, MATH_OPEN
 from .semantic_review import detect_risk_triggers as semantic_risks
@@ -515,12 +516,22 @@ def _pack_qa(records, qa_selection, configuration, profile_id, resolver, full_pr
 
 
 # --- LIT-NOTEBOOK: book notebook context and keeper step ---------------------
-BOOK_NOTEBOOK_TOKEN_BUDGET = 24000
+BOOK_NOTEBOOK_TOKEN_BUDGET = 60000
+NAMES_TOKEN_BUDGET = 8000          # binding NAMES block (matched to the text), outside the notebook budget
+UNIT_NAMES_TOKEN_BUDGET = 1000     # the names of one unit
+NAME_TABLE_OUTPUT_TOKENS = 32768
 BRIDGE_CHARS = 4000
 KEEPER_MAX_OUTPUT_TOKENS = 16384
 DEFAULT_STORY_WORDS = None   # no word cap unless the user chose one
 KEEPER_ROLES = ('context_state_builder', 'chapter_qa', 'translator')
 _KEEPER_STAGE = 'notebook'
+_NAME_TABLE_STAGE = 'name-table'
+_CROSS_QA_STAGE = 'cross-chapter-qa'
+NAME_TABLE_SKIPPED_NOTE = ('טבלת השמות לא נבנתה לפני התרגום (תקציב, כשל בקריאה או תשובה לא תקינה); '
+                           'השמות יירשמו פרק אחר פרק.')
+NAME_CONFLICT_NOTE = 'טבלת השמות: אותה צורה עברית לשמות שונים (%s); הבדיקה הרוחבית תבדוק זאת.'
+CROSS_QA_SKIPPED_NOTE = ('הבדיקה הרוחבית של פרקים %d–%d לא בוצעה (%s); '
+                         'אפשר להפעיל אותה שוב מכפתור הבדיקה הרוחבית.')
 KEEPER_TOO_LARGE_NOTE = 'מחברת הספר לא עודכנה אחרי פרק %d: הפרק גדול מדי עבור מודל המחברת.'
 KEEPER_PARTIAL_NOTE = 'מחברת הספר: עדכון פרק %d חלקי או לא תקין; ההמשך לא הושפע.'
 KEEPER_SKIPPED_NOTE = 'מחברת הספר לא עודכנה אחרי פרק %d (תקציב או כשל בקריאה); ההמשך לא הושפע.'
@@ -554,22 +565,41 @@ def _middle_trim(text, limit):
     return text[:head] + _OMIT_MARKER + (text[len(text) - (keep - head):] if keep - head else '')
 
 def _bounded_keeper_prompt(source, hebrew, excerpt, chapter_index, profile_id, selection, cap,
-                           story_words=DEFAULT_STORY_WORDS):
+                           story_words=DEFAULT_STORY_WORDS, names_text=''):
     """Keeper prompt that fits the keeper role; the middle of the chapter source and
     Hebrew is trimmed (deterministically) when needed. Returns ``(prompt, fits)``."""
     src_limit, heb_limit = len(source), len(hebrew)
     prompt = ''
-    for _ in range(16):
+    for _ in range(32):
         prompt = bn.build_keeper_prompt(excerpt, _middle_trim(source, src_limit), _middle_trim(hebrew, heb_limit),
-                                        chapter_index, profile_id, story_words)
+                                        chapter_index, profile_id, story_words, names_text=names_text)
         if _fits(prompt, selection, cap):
             return prompt, True
         src_limit, heb_limit = int(src_limit * .7), int(heb_limit * .7)
     return prompt, False
 
 def notebook_budget(selection):
-    """Notebook excerpt budget: up to 24000 tokens, at most 1/10 of the role's usable context."""
+    """Notebook excerpt budget: up to 60000 tokens, at most 1/10 of the role's usable context."""
     return max(300, min(BOOK_NOTEBOOK_TOKEN_BUDGET, selection.capabilities.usable_context_tokens // 10))
+
+def names_budget(selection):
+    """NAMES block budget: up to 8000 tokens, at most 1/20 of the role's usable context."""
+    return max(300, min(NAMES_TOKEN_BUDGET, selection.capabilities.usable_context_tokens // 20))
+
+def _keeper_reserve(selection):
+    """Planning reserve for the keeper's notebook input (excerpt incl. story, and the name table); the
+    actual call reserves its real prompt at dispatch."""
+    return notebook_budget(selection) + names_budget(selection)
+
+def _names_text(job, text, selection, budget=None):
+    """Binding NAMES block for ``text`` (every name when ``text`` is None); empty without a table."""
+    table = job.get('name_table')
+    if not table or not table.get('entries'):
+        return ''
+    return nt.render_names(table, text, budget or names_budget(selection), lambda t: _ub(t))
+
+def _join_context(*parts):
+    return '\n'.join(part.rstrip('\n') + '\n' for part in parts if part and part.strip())
 
 def bridge_chars(selection):
     """Per-side bridge size: 4000 chars, less for small-context models."""
@@ -578,8 +608,8 @@ def bridge_chars(selection):
 def _synthetic_notebook_excerpt(budget=BOOK_NOTEBOOK_TOKEN_BUDGET):
     return 'BOOK_NOTEBOOK:\n' + 'x' * max(int(budget / 1.15 - 100), 0)
 
-def _synthetic_book_context(budget=BOOK_NOTEBOOK_TOKEN_BUDGET, bridge=BRIDGE_CHARS):
-    return _synthetic_notebook_excerpt(budget) + '\nPREVIOUS_PASSAGE:\n' + 'x' * bridge + '\n' + '\u05d0' * bridge
+def _synthetic_book_context(budget=BOOK_NOTEBOOK_TOKEN_BUDGET, bridge=BRIDGE_CHARS, names=NAMES_TOKEN_BUDGET):
+    return _synthetic_notebook_excerpt(budget + names) +'\nPREVIOUS_PASSAGE:\n' + 'x' * bridge + '\n' + '\u05d0' * bridge
 
 def _tail_at_boundary(text, limit=BRIDGE_CHARS):
     """Last <= ``limit`` chars of ``text`` starting at a paragraph or sentence boundary when one exists."""
@@ -596,7 +626,8 @@ def _book_context(job, groups, index, selection):
     """Rendered translation context for chapter ``index``: notebook excerpt plus a bounded
     PREVIOUS_PASSAGE bridge. Snapshotted in the job at chapter start (resume determinism)."""
     source = '\n\n'.join(u['text'] for u in groups[index])
-    text = bn.render_for_chapter(job['book_notebook'], source, notebook_budget(selection), lambda t: _ub(t))
+    text = _join_context(_names_text(job, source, selection),
+                         bn.render_for_chapter(job['book_notebook'], source, notebook_budget(selection), lambda t: _ub(t)))
     limit = bridge_chars(selection)
     if index > 0:
         by_id = {r['unit_id']: r for r in job['units']}
@@ -618,6 +649,23 @@ def _keeper_note(job, text):
     if text not in job.setdefault('review_notes', []):
         job['review_notes'].append(text)
 
+def _clear_keeper_notes(job, index, partial=True):
+    """A successful keeper update of chapter ``index`` retires that chapter's earlier failure notes."""
+    stale = {KEEPER_SKIPPED_NOTE % (index + 1), KEEPER_TOO_LARGE_NOTE % (index + 1)}
+    if partial:
+        stale.add(KEEPER_PARTIAL_NOTE % (index + 1))
+    if job.get('review_notes'):
+        job['review_notes'] = [note for note in job['review_notes'] if note not in stale]
+
+def _merge_names(job, entries, chapter_index, origin):
+    """Add-only merge into the job's name table; identical Hebrew for different names is noted."""
+    table, report = nt.merge_names(job['name_table'], entries, chapter_index, origin)
+    job['name_table'] = dict(table, status=job['name_table'].get('status', table.get('status')))
+    for conflict in report.get('conflicts', []):
+        _keeper_note(job, NAME_CONFLICT_NOTE % '%s / %s: %s' % (conflict.get('source'), conflict.get('other'),
+                                                                 conflict.get('hebrew')))
+    return report
+
 KEEPER_SOURCE_REFERENCE = '(This chapter is the literal SOURCE_UNITS above, in reading order.)'
 
 def _run_keeper(job, key, index, records, configuration, profile, store, journal, hard, max_calls,
@@ -632,18 +680,27 @@ def _run_keeper(job, key, index, records, configuration, profile, store, journal
     role = resolve_keeper_role(configuration)
     selection, _ = configuration.resolve(role)
     settings = job.get('settings', {})
-    cap = keeper_output_cap(selection, settings.get('keeper_output_cap'))
+    # Never above the job's shared output cap (the control store refuses a larger call).
+    cap = min(keeper_output_cap(selection, settings.get('keeper_output_cap')), shared_cap)
     notebook = job['book_notebook']
-    excerpt = bn.render_for_chapter(notebook, source, notebook_budget(selection), lambda t: _ub(t), story_share=1)
-    prompt, fits = _bounded_keeper_prompt(source, hebrew, excerpt, index, profile, selection, cap,
-                                          settings.get('notebook_story_words') or DEFAULT_STORY_WORDS)
+    budget = notebook_budget(selection)
+    words = settings.get('notebook_story_words') or DEFAULT_STORY_WORDS
+    names = _names_text(job, None, selection, budget // 2)
+    # The keeper rewrites the story from what it is shown: it sees the whole story
+    # (a shortened story is a fallback only when the prompt cannot fit otherwise).
+    excerpt = bn.render_for_chapter(notebook, source, budget, lambda t: _ub(t), story_share=1,
+                                    with_ids=True, keep_story=True)
+    prompt, fits = _bounded_keeper_prompt(source, hebrew, excerpt, index, profile, selection, cap, words, names)
+    if not fits:
+        excerpt = bn.render_for_chapter(notebook, source, budget, lambda t: _ub(t), story_share=1, with_ids=True)
+        prompt, fits = _bounded_keeper_prompt(source, hebrew, excerpt, index, profile, selection, cap, words, names)
     if fits and prefix and source.strip() and source in prompt:
         transport = CacheablePrompt(prefix, prompt.replace(source, KEEPER_SOURCE_REFERENCE, 1))
         if _fits(transport, selection, cap):
             prompt = transport
     report = None
     if not fits:
-        _keeper_note(job, '\u05de\u05d7\u05d1\u05e8\u05ea \u05d4\u05e1\u05e4\u05e8 \u05dc\u05d0 \u05e2\u05d5\u05d3\u05db\u05e0\u05d4 \u05d0\u05d7\u05e8\u05d9 \u05e4\u05e8\u05e7 %d: \u05d4\u05e4\u05e8\u05e7 \u05d2\u05d3\u05d5\u05dc \u05de\u05d3\u05d9 \u05e2\u05d1\u05d5\u05e8 \u05de\u05d5\u05d3\u05dc \u05d4\u05de\u05d7\u05d1\u05e8\u05ea.' % (index + 1))
+        _keeper_note(job, KEEPER_TOO_LARGE_NOTE % (index + 1))
         report = {'status': 'skipped', 'warnings': ['chapter too large for keeper role']}
     else:
         try:
@@ -654,6 +711,14 @@ def _run_keeper(job, key, index, records, configuration, profile, store, journal
                 adapter_factory, tail_usd)
             job['local_replays'] = job.get('local_replays', 0) + int(replay)
             notebook, report = bn.apply_keeper_response(notebook, parsed['text'], index)
+            if report.pop('format_repaired', False):
+                job['format_repairs'] = job.get('format_repairs', 0) + 1
+            names_raw = report.pop('names_raw', None)
+            if report['status'] == 'ok':
+                _clear_keeper_notes(job, index, partial=not report['warnings'])
+                if 'name_table' in job and names_raw:
+                    entries, _dropped = nt.parse_names(names_raw, origin='keeper')
+                    _merge_names(job, entries, index, 'keeper')
             if report['status'] != 'ok' or report['warnings']:
                 _keeper_note(job, KEEPER_PARTIAL_NOTE % (index + 1))
         except PipelinePaused:
@@ -665,8 +730,278 @@ def _run_keeper(job, key, index, records, configuration, profile, store, journal
     job.setdefault('notebook_reports', []).append(dict(report, chapter=index))
     # QA for this chapter sees the notebook as updated by the keeper (snapshot for resume determinism).
     qa_selection, _ = configuration.resolve('chapter_qa') if _has_role(configuration, 'chapter_qa') else (selection, None)
-    job.setdefault('qa_notebooks', {})[key] = bn.render_for_chapter(notebook, source, notebook_budget(qa_selection), lambda t: _ub(t))
+    job.setdefault('qa_notebooks', {})[key] = _join_context(
+        _names_text(job, source, qa_selection),
+        bn.render_for_chapter(notebook, source, notebook_budget(qa_selection), lambda t: _ub(t)))
     job.setdefault('notebook_applied', {})[key] = True
+
+# --- NAMES-CROSSQA: name table before chapter 1, cross-chapter QA windows ------
+
+def _remaining_reserve(job):
+    """Conservative ceiling of the chapters not completed yet (protected from table/window calls)."""
+    return sum(plan['conservative_total_ceiling_usd'] for i, plan in enumerate(job.get('chapter_plans', []))
+               if not job.get('chapter_completion', {}).get(str(i)))
+
+def _run_name_table(job, structure, configuration, profile, store, journal, hard, max_calls, shared_cap,
+                    adapter_factory):
+    """One call before chapter 1 builds the book's name table from name candidates. Never
+    fails the job: a failed call, a broken answer or a budget shortage leaves status skipped
+    (the keeper still adds names chapter by chapter)."""
+    table = job.get('name_table')
+    if not table or table.get('status') != 'pending':
+        return
+    units = structure['units']
+    language = units[0]['language'] if units else ''
+    candidates = nt.name_candidates([u['text'] for u in units], language)
+    if not candidates:
+        job['name_table'] = dict(table, status='ready')
+        return
+    role = resolve_keeper_role(configuration)
+    selection, _ = configuration.resolve(role)
+    cap = min(selection.capabilities.max_output_tokens or NAME_TABLE_OUTPUT_TOKENS, NAME_TABLE_OUTPUT_TOKENS,
+              max(512, selection.capabilities.usable_context_tokens // 3), shared_cap)
+    limit = len(candidates)
+    prompt = nt.build_prepass_prompt(candidates, profile, language)
+    while not _fits(prompt, selection, cap) and limit > 20:
+        limit //= 2
+        prompt = nt.build_prepass_prompt(candidates[:limit], profile, language)
+    def validator(result):
+        try:
+            entries, dropped = nt.parse_prepass_response(result.text if isinstance(result.text, str) else '')
+        except nt.NameTableError as exc:
+            raise ChapterPipelineError('name table response was not usable: %s' % exc) from None
+        return {'entries': entries, 'dropped': len(dropped) if isinstance(dropped, list) else dropped}
+    try:
+        _require(_fits(prompt, selection, cap), 'name table candidates do not fit the keeper role')
+        parsed, replay = _controlled(job['job_id'], role, _NAME_TABLE_STAGE, prompt, configuration, cap, store,
+            journal, hard, max_calls, shared_cap, validator,
+            {'candidates': fingerprint(candidates[:limit]), 'profile': profile}, adapter_factory,
+            _remaining_reserve(job))
+    except PipelinePaused:
+        raise
+    except (TranslationBudgetError, ChapterPipelineError):
+        job['name_table'] = dict(table, status='skipped')
+        _keeper_note(job, NAME_TABLE_SKIPPED_NOTE)
+        return
+    job['local_replays'] = job.get('local_replays', 0) + int(replay)
+    job['name_table'] = dict(table, status='ready')
+    _merge_names(job, parsed['entries'], None, 'prepass')
+    if NAME_TABLE_SKIPPED_NOTE in job.get('review_notes', []):
+        job['review_notes'].remove(NAME_TABLE_SKIPPED_NOTE)
+
+def _unit_notebook(job, record, selection):
+    """Unit-review context: the names in the unit, then the notebook entries matching it."""
+    return _join_context(_names_text(job, record['source_text'], selection, UNIT_NAMES_TOKEN_BUDGET),
+                         bn.render_entries_for_text(job['book_notebook'], record['source_text'],
+                                                    UNIT_NOTEBOOK_TOKEN_BUDGET, lambda t: _ub(t)))
+
+def _window_records(job, groups, start, end):
+    by_id = {r['unit_id']: r for r in job['units']}
+    chapters = []
+    for index in range(start, end + 1):
+        records = [by_id[u['unit_id']] for u in groups[index] if u['unit_id'] in by_id]
+        chapters.append((index, [r for r in records if not _untranslatable_passthrough(r)]))
+    return chapters
+
+def _cross_reference(window_start, low):
+    """The overlap chapter of a window/part: already checked with the chapters before it, so it
+    is authoritative (user decision 2026-10-06) and never corrected here. The first window has none."""
+    return low if low > 0 and (low > window_start or window_start > 0) else None
+
+def _cross_prompt(job, groups, start, end, selection, profile, reference=None):
+    chapters = _window_records(job, groups, start, end)
+    payload = [{'index': index, 'source': '\n\n'.join(r['source_text'] for r in records),
+                'hebrew': '\n\n'.join(r['target_text'] for r in records)} for index, records in chapters]
+    source = '\n\n'.join(c['source'] for c in payload)
+    hebrew = '\n\n'.join(c['hebrew'] for c in payload)
+    notebook = bn.render_for_chapter(job['book_notebook'], source, notebook_budget(selection), lambda t: _ub(t))
+    prompt = cq.build_cross_qa_prompt(payload, _names_text(job, source, selection), notebook, profile, reference)
+    return prompt, [r for _, records in chapters for r in records], source, hebrew
+
+def _cross_parts(job, groups, start, end, selection, profile, cap):
+    """Contiguous parts of a window (at least two chapters, one chapter of overlap) whose prompt
+    fits the QA role; the whole window when it fits. ``None`` when two chapters cannot fit."""
+    parts, low = [], start
+    while low < end:
+        high, reference = end, _cross_reference(start, low)
+        while high > low + 1 and not _fits(_cross_prompt(job, groups, low, high, selection, profile, reference)[0],
+                                           selection, cap):
+            high -= 1
+        if not _fits(_cross_prompt(job, groups, low, high, selection, profile, reference)[0], selection, cap):
+            return None
+        parts.append([low, high])
+        low = high
+    return parts
+
+def _run_cross_windows(job, groups, structure, glossary, configuration, profile, store, journal, hard, max_calls,
+                       shared_cap, adapter_factory, save, format_repaired):
+    """Run every due cross-chapter QA window once, in order: chapters 1-8, 8-15, 15-22, ...
+    A window is due when all its chapters are completed. Material consistency/continuity issues
+    are corrected per located unit and rechecked; other findings stay as exceptions."""
+    if 'cross_qa' not in job or job['settings'].get('quality') == 'fast' or not _has_role(configuration, 'chapter_qa'):
+        return
+    states = job['cross_qa'].setdefault('windows', {})
+    qa_selection, _ = configuration.resolve('chapter_qa')
+    cap = min(cq.cross_qa_output_cap(qa_selection), shared_cap)
+    for window in cq.windows(len(groups)):
+        key = cq.window_key(window)
+        state = states.get(key)
+        if state and state.get('status') in ('completed', 'skipped'):
+            continue
+        start, end = window
+        if not all(job['chapter_completion'].get(str(i)) for i in range(start, end + 1)):
+            return
+        if state is None:
+            state = states[key] = {'status': 'running', 'parts': {}, 'corrected': [], 'rechecked': []}
+        job['status'], job['stage_label'] = 'reviewing', 'בדיקה רוחבית של פרקים %d–%d' % (start + 1, end + 1)
+        save()
+        if not _run_cross_window(job, groups, structure, glossary, configuration, profile, store, journal, hard,
+                                 max_calls, shared_cap, adapter_factory, save, format_repaired, key, state,
+                                 qa_selection, cap):
+            return
+
+def _cross_skip(job, state, start, end, reason, save):
+    state['status'] = 'skipped'
+    _keeper_note(job, CROSS_QA_SKIPPED_NOTE % (start + 1, end + 1, reason))
+    save()
+
+def _exception_once(job, exception):
+    if exception not in job.setdefault('exceptions', []):
+        job['exceptions'].append(exception)
+
+def _run_cross_window(job, groups, structure, glossary, configuration, profile, store, journal, hard, max_calls,
+                      shared_cap, adapter_factory, save, format_repaired, key, state, qa_selection, cap):
+    """One window; returns False when the window was skipped because of a failed call or budget
+    (later windows wait for the next resume)."""
+    start, end = (int(x) for x in key.split('-'))
+    if 'bounds' not in state:
+        bounds = _cross_parts(job, groups, start, end, qa_selection, profile, cap)
+        if bounds is None:
+            _cross_skip(job, state, start, end, 'הפרקים גדולים מדי עבור מודל הבדיקה', save)
+            return True
+        state['bounds'] = bounds
+        save()
+    for part, (low, high) in enumerate(state['bounds']):
+        if str(part) in state['parts']:
+            continue
+        prompt, records, source, hebrew = _cross_prompt(job, groups, low, high, qa_selection, profile,
+                                                        _cross_reference(start, low))
+        try:
+            result, replay = _controlled(job['job_id'], 'chapter_qa', _CROSS_QA_STAGE, prompt, configuration, cap,
+                store, journal, hard, max_calls, shared_cap,
+                lambda raw, s=source, h=hebrew: cq.parse_cross_qa_response(raw.text, s, h),
+                {'window': key, 'part': part, 'chapters': [low, high],
+                 'targets': fingerprint([r['target_text'] for r in records])},
+                adapter_factory, _remaining_reserve(job))
+        except PipelinePaused:
+            raise
+        except (TranslationBudgetError, ChapterPipelineError):
+            _cross_skip(job, state, start, end, 'תקציב או כשל בקריאה', save)
+            return False
+        job['local_replays'] = job.get('local_replays', 0) + int(replay)
+        state['parts'][str(part)] = dict(result, chapters=[low + 1, high + 1])
+        save()
+    issues_by_id = {}
+    for part, (low, high) in enumerate(state['bounds']):
+        result = state['parts'][str(part)]
+        reference = _cross_reference(start, low)
+        # The reference chapter decides; only the chapters after it are corrected.
+        records = [r for index, rows in _window_records(job, groups, low, high) if index != reference for r in rows]
+        if result.get('status') != 'completed':
+            _exception_once(job, {'type': 'cross_qa_needs_human', 'window': key, 'chapters': [low + 1, high + 1],
+                                  'error': result.get('error')})
+            continue
+        for issue in result.get('issues', []):
+            if not _corrects_automatically(issue):
+                _exception_once(job, {'type': 'cross_qa_note_retained', 'window': key, 'issue': issue})
+                continue
+            located, reason = cq.locate_issue_units(issue, records)
+            if reason != 'ok':
+                _exception_once(job, {'type': 'cross_qa_unlocated', 'window': key, 'issue': issue, 'reason': reason})
+                continue
+            for record in located:
+                item = dict(issue, apply_to='every occurrence of span in this unit') if len(located) > 1 else dict(issue)
+                if item not in issues_by_id.setdefault(record['unit_id'], []):
+                    issues_by_id[record['unit_id']].append(item)
+    units = _units_by_id(structure)
+    translator, _ = configuration.resolve('translator')
+    reviewer, _ = configuration.resolve('semantic_reviewer')
+    tail = _remaining_reserve(job)
+    chapter_of = {u['unit_id']: index for index in range(start, end + 1) for u in groups[index]}
+    prefixes = {}
+    for _, records in _window_records(job, groups, start, end):
+        for record in records:
+            uid = record['unit_id']
+            material = issues_by_id.get(uid)
+            if not material:
+                continue
+            if uid not in state['corrected']:
+                correction_cap = _translation_cap([units[uid]])
+                if len(json.dumps(material, ensure_ascii=False)) > _correction_issue_limit(record, translator, correction_cap):
+                    _exception_once(job, {'type': 'cross_qa_correction_too_large', 'window': key, 'unit_id': uid})
+                    state['corrected'].append(uid)
+                    state['rechecked'].append(uid)
+                    save()
+                    continue
+                corrected, replay = _controlled(job['job_id'], 'translator', 'cross-correction',
+                    _correction_prompt(record, material), configuration, correction_cap, store, journal, hard,
+                    max_calls, shared_cap, lambda raw, u=uid, src=record['source_text']: parse_batch_translation_response(
+                        raw.text, [u], {u: src}, format_repaired),
+                    {'unit_id': uid, 'issues': material, 'window': key}, adapter_factory, tail)
+                job['local_replays'] = job.get('local_replays', 0) + int(replay)
+                record['target_versions'].append({'text': record['target_text'], 'reason': 'cross_chapter_correction'})
+                record['target_text'] = corrected[uid]['translation']
+                record['findings'] = _unit_findings(record['source_text'], record['target_text'], record['source_language'])
+                job['revision'] += 1
+                state['corrected'].append(uid)
+                save()
+            if uid not in state['rechecked']:
+                index = chapter_of[uid]
+                if index not in prefixes:
+                    prefixes[index] = _prefix(structure, glossary, [u['unit_id'] for u in groups[index]], profile)
+                result, replay = _run_review(job['job_id'], 'semantic_reviewer', [record], configuration, profile,
+                    store, journal, hard, max_calls, shared_cap, adapter_factory, prefixes[index], tail,
+                    stage='cross-recheck', policy='all', book_notebook=_unit_notebook(job, record, reviewer))
+                job['local_replays'] = job.get('local_replays', 0) + int(replay)
+                record['recheck'] = result
+                record['unresolved'] = result['status'] != 'completed' or result.get('verdict') != 'PASS'
+                state['rechecked'].append(uid)
+                save()
+    state['status'] = 'completed'
+    save()
+    return True
+
+def cross_review_available(job):
+    """True when the cross-chapter review can be prepared for this job (see enable_cross_review)."""
+    settings = job.get('settings', {})
+    if not (is_notebook_job(job) and settings.get('automation') and settings.get('quality') != 'fast'
+            and job.get('chapter_groups') and cq.windows(len(job['chapter_groups']))):
+        return False
+    state = job.get('cross_qa')
+    if state is None:
+        return True
+    return (any(w.get('status') == 'skipped' for w in state.get('windows', {}).values())
+            or job.get('name_table', {}).get('status') == 'skipped')
+
+def enable_cross_review(job):
+    """Prepare the name table and the cross-chapter QA windows for an existing notebook job; the
+    normal resume runs them (paid calls). Skipped windows/table are reopened. Sends nothing."""
+    settings = job.get('settings', {})
+    _require(is_notebook_job(job) and settings.get('automation') and job.get('chapter_groups'),
+             'cross-chapter review needs an automated book-notebook job')
+    _require(settings.get('quality') != 'fast', 'cross-chapter review needs chapter QA (checked or thorough quality)')
+    count = len(cq.windows(len(job['chapter_groups'])))
+    _require(count > 0, 'cross-chapter review needs at least two chapters')
+    table = job.get('name_table')
+    if table is None:
+        job['name_table'] = nt.new_table()
+    elif table.get('status') == 'skipped':
+        table['status'] = 'pending'
+    state = job.setdefault('cross_qa', {'windows': {}})
+    windows = state.setdefault('windows', {})
+    for key in [k for k, v in windows.items() if v.get('status') == 'skipped']:
+        windows.pop(key)
+    return {'windows': count}
 
 def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_id,
                  document_state=None, headroom_fraction=None, keeper=False):
@@ -675,7 +1010,8 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
         # Book-notebook jobs: the translation context is a rendered string; previews
         # (no notebook yet) assume a full notebook excerpt plus a full bridge.
         if not isinstance(document_state, str):
-            document_state = _synthetic_book_context(notebook_budget(roles['translator'][0]), bridge_chars(roles['translator'][0]))
+            document_state = _synthetic_book_context(notebook_budget(roles['translator'][0]), bridge_chars(roles['translator'][0]),
+                                                     names_budget(roles['translator'][0]))
         keeper_role = resolve_keeper_role(configuration)
         roles = dict(roles, notebook_keeper=configuration.resolve(keeper_role))
     validate_glossary(glossary)
@@ -731,7 +1067,7 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
         def qa_prompt(group):
             cap = _review_cap(qa_selection, len(group))
             request = _review_request('chapter_qa', group, configuration, profile_id, cap,
-                                      book_notebook=_synthetic_notebook_excerpt(notebook_budget(qa_selection)) if keeper else '')
+                                      book_notebook=_synthetic_notebook_excerpt(notebook_budget(qa_selection) + names_budget(qa_selection)) if keeper else '')
             target_ids = [r['unit_id'] for r in group]
             own_prefix = _prefix(structure, glossary, target_ids, profile_id, resolver)
             whole = _review_transport(_render_review(request, 'chapter_qa'), request, 'chapter_qa', full_prefix, target_ids)
@@ -739,14 +1075,14 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
                 _render_review(request, 'chapter_qa'), request, 'chapter_qa', own_prefix, target_ids)
             return prompt, cap
         qa_groups = _pack_qa(records, qa_selection, configuration, profile_id, resolver, full_prefix, qa_prompt,
-                             _synthetic_notebook_excerpt(notebook_budget(qa_selection)) if keeper else '')
+                             _synthetic_notebook_excerpt(notebook_budget(qa_selection) + names_budget(qa_selection)) if keeper else '')
         for group in qa_groups:
             prompt, cap = qa_prompt(group)
             q = add('chapter_qa', prompt, cap, calls=2)  # initial and one recheck
             qa_plans.append({'unit_ids': [r['unit_id'] for r in group], 'call_output_cap': cap,
                              'conservative_cost_usd': q['ceiling'] * 2})
         reviewer, _ = roles['semantic_reviewer']
-        unit_notebook = _synthetic_notebook_excerpt(UNIT_NOTEBOOK_TOKEN_BUDGET) if keeper else ''
+        unit_notebook = _synthetic_notebook_excerpt(UNIT_NOTEBOOK_TOKEN_BUDGET + UNIT_NAMES_TOKEN_BUDGET) if keeper else ''
         for record in records:
             cap = _unit_review_cap(reviewer, record)
             request = _review_request('semantic_reviewer', [record], configuration, profile_id, cap)
@@ -771,7 +1107,7 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
         k_cap = keeper_output_cap(k_selection)
         k_prompt, _fit = _bounded_keeper_prompt(
             '\n'.join(u['text'] for u in units), '\n\n'.join(_synthetic_target(u['text']) for u in units),
-            _synthetic_notebook_excerpt(notebook_budget(k_selection)), 0, profile_id, k_selection, k_cap)
+            _synthetic_notebook_excerpt(_keeper_reserve(k_selection)), 0, profile_id, k_selection, k_cap)
         q = add('notebook_keeper', k_prompt, k_cap)
         keeper_plan = {'role': keeper_role, 'call_output_cap': k_cap, 'input_tokens_upper_bound': q['input'],
                        'expected_cost_usd': q['expected'], 'conservative_cost_usd': q['ceiling']}
@@ -873,7 +1209,7 @@ def fit_chapter_groups(structure, glossary, groups, configuration, quality, prof
     def context_fits(ids):
         units = [resolver.unit(uid) for uid in ids]
         full_prefix = _prefix(structure, glossary, ids, profile_id, resolver)
-        reserve = _synthetic_book_context(notebook_budget(translator), bridge_chars(translator))
+        reserve = _synthetic_book_context(notebook_budget(translator), bridge_chars(translator), names_budget(translator))
         def prompt(group):
             return build_batch_translation_prompt(structure, glossary, [u['unit_id'] for u in group], profile_id,
                                                   reserve, _prefix_text=full_prefix)
@@ -1334,6 +1670,8 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         job['book_notebook'] = bn.new_notebook(structure['document_id'])
         job['chapter_contexts'], job['qa_notebooks'] = {}, {}
         job['notebook_applied'], job['notebook_reports'] = {}, []
+        job['name_table'] = nt.new_table()
+        job['cross_qa'] = {'windows': {}}
         job['glossary'] = glossary
         persist(job)
     notebook_mode = is_notebook_job(job)
@@ -1341,6 +1679,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         # An accepted answer whose JSON punctuation needed tolerance (counted once,
         # when first validated; replays read the stored validated result).
         job['format_repairs'] = job.get('format_repairs', 0) + 1
+    current_chapter = {}   # ids/key/plan of the chapter in progress (none during whole-book steps)
     def save():
         status = store.status(job_id)
         job['budget_status'] = status
@@ -1348,16 +1687,19 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         job['remaining_budget_usd'] = store.remaining_list_usd(job_id)
         steps = journal.job_steps(job_id)
         done_chapters = sum(bool(value) for value in job['chapter_completion'].values())
-        current = [r for r in job['units'] if r['unit_id'] in ids]
-        translated = len(current)/len(ids)
-        if quality == 'fast':
-            partial = translated
-        else:
-            reviews = sum(r.get('review') is not None for r in current)/len(ids)
-            qa_count = sum(name.startswith(key+':') for name in job.get('automation_qa', {}))
-            qa_fraction = min(qa_count/max(len(plan['qa_groups']), 1), 1)
-            partial = translated*.55 + reviews*.2 + qa_fraction*.15
-        percent = min(95, int(95*(done_chapters + (0 if job['chapter_completion'].get(key) else partial))/len(groups)))
+        partial = 0
+        if current_chapter and not job['chapter_completion'].get(current_chapter['key']):
+            ids, key, plan = current_chapter['ids'], current_chapter['key'], current_chapter['plan']
+            current = [r for r in job['units'] if r['unit_id'] in ids]
+            translated = len(current)/len(ids)
+            if quality == 'fast':
+                partial = translated
+            else:
+                reviews = sum(r.get('review') is not None for r in current)/len(ids)
+                qa_count = sum(name.startswith(key+':') for name in job.get('automation_qa', {}))
+                qa_fraction = min(qa_count/max(len(plan['qa_groups']), 1), 1)
+                partial = translated*.55 + reviews*.2 + qa_fraction*.15
+        percent = min(95, int(95*(done_chapters + partial)/len(groups)))
         job['progress'] = {'completed_steps': sum(s['status'] == 'completed' for s in steps),
                            'total_steps': sum(sum(r['calls'] for r in p['role_usage'].values()) for p in job['chapter_plans']),
                            'phase': job['stage_label'], 'provider_requests': status['attempted_calls'],
@@ -1365,6 +1707,16 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                            'completed_chapters': done_chapters, 'total_chapters': len(groups)}
         persist(job)
     with WorkJournal(folder / 'journal.sqlite3') as journal:
+        if notebook_mode and job.get('name_table', {}).get('status') == 'pending':
+            job['status'], job['stage_label'] = 'reading', 'בניית טבלת השמות של הספר'
+            persist(job)
+            _run_name_table(job, structure, configuration, profile, store, journal, hard, max_calls, shared_cap,
+                            adapter_factory)
+            persist(job)
+        def cross_windows():
+            if notebook_mode:
+                _run_cross_windows(job, groups, structure, glossary, configuration, profile, store, journal, hard,
+                                   max_calls, shared_cap, adapter_factory, save, format_repaired)
         for index, group in enumerate(groups):
             key = str(index)
             if job['chapter_completion'].get(key):
@@ -1384,6 +1736,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 state = job['chapter_states'][key]
                 state_version = state['revision']
             plan = plan_chapter(structure, glossary, ids, configuration, quality, profile, state, keeper=notebook_mode)
+            current_chapter.update(ids=ids, key=key, plan=plan)
             future = sum(p['conservative_total_ceiling_usd'] for p in job['chapter_plans'][index+1:])
             job['chapter_progress'] = {'current': index+1, 'total': len(groups)}
             existing = {r['unit_id']: r for r in job['units']}
@@ -1445,8 +1798,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 reviewer, reviewer_def = configuration.resolve('semantic_reviewer')
                 translator, translator_def = configuration.resolve('translator')
                 def unit_notebook(record):
-                    return (bn.render_entries_for_text(job['book_notebook'], record['source_text'],
-                            UNIT_NOTEBOOK_TOKEN_BUDGET, lambda t: _ub(t)) if notebook_mode else '')
+                    return _unit_notebook(job, record, reviewer) if notebook_mode else ''
                 for record in records:
                     uid = record['unit_id']
                     cap = _unit_review_cap(reviewer, record)
@@ -1578,6 +1930,8 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                     save()
             job['chapter_completion'][key] = True
             save()
+            cross_windows()
+        cross_windows()
     job['quality_status'] = ('unreviewed_draft' if quality == 'fast' else
         'draft_with_exceptions' if job.get('exceptions') or any(r.get('unresolved') or _material_findings(r['findings']) or
             (r.get('review') or {}).get('status') in ('failed', 'needs_human') for r in job['units']) else 'checked_draft')

@@ -18,6 +18,8 @@ from .runtime_controls import RuntimeControlsError
 
 _BUDGET_PHRASES = ("list-price reservation limit", "more reserved funds", "exceed the document budget")
 _NOTEBOOK_STAGE = "chapter-notebook"
+_NAME_TABLE_STAGE = "name-table"
+_CROSS_QA_STAGE = "cross-chapter-qa"
 _VISION_STAGE = "ocr-vision"
 _SKIP_VISION_LABEL = "להמשיך בלי בדיקת המודל (טקסט ה־OCR המקומי בלבד)"
 SHORT_STORY_WORDS = 300
@@ -176,17 +178,34 @@ def _reset_stuck(job, journal, stage=None, store=None, identity=None):
                 "error": prior["error"], "raw_json": prior["raw_json"], "reset_at": time.time()})
 
 
+def _reopen_skipped(job, journal, stage=None, identity=None):
+    """Undo the "keeper skipped" bookkeeping for exactly the steps ``_reset_stuck``
+    will reset, so the reset step really runs again (chapter notebook, name table,
+    cross-chapter QA window)."""
+    for step in journal.job_steps(job["job_id"]):
+        if step["status"] not in ("failed", "unknown", "dispatched") or (stage is not None and step["stage"] != stage) \
+                or (identity is not None and step["identity"] != identity):
+            continue
+        inputs = json.loads(step["dependencies_json"] or "{}").get("inputs", {})
+        if step["stage"] == _NOTEBOOK_STAGE:
+            chapter = inputs.get("chapter")
+            key = str(chapter)
+            if chapter is not None and not job.get("chapter_completion", {}).get(key):
+                job.get("notebook_applied", {}).pop(key, None)
+                job.get("qa_notebooks", {}).pop(key, None)
+        elif step["stage"] == _NAME_TABLE_STAGE:
+            if job.get("name_table", {}).get("status") == "skipped":
+                job["name_table"]["status"] = "pending"
+        elif step["stage"] == _CROSS_QA_STAGE:
+            windows = job.get("cross_qa", {}).get("windows", {})
+            if windows.get(inputs.get("window"), {}).get("status") == "skipped":
+                windows.pop(inputs.get("window"), None)
+
+
 def _reopen_failed_keeper(job, journal):
     """Let the keeper run again (under the new setting) for a chapter whose keeper
-    call failed, if that chapter has not been completed yet."""
-    for step in journal.job_steps(job["job_id"]):
-        if step["stage"] != _NOTEBOOK_STAGE or step["status"] != "failed":
-            continue
-        chapter = json.loads(step["dependencies_json"]).get("inputs", {}).get("chapter")
-        key = str(chapter)
-        if chapter is not None and not job.get("chapter_completion", {}).get(key):
-            job.get("notebook_applied", {}).pop(key, None)
-            job.get("qa_notebooks", {}).pop(key, None)
+    call failed or ended with an unknown outcome, if the chapter is not completed."""
+    _reopen_skipped(job, journal, _NOTEBOOK_STAGE)
 
 
 def store_has_task(store, job_id):
@@ -228,8 +247,10 @@ def apply_decision(job, store, journal, option_id, value=None):
                 journal.mark_failed(step["identity"], "notebook update skipped by user decision")
     elif option_id in ("accept_and_retry", "accept_worst_case_and_retry"):
         # A failed call resets only the step shown; other saved answers stay for their re-check.
-        _reset_stuck(job, journal, block["details"].get("call", {}).get("stage") or block["details"].get("stage"), store,
-                     block["details"].get("identity") if block["kind"] == "failed_call" else None)
+        retry_stage = block["details"].get("call", {}).get("stage") or block["details"].get("stage")
+        retry_identity = block["details"].get("identity") if block["kind"] == "failed_call" else None
+        _reopen_skipped(job, journal, retry_stage, retry_identity)
+        _reset_stuck(job, journal, retry_stage, store, retry_identity)
     elif option_id == "raise_calls":
         settings["max_calls"] = store.user_raise_limits(job_id, max_calls=int(offered[option_id]["value"]))["max_calls"]
     elif option_id == "raise_budget":
