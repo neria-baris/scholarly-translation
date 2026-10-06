@@ -53,3 +53,12 @@ Acceptance: unit tests for each store action and integrity, diagnosis per kind,
 decision application, keeper override, in-progress listing and partial
 download; offline replay of the real stuck job copy reaches the keeper call
 with the raised cap after the decision; full suite green.
+
+## Addendum AUTO-UNDER-1USD (2026-10-06, user-directed)
+The user set a standing rule: an `unknown_outcome` block whose total held charge
+is below $1 is accepted at its held worst case and retried without asking
+(`job_blocks.auto_decision`, applied by `document_draft._auto_continue` right
+after a run stops, then the normal resume sends). At most 3 automatic retries in
+a row (a row breaks once another call is reserved); $1 or more, a 4th repeat, and
+every other block kind still wait for the user. Auto decisions are recorded in
+job `decisions` with `auto: true`; store events remain `user_settled`.

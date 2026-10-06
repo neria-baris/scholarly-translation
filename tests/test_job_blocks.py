@@ -228,6 +228,40 @@ class JobBlocksTests(unittest.TestCase):
         self.call(raw())
         self.assertEqual(len(self.sent), 2)
 
+    def test_unknown_outcome_below_one_dollar_is_accepted_automatically(self):
+        self.fail(RuntimeError("connection lost"))
+        [call] = self.store.uncertain_calls(JOB)
+        self.assertLess(call["held_usd"], job_blocks.AUTO_ACCEPT_BELOW_USD)
+        option = job_blocks.auto_decision(self.job, self.store, self.journal)
+        self.assertEqual(option, "accept_worst_case_and_retry")
+        job_blocks.apply_decision(self.job, self.store, self.journal, option, auto=True)
+        self.assertTrue(self.job["decisions"][-1]["auto"])
+        self.call(raw())
+        self.assertEqual(len(self.sent), 2)
+
+    def test_unknown_outcome_at_or_above_one_dollar_asks_the_user(self):
+        self.fail(RuntimeError("connection lost"))
+        [call] = self.store.uncertain_calls(JOB)
+        with mock.patch.object(job_blocks, "AUTO_ACCEPT_BELOW_USD", call["held_usd"]):
+            self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
+
+    def test_known_cost_failure_is_never_automatic(self):
+        self.fail(raw("failed_truncated", output=4096))
+        self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
+
+    def test_repeated_unknown_outcome_stops_after_streak(self):
+        for _ in range(job_blocks.AUTO_ACCEPT_MAX_STREAK):
+            self.fail(RuntimeError("connection lost"))
+            option = job_blocks.auto_decision(self.job, self.store, self.journal)
+            self.assertEqual(option, "accept_worst_case_and_retry")
+            job_blocks.apply_decision(self.job, self.store, self.journal, option, auto=True)
+        self.fail(RuntimeError("connection lost"))
+        self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
+        # A manual decision breaks the row.
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
+        self.fail(RuntimeError("connection lost"))
+        self.assertEqual(job_blocks.auto_decision(self.job, self.store, self.journal), "accept_worst_case_and_retry")
+
     def keeper_stuck(self, response, chapter, **kwargs):
         self.fail(response, stage="chapter-notebook", role="chapter_qa", deps={"chapter": chapter}, **kwargs)
 

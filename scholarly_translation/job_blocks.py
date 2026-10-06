@@ -23,6 +23,12 @@ _CROSS_QA_STAGE = "cross-chapter-qa"
 _VISION_STAGE = "ocr-vision"
 _SKIP_VISION_LABEL = "להמשיך בלי בדיקת המודל (טקסט ה־OCR המקומי בלבד)"
 SHORT_STORY_WORDS = 300
+# User rule (2026-10-06): an unknown-outcome call whose whole held charge is below
+# this is accepted and retried without asking; at or above it the user decides.
+AUTO_ACCEPT_BELOW_USD = 1.0
+# A call that keeps ending unknown stops for the user after this many automatic
+# retries in a row (a row breaks once any other call is reserved in between).
+AUTO_ACCEPT_MAX_STREAK = 3
 
 
 class BlockDecisionError(ValueError):
@@ -163,6 +169,24 @@ def diagnose(job, store, journal):
     return None
 
 
+def auto_decision(job, store, journal):
+    """The option to apply without asking, or None when the user must decide.
+    Only an unknown-outcome block whose total held charge is below
+    ``AUTO_ACCEPT_BELOW_USD`` qualifies, at most ``AUTO_ACCEPT_MAX_STREAK``
+    times in a row."""
+    block = diagnose(job, store, journal)
+    if block is None or block["kind"] != "unknown_outcome":
+        return None
+    if sum(c["held_usd"] for c in store.uncertain_calls(job["job_id"])) >= AUTO_ACCEPT_BELOW_USD:
+        return None
+    calls, streak = store.status(job["job_id"])["attempted_calls"], 0
+    for decision in reversed(job.get("decisions", [])):
+        if not decision.get("auto") or calls - decision.get("calls", 0) > 1:
+            break
+        streak, calls = streak + 1, decision.get("calls", 0)
+    return None if streak >= AUTO_ACCEPT_MAX_STREAK else "accept_worst_case_and_retry"
+
+
 def _reset_stuck(job, journal, stage=None, store=None, identity=None):
     for step in journal.job_steps(job["job_id"]):
         if step["status"] in ("failed", "unknown", "dispatched") and (stage is None or step["stage"] == stage) \
@@ -216,8 +240,9 @@ def store_has_task(store, job_id):
         return False
 
 
-def apply_decision(job, store, journal, option_id, value=None):
-    """Apply one offered option. Mutates and returns ``job`` (caller persists)."""
+def apply_decision(job, store, journal, option_id, value=None, auto=False):
+    """Apply one offered option. Mutates and returns ``job`` (caller persists).
+    ``auto`` marks a decision taken by the user's standing rule (``auto_decision``)."""
     block = diagnose(job, store, journal)
     if block is None:
         raise BlockDecisionError("אין חסימה שדורשת החלטה בעבודה זו.")
@@ -267,8 +292,11 @@ def apply_decision(job, store, journal, option_id, value=None):
             settings["budget_usd"] = amount   # nothing reserved yet: the job setting is the whole policy
     if store_has_task(store, job_id) and store.status(job_id)["stopped"]:
         store.user_resume(job_id)
-    job.setdefault("decisions", []).append({"at": time.time(), "kind": block["kind"], "option": option_id,
-                                            "value": settings.get("budget_usd") if option_id == "raise_budget" else offered[option_id].get("value"),
-                                            "accepted_charges": accepted})
+    decision = {"at": time.time(), "kind": block["kind"], "option": option_id,
+                "value": settings.get("budget_usd") if option_id == "raise_budget" else offered[option_id].get("value"),
+                "accepted_charges": accepted}
+    if auto:
+        decision.update(auto=True, calls=block["details"]["calls"])
+    job.setdefault("decisions", []).append(decision)
     job["error"] = None
     return job

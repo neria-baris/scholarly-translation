@@ -734,6 +734,7 @@ class DocumentJobs:
             finally:
                 with self.lock:
                     self.active = None
+        self._auto_continue(job)
 
     def _read_scanned_pages(self, job, path, document):
         """OCR stage for scanned PDF pages (None when every page has digital text):
@@ -1223,6 +1224,35 @@ class DocumentJobs:
             finally:
                 with self.lock:
                     self.active = None
+        self._auto_continue(job)
+
+    def _auto_continue(self, job):
+        """Apply the user's standing rule (job_blocks.auto_decision) to a job that
+        just stopped, then resume it; any other block waits for the user."""
+        if job["status"] != "failed" or not job["settings"].get("automation"):
+            return
+        folder = self._folder(job["job_id"])
+        controls, journal_path = folder / "controls.sqlite3", folder / "journal.sqlite3"
+        if not controls.is_file() or not journal_path.is_file():
+            return
+        with self.lock:
+            if self.active is not None:
+                return
+            try:
+                with ControlStore(controls, create=False) as store, WorkJournal(journal_path, create=False) as journal:
+                    option = job_blocks.auto_decision(job, store, journal)
+                    if option is None:
+                        return
+                    job_blocks.apply_decision(job, store, journal, option, auto=True)
+            except (RuntimeControlsError, ValueError):
+                return
+            for transient in ("budget_status", "remaining_budget_usd", "estimated_cost_usd"):
+                job.pop(transient, None)
+            self._persist(job)
+        try:
+            self.resume(job["job_id"])
+        except DocumentDraftError:
+            pass   # another document took the slot; the user resumes this one
 
     def preview(self, path, settings):
         """Thin cost/plan preview for a prospective automation run: no job
