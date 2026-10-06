@@ -22,7 +22,10 @@ chapters saw 3-4 of 177 notebook entries; keeper prompts wrote cache and never r
   tightened (verbatim spans, no retractions, notebook coordination, fewer/shorter
   global entries). Salvage: review_salvage + POST /document-recheck-reviews + button
   in the processing panel re-read saved answers (no call) and reopen changed chapters.
-Evidence: 861 offline tests OK. Offline replay on copies of c69bb5fc: chapter 48
+- Commit 3 (FORMAT-TOLERANCE, addendum): batch parser reads complete JSON objects and
+  skips punctuation slips between them (one rule replacing per-symptom patches);
+  accepted repairs counted in job format_repairs. Real chapter-48 answer: 5/5 units.
+Evidence: 863 offline tests OK. Offline replay on copies of c69bb5fc: chapter 48
 validates from the saved answer with no provider call; salvage recovers 133/140 unit
 reviews and 47/47 QA results (7 still human, 186 issues dropped), reopens 51 chapters,
 ~112 units to correct; resume replays chapters 1-2 without calls and the next call is a

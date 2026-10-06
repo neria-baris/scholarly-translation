@@ -278,6 +278,23 @@ class LitNotebookTests(unittest.TestCase):
             self.assertNotIn('Where is the whale', k.suffix)
         self.assertEqual(len(job['book_notebook']['entries']), 1)
 
+    def test_format_repairs_are_counted_once_per_accepted_answer(self):
+        inner = self.factory()
+        def make(role, descriptor):
+            adapter = inner(role, descriptor)
+            def generate(prompt, model):
+                result = adapter.generate(prompt, model)
+                if 'Translate exactly these units' in str(prompt):   # drop the final "]"
+                    result = TextGenerationResult(result.status, result.text.rstrip()[:-1], result.token_usage, model, 0)
+                return result
+            return SimpleNamespace(generate=generate)
+        job = self.job()
+        self.execute(job, make)
+        self.assertEqual(len(job['units']), len(self.structure['units']))
+        self.assertEqual(job['format_repairs'], 2)            # one per chapter translation
+        self.execute(job, make)                               # completed: replay counts nothing
+        self.assertEqual(job['format_repairs'], 2)
+
     def test_checked_reviews_every_unit_but_short_headings_with_notebook_entries(self):
         job = self.job('checked')
         self.execute(job, self.factory())

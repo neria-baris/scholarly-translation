@@ -976,30 +976,36 @@ def _correction_issue_limit(record, selection, cap):
     return min(8000, int(available / 4.6))
 
 
-_FENCE_RE = re.compile(r'^```[A-Za-z]*\s*|\s*```$')
+_ITEM_PUNCTUATION = ' \t\r\n[],}'
 
 
-def _loads_json_array(raw_text):
-    """Strict JSON, except that a complete top-level array may be wrapped in a code
-    fence, followed by stray closing brackets/braces (a common model slip such as
-    ``...}]}``) or lack only its final ``]`` after a complete object. Anything
-    else -- leading prose, truncation inside an item, extra content -- fails.
-    Callers still check that every expected item is present."""
-    text = _FENCE_RE.sub('', raw_text.strip())
+def _json_items(raw_text):
+    """``(value, repaired)``. Strict JSON first. Otherwise the answer is read as a
+    stream of complete JSON objects: brackets, commas, stray closing braces and code
+    fences around or between them are punctuation slips and are skipped. Any other
+    text, or an object cut off before its end (truncation), fails. Validity is then
+    decided by the caller's content checks (every expected item, once, in order)."""
+    text = raw_text.strip()
     try:
-        return json.loads(text)
+        return json.loads(text), False
     except ValueError:
-        if not text.startswith('['):
-            raise
-        if text.endswith('}'):
-            try:
-                return json.loads(text + ']')
-            except ValueError:
-                pass
-        value, end = json.JSONDecoder().raw_decode(text)
-        if text[end:].strip(' \t\r\n]}`'):
-            raise
-        return value
+        pass
+    decoder, items, pos = json.JSONDecoder(), [], 0
+    while pos < len(text):
+        if text[pos] in _ITEM_PUNCTUATION:
+            pos += 1
+        elif text.startswith('```', pos):
+            pos += 3
+            while pos < len(text) and text[pos].isalpha():   # fence language tag
+                pos += 1
+        elif text[pos] == '{':
+            item, pos = decoder.raw_decode(text, pos)
+            items.append(item)
+        else:
+            raise ValueError('unexpected text between items')
+    if not items:
+        raise ValueError('no JSON items')
+    return items, True
 
 
 def _untranslatable_passthrough(record):
@@ -1007,11 +1013,13 @@ def _untranslatable_passthrough(record):
             and not has_translatable_words(record['source_text']))
 
 
-def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=None):
-    """Strict JSON-array parse: rejects missing/duplicate/unknown/out-of-order
+def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=None, on_format_repair=None):
+    """Batch translation parse: rejects missing/duplicate/unknown/out-of-order
     ids and empty/non-Hebrew targets. Never returns source text as a
     translation. Raises ``ChapterPipelineError`` (never a partial/best-effort
-    result) on any violation, including JSON truncation.
+    result) on any violation, including JSON truncation. Punctuation slips
+    around complete items are tolerated (see ``_json_items``);
+    ``on_format_repair()`` is called once when an accepted answer needed that.
 
     ``source_texts`` (unit_id -> source text) enables one narrow exemption: a
     target without Hebrew is accepted only when neither the source nor the
@@ -1021,7 +1029,7 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
     if not isinstance(raw_text, str) or not raw_text.strip():
         raise ChapterPipelineError("translation response was empty")
     try:
-        data = _loads_json_array(raw_text)
+        data, repaired = _json_items(raw_text)
     except (json.JSONDecodeError, TypeError, ValueError):
         raise ChapterPipelineError("translation response was not valid JSON (possibly truncated)") from None
     if not isinstance(data, list):
@@ -1062,6 +1070,8 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
             "translation response coverage or order does not match the dispatched batch "
             "(missing/duplicate/out-of-order id)"
         )
+    if repaired and on_format_repair is not None:
+        on_format_repair()
     return by_id
 
 
@@ -1192,14 +1202,14 @@ def _controlled(job_id, role, stage, prompt, configuration, cap, store, journal,
 
 def dispatch_batch_translation(job_id, structure, glossary, unit_ids, profile_id, configuration,
         store, journal, hard_list_usd, max_calls, call_output_cap, shared_output_cap, qa_tail_usd=0.0,
-        document_state=None, adapter_factory=None, source_unit_ids=None):
+        document_state=None, adapter_factory=None, source_unit_ids=None, on_format_repair=None):
     prompt = build_batch_translation_prompt(structure, glossary, unit_ids, profile_id,
                                            document_state, source_unit_ids)
     units = _units_by_id(structure)
     return _controlled(job_id, 'translator', 'chapter-translate', prompt, configuration, call_output_cap,
         store, journal, hard_list_usd, max_calls, shared_output_cap,
         lambda result: parse_batch_translation_response(result.text, unit_ids,
-            {uid: units[uid]['text'] for uid in unit_ids}),
+            {uid: units[uid]['text'] for uid in unit_ids}, on_format_repair),
         {'ids': list(unit_ids), 'source': fingerprint(structure), 'glossary': fingerprint(glossary), 'profile': profile_id},
         adapter_factory, qa_tail_usd)
 
@@ -1287,6 +1297,10 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         job['glossary'] = glossary
         persist(job)
     notebook_mode = is_notebook_job(job)
+    def format_repaired():
+        # An accepted answer whose JSON punctuation needed tolerance (counted once,
+        # when first validated; replays read the stored validated result).
+        job['format_repairs'] = job.get('format_repairs', 0) + 1
     def save():
         status = store.status(job_id)
         job['budget_status'] = status
@@ -1341,7 +1355,8 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 later_translation = sum(b['conservative_cost_usd'] for b in plan['batches'][batch_index+1:])
                 translations, replay = dispatch_batch_translation(job_id, structure, glossary, batch['unit_ids'], profile,
                     configuration, store, journal, hard, max_calls, batch['call_output_cap'], shared_cap,
-                    future + plan['qa_tail_usd'] + later_translation, state, adapter_factory, batch['source_unit_ids'])
+                    future + plan['qa_tail_usd'] + later_translation, state, adapter_factory, batch['source_unit_ids'],
+                    format_repaired)
                 job['local_replays'] = job.get('local_replays', 0) + int(replay)
                 by_id = _units_by_id(structure)
                 for uid in batch['unit_ids']:
@@ -1486,7 +1501,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         corrected, replay = _controlled(job_id, 'translator', 'local-correction',
                             _correction_prompt(record, material), configuration, cap, store, journal, hard, max_calls,
                             shared_cap, lambda raw: parse_batch_translation_response(raw.text, [record['unit_id']],
-                                {record['unit_id']: record['source_text']}),
+                                {record['unit_id']: record['source_text']}, format_repaired),
                             {'unit_id': record['unit_id'], 'issues': material}, adapter_factory, tail('correct:'+record['unit_id']))
                         pending.pop('correct:'+record['unit_id'], None)
                         record['target_versions'].append({'text': record['target_text'], 'reason': 'bounded_model_correction'})

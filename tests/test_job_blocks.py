@@ -130,11 +130,11 @@ class JobBlocksTests(unittest.TestCase):
 
     def test_saved_completed_response_can_be_rechecked_without_resend(self):
         strict = lambda r: json.loads(r.text)
-        lenient = lambda r: pipeline._loads_json_array(r.text)
+        lenient = lambda r: pipeline._json_items(r.text)[0]
         def run(validator):
             return pipeline._controlled(JOB, "translator", "chapter-translate", CacheablePrompt("s\n", "p"), self.config,
                 1000, self.store, self.journal, 1.0, 20, 4096, validator, {"source": 1},
-                lambda role, d: SimpleNamespace(generate=lambda text, model: (self.sent.append(1), raw(text='[1]]}'))[1]))
+                lambda role, d: SimpleNamespace(generate=lambda text, model: (self.sent.append(1), raw(text='[{"a":1}]]}'))[1]))
         with self.assertRaises(ValueError):
             run(strict)
         self.job["error"] = "התרגום האוטומטי נעצר: previous call failed"
@@ -142,7 +142,7 @@ class JobBlocksTests(unittest.TestCase):
         self.assertEqual([o["id"] for o in block["options"]], ["reuse_saved_response", "accept_and_retry"])
         job_blocks.apply_decision(self.job, self.store, self.journal, "reuse_saved_response")
         self.assertIsNone(self.job["error"])
-        self.assertEqual(run(lenient), ([1], True))
+        self.assertEqual(run(lenient), ([{"a": 1}], True))
         self.assertEqual(len(self.sent), 1)
 
     def test_resend_after_failed_validation_reaches_provider_not_cache(self):
