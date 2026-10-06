@@ -1,27 +1,37 @@
-# Current state — LEARN-5 optional click meaning, isolated delivery
-Verified LEARN-5 delivery f4e0efc445dabd03b3b18e3bc02c9eb5607f39e9.
-Current contract audit/contracts/learn_5.md: optional display only.
-Feature branch codex/language-learning in .claude/worktrees/learning-conductor,
-base9898011; main concurrent translation/library/job-block edits preserved.
-PASS54 targeted renderer/UI/cumulative/HTTP tests, JS syntax/diff checks and
-synthetic browser click, Enter, Escape, close, checkbox off/on. No full-suite
-rerun this gate; previous942/1skip is LEARN-4 evidence. Glosses hidden until
-deliberate action, separate panel; no automatic adjacent text. Default read API
-context remains compatible, reader checkbox initially enables optional clicks.
-Display does not affect immutable prepared hash, source, effort or advancement.
-Own preview session1410 on127.0.0.1:62144 reuses only synthetic isolated data;
-synthetic_calls0 on restart. Screenshot outputs/learning-click-gloss-verified.png.
-Active main translator never edited/stopped/restarted. Local reviewed feature
-delivery committed, clean tree; remote push not attempted, no main merge/deploy.
-Cumulative policy2 and explicit completion history remain. French500 eligible
-words; other4 bare500-form lists, teaching/selection not available. No live model
-quality or linguistic review claim. Initial500 goal has no hard ceiling but
-current parser accepts only catalog entries. User's preferred next extension
-is same-call model vocabulary proposals, grounded and bounded, stable IDs,
-book-local definitions and exactly-once completed learner history; contract
-direction recorded, runtime schema/persistence/other-language activation deferred.
-This small correction uses Sol direct edits, no external model calls, Sonnet/
-Opus/Astra0, paid runtime0. Prior6 scoped builder total list6.8220652 USD remains,
-actual charge unknown, Sol not_metered. No new dependencies/critic/glossary model.
-Next: model-proposal persistence extension if tasked; integrate active main only
-after ongoing translation and parallel changes are reconciled.
+# Current state — LEARN-6 isolated delivery
+Latest known committed contract1a85412e404928199fae943cdba4fe3f9cdc0f75;
+delivery Git closure follows. Branch codex/language-learning, isolated
+.claude/worktrees/learning-conductor from9898011. Active main translator and
+concurrent modifications untouched; no merge/deploy/push/restart.
+Contract audit/contracts/learn_6.md and user-directed budget/help/archive amendment.
+Five-language selection fr/de/es/yi/it, same-call model-chosen vocabulary beyond
+500, stable IDs/provenance/accepted definitions, book-local cumulative recurrence
+and exactly-once completion history. No critic/dictionary model. Legacy1/2
+prompts/schema still supported. Yiddish RTL/combining marks; optional click gloss.
+Adjustable budget/context/output and explicit new retry retain raw partial
+results, accepted chunks and all spent/uncertain held across ledgers. Corrupt
+accounting is visible and refuses further generation. Physical model ceilings
+remain explicit; source never silently cut. Context requested/provided reported.
+Help /learning/help; personal/<language>/dictionary.json/.md and grammar/<session>
+--<chapter>.json/.md preserve received recap with actual examples before completion.
+Long explanations retained, atomic per-file writes, immutable identity, retryable
+save warnings while reader continues. One process per learning root.
+PASS166 learning tests35.733s; two new scenarios and final prompt correction
+followed by53 focused tests16.655s (169 unique learning tests),22 library4.566s,
+JS syntax/diff checks. Final26 recovery/integration/HTTP tests25.662s PASS:
+unknown calls require one-use explicit retry, original evidence/holds preserved;
+second loss needs a fresh choice. Shared runtime modules unchanged. No full-suite rerun. Browser on synthetic data
+verified selector/history/options/click/grammar/progress/help; no horizontal
+overflow. Screenshots outputs/learning6-help-verified.png and progress-verified.png.
+Own preview54603 on127.0.0.1:62144 replaces own45742 after final local recovery fix;
+restart made0 calls, new synthetic root
+outputs/learning-browser-check-learn6; prior fixture retained;10 fake calls/paid0.
+Local help_archive agent completed three scoped files; Sol integrates. Local
+usage not_metered. One external Sonnet CLI failed ConnectionRefused185.178s with
+zero observed tokens/list cost; escalation auto-review rejected possible
+repository-context export to Claude before execution. No workaround/retry;
+safe local implementation finished. Prior6 builder list6.8220652 USD unchanged,
+actual unknown; Opus/Astra0. User lifted two-agent cap, no unnecessary dispatch.
+Real linguistic/pedagogical quality unverified, no paid pilot. Next: verified
+isolated local commit and receipt; main integration after active book/changes
+are reconciled. Feature push not attempted outside origin/main authorization.

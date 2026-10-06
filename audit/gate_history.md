@@ -498,3 +498,61 @@ Sol direct small fix, no Sonnet/Opus/Astra/external development or paid runtime 
 
 ## 2026-10-06T05:29:33.699090+00:00 | LEARN-5 | verified local commit receipt
 Delivery f4e0efc445dabd03b3b18e3bc02c9eb5607f39e9 contains exactly15 intended reviewed paths; staged diff check passed and index matched working files. Feature tree clean after commit.54 scoped tests and synthetic browser PASS; no full rerun or additional model calls. Main active translation/concurrent changes preserved. Push not attempted; no merge/deploy. Receipt changes audit only.
+
+
+## 2026-10-06T06:11:57.338877+00:00 | LEARN-6 | PASS isolated software acceptance
+
+Contract audit/contracts/learn_6.md plus user-directed controls/help/archive amendment.
+Five languages fr/de/es/yi/it now share same-call model vocabulary proposals with
+stable local IDs/provenance, accepted definitions, cumulative recurrence and
+exactly-once completion.500 is an initial milestone; dynamic definitions extend
+French beyond500 in the lifecycle fixture. Separate language histories/effort,
+language selector and Yiddish direction; no extra dictionary or critic role.
+Dedicated /learning/help. Personal per-language dictionary JSON/Markdown plus
+immutable received chapter grammar/examples under personal/<language>/grammar/.
+Reader archives before returning; current vs completed vocabulary distinct.
+Archive write failures explicit/retryable; complete original text retained.
+User budget/context/output adjustable on preparation/resume; former100 USD limit
+removed. Raw incomplete responses and accepted chunks retained, explicit new
+retry with prior spent/uncertain held aggregated across epochs. Physical model
+limits and actual context excerpts reported. Corrupt accounting never ignored.
+
+Evidence:166 learning tests passed35.733s; after two added scenarios and final
+prompt correction,53 focused generation/proposal/control/multilingual/HTTP tests
+passed16.655s (168 distinct learning tests).22 affected library tests passed4.566s.
+JS syntax/diff checks passed. No blanket full translation suite rerun. Browser
+verified language switch/separate yi history, budget1000/context50000/output16000
+fields, model-added click meaning, actual grammar recap/progress/archive path,
+help anchors and no horizontal overflow. Screenshot outputs/learning6-help-verified.png
+and learning6-progress-verified.png; isolated fake demo10 calls, paid runtime0.
+
+Ownership/cost: Sol local integration and one scoped local help_archive agent;
+local usage not_metered. One external Sonnet CLI failed ConnectionRefused185.178s,
+zero observed tokens/list estimate. Automatic approval review rejected escalation
+before execution for possible repository-context export to Claude. Safe local
+fallback completed; no further external invocation, Opus/Astra0. Prior6 successful
+builders cumulative list6.8220652 USD unchanged; actual charge unknown.
+
+Git: isolated codex/language-learning; latest known contract1a85412e404928199fae943cdba4fe3f9cdc0f75.
+Reviewed intended local delivery commit and separate receipt follow. Feature push
+not attempted; origin/main untouched, no merge/deploy/active translator restart.
+Own preview replaces only session1410 with45742 on62144, using new synthetic
+outputs/learning-browser-check-learn6; previous demo data retained.
+Limits: software evidence only, real linguistic/pedagogical quality unverified;
+one process per learning root and atomic individual files, no cross-file archive
+transaction. User's removal of two-subagent limit recorded; no unnecessary extra
+agent dispatch. Integration with running main deferred to protect active book.
+
+
+## 2026-10-06T06:15:43.039844+00:00 | LEARN-6 | final explicit unknown-outcome recovery PASS
+
+Final diff review found shared dispatcher cross-step guard still blocked an
+explicit distinct retry after a lost dispatch. Learning-only supported journal
+transition now records old unknown outcome as failed with user-choice reason;
+original identities/events/held costs preserved. One-use authorization is saved
+as consumed before another call; a later loss requires a fresh checkbox choice.
+26 focused controls/integration/multilingual/HTTP tests PASS25.662s, including
+two losses/no automatic resend/final explicit success/prior holds.169 unique
+learning tests and22 library tests covered across scoped runs. No shared
+dispatcher/journal/control module change, model invocation or full-suite rerun.
+This extends earlier LEARN-6 acceptance; reviewed local Git closure follows.

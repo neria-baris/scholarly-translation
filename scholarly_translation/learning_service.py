@@ -3,14 +3,16 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
-import math
 import os
 from pathlib import Path
 import secrets
 import threading
 
-from .learning_contracts import LearningError, POLICY_VERSION, check_id, require, validate_source, word_count
+from .learning_contracts import LearningError, POLICY_VERSION, SUPPORTED_LANGUAGE_CODES, check_id, require, validate_source, word_count
 from .learning_catalog import load_catalog
+from .learning_vocabulary import effective_catalog
+from .learning_controls import validate_options, surrounding_context
+from .learning_archive import save_personal_archive
 from .learning_import import import_hebrew_epub, import_translation_job
 from .learning_planner import plan_book, replan_chunk
 from .learning_generation import build_request, parse_response, build_chapter_recap
@@ -37,6 +39,8 @@ class LearningService:
         self._path = self.root / 'service.json'
         self._data = json.loads(self._path.read_text(encoding='utf-8')) if self._path.exists() else {'version': 1, 'books': {}, 'jobs': {}}
         require(self._data.get('version') == 1, 'unsupported_schema')
+        self._data.setdefault('selected_language', 'fr')
+        require(self._data['selected_language'] in SUPPORTED_LANGUAGE_CODES, 'unsupported_language')
         # Recover the small crash window between claiming a slot and saving
         # its service checkpoint. No provider call was possible in that window.
         for session in self.store.list_sessions():
@@ -47,7 +51,8 @@ class LearningService:
                 source = self.store.get_source(session['book_id'])
                 self._data['jobs'][sid] = {'session_id': sid, 'status': 'paused', 'budget_usd': None,
                     'configuration': build_configuration({'translator': {'source': 'catalog', 'provider': 'openai', 'model': 'gpt-6-luna'}}).to_dict(),
-                    'plans': plan_book(source, learner, load_catalog(session['language'], version=session['catalog_version']),
+                    'plans': plan_book(source, learner, effective_catalog(
+                        load_catalog(session['language'], version=session['catalog_version']), session.get('vocabulary', [])),
                                        policy_version=session['policy_version']),
                     'current_plan': None, 'chunks': [], 'proposals': [], 'projected': learner,
                     'error_code': 'budget_required'}
@@ -88,19 +93,58 @@ class LearningService:
 
     def summary(self):
         with self._lock:
-            sessions = self.store.list_sessions()
+            language = self._data['selected_language']
+            sessions = self.store.list_sessions(language)
+            visible_sids = {session['session_id'] for session in sessions}
             jobs = {sid: {'accepted_chunks': len(j['chunks']), 'total_chunks': len(j['plans']),
                           'error_code': j.get('error_code'), 'status': j['status'], 'budget_usd': j['budget_usd'],
                           'usage': self._usage(sid)}
-                    for sid, j in self._data['jobs'].items()}
-            learner = self.store.get_learner('fr')
+                    for sid, j in self._data['jobs'].items() if sid in visible_sids}
+            learner = self.store.get_learner(language)
+            for sid, job in jobs.items():
+                original = self._data['jobs'][sid]
+                job.update({'context_chars': original.get('context_chars', 0),
+                            'output_tokens': original.get('output_tokens', 6000),
+                            'context_info': original.get('context_info'),
+                            'warnings': original.get('warnings', [])})
+            progress = self._progress(learner, sessions)
+            archive = self._archive_snapshot(learner, progress=progress)
             return {'books': deepcopy(list(self._data['books'].values())), 'sessions': sessions,
-                    'learner': learner, 'jobs': jobs, 'progress': self._progress(learner, sessions),
-                    'languages': [{'id': code, 'available': code == 'fr'} for code in ('fr', 'de', 'es', 'yi', 'it')],
-                    'levels': load_catalog('fr')['levels'], 'model': 'gpt-6-luna'}
+                    'learner': learner, 'jobs': jobs, 'progress': progress, 'personal_archive': archive,
+                    'selected_language': language,
+                    'languages': [{'id': code, 'available': True} for code in SUPPORTED_LANGUAGE_CODES],
+                    'levels': load_catalog(language)['levels'], 'model': 'gpt-6-luna'}
+
+    def _archive_snapshot(self, learner, *, progress=None, chapter=None):
+        language = learner['language']
+        directory = str(self.root / 'personal' / language)
+        try:
+            progress = progress or self._progress(learner, self.store.list_sessions(language))
+            result = save_personal_archive(self.root, language, progress, chapter)
+            return {'path': directory, 'status': result['status'], 'warning': None}
+        except (LearningError, OSError):
+            # Reading and the durable completion transaction stay available;
+            # the UI explicitly reports failure and reopening retries the archive.
+            return {'path': directory, 'status': 'save_failed', 'warning': 'archive_save_failed'}
+
+    def select_language(self, language):
+        require(language in SUPPORTED_LANGUAGE_CODES, 'unsupported_language')
+        with self._lock:
+            require(not any(self.store.get_learner(code)['active_book_id']
+                            for code in SUPPORTED_LANGUAGE_CODES), 'active_book_conflict')
+            load_catalog(language)
+            self._data['selected_language'] = language
+            self._save()
+            return self.summary()
 
     def _progress(self, learner, sessions):
-        catalog = load_catalog(learner['language'])
+        active_chunks = []
+        if learner['active_book_id']:
+            for session in sessions:
+                if session['book_id'] == learner['active_book_id'] and session['base_learner_revision'] == learner['revision']:
+                    active_chunks = self._data['jobs'].get(session['session_id'], {}).get('chunks', [])
+                    break
+        catalog = effective_catalog(load_catalog(learner['language']), learner.get('vocabulary', []), active_chunks)
         items = {item['item_id']: item for item in catalog['items']}
         def rows(counts, book_ids):
             result = []
@@ -144,7 +188,8 @@ class LearningService:
     def _upgrade_inactive_learner(self, learner, catalog):
         require(learner['active_book_id'] is None, 'active_book_conflict')
         if learner['catalog_version'] != catalog['version'] or learner['support_mode'] != 'context':
-            previous = load_catalog(learner['language'], version=learner['catalog_version'])
+            previous = effective_catalog(load_catalog(learner['language'], version=learner['catalog_version']),
+                                         learner.get('vocabulary', []))
             old = {item['item_id']: item for item in previous['items']}
             latest = {item['item_id']: item for item in catalog['items']}
             require(all(row['item_id'] in latest and old.get(row['item_id']) == latest[row['item_id']]
@@ -155,23 +200,40 @@ class LearningService:
             self.store.save_learner(learner)
         return learner
 
-    def _usage(self, sid):
+    def _ledger_statuses(self, sid):
         from .runtime_controls import ControlStore, RuntimeControlsError
-        path = self.root / 'calls' / sid / 'controls.sqlite3'
-        if not path.exists():
-            return None
+        directory = self.root / 'calls' / sid
+        paths = [directory / 'controls.sqlite3'] + sorted(directory.glob('attempt-*/controls.sqlite3'))
+        results = []
+        for path in paths:
+            if path.exists():
+                try:
+                    with ControlStore(path, create=False) as controls:
+                        results.append((path, controls.status(sid)))
+                except RuntimeControlsError as exc:
+                    # A task-less ledger can result from a capacity rejection
+                    # before the first reservation. Never ignore damaged costs.
+                    if str(exc) != 'unknown task_id':
+                        raise LearningError('accounting_unavailable') from exc
+        return results
+
+    def _usage(self, sid):
         try:
-            with ControlStore(path, create=False) as controls:
-                status = controls.status(sid)
-            return {key: status[key] for key in ('attempted_calls', 'list_estimated_spent_usd', 'held_usd', 'stopped')}
-        except RuntimeControlsError:
+            rows = self._ledger_statuses(sid)
+        except LearningError:
+            return {'accounting_unavailable': True}
+        if not rows:
             return None
+        return {**{key: sum(row[key] for _, row in rows) for key in
+                   ('attempted_calls', 'list_estimated_spent_usd', 'held_usd')},
+                'stopped': self._data['jobs'][sid]['status'] == 'failed'}
 
     def set_effort(self, level_id):
         with self._lock:
-            learner = self.store.get_learner('fr')
+            language = self._data['selected_language']
+            learner = self.store.get_learner(language)
             require(learner['active_book_id'] is None, 'active_book_conflict')
-            level = next((x for x in load_catalog('fr')['levels'] if x['level_id'] == level_id), None)
+            level = next((x for x in load_catalog(language)['levels'] if x['level_id'] == level_id), None)
             require(level is not None, 'unavailable_level')
             learner['level_id'], learner['support_mode'] = level_id, level['support_mode']
             # Version prevents stale plans from surviving an effort change.
@@ -179,24 +241,31 @@ class LearningService:
             self.store.save_learner(learner)
             return learner
 
-    def start(self, book_id, budget_usd, configuration, adapter_factory, *, background=True):
-        require(isinstance(budget_usd, (int, float)) and not isinstance(budget_usd, bool)
-                and math.isfinite(budget_usd) and 0 < budget_usd <= 100, 'invalid_budget')
+    def start(self, book_id, budget_usd, configuration, adapter_factory, *, background=True,
+              context_chars=4000, output_tokens=6000):
+        validate_options(budget_usd, context_chars, output_tokens)
         with self._lock:
             source = self.store.get_source(check_id(book_id))
-            catalog = load_catalog('fr')
-            learner = self._upgrade_inactive_learner(self.store.get_learner('fr'), catalog)
+            language = self._data['selected_language']
+            require(not any(self.store.get_learner(code)['active_book_id']
+                            for code in SUPPORTED_LANGUAGE_CODES), 'active_book_conflict')
+            saved = self.store.get_learner(language)
+            catalog = effective_catalog(load_catalog(language), saved.get('vocabulary', []))
+            learner = self._upgrade_inactive_learner(saved, catalog)
             plans = plan_book(source, learner, catalog, policy_version=POLICY_VERSION)
             session = self.store.create_session(source, learner)
             sid = session['session_id']
             self._data['jobs'][sid] = {'session_id': sid, 'status': 'paused', 'budget_usd': budget_usd,
                 'configuration': configuration.to_dict(), 'plans': plans, 'current_plan': None,
-                'chunks': [], 'proposals': [], 'projected': learner, 'error_code': None}
+                'chunks': [], 'proposals': [], 'projected': learner, 'error_code': None,
+                'context_chars': context_chars, 'output_tokens': output_tokens, 'control_epoch': 0,
+                'retry_revision': 0, 'warnings': []}
             self._save()
         self.resume(sid, adapter_factory, background=background)
         return self.store.get_session(sid)
 
-    def resume(self, session_id, adapter_factory, *, background=True, budget_usd=None):
+    def resume(self, session_id, adapter_factory, *, background=True, budget_usd=None,
+               context_chars=None, output_tokens=None, retry=False):
         from .model_config import ModelConfiguration
         sid = check_id(session_id)
         with self._lock:
@@ -207,9 +276,19 @@ class LearningService:
             require(self.store.get_learner(session['language'])['revision'] == session['base_learner_revision'], 'stale_learner')
             load_catalog(session['language'], version=session['catalog_version'])
             job = self._data['jobs'][sid]
-            if job['budget_usd'] is None:
-                require(type(budget_usd) in (int, float) and math.isfinite(budget_usd) and 0 < budget_usd <= 100, 'invalid_budget')
-                job['budget_usd'] = budget_usd
+            options = (budget_usd if budget_usd is not None else job['budget_usd'],
+                       context_chars if context_chars is not None else job.get('context_chars', 0),
+                       output_tokens if output_tokens is not None else job.get('output_tokens', 6000))
+            validate_options(*options)
+            require(type(retry) is bool, 'invalid_learning_request')
+            require(job['budget_usd'] is None or options[0] >= job['budget_usd'], 'budget_cannot_decrease')
+            changed = options != (job['budget_usd'], job.get('context_chars', 0), job.get('output_tokens', 6000))
+            if (changed or retry) and self._ledger_statuses(sid):
+                job['control_epoch'] = job.get('control_epoch', 0) + 1
+            if retry:
+                job['retry_revision'] = job.get('retry_revision', 0) + 1
+                job['pending_explicit_retry'] = True
+            job.update(dict(zip(('budget_usd', 'context_chars', 'output_tokens'), options)))
             configuration = ModelConfiguration.from_dict(job['configuration'])
             job['status'], job['error_code'] = 'preparing', None
             session['status'] = 'preparing'
@@ -248,8 +327,23 @@ class LearningService:
         directory = self.root / 'calls' / sid
         directory.mkdir(parents=True, exist_ok=True)
         try:
-            with ControlStore(directory / 'controls.sqlite3') as controls, WorkJournal(directory / 'journal.sqlite3') as journal:
+            epoch = self._data['jobs'][sid].get('control_epoch', 0)
+            ledger = directory / f'attempt-{epoch}' / 'controls.sqlite3' if epoch else directory / 'controls.sqlite3'
+            ledger.parent.mkdir(parents=True, exist_ok=True)
+            prior = sum(row['list_estimated_spent_usd'] + row['held_usd']
+                        for path, row in self._ledger_statuses(sid) if path != ledger)
+            with ControlStore(ledger) as controls, WorkJournal(directory / 'journal.sqlite3') as journal:
                 journal.resume(sid)
+                with self._lock:
+                    job = self._data['jobs'][sid]
+                    if job.get('pending_explicit_retry', False):
+                        for step in journal.job_steps(sid):
+                            if step['status'] in ('unknown', 'dispatched'):
+                                journal.mark_failed(step['identity'],
+                                    'Outcome remains unknown; user authorized a distinct new attempt at retry '
+                                    + str(job['retry_revision']) + '; original cost hold retained')
+                        job['pending_explicit_retry'] = False
+                        self._save()  # One choice must not authorize later lost calls.
                 while True:
                     with self._lock:
                         job = self._data['jobs'][sid]
@@ -260,32 +354,60 @@ class LearningService:
                         if index == len(job['plans']):
                             break
                         session = self.store.get_session(sid)
-                        catalog = load_catalog(session['language'], version=session['catalog_version'])
+                        catalog = effective_catalog(load_catalog(session['language'], version=session['catalog_version']),
+                                                    session.get('vocabulary', []), job['chunks'])
                         if job['current_plan'] is None:
                             job['current_plan'] = replan_chunk(job['plans'][index], job['projected'], catalog)
                             self._save()  # Dispatch identity must survive a crash.
                         plan = deepcopy(job['current_plan'])
-                        budget, count = job['budget_usd'], len(job['plans'])
-                    prompt, input_hash = build_request(plan, catalog)
+                        budget, count = job['budget_usd'] - prior, len(job['plans'])
+                        require(budget > 0, 'budget_exhausted')
+                        context, job['context_info'] = surrounding_context(job['plans'], index, job.get('context_chars', 0))
+                        self._save()
+                    prompt, input_hash = build_request(plan, catalog, context)
 
                     def validate(result):
                         chunk, recap = parse_response(result.text, plan, catalog, input_hash,
                             provider='openai', model=result.observed_model or 'gpt-6-luna')
                         return {'chunk': chunk, 'recap': recap}
 
-                    stage = 'learning-generate-v1' if plan['policy_version'] == 'learning-policy@1' else 'learning-generate-v2'
+                    stage = {'learning-policy@1': 'learning-generate-v1',
+                             'learning-policy@2': 'learning-generate-v2'}.get(plan['policy_version'], 'learning-generate-v3')
+                    model_limit = configuration.resolve('translator')[0].capabilities.max_output_tokens or 6000
+                    require(job.get('output_tokens', 6000) <= model_limit, 'output_capacity')
                     if plan['policy_version'] == 'learning-policy@1':
-                        output_cap = shared_cap = 6000
+                        output_cap = shared_cap = job.get('output_tokens', 6000)
                     else:
-                        shared_cap = max(self._dense_output_cap(p, configuration) for p in job['plans'])
-                        output_cap = self._dense_output_cap(plan, configuration) if plan['review_item_ids'] else min(6000, shared_cap)
-                    parsed, _replay = _controlled(sid, 'translator', stage, prompt,
-                        configuration, output_cap, controls, journal, budget, count, shared_cap, validate,
-                        {'plan': plan, 'catalog_version': catalog['version']}, adapter_factory)
+                        shared_cap = max(job.get('output_tokens', 6000), max(self._dense_output_cap(p, configuration) for p in job['plans']))
+                        output_cap = max(job.get('output_tokens', 6000), self._dense_output_cap(plan, configuration) if plan['review_item_ids'] else 0)
+                    dependencies = {'plan': plan, 'catalog_version': catalog['version']}
+                    if job.get('retry_revision', 0):
+                        dependencies['explicit_retry'] = job['retry_revision']
+                    from .model_adapter import PRICING_VERSION
+                    controls.get_or_create_task(sid, count, budget, PRICING_VERSION, shared_cap)
+                    try:
+                        parsed, _replay = _controlled(sid, 'translator', stage, prompt,
+                            configuration, output_cap, controls, journal, budget, count, shared_cap, validate,
+                            dependencies, adapter_factory)
+                    except Exception as exc:
+                        if any(step['status'] in ('unknown', 'dispatched') for step in journal.job_steps(sid)):
+                            raise LearningError('retry_confirmation_required') from exc
+                        raise
                     with self._lock:
                         job = self._data['jobs'][sid]
                         job['chunks'].append(parsed['chunk'])
                         job['proposals'].append({'chunk_id': parsed['chunk']['plan_id'], 'recap': parsed['recap']})
+                        definitions = parsed['chunk'].get('introduced_items', [])
+                        if definitions:
+                            vocabulary = job['projected'].setdefault('vocabulary', [])
+                            known = {row['item']['item_id']: row['item'] for row in vocabulary}
+                            for item in definitions:
+                                require(item['item_id'] not in known or known[item['item_id']] == item,
+                                        'catalog_changed')
+                                if item['item_id'] not in known:
+                                    vocabulary.append({'item': deepcopy(item), 'origin': {
+                                        key: parsed['chunk'][key] for key in ('provider', 'model', 'prompt_version', 'input_hash')}})
+                                    known[item['item_id']] = item
                         # Exposure projects choices within this book, without mastery or durable advancement.
                         accepted_counts = {}
                         for edit in parsed['chunk']['edits']:
@@ -314,7 +436,17 @@ class LearningService:
         except Exception as exc:
             # No exception/provider payload can leak credentials through the browser.
             with self._lock:
-                self._data['jobs'][sid]['error_code'] = exc.code if isinstance(exc, LearningError) else 'preparation_stopped'
+                message = str(exc).lower()
+                code = exc.code if isinstance(exc, LearningError) else 'preparation_stopped'
+                if 'budget' in message or 'reservation limit' in message:
+                    code = 'budget_exhausted'
+                elif 'does not fit' in message:
+                    code = 'context_capacity'
+                elif 'truncated' in message or 'provider response failed' in message:
+                    code = 'response_incomplete'
+                elif 'unknown' in message or 'automatic resend refused' in message:
+                    code = 'retry_confirmation_required'
+                self._data['jobs'][sid]['error_code'] = code
                 session = self.store.get_session(sid)
                 if session['status'] == 'ready':
                     self._data['jobs'][sid]['status'] = 'ready'
@@ -353,11 +485,16 @@ class LearningService:
                 for example in entry['examples']:
                     edit = chunks_by_id[example['chunk_id']]['edits'][example['edit_index']]
                     example.update({'foreign': edit['replacement'], 'hebrew': edit['original']})
+            items = {item['item_id']: {'lemma': item['lemma'], 'sense_he': item['sense_he']}
+                     for item in effective_catalog(load_catalog(session['language'], version=session['catalog_version']),
+                                                   session.get('vocabulary', []), prepared['chunks'])['items']}
+            archive = self._archive_snapshot(self.store.get_learner(session['language']), chapter={
+                'session_id': session_id, 'book_id': session['book_id'], 'chapter_id': chapter['chapter_id'],
+                'chapter_title': chapter['title'], 'recap': recap, 'items': items})
             return {'session': session, 'title': source['title'], 'chapter_title': chapter['title'],
                     'chapter_index': chapter_index, 'chapter_count': len(source['chapters']),
-                    'html': ''.join(rendered), 'recap': recap,
-                    'items': {item['item_id']: {'lemma': item['lemma'], 'sense_he': item['sense_he']}
-                              for item in load_catalog(session['language'], version=session['catalog_version'])['items']}}
+                    'language': session['language'], 'html': ''.join(rendered), 'recap': recap,
+                    'items': items, 'archive_warning': archive['warning']}
 
     def cursor(self, session_id, chapter_index):
         self.reader(session_id, chapter_index)  # Validate against this immutable source.
@@ -365,7 +502,9 @@ class LearningService:
             previous = self.store.get_session(session_id)['read_cursor'] or {}
             furthest = max(previous.get('furthest_chapter_index', previous.get('chapter_index', 0)), chapter_index)
             self.store.save_cursor(session_id, {'chapter_index': chapter_index, 'furthest_chapter_index': furthest})
-        return {'saved': True}
+            language = self.store.get_session(session_id)['language']
+            archive = self._archive_snapshot(self.store.get_learner(language))
+        return {'saved': True, 'archive_warning': archive['warning']}
 
     def complete(self, session_id, expected_prepared_hash, completion_id):
         with self._lock:
@@ -373,4 +512,5 @@ class LearningService:
             if session_id in self._data['jobs']:
                 self._data['jobs'][session_id]['status'] = 'completed'
                 self._save()
+            self._archive_snapshot(self.store.get_learner(self.store.get_session(session_id)['language']))
             return receipt

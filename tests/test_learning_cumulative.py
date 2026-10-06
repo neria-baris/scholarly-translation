@@ -41,7 +41,7 @@ class CumulativePlanningTests(unittest.TestCase):
         self.assertNotEqual(plan['plan_id'], later['plan_id'])
         prompt, _ = build_request(later, catalog)
         self.assertIn('review_targets', prompt)
-        self.assertIn('Already\nencountered words do not consume', prompt)
+        self.assertIn('do not spend new-item, new-grammar or new-density quotas', prompt)
 
     def test_catalog_extensions_have_no_500_item_ceiling(self):
         cat = load_catalog()

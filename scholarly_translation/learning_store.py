@@ -144,6 +144,7 @@ class LearningStore:
                 "catalog_version": learner["catalog_version"], "level_id": learner["level_id"],
                 "support_mode": learner["support_mode"], "status": "imported", "prepared_hash": None,
                 "chunk_ids": [], "read_cursor": None,
+                "vocabulary": copy.deepcopy(learner.get('vocabulary', [])),
             })
             updated_learner = copy.deepcopy(current)
             updated_learner["active_book_id"] = source["book_id"]

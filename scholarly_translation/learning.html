@@ -9,6 +9,7 @@
 <header class="app-header">
 <a class="brand" href="/" aria-label="חזרה לתרגום מסמכים"><span>← תרגום מסמכים</span></a>
 <h1 class="page-title">למידת שפה</h1>
+<a href="/learning/help" target="learning-help" rel="noopener">עזרה ללמידת שפה</a>
 </header>
 <main class="workspace">
 <p id="import-error" class="message" role="alert" hidden></p>
@@ -23,7 +24,10 @@
 
 <section id="effort-section" class="card" aria-labelledby="effort-title">
 <h2 id="effort-title">רמת מאמץ</h2>
-<p class="muted">כרגע לומדים צרפתית. האחוזים מגבילים חומר חדש; מילים שכבר פגשתם ממשיכות להצטבר בפרקים הבאים.</p>
+<label for="learning-language">השפה שלומדים</label>
+<select id="learning-language" aria-describedby="language-note"></select>
+<p id="language-note" class="muted">לכל שפה היסטוריה ורמת מאמץ משלה. אפשר להחליף שפה כשאין ספר פעיל.</p>
+<p class="muted">האחוזים מגבילים חומר חדש; מילים שכבר פגשתם ממשיכות להצטבר בפרקים הבאים.</p>
 <p class="muted">לומדים מההקשר, עם אפשרות לבקש פירוש בלחיצה. אין פירוש אוטומטי צמוד למילה בשום רמה.</p>
 <p class="muted" id="effort-note"></p>
 <div id="effort-levels" class="levels" role="radiogroup" aria-labelledby="effort-title"></div>
@@ -41,7 +45,8 @@
 
 <section id="languages-section" class="card" aria-labelledby="languages-title">
 <details><summary id="languages-title">500 מילים בכל אחת מחמש השפות</summary>
-<p class="muted">רשימות שכיחות בחמש שפות. בצרפתית זמין קטלוג למידה עם פירושים לסיכומים; 500 מילים הן יעד ראשון והלמידה יכולה להמשיך מעבר לו.</p>
+<p class="muted">רשימות השכיחות מנחות את תחילת הלמידה בחמש השפות. המודל יכול לבחור גם מילים נוספות לפי הספר ורמת המאמץ; 500 מילים הן יעד ראשון.</p>
+<p class="muted">מילים ומבנים חדשים נוצרים בעזרת המודל ונשמרים להמשך. הפירושים והדקדוק אינם עוברים ביקורת לשונית נפרדת.</p>
 <ul id="language-list" class="language-list"></ul>
 </details>
 </section>
@@ -88,6 +93,8 @@
 <h2 id="progress-title">התקדמות</h2>
 <button id="progress-return" type="button" class="quiet-button" hidden>חזרה לקריאה</button>
 <p id="progress-summary" class="muted"></p>
+<p id="personal-archive" class="muted"></p>
+<p id="archive-warning" class="message" role="alert" hidden></p>
 <div id="progress-detail" hidden>
 <p id="progress-milestone" class="muted"></p>
 <div id="progress-current-book" class="progress-current" hidden>

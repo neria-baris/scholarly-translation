@@ -8,7 +8,7 @@ import math
 import re
 
 SCHEMA_VERSION = 1
-POLICY_VERSION = "learning-policy@2"
+POLICY_VERSION = "learning-policy@3"
 SUPPORTED_LANGUAGE_CODES = ("fr", "de", "es", "yi", "it")
 MAX_CHUNK_CHARS = 2400
 DEFAULT_LEVELS = [
@@ -106,7 +106,7 @@ def validate_source(source):
 
 
 def validate_catalog(catalog):
-    require_fields(catalog, ("schema_version", "language", "version", "provenance", "items", "levels"))
+    require_fields(catalog, ("schema_version", "language", "version", "provenance", "items", "levels"), ('frequency_seed',))
     _version(catalog)
     require(catalog["language"] in SUPPORTED_LANGUAGE_CODES, "unsupported_language")
     _text(catalog["version"], 128)
@@ -114,7 +114,12 @@ def validate_catalog(catalog):
     for value in catalog["provenance"].values():
         _text(value, 1000)
     _ids(catalog["items"], "item_id")
-    require(bool(catalog["items"]))
+    if 'frequency_seed' in catalog:
+        require(isinstance(catalog['frequency_seed'], list))
+        for row in catalog['frequency_seed']:
+            require_fields(row, ('rank', 'word'))
+            _integer(row['rank'], 1)
+            _text(row['word'], 300)
     keys = {i["item_id"] for i in catalog["items"]}
     for item in catalog["items"]:
         require_fields(item, ("item_id", "kind", "lemma", "sense_he", "forms", "priority_tier",
@@ -155,7 +160,8 @@ def validate_catalog(catalog):
     return catalog
 
 
-def new_learner(language="fr", learner_id="local", catalog_version="fr-common@2"):
+def new_learner(language="fr", learner_id="local", catalog_version=None):
+    catalog_version = catalog_version or ('fr-common@2' if language == 'fr' else language + '-seed@1')
     result = {"schema_version": 1, "learner_id": learner_id, "language": language,
               "revision": 0, "catalog_version": catalog_version, "level_id": "1",
               "support_mode": "context", "items": [], "completed_books": [], "active_book_id": None}
@@ -164,10 +170,13 @@ def new_learner(language="fr", learner_id="local", catalog_version="fr-common@2"
 
 def validate_learner(learner):
     require_fields(learner, ("schema_version", "learner_id", "language", "revision", "catalog_version",
-                             "level_id", "support_mode", "items", "completed_books", "active_book_id"))
+                             "level_id", "support_mode", "items", "completed_books", "active_book_id"), ('vocabulary',))
     _version(learner)
     check_id(learner["learner_id"])
     require(learner["language"] in SUPPORTED_LANGUAGE_CODES, "unsupported_language")
+    if 'vocabulary' in learner:
+        from .learning_vocabulary import validate_vocabulary
+        validate_vocabulary(learner['vocabulary'], learner['language'])
     _integer(learner["revision"])
     check_id(learner["level_id"])
     _text(learner["catalog_version"], 128)
@@ -190,12 +199,15 @@ def validate_learner(learner):
 def validate_session(session):
     require_fields(session, ("schema_version", "session_id", "learner_id", "language", "book_id", "source_hash",
                              "base_learner_revision", "policy_version", "catalog_version", "level_id",
-                             "support_mode", "status", "prepared_hash", "chunk_ids", "read_cursor"))
+                             "support_mode", "status", "prepared_hash", "chunk_ids", "read_cursor"), ('vocabulary',))
     _version(session)
     for key in ("session_id", "learner_id", "book_id", "level_id"):
         check_id(session[key])
     _integer(session["base_learner_revision"])
     require(session["language"] in SUPPORTED_LANGUAGE_CODES, "unsupported_language")
+    if 'vocabulary' in session:
+        from .learning_vocabulary import validate_vocabulary
+        validate_vocabulary(session['vocabulary'], session['language'])
     require(session["status"] in ("imported", "preparing", "ready", "completed", "paused", "failed"))
     require(session["support_mode"] in ("context", "inline", "click"))
     require(isinstance(session["chunk_ids"], list) and len(set(session["chunk_ids"])) == len(session["chunk_ids"]))
@@ -249,7 +261,7 @@ def validate_plan(plan):
 
 def validate_generated(chunk):
     require_fields(chunk, ("schema_version", "plan_id", "response_version", "provider", "model", "prompt_version",
-                           "input_hash", "edits", "warnings", "coverage_item_ids", "content_hash"), ("language",))
+                           "input_hash", "edits", "warnings", "coverage_item_ids", "content_hash"), ("language", 'introduced_items'))
     _version(chunk)
     check_id(chunk["plan_id"])
     require(chunk["response_version"] == 1 and isinstance(chunk["edits"], list), "invalid_generation")
@@ -262,6 +274,13 @@ def validate_generated(chunk):
             _text(edit[key], 2000000 if key == "original" else 1000)
         require(isinstance(edit["item_ids"], list) and isinstance(edit["grammar_ids"], list))
     require(isinstance(chunk["warnings"], list) and isinstance(chunk["coverage_item_ids"], list))
+    if 'introduced_items' in chunk:
+        from .learning_vocabulary import validate_vocabulary
+        validate_vocabulary([{'item': item, 'origin': {key: chunk[key] for key in
+                            ('provider', 'model', 'prompt_version', 'input_hash')}}
+                             for item in chunk['introduced_items']], chunk.get('language'))
+        used = {item_id for edit in chunk['edits'] for item_id in edit['item_ids'] + edit['grammar_ids']}
+        require(all(item['item_id'] in used for item in chunk['introduced_items']), 'invalid_generation', 'unused_definition')
     return chunk
 
 

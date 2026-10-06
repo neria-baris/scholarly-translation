@@ -1,5 +1,31 @@
 # Scholarly translation
 
+## Language learning through Hebrew books (isolated feature)
+
+The `/learning` page accepts Hebrew EPUBs and completed Hebrew translations from
+the library. French, German, Spanish, Yiddish and Italian use the same cumulative
+learning mechanism, with separate histories. Known vocabulary recurs across
+chapters; explicit book completion carries accepted vocabulary and effort into
+the next book. One generation call may propose additional words and grammar;
+the 500-word frequency lists are a starting milestone, not a vocabulary ceiling.
+Meanings appear only after an optional deliberate click.
+
+Preparation exposes total budget, surrounding context and output allowance.
+Stopped preparation retains accepted chunks and raw responses, permits changed
+settings and requires an explicit choice for a fresh retry. Earlier spending and
+uncertain call reservations remain in the budget. Provider context/output limits
+still apply; incomplete responses never become completed chapters.
+
+Dedicated Hebrew help is at `/learning/help`. Under the learning data root,
+`personal/<language>/dictionary.json` and `dictionary.md` store saved and current
+vocabulary separately. `grammar/` retains every opened chapter's explanations
+and actual examples as immutable JSON and readable Markdown. Save failures show
+a warning while reading remains available; reopening retries the archive.
+
+These additions are on the isolated `codex/language-learning` checkout and
+preview, pending integration with the active translator. No separate linguistic
+review or paid quality pilot has been performed.
+
 ## Simple local document UI
 
 Run `./run-ui.ps1` on Windows (or `Run Scholarly Translation.vbs` at the repo

@@ -80,3 +80,61 @@ Errors: invalid_generation/invalid_record/catalog_changed/unsupported_language/
 active_book_conflict. Side effects: isolated local history and current controlled
 generation/cache/budget; no automatic preparation on import/selection.
 Local clean reviewed feature commit/receipt, push not attempted, main unchanged.
+
+## 2026-10-06 — user-directed preparation controls, help and archive extension
+
+User extends this gate: expose adjustable budget/context/output, preserve long
+and partial data with visible warnings, dedicated help, and all received grammar
+alongside personal vocabulary. The user's explicit removal of the two-subagent
+limit supersedes that development guideline for this task. Disjoint ownership,
+shared contracts and sequential integration still apply; no extra agent is
+required solely to use concurrency.
+
+Ownership amendment: external G failed ConnectionRefused (zero observed tokens/
+list cost); escalation retry was rejected by automatic approval review because
+it could export repository implementation context to external Claude. No external
+retry/workaround. Sol implements G scope locally. Local help_archive agent owns
+only learning_archive.py, learning_help.html and test_learning_archive.py in the
+separate learning-g checkout; Sol copies/reviews/integrates them sequentially.
+No third-party review, runtime calls or active main access.
+
+Controls: start/resume additive context_chars/output_tokens/retry; default4000/
+6000/false, old job defaults0/6000. Positive finite user budget removes former100
+USD limit. Context0..2,000,000 chars is explicit; source chunks are complete.
+Return requested/provided/available context accounting. Physical model window/
+output ceilings remain explicit errors, never silent trimming. Resume changes
+only pending input; accepted chunks immutable. Explicit retry changes call
+dependency identity, preserves journal/raw results, creates separate control
+ledger epoch. Sum prior spent plus uncertain held across all epochs before new
+allowance. Never ignore corrupt accounting; report accounting_unavailable and
+refuse fresh generation. Truncated/failed raw responses remain journaled; no
+automatic resend, false completed chunk or clearing prior costs.
+
+Archive: save_personal_archive(root, language, progress, chapter=None), schema1
+dictionary completed/current rows and immutable chapter recap including actual
+received explanations/examples, IDs and safe item labels. JSON and Markdown,
+fsync/atomic replacement per file, local serialization, no text truncation.
+Dedicated root/personal/<language>/grammar next to dictionary files. Reader
+archives before returning; cursor/completion update dictionary. Identical chapter
+reuse repairs missing companion; differing same-identity recap never overwrites.
+Archive error visible and retryable while reading/atomic completion remain usable.
+One process per learning root; no claim of cross-file transaction/cross-process
+support. HTTP GET /learning/help with RTL static help; progress shows archive path
+and warnings. Help includes languages, effort/continuity, context/click, progress,
+budgets/output/retries, storage/quality/privacy and source handoff.
+
+Acceptance additions: five-language >500 lifecycle, actual grammar reader/archive
+integration, 180k+ long grammar preservation, archive write failure/retry/identity,
+budget1000 resume, context50000, truncated raw retention/explicit retry/held costs,
+physical output rejection/corrupt ledger visibility; help and resume HTTP/token
+boundary, synthetic browser selector/options/help/grammar/progress/click. Scoped
+learning and affected library tests only; no blanket translation suite rerun.
+
+Final unknown-outcome refinement: a retry checkbox authorizes retiring only the
+currently unknown/dispatched journal steps into failed with an explicit reason.
+Keep identities/events/held costs, distinct new retry identity, and checkpoint
+consumption of this one-use authorization before another call. A subsequent lost
+call requires a new user choice; persisted retry revision alone grants nothing.
+Acceptance: simulated transport loss, default resume no call, explicit retry
+continues with prior hold and old failed evidence, second loss again refuses
+automatic resend. No changes to shared WorkJournal/control/pipeline modules.

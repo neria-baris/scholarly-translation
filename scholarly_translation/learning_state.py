@@ -72,6 +72,9 @@ def apply_completion(learner, session, generated_chunks, recaps, *, completion_i
             row["last_completed_book_id"] = session["book_id"]
 
     new_learner = copy.deepcopy(learner)
+    if any(chunk.get('introduced_items') for chunk in generated_chunks) or 'vocabulary' in learner:
+        from .learning_vocabulary import merge_vocabulary
+        new_learner['vocabulary'] = merge_vocabulary(learner.get('vocabulary', []), generated_chunks, learner['language'])
     new_learner["revision"] = learner["revision"] + 1
     new_learner["items"] = sorted(existing_items.values(), key=lambda row: row["item_id"])
     new_learner["completed_books"] = list(learner["completed_books"]) + [

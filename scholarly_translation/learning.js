@@ -4,13 +4,25 @@ function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;'
 
 const LANGUAGE_NAMES={fr:'צרפתית',de:'גרמנית',es:'ספרדית',yi:'יידיש',it:'איטלקית'};
 const ERROR_MESSAGES={
-  invalid_budget:'תקציב לא תקין; יש להזין מספר חיובי עד 100$.',
+  invalid_budget:'יש להזין תקציב חיובי. אפשר להגדיל את התקציב ולהמשיך.',
+  budget_cannot_decrease:'בחידוש אפשר לשמור את התקציב או להגדיל אותו; ההוצאה הקודמת נשארת בחישוב.',
+  budget_exhausted:'התקציב אינו מספיק לקריאה הבאה. הקטעים שהתקבלו נשמרו; הגדילו את התקציב וחַדשו את ההכנה.',
+  invalid_context:'היקף הקשר חייב להיות מספר שלם בין 0 לשני מיליון תווים. בחרו היקף אחר.',
+  invalid_output_limit:'יש לבחור אורך תשובה חיובי בטוקנים.',
+  output_capacity:'אורך התשובה שבחרתם גדול מיכולת המודל. הקטינו אותו וחַדשו את ההכנה.',
+  context_capacity:'הקטע וההקשר חורגים מחלון המודל. הקטינו הקשר או אורך תשובה; הטקסט אינו נחתך אוטומטית.',
+  response_incomplete:'תשובת המודל נקטעה או נכשלה ונשמרה כפי שהתקבלה. הגדילו אורך תשובה או תקציב ובחרו ניסיון חדש מפורש.',
+  retry_confirmation_required:'התשובה הקודמת נכשלה או שתוצאת הקריאה אינה ידועה. נשמר התיעוד; אפשר לבחור ניסיון חדש, שעלול לגרור חיוב נוסף.',
+  invalid_generation:'התשובה לא עמדה בחוזה ולכן לא שולבה. התשובה הגולמית נשמרה; אפשר לשנות הגדרות ולבחור ניסיון חדש.',
+  archive_save_failed:'הספר זמין לקריאה, אך שמירת המילון או הסברי הדקדוק בתיקייה האישית נכשלה. פנו מקום או בדקו הרשאות ופתחו שוב את הפרק.',
+  accounting_unavailable:'תיעוד העלויות אינו זמין או פגום. נתוני הקריאה נשמרו; יש לשחזר את התיעוד לפני יצירה נוספת כדי לשמור על התקציב.',
   active_book_conflict:'יש ספר פעיל אחד בלבד; יש לסיים או לנטוש אותו לפני התחלת ספר נוסף.',
   session_not_found:'ההפעלה לא נמצאה.',
   already_running:'ההכנה כבר רצה.',
   invalid_status:'לא ניתן לבצע פעולה זו במצב הנוכחי.',
   stale_learner:'מצב הלמידה השתנה; רעננו את העמוד.',
   unavailable_level:'רמת המאמץ אינה זמינה.',
+  unsupported_language:'השפה שנבחרה אינה נתמכת.',
   missing_api_key:'יש להזין מפתח API לפני הכנת ספר.',
   state_conflict:'הפעולה לא תואמת את המצב הנוכחי; רעננו ונסו שוב.',
   book_not_ready:'הספר עדיין לא מוכן לקריאה.',
@@ -82,6 +94,13 @@ async function loadState(){
 // ---- effort ----
 function renderEffort(){
   const active=!!state.learner.active_book_id;
+  const selector=$('learning-language');selector.replaceChildren();
+  for(const lang of state.languages){
+    const option=document.createElement('option');option.value=lang.id;
+    option.textContent=LANGUAGE_NAMES[lang.id]||lang.id;option.disabled=!lang.available;
+    selector.append(option);
+  }
+  selector.value=state.selected_language||state.learner.language;selector.disabled=active;
   $('effort-note').textContent=active?'לא ניתן לשנות רמת מאמץ בזמן שספר פעיל.':'בחרו את קצב שילוב החומר החדש. החזרה על מילים מוכרות מצטברת מעבר לכך.';
   const host=$('effort-levels');host.replaceChildren();
   const labels={'1':'1 — עד 10% חומר חדש','2':'2 — עד 20% חומר חדש','3':'3 — עד 30% חומר חדש וביטויים קצרים'};
@@ -98,6 +117,18 @@ function renderEffort(){
     host.append(button);
   }
 }
+
+$('learning-language').onchange=async()=>{
+  const selector=$('learning-language');selector.disabled=true;
+  try{
+    await request('/learning/language',{language:selector.value});
+    closeGloss();activeReader=null;chapterRequest++;$('reader-section').hidden=true;
+    document.body.classList.remove('reading','progress-open');$('progress-return').hidden=true;
+    $('reader-progress').setAttribute('aria-expanded','false');await loadState();
+  }catch(error){selector.value=state.selected_language||state.learner.language;
+    selector.disabled=!!state.learner.active_book_id;
+    $('import-error').textContent=error.message;$('import-error').hidden=false}
+};
 
 // ---- languages / wordlists ----
 function renderLanguages(){
@@ -120,6 +151,7 @@ function bookStatusLabel(status){
 }
 function usageLine(usage){
   if(!usage)return'';
+  if(usage.accounting_unavailable)return errorText('accounting_unavailable');
   return `קריאות: ${usage.attempted_calls} · אומדן לפי מחירון: $${usage.list_estimated_spent_usd.toFixed(4)} · שמור לקריאות: $${usage.held_usd.toFixed(4)}`+
     (usage.stopped?' · נעצר':'');
 }
@@ -135,6 +167,11 @@ function renderBooks(){
       (session?`<span class="tag">${esc(bookStatusLabel(session.status))}</span>`:'<span class="tag">לא הוכן</span>')+
       `</div><div class="book-body"></div>`;
     const body=item.querySelector('.book-body');
+    if(job){
+      body.append(noteParagraph(`נשמרו ${job.accepted_chunks} מתוך ${job.total_chunks} קטעים; הקטעים שהתקבלו אינם נמחקים כשנעצרים.`));
+      if(job.context_info)body.append(noteParagraph(`הקשר נוסף: ${job.context_info.provided_chars} תווים מתוך ${job.context_info.available_chars} הזמינים, לפי בקשת ${job.context_info.requested_chars} תווים. אפשר לשנות בחידוש.`));
+      if(job.usage?.held_usd>0)body.append(noteParagraph(`חיוב שאינו ודאי עדיין שמור בחישוב התקציב: $${job.usage.held_usd.toFixed(4)}. ניסיון חדש עשוי לעלות בנוסף.`));
+    }
     if(!session){
       body.append(prepareForm(book));
     }else if(['imported','paused','failed'].includes(session.status)){
@@ -162,35 +199,38 @@ function errorParagraph(text){const p=document.createElement('p');p.className='m
 function prepareForm(book){
   const wrap=document.createElement('form');wrap.className='budget-form';
   const disabled=!!state.learner.active_book_id;
-  wrap.innerHTML=`<label>תקציב מרבי (${'$'})<input type="number" min="0.01" max="100" step="0.01" required dir="ltr" ${disabled?'disabled':''}></label>
+  wrap.innerHTML=`${preparationOptions(null,disabled)}
     <button type="submit" class="primary-button" ${disabled?'disabled':''}>הכן לקריאה</button>`;
   if(disabled)wrap.append(noteParagraph('יש לסיים או לנטוש את הספר הפעיל לפני הכנת ספר נוסף.'));
   wrap.onsubmit=async(event)=>{
     event.preventDefault();
-    const input=wrap.querySelector('input');const budget=Number(input.value);
     const button=wrap.querySelector('button');button.disabled=true;
-    try{await request('/learning/prepare',{book_id:book.book_id,budget_usd:budget});await loadState()}
+    try{await request('/learning/prepare',{book_id:book.book_id,...optionsFrom(wrap)});await loadState()}
     catch(error){wrap.append(errorParagraph(error.message));button.disabled=false}
   };
   return wrap;
 }
 function resumeForm(session,job){
-  const needsBudget=!job||job.budget_usd==null;
   const wrap=document.createElement('form');wrap.className='budget-form';
-  wrap.innerHTML=needsBudget?
-    `<label>תקציב מרבי ($)<input type="number" min="0.01" max="100" step="0.01" required dir="ltr"></label>
-     <button type="submit" class="primary-button">חידוש הכנה</button>`:
-    `<button type="submit" class="primary-button">חידוש הכנה</button>`;
+  wrap.innerHTML=`${preparationOptions(job,false)}
+    <label><input name="retry" type="checkbox"> ניסיון חדש לקטע שלא התקבל — עלול לגרור חיוב נוסף</label>
+    <button type="submit" class="primary-button">חידוש הכנה</button>`;
   wrap.onsubmit=async(event)=>{
     event.preventDefault();
-    const input=wrap.querySelector('input');
-    const payload={session_id:session.session_id};
-    if(input)payload.budget_usd=Number(input.value);
+    const payload={session_id:session.session_id,...optionsFrom(wrap),retry:wrap.querySelector('[name=retry]').checked};
     try{await request('/learning/resume',payload);await loadState()}
     catch(error){wrap.append(errorParagraph(error.message))}
   };
   return wrap;
 }
+function preparationOptions(job,disabled){
+  const attrs=disabled?'disabled':'';
+  return `<label>תקציב כולל מרבי ($)<input name="budget" type="number" min="0.000001" step="any" value="${esc(job?.budget_usd??'')}" required dir="ltr" ${attrs}></label>
+    <label>היקף הקשר נוסף (תווים)<input name="context" type="number" min="0" max="2000000" step="1" value="${job?.context_chars??4000}" required dir="ltr" ${attrs}></label>
+    <label>אורך תשובה מותר (טוקנים)<input name="output" type="number" min="1" step="1" value="${job?.output_tokens??6000}" required dir="ltr" ${attrs}></label>`;
+}
+function optionsFrom(form){return {budget_usd:Number(form.querySelector('[name=budget]').value),
+  context_chars:Number(form.querySelector('[name=context]').value),output_tokens:Number(form.querySelector('[name=output]').value)}}
 function abandonButton(session){
   const wrap=document.createElement('div');
   const note=document.createElement('p');note.className='muted';
@@ -207,6 +247,9 @@ function abandonButton(session){
 }
 
 function renderProgress(){
+  $('personal-archive').textContent=state.personal_archive?`המילון והסברי הדקדוק נשמרים בתיקייה: ${state.personal_archive.path}`:'';
+  $('archive-warning').hidden=!state.personal_archive?.warning;
+  if(state.personal_archive?.warning)$('archive-warning').textContent=errorText(state.personal_archive.warning);
   const progress=state.progress||(state.summary&&state.summary.progress)||null;
   if(!progress){
     // staged compatibility: older servers may not yet send the progress field.
@@ -233,7 +276,7 @@ function renderProgress(){
 }
 
 function renderVocabLists(progress){
-  const query=($('vocab-search').value||'').trim().normalize('NFC').toLocaleLowerCase('fr');
+  const query=($('vocab-search').value||'').trim().normalize('NFC').toLocaleLowerCase(state.learner.language);
   const savedMap=new Map();
   for(const item of progress.completed_items||[])savedMap.set(item.item_id,item);
   const currentMap=new Map();
@@ -243,7 +286,7 @@ function renderVocabLists(progress){
   for(const id of ids){
     const saved=savedMap.get(id),current=currentMap.get(id);
     const base=saved||current;
-    if(query&&!base.foreign.normalize('NFC').toLocaleLowerCase('fr').includes(query)&&!base.hebrew.includes(query))continue;
+    if(query&&!base.foreign.normalize('NFC').toLocaleLowerCase(state.learner.language).includes(query)&&!base.hebrew.includes(query))continue;
     (base.kind==='grammar'?grammar:words).push({base,saved,current});
   }
   const byForeign=(a,b)=>a.base.foreign.localeCompare(b.base.foreign);
@@ -259,7 +302,8 @@ function renderVocabColumn(host,rows,query){
   }
   for(const row of rows){
     const li=document.createElement('li');li.className='vocab-item';
-    const foreign=document.createElement('bdi');foreign.dir='ltr';foreign.textContent=row.base.foreign;
+    const foreign=document.createElement('bdi');foreign.dir=state.learner.language==='yi'?'rtl':'ltr';
+    foreign.lang=state.learner.language;foreign.textContent=row.base.foreign;
     const hebrew=document.createElement('span');hebrew.textContent=' — '+row.base.hebrew;
     const tags=document.createElement('span');tags.className='vocab-tags';
     if(row.saved){
@@ -334,12 +378,14 @@ async function loadChapter(index){
     if(activeReader!==reader||serial!==chapterRequest)return;
     activeReader.chapter_index=result.chapter_index;activeReader.chapter_count=result.chapter_count;
     activeReader.prepared_hash=result.session.prepared_hash;
+    activeReader.language=result.language||result.session.language;
     $('reader-title').textContent=result.title;
     $('reader-chapter-title').textContent=result.chapter_title;
     $('reader-position').textContent=`פרק ${result.chapter_index+1} מתוך ${result.chapter_count}`;
     $('reader-prev').disabled=result.chapter_index===0;
     $('reader-next').disabled=result.chapter_index>=result.chapter_count-1;
     $('reader-html').innerHTML=result.html;
+    if(result.archive_warning){$('import-error').textContent=errorText(result.archive_warning);$('import-error').hidden=false}
     activeReader.completed=result.session.status==='completed';
     $('complete-button').disabled=activeReader.completed;
     $('complete-button').textContent=activeReader.completed?'הספר כבר סומן כקראתי':'קראתי את הספר';
@@ -379,6 +425,7 @@ $('reader-html').addEventListener('keydown',event=>{
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeGloss(true)});
 
 function renderRecap(recap,items={}){
+  const language=activeReader?.language||state.learner.language;
   const vocabHost=$('recap-vocabulary'),grammarHost=$('recap-grammar'),warningsHost=$('recap-warnings');
   vocabHost.replaceChildren();grammarHost.replaceChildren();warningsHost.replaceChildren();
   const vocabulary=recap.vocabulary||[],grammar=recap.grammar||[],warnings=recap.warnings||[];
@@ -386,7 +433,7 @@ function renderRecap(recap,items={}){
   if($('recap-empty').hidden===false)$('recap-empty').textContent='לא נוספו פריטי לימוד חדשים בפרק זה.';
   for(const entry of vocabulary){
     const li=document.createElement('li'),foreign=document.createElement('bdi');
-    foreign.dir='ltr';foreign.lang='fr';foreign.textContent=items[entry.item_id]?.lemma||entry.item_id;
+    foreign.dir=language==='yi'?'rtl':'ltr';foreign.lang=language;foreign.textContent=items[entry.item_id]?.lemma||entry.item_id;
     li.append(foreign,document.createTextNode(' — '+(entry.gloss_he||'')));vocabHost.append(li);
   }
   for(const entry of grammar){
@@ -394,7 +441,7 @@ function renderRecap(recap,items={}){
     for(const example of entry.examples||[]){
       if(!example.foreign)continue;
       const row=document.createElement('li'),foreign=document.createElement('bdi');
-      foreign.dir='ltr';foreign.lang='fr';foreign.textContent=example.foreign;
+      foreign.dir=language==='yi'?'rtl':'ltr';foreign.lang=language;foreign.textContent=example.foreign;
       row.append(foreign,document.createTextNode(' — '+example.hebrew));grammarHost.append(row);
     }
   }

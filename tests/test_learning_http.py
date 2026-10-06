@@ -80,6 +80,28 @@ class LearningHttpTests(unittest.TestCase):
             self.assertEqual(response['html'], 'fixture')
             reader.assert_called_once_with('demo', 0, gloss_on_click=True)
 
+    def test_language_selection_and_help_use_the_learning_boundary(self):
+        self.assertEqual(self.post('/learning/language', {'language': 'yi'}, token='wrong')[0], 403)
+        status, state = self.post('/learning/language', {'language': 'yi'})
+        self.assertEqual(status, 200)
+        self.assertEqual(state['selected_language'], 'yi')
+        self.assertTrue(all(row['available'] for row in state['languages']))
+        with urlopen(self.base + '/learning/help') as response:
+            self.assertIn('עזרה', response.read().decode('utf-8'))
+        with patch('scholarly_translation.model_adapter.build_translation_adapter', side_effect=AssertionError('unexpected generation')):
+            self.assertEqual(self.post('/learning/language', {'language': 'it'})[0], 200)
+
+    def test_resume_forwards_explicit_user_options(self):
+        with patch.object(self.service, 'resume', return_value={'status': 'paused'}) as resume:
+            # The adapter key gate is intentionally exercised separately by the
+            # existing missing-key test; use the route's existing model fixture.
+            with patch.dict('os.environ', {'OPENAI_API_KEY': 'synthetic-test-key'}):
+                status, _ = self.post('/learning/resume', {'session_id': 'demo', 'budget_usd': 200,
+                    'context_chars': 40000, 'output_tokens': 12000, 'retry': True})
+            self.assertEqual(status, 200)
+            self.assertEqual(resume.call_args.kwargs, {'budget_usd': 200, 'context_chars': 40000,
+                                                       'output_tokens': 12000, 'retry': True})
+
     def test_legacy_home_and_wordlists_still_available(self):
         with urlopen(self.base + '/') as response:
             self.assertIn('תרגום מסמכים', response.read().decode())

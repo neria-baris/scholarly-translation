@@ -17,7 +17,7 @@ from .learning_contracts import (
     validate_generated, validate_plan, validate_recap, word_count,
 )
 
-PROMPT_VERSION = "learning-generation@2"
+PROMPT_VERSION = "learning-generation@3"
 DEFAULT_PROVIDER = "openai"
 DEFAULT_MODEL = "gpt-6-luna"
 _ALLOWED_WARNING_CODES = ("coverage_shortfall", "ambiguous_meaning")
@@ -27,12 +27,15 @@ _DATA_SECTIONS_MARKER = "## Data sections"
 
 
 def _prompt_version(plan):
-    return 'learning-generation@1' if plan['policy_version'] == 'learning-policy@1' else PROMPT_VERSION
+    return {'learning-policy@1': 'learning-generation@1',
+            'learning-policy@2': 'learning-generation@2'}.get(plan['policy_version'], PROMPT_VERSION)
 
 
 def _load_instructions(plan):
-    asset = (_PROMPT_ASSET_PATH if _prompt_version(plan) == 'learning-generation@1' else
-             _PROMPT_ASSET_PATH.with_name('09_learning_cumulative_generation.md'))
+    asset_name = {'learning-generation@1': '08_learning_generation.md',
+                  'learning-generation@2': '09_learning_cumulative_generation.md',
+                  'learning-generation@3': '10_learning_open_vocabulary.md'}[_prompt_version(plan)]
+    asset = _PROMPT_ASSET_PATH.with_name(asset_name)
     text = asset.read_text(encoding="utf-8")
     start = text.index(_INSTRUCTIONS_MARKER) + len(_INSTRUCTIONS_MARKER)
     end = text.index(_DATA_SECTIONS_MARKER)
@@ -47,7 +50,7 @@ def build_request(plan, catalog, context=""):
     """Returns (prompt_string, input_hash). Pure; makes no model call."""
     validate_plan(plan)
     validate_catalog(catalog)
-    require(isinstance(context, str) and len(context) <= 20000, "invalid_plan", "context_too_long")
+    require(isinstance(context, str) and len(context) <= 2000000, "invalid_plan", "context_too_long")
 
     items_by_id = {item["item_id"]: item for item in catalog["items"]}
     selected_items = []
@@ -64,6 +67,8 @@ def build_request(plan, catalog, context=""):
     }
     if 'review_targets' in plan:
         plan_view['review_targets'] = plan['review_targets']
+    if plan['policy_version'] == 'learning-policy@3':
+        plan_view['language'] = catalog['language']
     instructions = _load_instructions(plan)
     prompt = "\n\n".join([
         instructions,
@@ -73,6 +78,8 @@ def build_request(plan, catalog, context=""):
         _section("BOOK_CONTEXT", context),
         _section("SOURCE_UNITS", plan["units"]),
     ])
+    if plan['policy_version'] == 'learning-policy@3':
+        prompt += '\n\n' + _section('FREQUENCY_HINTS', catalog.get('frequency_seed', [])[:100])
     input_hash = fingerprint({
         "prompt": prompt,
         "prompt_version": _prompt_version(plan), "plan": plan, "catalog_version": catalog["version"],
@@ -120,14 +127,46 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
     except json.JSONDecodeError:
         raise LearningError("invalid_generation", "malformed_json")
     require(isinstance(data, dict), "invalid_generation", "not_an_object")
-    require(set(data) == {'response_version', 'plan_id', 'edits', 'recap', 'warnings'}, 'invalid_generation', 'response_fields')
+    fields = {'response_version', 'plan_id', 'edits', 'recap', 'warnings'}
+    optional = {'introduced_items'} if plan['policy_version'] == 'learning-policy@3' else set()
+    require(fields <= set(data) and set(data) <= fields | optional, 'invalid_generation', 'response_fields')
     require(type(data.get("response_version")) is int and data["response_version"] == 1, "invalid_generation", "response_version")
     require(data.get("plan_id") == plan["plan_id"], "invalid_generation", "plan_id_mismatch")
 
     units_by_id = {unit["unit_id"]: unit for unit in plan["units"]}
     items_by_id = {item["item_id"]: item for item in catalog["items"]}
     selected_ids = set(plan["selected_item_ids"])
+    new_ids = set(plan['new_item_ids'])
     limits = plan["limits"]
+
+    introduced = data.get('introduced_items', [])
+    require(isinstance(introduced, list) and len(introduced) <= limits['new_items_per_chunk'],
+            'invalid_generation', 'proposal_quota')
+    admitted, aliases = [], {}
+    from .learning_vocabulary import proposal_item
+    for proposal in introduced:
+        item = proposal_item(proposal, catalog['language'], plan['level_id'], catalog.get('frequency_seed', []))
+        local_id = check_id(proposal['item_id'])
+        require(local_id not in aliases and local_id not in items_by_id and
+                item['item_id'] not in items_by_id, 'invalid_generation', 'definition_conflict')
+        aliases[local_id] = item['item_id']
+        items_by_id[item['item_id']] = item
+        admitted.append(item)
+        selected_ids.add(item['item_id'])
+        new_ids.add(item['item_id'])
+    if aliases:
+        require(isinstance(data['edits'], list), 'invalid_generation')
+        for edit in data['edits']:
+            require(isinstance(edit, dict), 'invalid_generation')
+            for key in ('item_ids', 'grammar_ids'):
+                require(isinstance(edit.get(key), list) and all(isinstance(value, str) for value in edit[key]), 'invalid_generation')
+                edit[key] = [aliases.get(value, value) for value in edit[key]]
+        require(isinstance(data['recap'], dict), 'missing_recap')
+        for key in ('vocabulary', 'grammar'):
+            require(isinstance(data['recap'].get(key), list), 'missing_recap')
+            for entry in data['recap'][key]:
+                require(isinstance(entry, dict), 'missing_recap')
+                entry['item_id'] = aliases.get(entry.get('item_id'), entry.get('item_id'))
 
     edits_raw = data.get("edits")
     require(isinstance(edits_raw, list), "invalid_generation", "edits")
@@ -197,10 +236,10 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         occupied.setdefault(unit_id, []).append((start, end))
         grammar_used.update(grammar_ids)
         foreign_words += rep_words
-        if set(item_ids + grammar_ids) & set(plan['new_item_ids']):
+        if set(item_ids + grammar_ids) & new_ids:
             new_foreign_words += rep_words
         removed_words += word_count(original)
-        new_items_used |= set(item_ids + grammar_ids) & set(plan["new_item_ids"])
+        new_items_used |= set(item_ids + grammar_ids) & new_ids
 
     for spans in occupied.values():
         spans.sort()
@@ -209,7 +248,7 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
 
     total_words = max(sum(word_count(unit["text"]) for unit in plan["units"] if unit['kind'] == 'paragraph') - removed_words + foreign_words, 1)
     cumulative = plan['policy_version'] != 'learning-policy@1'
-    grammar_objectives = grammar_used & set(plan['new_item_ids']) if cumulative else grammar_used
+    grammar_objectives = grammar_used & new_ids if cumulative else grammar_used
     require(len(grammar_objectives) <= limits["max_grammar_per_chunk"], "invalid_generation", "grammar_per_chunk")
     counted_foreign = new_foreign_words if cumulative else foreign_words
     require(counted_foreign / total_words <= limits["max_foreign_share"] + 1e-9,
@@ -229,6 +268,7 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         warnings.append({"code": warning["code"], "unit_id": unit_ref})
 
     coverage_item_ids = sorted({item_id for edit in edits for item_id in edit["item_ids"] + edit['grammar_ids']})
+    require(all(item['item_id'] in coverage_item_ids for item in admitted), 'invalid_generation', 'unused_proposal')
     if set(plan['selected_item_ids']) - set(coverage_item_ids) and not any(w['code'] == 'coverage_shortfall' for w in warnings):
         warnings.append({'code': 'coverage_shortfall', 'unit_id': None})
     chunk = {
@@ -239,6 +279,11 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         "coverage_item_ids": coverage_item_ids,
         "content_hash": fingerprint({"plan_id": plan['plan_id'], "input_hash": input_hash, "edits": edits, "coverage_item_ids": coverage_item_ids}),
     }
+    if admitted:
+        chunk['introduced_items'] = admitted
+        chunk['content_hash'] = fingerprint({'plan_id': plan['plan_id'], 'input_hash': input_hash,
+                                            'edits': edits, 'coverage_item_ids': coverage_item_ids,
+                                            'introduced_items': admitted})
     validate_generated(chunk)
 
     recap_raw = data.get("recap")

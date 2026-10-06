@@ -752,3 +752,36 @@ Sol direct small fix, no Sonnet/Opus/Astra/external development or paid runtime 
 
 ## 2026-10-06T05:29:33.699090+00:00 | LEARN-5 | verified local commit receipt
 Delivery f4e0efc445dabd03b3b18e3bc02c9eb5607f39e9 contains exactly15 intended reviewed paths; staged diff check passed and index matched working files. Feature tree clean after commit.54 scoped tests and synthetic browser PASS; no full rerun or additional model calls. Main active translation/concurrent changes preserved. Push not attempted; no merge/deploy. Receipt changes audit only.
+
+
+## 2026-10-06T06:11:57.338877+00:00 | LEARN-6 | local integration and scoped verification
+
+LEARN-6-BUILDER/LOCAL/RECOVERY/PROMPT attempts recorded; one failed external CLI
+event, rejected escalation not an executed model call. Local help_archive agent
+owned archive/help/12 archive tests only, copied and reviewed sequentially.
+166 learning tests PASS35.733s. Initial HTTP fixture incorrectly mocked nested
+handler closures; replaced by actual route with synthetic key and mocked service,
+no provider dispatch.22 library tests initially had blocked default Node shim;
+process-local bundled Node path corrected environment,22 PASS4.566s. Two meaningful
+follow-up scenarios (corrupt costs and actual grammar receipt) added;9 tests PASS
+12.441s. Sent-prompt schema boundary corrected on diff review;53 focused tests
+PASS16.655s, JS syntax PASS, no complete translation-suite rerun.
+Synthetic preview10 fake calls/paid0; browser selector/yi history, adjustable
+options, click meaning, recap/progress/received-grammar files and help verified.
+Archive test retains180k+ explanation; no truncation or false full-save claim.
+No active checkout/runtime/data/credential change. Local reviewed commit/receipt
+follows; feature push/main merge/deploy not attempted. No paid quality pilot.
+
+
+## 2026-10-06T06:15:43.039844+00:00 | LEARN-6 | final explicit unknown-outcome recovery PASS
+
+Final diff review found shared dispatcher cross-step guard still blocked an
+explicit distinct retry after a lost dispatch. Learning-only supported journal
+transition now records old unknown outcome as failed with user-choice reason;
+original identities/events/held costs preserved. One-use authorization is saved
+as consumed before another call; a later loss requires a fresh checkbox choice.
+26 focused controls/integration/multilingual/HTTP tests PASS25.662s, including
+two losses/no automatic resend/final explicit success/prior holds.169 unique
+learning tests and22 library tests covered across scoped runs. No shared
+dispatcher/journal/control module change, model invocation or full-suite rerun.
+This extends earlier LEARN-6 acceptance; reviewed local Git closure follows.

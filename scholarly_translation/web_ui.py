@@ -225,16 +225,21 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         service = _learning()
         if path == "/learning/state":
             return service.summary()
+        if path == "/learning/language":
+            return service.select_language(data.get("language"))
         if path == "/learning/import-translation":
             return service.import_translation(document_jobs.get(data.get("job_id", "")))
         if path == "/learning/effort":
             return service.set_effort(data.get("level_id"))
         if path == "/learning/prepare":
             configuration, factory = _learning_adapter()
-            return service.start(data.get("book_id"), data.get("budget_usd"), configuration, factory)
+            return service.start(data.get("book_id"), data.get("budget_usd"), configuration, factory,
+                                 context_chars=data.get('context_chars', 4000), output_tokens=data.get('output_tokens', 6000))
         if path == "/learning/resume":
             _configuration, factory = _learning_adapter()
-            return service.resume(data.get("session_id"), factory, budget_usd=data.get("budget_usd"))
+            return service.resume(data.get("session_id"), factory, budget_usd=data.get("budget_usd"),
+                                  context_chars=data.get('context_chars'), output_tokens=data.get('output_tokens'),
+                                  retry=data.get('retry', False))
         if path == "/learning/pause":
             return service.pause(data.get("session_id"))
         if path == "/learning/abandon":
@@ -388,6 +393,9 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     self._json(404, {"error": "not found"})
                     return
                 self._reply(200, (ROOT / 'prompts' / 'language_learning' / 'wordlists' / (language + '_500.md')).read_bytes(), 'text/plain')
+                return
+            if urlparse(self.path).path == '/learning/help':
+                self._reply(200, (UI_DIR / 'learning_help.html').read_bytes(), 'text/html')
                 return
             if self.path in ("/learning.js", "/learning.css"):
                 name = self.path.removeprefix("/")
