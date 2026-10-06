@@ -41,7 +41,8 @@ def _wait(jobs, job_id):
 
 def _body_blocks(page):
     body = page.split("<body>", 1)[1].split("</body>", 1)[0]
-    return re.findall(r"<(h[1-5]|p|blockquote)( class=\"[^\"]*\")?>(.*?)</\1>", body, re.S)
+    # dir="ltr" marks a block kept in its original language (ARTICLE-NOTES)
+    return re.findall(r"<(h[1-5]|p|blockquote)( class=\"[^\"]*\")?(?: dir=\"ltr\")?>(.*?)</\1>", body, re.S)
 
 
 class ExportHtmlTests(unittest.TestCase):

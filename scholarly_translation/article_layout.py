@@ -393,3 +393,30 @@ def strip_note_label(text, label):
         return text
     pattern = r"^\s*(?:\[\^?" + re.escape(label) + r"\]|" + re.escape(label) + r")[.)]?\s*"
     return re.sub(pattern, "", text or "", count=1)
+
+
+def footnotes(structure, text_of):
+    """Notes that have a mark in the body, joined with their continuations.
+
+    ``text_of(unit_id)`` gives the text to show for a unit (translation or source). Returns
+    ``(notes, consumed)``: ``notes[(page_id, label)]`` is the note text without its leading
+    number; ``consumed`` holds the note unit ids rendered as footnotes (the others stay
+    where they were)."""
+    idx = note_index(structure)
+    pages = {u["unit_id"]: u["page_id"] for u in structure.get("units", [])}
+    marked = {(pages[uid], label) for uid, marks in idx["marks"].items() for _, _, label in marks}
+    notes, consumed, key_of = {}, set(), {}
+    for uid, info in idx["notes"].items():
+        if info["label"] is not None:
+            key = (info["page_id"], info["label"])
+        else:
+            key = key_of.get(info["continues"])
+        key_of[uid] = key
+        if key is None or key not in marked:
+            continue
+        text = text_of(uid)
+        if info["label"] is not None:
+            text = strip_note_label(text, info["label"])
+        notes[key] = (notes.get(key, "") + " " + " ".join(text.split())).strip()
+        consumed.add(uid)
+    return notes, consumed

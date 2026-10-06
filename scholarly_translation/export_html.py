@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import base64
 import html
+import re
 
+from .article_layout import MARK_TOKEN_RE, footnotes
 from .export_common import (
     _BUNDLED_FONT_ROOT, _PDF_FONTS, ExportError, _resolve_bundled_font, normalize_nfc,
     display_math, ordered_render_units, require_translation, validate_translations_mapping,
@@ -59,6 +61,7 @@ p { margin: .35em 0; }
 blockquote { margin: .6em 2em .6em 0; }
 p.list { margin-right: 1.5em; }
 p.note { font-size: .82em; }
+section.footnotes { font-size: .82em; }
 p.caption, p.formula, p.scene-break { text-align: center; }
 p.formula { direction: ltr; unicode-bidi: isolate; }
 p.caption { font-size: .82em; }
@@ -84,6 +87,9 @@ def _font_css(font_id):
     return "\n".join(faces) + "\n", '"st-export-font", ' + _SYSTEM_FONT_STACK
 
 
+_HEBREW_RE = re.compile("[֐-׿]")
+
+
 def _escape_text(text):
     return "<br>".join(html.escape(line, quote=True) for line in normalize_nfc(text).split("\n"))
 
@@ -104,13 +110,34 @@ def export_html(structure, translations, title, font_id=None) -> bytes:
     render_units = ordered_render_units(structure)
     font_faces, family = _font_css(font_id)
 
+    def text_of(unit_id):
+        entry = translations.get(unit_id)
+        if entry is not None:
+            return entry["text"]
+        return next(ru["source_text"] for ru in render_units if ru["unit_id"] == unit_id)
+    notes, consumed = footnotes(structure, text_of)
+    pages = {u["unit_id"]: u["page_id"] for u in structure["units"]}
+    numbers, note_items = {}, []
+
+    def link_marks(escaped, page_id):
+        def link(match):
+            key = (page_id, match.group(1))
+            if key not in notes:
+                return f"<sup>{match.group(1)}</sup>"
+            if key not in numbers:
+                numbers[key] = len(numbers) + 1
+                note_items.append((numbers[key], key))
+            n = numbers[key]
+            return f'<sup id="fnref-{n}"><a href="#fn-{n}">{html.escape(match.group(1))}</a></sup>'
+        return MARK_TOKEN_RE.sub(link, escaped)
+
     body = []
     title_text = title if isinstance(title, str) and title.strip() else ""
     if title_text:
         body.append(f"<h1>{_escape_text(title_text)}</h1>")
     for render_unit in render_units:
         kind = render_unit["kind"]
-        if kind == "page_furniture":
+        if kind == "page_furniture" or render_unit["unit_id"] in consumed:
             continue
         try:
             text, _, _ = require_translation(render_unit["unit_id"], translations)
@@ -121,7 +148,17 @@ def export_html(structure, translations, title, font_id=None) -> bytes:
             continue
         tag, css_class = _TAG_BY_KIND.get(kind, _DEFAULT_TAG)
         attrs = f' class="{css_class}"' if css_class else ""
-        body.append(f"<{tag}{attrs}>{_escape_text(text)}</{tag}>")
+        if not _HEBREW_RE.search(text):
+            attrs += ' dir="ltr"'          # a reference entry or other text kept in its original
+            if kind == "bibliography_entry":
+                text = " ".join(text.split())   # the source's line wrapping is not part of the entry
+        body.append(f"<{tag}{attrs}>{link_marks(_escape_text(text), pages[render_unit['unit_id']])}</{tag}>")
+    if note_items:
+        items = "".join(
+            f'<li id="fn-{n}" value="{html.escape(key[1]) if key[1].isdigit() else n}">'
+            f'{_escape_text(notes[key])} <a href="#fnref-{n}" aria-label="back">↩</a></li>'
+            for n, key in note_items)
+        body.append(f'<section class="footnotes" role="doc-endnotes"><hr><ol>{items}</ol></section>')
 
     css = font_faces + _BASE_CSS % {"family": family}
     page = (

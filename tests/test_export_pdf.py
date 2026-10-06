@@ -118,7 +118,8 @@ class PdfExportStructureTests(unittest.TestCase):
         self.assertIn("note", {n["kind"] for n in structure["nodes"]})
         translations = _hebrew_translations(structure)
         result = export_pdf(structure, translations)
-        self.assertTrue(any(lim["kind"] == "footnotes_rendered_inline" for lim in result.limitations))
+        # No mark for "[1]" in the body: the note stays where it stood (ARTICLE-NOTES).
+        self.assertTrue(any(lim["kind"] == "note_without_mark" for lim in result.limitations))
         note_entries = [m for m in result.manifest if m["kind"] == "note"]
         self.assertEqual(len(note_entries), 1)
         self.assertTrue(note_entries[0]["rendered"])

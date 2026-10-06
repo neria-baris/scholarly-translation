@@ -308,6 +308,18 @@ def _is_hebrew_token(token: str) -> bool:
     return bool(_HEBREW_RANGE_RE.search(token))
 
 
+_SUPERSCRIPT_RUN_RE = re.compile("([⁰¹²³⁴-⁹]+)")
+
+
+def _reverse_hebrew_token(token: str) -> str:
+    """Reverse one Hebrew token for drawing, mirroring brackets; a run of superscript digits
+    (a footnote mark glued to the word) keeps its own left-to-right digit order."""
+    parts = _SUPERSCRIPT_RUN_RE.split(token)
+    return "".join(part if _SUPERSCRIPT_RUN_RE.fullmatch(part) else
+                   "".join(_MIRROR_PAIRS.get(ch, ch) for ch in reversed(part))
+                   for part in reversed(parts))
+
+
 def reorder_bidi_line(text: str) -> str:
     """Return a left-to-right-drawable "visual order" rendering of one
     line of mixed Hebrew/Latin/digit text, assuming an overall
@@ -369,10 +381,7 @@ def _reorder_bidi_single_line(line: str) -> str:
     visual_runs = []
     for is_hebrew, run_tokens in reversed(runs):
         if is_hebrew:
-            processed = [
-                "".join(_MIRROR_PAIRS.get(ch, ch) for ch in reversed(tok))
-                for tok in reversed(run_tokens)
-            ]
+            processed = [_reverse_hebrew_token(tok) for tok in reversed(run_tokens)]
         else:
             processed = run_tokens
         visual_runs.append(" ".join(processed))

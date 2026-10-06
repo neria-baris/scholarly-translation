@@ -19,6 +19,7 @@ dropping or mis-rendering it silently.
 from __future__ import annotations
 
 import io
+import re
 from dataclasses import dataclass, field
 
 from reportlab.pdfbase import pdfmetrics
@@ -26,6 +27,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as rl_canvas
 
+from .article_layout import MARK_TOKEN_RE, display_marks, footnotes
 from .export_common import (
     ExportError, display_math, font_runs, ordered_render_units, reorder_bidi_line, require_translation,
     resolve_hebrew_font, validate_translations_mapping, wrap_logical_lines,
@@ -33,6 +35,7 @@ from .export_common import (
 from .segmentation import validate_structure
 from .source_reading import StructureError
 
+_HEBREW_RE = re.compile("[֐-׿]")
 MARGIN = 54.0  # 0.75 inch
 PAGE_SIZE = A4
 LINE_LEADING = 1.28
@@ -68,6 +71,11 @@ class PdfExportResult:
     font_id: str | None = None
 
 
+FOOTNOTE_STYLE = {"size": 9, "bold": False, "before": 0, "after": 0, "align": "right"}
+FOOTNOTE_RULE = 8.0          # space above the notes, holding the short separator rule
+FOOTNOTE_MAX_SHARE = 0.6     # notes never take more than this share of a page
+
+
 class _PdfWriter:
     def __init__(self, font_name, bold_font_name):
         self.buf = io.BytesIO()
@@ -80,24 +88,87 @@ class _PdfWriter:
         self.max_width = self.page_width - 2 * MARGIN
         self.y = self.page_height - MARGIN
         self.page_count = 1
+        self.foot = []       # wrapped footnote lines of this page, in order
+        self.carry = []      # footnote lines that continue on the next page
+
+    # -- footnotes ---------------------------------------------------------
+    def _note_line_height(self):
+        return FOOTNOTE_STYLE["size"] * LINE_LEADING
+
+    def _foot_height(self, lines):
+        return FOOTNOTE_RULE + len(lines) * self._note_line_height() if lines else 0.0
+
+    def _bottom(self):
+        return MARGIN + self._foot_height(self.foot)
+
+    def _note_lines(self, label, text):
+        return wrap_logical_lines(label + " " + text, self.font_name, FOOTNOTE_STYLE["size"], self.max_width) or [label]
+
+    def _draw_foot(self):
+        if not self.foot:
+            return
+        top = MARGIN + self._foot_height(self.foot)
+        self.canvas.setLineWidth(0.5)
+        self.canvas.line(self.right_x - 120, top - 2, self.right_x, top - 2)
+        y = top - FOOTNOTE_RULE
+        for line in self.foot:
+            y -= self._note_line_height()
+            saved, self.y = self.y, y
+            self._draw_line(reorder_bidi_line(line), self.font_name, FOOTNOTE_STYLE["size"], "right", 0)
+            self.y = saved
+        self.foot = []
+
+    def _place_notes(self, new_lines, line_height):
+        """Reserve room for ``new_lines`` before drawing a body line of ``line_height`` that holds
+        their marks: move to a new page when they do not fit; on a fresh page a note longer than
+        the room left continues at the bottom of the next page."""
+        if not new_lines:
+            return
+        if self.y - line_height >= MARGIN + self._foot_height(self.foot + new_lines):
+            self.foot.extend(new_lines)
+            return
+        if self.y < self.page_height - MARGIN - 1:
+            self._new_page()
+            if self.y - line_height >= MARGIN + self._foot_height(self.foot + new_lines):
+                self.foot.extend(new_lines)
+                return
+        limit = (self.page_height - 2 * MARGIN) * FOOTNOTE_MAX_SHARE
+        room = min(self.y - line_height - MARGIN, limit) - FOOTNOTE_RULE
+        fit = max(1, min(int(room // self._note_line_height()) - len(self.foot), len(new_lines)))
+        self.foot.extend(new_lines[:fit])
+        self.carry.extend(new_lines[fit:])
 
     def _new_page(self):
+        self._draw_foot()
         self.canvas.showPage()
         self.page_count += 1
         self.y = self.page_height - MARGIN
+        if self.carry:
+            limit = int((self.page_height - 2 * MARGIN) * FOOTNOTE_MAX_SHARE // self._note_line_height())
+            self.foot, self.carry = self.carry[:max(limit, 1)], self.carry[max(limit, 1):]
 
     def _ensure_room(self, needed_height):
-        if self.y - needed_height < MARGIN:
+        if self.y - needed_height < self._bottom():
             self._new_page()
 
-    def draw_text_block(self, kind, text, style=None):
+    def draw_text_block(self, kind, text, style=None, notes=None):
+        """``notes`` maps a mark label to its note text; the block's ``[^n]`` marks are drawn
+        as superscript numbers and their notes go to the bottom of the page the mark is on."""
         style = style or _STYLE_BY_KIND.get(kind, _DEFAULT_STYLE)
         font = self.bold_font_name if style.get("bold") else self.font_name
         size = style["size"]
         indent = style.get("indent", 0)
         max_width = self.max_width - indent
+        word_labels = [MARK_TOKEN_RE.findall(word) for word in text.split()]
+        text = display_marks(text)
         logical_lines = wrap_logical_lines(text, font, size, max_width) or [""]
         line_height = size * LINE_LEADING
+        line_labels, cursor = [], 0
+        for logical_line in logical_lines:
+            count = len(logical_line.split())
+            line_labels.append([label for labels in word_labels[cursor:cursor + count] for label in labels])
+            cursor += count
+        notes = dict(notes or {})
         needed = style.get("before", 0) + len(logical_lines) * line_height + style.get("after", 0)
         # A block longer than a page necessarily splits. Start its first lines
         # in the current page's remaining room instead of abandoning that room
@@ -108,9 +179,14 @@ class _PdfWriter:
         self._ensure_room(needed)
         self.y -= style.get("before", 0)
         self.canvas.setFont(font, size)
-        for logical_line in logical_lines:
-            if self.y - line_height < MARGIN:
+        for logical_line, labels in zip(logical_lines, line_labels):
+            if self.y - line_height < self._bottom():
                 self._new_page()
+                self.canvas.setFont(font, size)
+            new_notes = [line for label in labels if label in notes
+                         for line in self._note_lines(label, notes.pop(label))]
+            if new_notes:
+                self._place_notes(new_notes, line_height)
                 self.canvas.setFont(font, size)
             visual_line = reorder_bidi_line(logical_line)
             self._draw_line(visual_line, font, size, style.get("align", "right"), indent)
@@ -147,6 +223,9 @@ class _PdfWriter:
         self.y -= h + 10
 
     def finish(self) -> bytes:
+        while self.carry:
+            self._new_page()
+        self._draw_foot()
         self.canvas.showPage()
         self.canvas.save()
         return self.buf.getvalue()
@@ -194,10 +273,17 @@ def export_pdf(structure, translations, *, images=None, title=None, font_id=None
         limitations.append({"kind": font_limitation, "detail":
                              "no Hebrew-capable TTF font found on this host; "
                              "falling back to a built-in font with no Hebrew glyphs"})
-    if any(ru["kind"] == "note" for ru in render_units):
-        limitations.append({"kind": "footnotes_rendered_inline", "detail":
-                             "notes/footnotes are rendered inline near their source "
-                             "position, not pinned to the original page bottom"})
+    def text_of(unit_id):
+        entry = translations.get(unit_id)
+        if entry is not None:
+            return entry["text"]
+        return next(ru["source_text"] for ru in render_units if ru["unit_id"] == unit_id)
+    notes, consumed = footnotes(structure, text_of)
+    pages = {u["unit_id"]: u["page_id"] for u in structure["units"]}
+    if any(ru["kind"] == "note" and ru["unit_id"] not in consumed for ru in render_units):
+        limitations.append({"kind": "note_without_mark", "detail":
+                             "notes whose mark was not found in the text are rendered where they "
+                             "stood, not at the bottom of the page"})
 
     writer = _PdfWriter(font_name, bold_font_name)
     if title:
@@ -211,6 +297,10 @@ def export_pdf(structure, translations, *, images=None, title=None, font_id=None
         if kind == "page_furniture":
             manifest.append({"unit_id": unit_id, "node_ids": node_ids, "kind": kind,
                               "rendered": False, "reason": "page_furniture_omitted"})
+            continue
+        if unit_id in consumed:
+            manifest.append({"unit_id": unit_id, "node_ids": node_ids, "kind": kind,
+                              "rendered": True, "placement": "footnote"})
             continue
 
         try:
@@ -242,7 +332,14 @@ def export_pdf(structure, translations, *, images=None, title=None, font_id=None
                                          "detail": "supplied image bytes could not be decoded/embedded; "
                                                    "caption text rendered without its figure"})
 
-        writer.draw_text_block(kind, text)
+        style = _STYLE_BY_KIND.get(kind, _DEFAULT_STYLE)
+        if style.get("align") == "right" and not _HEBREW_RE.search(text):
+            style = dict(style, align="left")     # a reference entry or other text kept in its original
+            if kind == "bibliography_entry":
+                text = " ".join(text.split())     # the source's line wrapping is not part of the entry
+        page_notes = {label: notes[(pages[unit_id], label)] for label in MARK_TOKEN_RE.findall(text)
+                      if (pages[unit_id], label) in notes}
+        writer.draw_text_block(kind, text, style, page_notes)
         manifest.append({
             "unit_id": unit_id, "node_ids": node_ids, "kind": kind,
             "rendered": True, "approved": approved, "status": status,
