@@ -888,6 +888,25 @@ def _correction_issue_limit(record, selection, cap):
     return min(8000, int(available / 4.6))
 
 
+_FENCE_RE = re.compile(r'^```[A-Za-z]*\s*|\s*```$')
+
+
+def _loads_json_array(raw_text):
+    """Strict JSON, except that a complete top-level array may be wrapped in a code
+    fence or followed by stray closing brackets/braces (a common model slip such as
+    ``...}]}``). Anything else -- leading prose, truncation, extra content -- fails."""
+    text = _FENCE_RE.sub('', raw_text.strip())
+    try:
+        return json.loads(text)
+    except ValueError:
+        if not text.startswith('['):
+            raise
+        value, end = json.JSONDecoder().raw_decode(text)
+        if text[end:].strip(' \t\r\n]}`'):
+            raise
+        return value
+
+
 def _untranslatable_passthrough(record):
     return (not _HEBREW_RE.search(record['target_text'] or '')
             and not has_translatable_words(record['source_text']))
@@ -907,7 +926,7 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
     if not isinstance(raw_text, str) or not raw_text.strip():
         raise ChapterPipelineError("translation response was empty")
     try:
-        data = json.loads(raw_text)
+        data = _loads_json_array(raw_text)
     except (json.JSONDecodeError, TypeError, ValueError):
         raise ChapterPipelineError("translation response was not valid JSON (possibly truncated)") from None
     if not isinstance(data, list):

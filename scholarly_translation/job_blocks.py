@@ -131,9 +131,16 @@ def diagnose(job, store, journal):
                 "options": _budget_options(status)}
     if blocking and error:
         step = blocking[0]
+        saved = json.loads(step["raw_json"]) if step["status"] == "failed" and step["raw_json"] else None
+        options = [_option("accept_and_retry", "לשלוח את השלב מחדש (קריאה חדשה לספק)")]
+        message = "שלב %s נכשל (%s). ניסיון חוזר ישלח קריאה חדשה לספק." % (step["stage"], step["error"] or step["status"])
+        if saved and saved.get("status") in ("completed", "mock_placeholder"):
+            # A completed provider answer was kept; resuming re-checks it locally, never resends.
+            options.insert(0, _option("reuse_saved_response", "להמשיך עם התשובה השמורה (בלי קריאה חדשה)"))
+            message = ("שלב %s נכשל בבדיקת התשובה (%s). התשובה של הספק נשמרה: אפשר לבדוק אותה שוב בלי "
+                       "קריאה חדשה, או לשלוח את השלב מחדש." % (step["stage"], step["error"]))
         return {"kind": "failed_call", "details": dict(details, stage=step["stage"]),
-                "message": "שלב %s נכשל (%s). ניסיון חוזר ישלח קריאה חדשה לספק." % (step["stage"], step["error"] or step["status"]),
-                "options": [_option("accept_and_retry", "לנסות שוב את השלב")]}
+                "message": message, "options": options}
     return None
 
 

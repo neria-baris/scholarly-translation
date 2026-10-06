@@ -119,6 +119,14 @@ class ChapterPipelineTests(unittest.TestCase):
         with self.assertRaises(ChapterPipelineError):
             parse_batch_translation_response(raw, ["u1"])
 
+    def test_tolerates_only_trailing_closers_or_code_fence(self):
+        item = {"unit_id": "u1", "translation": HEBREW, "translation_note": None}
+        for raw in (json.dumps([item]) + "}", json.dumps([item]) + "]}\n", "```json\n" + json.dumps([item]) + "\n```"):
+            self.assertEqual(parse_batch_translation_response(raw, ["u1"])["u1"]["translation"], HEBREW)
+        for raw in ("Here it is: " + json.dumps([item]), json.dumps([item]) + " and more", json.dumps([item])[:-2]):
+            with self.assertRaises(ChapterPipelineError):
+                parse_batch_translation_response(raw, ["u1"])
+
     def test_never_falls_back_to_source_text(self):
         source_text = "Some scholars argue that the point holds."
         raw = json.dumps([{"unit_id": "u1", "translation": source_text}])
