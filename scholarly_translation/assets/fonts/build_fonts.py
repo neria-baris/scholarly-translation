@@ -79,6 +79,9 @@ if __name__ == '__main__':
     for weight in [400,700]:
         static_font('frankruhllibre','FrankRuhlLibre[wght].ttf','Frank Ruhl Libre',weight)
         static_font('notoserifhebrew','NotoSerifHebrew[wdth,wght].ttf','Noto Serif Hebrew',weight)
+    # 2026-10-06: regular-only Noto Sans instance, the PDF glyph fallback for
+    # superscripts/subscripts and symbols the Hebrew fonts lack (after Noto Sans Math).
+    static_font('notosans','NotoSans[wdth,wght].ttf','Noto Sans',400)
     for style in ['Regular','Bold']: quadratic_david(style)
     outputs = []
     for path in sorted(ROOT.rglob('*.ttf')):

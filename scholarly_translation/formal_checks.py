@@ -33,10 +33,30 @@ _DOMAIN_RE = re.compile(r'^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:/\S*)?$', re.IGNORECASE)
 _TOKEN_EDGE = '()[]{}<>"\'.,;:!?‘’“”'
 
 
+_MATH_CHARS = set("=+*/^_<>|\\") | set(
+    "≤≥≠≈±×÷∑∏∫√∂∇∞∈∉"
+    "⊂⊆⊃∪∩→⇒⇔↔∀∃∅∘⋅′″")
+_MATH_FUNCTIONS = {"sin", "cos", "tan", "cot", "sec", "csc", "log", "ln", "exp", "lim", "max", "min",
+                   "sup", "inf", "det", "deg", "arg", "dim", "mod", "gcd", "lcm", "var", "cov"}
+
+
+def _is_math_token(token):
+    """Variables, operators, Greek letters, super/subscripts and function names."""
+    letters = [ch for ch in token if ch.isalpha()]
+    return (len(letters) == 1
+            or any(ch in _MATH_CHARS for ch in token)
+            or any(ch in "([{" for ch in token[1:])       # f(x), a[i]: application/indexing
+            or any("Ͱ" <= ch <= "Ͽ" or "⁰" <= ch <= "₟" or "ᵢ" <= ch <= "ᵪ"
+                   or "²" <= ch <= "³" or ch == "¹" or "℀" <= ch <= "⅏"
+                   or "\U0001d400" <= ch <= "\U0001d7ff" for ch in token)
+            or token.lower().rstrip("(") in _MATH_FUNCTIONS)
+
+
 def has_translatable_words(text):
     """True when ``text`` contains a word a translator should render in Hebrew.
     URLs, e-mail addresses, domain names, tokens containing a digit (ISBNs,
-    dates, codes) and letterless tokens are not translatable words."""
+    dates, codes), letterless tokens and mathematical tokens (single-letter
+    variables, operators, Greek, super/subscripts, function names) are not."""
     for token in text.split():
         token = token.strip(_TOKEN_EDGE)
         if not any(ch.isalpha() for ch in token):
@@ -44,6 +64,8 @@ def has_translatable_words(text):
         if any(ch.isdigit() for ch in token):
             continue
         if _URL_RE.match(token) or _EMAIL_RE.match(token) or _DOMAIN_RE.match(token):
+            continue
+        if _is_math_token(token):
             continue
         return True
     return False

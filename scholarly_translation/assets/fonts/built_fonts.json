@@ -47,6 +47,21 @@
       "size": 178468
     },
     {
+      "path": "notosans/NotoSans-Regular.ttf",
+      "sha256": "256f28a8017891d98b56bf9078bc106513a309a5613eb1d00242012f787c8d59",
+      "size": 646428
+    },
+    {
+      "path": "notosans/NotoSans[wdth,wght].ttf",
+      "sha256": "bfb7bb691513f12e734dc346c03a03f784912432d7e3fa8e56efcf906fe86b3d",
+      "size": 2049096
+    },
+    {
+      "path": "notosansmath/NotoSansMath-Regular.ttf",
+      "sha256": "3f495fe933c06786e4d5f6d86b8ee70b6753a68ee3b9d87528726de0f6e2c47d",
+      "size": 1015396
+    },
+    {
       "path": "notoserifhebrew/NotoSerifHebrew-Bold.ttf",
       "sha256": "36afe1045526d17b7b82ab7b5be291726bf132b4be60471b26043a62b8db26da",
       "size": 56272

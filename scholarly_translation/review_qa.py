@@ -132,6 +132,8 @@ def _render(prompt_id: str, substitutions: dict) -> str:
     text = pattern.sub(lambda match: substitutions[match.group(1)], text)
     # Optional placeholder: callers that do not supply a notebook render "(none)".
     text = text.replace("{{book_notebook}}", "(none)")
+    # Optional block: callers without deterministic review focus add nothing.
+    text = text.replace("{{review_focus}}", "")
     return text + _OUTPUT_CONTRACTS.get(prompt_id, "")
 
 

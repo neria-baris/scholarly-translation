@@ -20,6 +20,7 @@ from .source_reading import (
     StructureError, build_readings, fingerprint, integer, nonempty, require, sha,
     strings, validate_candidate, validate_decision,
 )
+from .formal_checks import has_translatable_words
 from .store import deterministic_id
 
 SCHEMA_VERSION = 2
@@ -58,6 +59,7 @@ _CAPTION_RE = re.compile(r"^(figure|fig\.|table|plate|tableau|図|表)\s*\d", re
 _BIBLIOGRAPHY_RE = re.compile(r"^[A-Z][\w'-]+,\s*[A-Z]\.(\s*[A-Z]\.)*\s*\(\d{4}\)")
 _LIST_RE = re.compile(r"^(?:(?:•|・|●|○|-|\*)\s*|\d+[\.\)]\s+)\S")
 _FORMULA_RE = re.compile(r"^[A-Za-z0-9\s\+\-\*/\^_\.\(\)=]+$")
+_FORMULA_RELATIONS = set("=<>≤≥≠≈≡∈∉⊂⊆→⇒⇔∑∏∫√")
 _SCENE_BREAK_RE = re.compile(r"^[\*＊\-–—#~ ]{3,}$")
 _PAGE_FURNITURE_RE = re.compile(r"^(?:(?:page|page\s+n°|ページ)\s*)?\d{1,4}$", re.IGNORECASE)
 _QUOTE_PAIRS = [('"', '"'), ("“", "”"), ("'", "'")]
@@ -86,6 +88,9 @@ def classify_line(line: str):
         return "list", None
     if "=" in stripped and len(stripped.split()) <= 8 and _FORMULA_RE.match(stripped):
         return "formula", None
+    if (len(stripped.split()) <= 16 and any(ch in _FORMULA_RELATIONS for ch in stripped)
+            and not has_translatable_words(stripped)):
+        return "formula", None   # Unicode display maths: relations/operators, no prose words
     for open_q, close_q in _QUOTE_PAIRS:
         if len(stripped) > 1 and stripped.startswith(open_q) and stripped.endswith(close_q):
             return "quotation", None

@@ -64,8 +64,65 @@ CRITIC_TRIGGER_TYPES = {"negation", "quantifier", "scope_modality", "japanese_co
 # Kept out of CRITIC_TRIGGER_TYPES so human_review's "review required" set and
 # every scholarly behaviour stay unchanged; the critic path accepts both.
 LITERARY_TRIGGER_TYPES = {"literary_dialogue", "literary_exclamation_question", "literary_wordplay_marker"}
-ALL_CRITIC_TRIGGER_TYPES = CRITIC_TRIGGER_TYPES | LITERARY_TRIGGER_TYPES
+# Academic triggers (opt-in via ``academic=True``, used by the scholarly chapter
+# pipeline). Deterministic flags only; they route a unit to review and tell the
+# reviewer what to check, never assert an error.
+ACADEMIC_TRIGGER_TYPES = {
+    "citation", "number_unit", "formula_math", "definition", "contrast_concession",
+    "conditional_causal", "hedge", "comparative_degree", "original_term", "footnote_marker",
+}
+ALL_CRITIC_TRIGGER_TYPES = CRITIC_TRIGGER_TYPES | LITERARY_TRIGGER_TYPES | ACADEMIC_TRIGGER_TYPES
 MAX_LITERARY_TRIGGERS_PER_TYPE = 20
+MAX_ACADEMIC_TRIGGERS_PER_TYPE = 20
+ACADEMIC_PHRASES = {
+    "definition": {
+        "en": ["is defined as", "are defined as", "defined as", "we define", "we call", "is called", "are called",
+               "i.e.", "that is to say", "refers to", "denotes", "so-called", "in the sense of", "we mean"],
+        "fr": ["on appelle", "nous appelons", "c'est-à-dire", "désigne", "se définit", "est défini", "est définie",
+               "au sens de", "dit aussi", "entendons par"],
+    },
+    "contrast_concession": {
+        "en": ["however", "although", "though", "whereas", "nevertheless", "nonetheless", "despite", "yet",
+               "rather than", "on the contrary", "instead", "conversely", "on the other hand"],
+        "fr": ["cependant", "pourtant", "bien que", "quoique", "alors que", "néanmoins", "malgré", "toutefois",
+               "en revanche", "au contraire", "tandis que"],
+    },
+    "conditional_causal": {
+        "en": ["if", "unless", "provided that", "only if", "because", "therefore", "thus", "hence", "since",
+               "consequently", "so that", "it follows that"],
+        "fr": ["si", "sauf si", "à condition que", "parce que", "donc", "ainsi", "puisque", "par conséquent",
+               "car", "il s'ensuit que"],
+    },
+    "hedge": {
+        "en": ["perhaps", "possibly", "probably", "likely", "arguably", "apparently", "seems", "appears",
+               "suggests", "presumably", "roughly", "approximately", "tends to", "to some extent"],
+        "fr": ["peut-être", "probablement", "semble", "paraît", "sans doute", "vraisemblablement", "environ",
+               "dans une certaine mesure"],
+    },
+    "comparative_degree": {
+        "en": ["more than", "less than", "fewer than", "greater than", "at least", "at most", "almost",
+               "nearly", "as much as", "as many as", "to a lesser extent", "to a greater extent"],
+        "fr": ["plus que", "moins que", "au moins", "au plus", "presque", "davantage", "autant que"],
+    },
+}
+_ACADEMIC_PATTERNS = {
+    "citation": re.compile(
+        r"\[\d+(?:\s*[,–-]\s*\d+)*\]"
+        r"|\([A-ZÀ-ɏ][^()\n]{0,60}?\b\d{4}[a-z]?(?:\s*[,:]\s*(?:pp?\.\s*)?\d+(?:\s*[–-]\s*\d+)?)?\)"
+        r"|\b(?:ibid|op\.\s?cit|loc\.\s?cit|cf|pp?)\.(?=\s|\d)"),
+    "number_unit": re.compile(
+        r"\d+(?:[.,]\d+)?\s?(?:%|‰|°[CF]?|km|kg|cm|mm|ml|mol|Hz|kHz|MHz|GHz|ms)(?![A-Za-z])"
+        r"|[$€£]\s?\d|\d+\s?[–—-]\s?\d+"),
+    "formula_math": re.compile(
+        "[≤≥≠≈±×÷∑∏∫√∂∇∞∈∉"
+        "⊂⊆⊃∪∩→⇒⇔↔∀∃α-ωΑ-Ω]"
+        r"|(?<![\w])[A-Za-z]\s?[=<>]\s?[\w(\-]"),
+    "original_term": re.compile(
+        "(?<![\\w*])\\*[^\\s*][^*\\n]{0,40}\\*(?![\\w*])|<i>[^<\\n]{1,60}</i>"
+        "|[‘“\"«]\\s?[\\wÀ-ɏ'\\-]+(?:\\s[\\wÀ-ɏ'\\-]+){0,2}\\s?[’”\"»]"),
+    "footnote_marker": re.compile(
+        "[¹²³⁰⁴-⁹†‡]|(?<=[a-z\\.,;:\\)”\"])\\d{1,3}(?=\\s|$)"),
+}
 _QUOTE_RES = tuple(re.compile(pattern) for pattern in (
     "\u201c[^\u201d\n]+\u201d", '"[^"\n]+"', "\u00ab[^\u00bb\n]+\u00bb",
     "\u300c[^\u300d\n]+\u300d", "\u300e[^\u300f\n]+\u300f",
@@ -111,6 +168,25 @@ def _trigger(trigger_type, start, end, token):
     return {"type": trigger_type, "source_char_start": start, "source_char_end": end, "source_token": token}
 
 
+def _academic_triggers(text, source_language):
+    found = {kind: [] for kind in sorted(ACADEMIC_TRIGGER_TYPES)}
+    for kind, phrases in ACADEMIC_PHRASES.items():
+        words = phrases.get(source_language, [])
+        for word in words:
+            # \b does not fit phrases ending in punctuation such as "i.e."
+            pattern = rf"(?<!\w){re.escape(word)}(?!\w)"
+            for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+                found[kind].append((match.start(), match.end(), match.group(0)))
+    for kind, regex in _ACADEMIC_PATTERNS.items():
+        for match in regex.finditer(text):
+            found[kind].append((match.start(), match.end(), match.group(0)))
+    triggers = []
+    for kind in sorted(found):
+        for start, end, token in sorted(set(found[kind]))[:MAX_ACADEMIC_TRIGGERS_PER_TYPE]:
+            triggers.append(_trigger(kind, start, end, token))
+    return triggers
+
+
 def _literary_triggers(text, source_language):
     found = {"literary_dialogue": [], "literary_exclamation_question": [], "literary_wordplay_marker": []}
     seen = set()
@@ -136,12 +212,13 @@ def _literary_triggers(text, source_language):
     return triggers
 
 
-def detect_risk_triggers(unit, source_language, draft_findings, reading_origin=None, profile=None):
+def detect_risk_triggers(unit, source_language, draft_findings, reading_origin=None, profile=None, academic=False):
     """Deterministic flags only; never a semantic-error assertion by itself.
 
     ``profile="literary"`` additionally flags dialogue/quoted speech,
     exclamations/rhetorical questions and likely wordplay markers; any other
-    value (including the default None) leaves scholarly behaviour unchanged."""
+    value (including the default None) leaves scholarly behaviour unchanged.
+    ``academic=True`` (scholarly chapter pipeline) adds ACADEMIC_TRIGGER_TYPES."""
     text = unit["text"]
     triggers = []
     for start, end, token in _word_hits(NEGATION_WORDS.get(source_language, []), text):
@@ -154,6 +231,8 @@ def detect_risk_triggers(unit, source_language, draft_findings, reading_origin=N
         triggers.append(_trigger("japanese_context_dependence", 0, len(text), text))
     if profile == "literary":
         triggers.extend(_literary_triggers(text, source_language))
+    if academic:
+        triggers.extend(_academic_triggers(text, source_language))
     ocr_hits = sorted(set(unit.get("warnings", [])) & OCR_WARNING_TYPES)
     if reading_origin == "ocr":
         ocr_hits.append("selected_ocr_reading")
@@ -401,7 +480,7 @@ class FakeSemanticCorrector:
 
 def _heuristic_disposition(trigger_type, hebrew_text):
     """Deterministic, auditable grounding check; never trusts a model claim as fact on its own."""
-    if trigger_type in LITERARY_TRIGGER_TYPES:
+    if trigger_type in LITERARY_TRIGGER_TYPES or trigger_type in ACADEMIC_TRIGGER_TYPES:
         # The offline mock never asserts a literary error; a real critic judges effect.
         return "false_positive", "literary risk is judged by a real critic; the mock asserts no error"
     markers = HEBREW_MARKERS_BY_TYPE.get(trigger_type)

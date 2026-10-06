@@ -26,6 +26,12 @@ Existing calls without a selection retain the earlier host-font behaviour.
   Original CFF OTF binaries, editable SFD sources and supporting feature files
   accompany the converted fonts in `culmus/source/`.
 
+- Noto Sans Math and Noto Sans: Google Fonts distribution, SIL OFL 1.1. Not
+  selectable; they are the PDF glyph fallback (in that order) for math
+  operators, Greek, super/subscripts and symbols the Hebrew fonts lack. Noto
+  Sans Math is verbatim; Noto Sans is a 400-weight instance of the bundled
+  variable font. Licenses in `notosansmath/` and `notosans/`.
+
 Primary Culmus notices: [upstream LICENSE](https://sources.debian.org/src/culmus/0.140-3/LICENSE),
 [GPL 2](https://sources.debian.org/src/culmus/0.140-3/GNU-GPL),
 [Bitstream notice](https://sources.debian.org/src/culmus/0.140-3/LICENSE-BITSTREAM).

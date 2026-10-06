@@ -7,6 +7,7 @@ from collections import deque
 from dataclasses import dataclass, replace
 from . import book_notebook as bn, context_strategy, document_state as document_state_module, review_qa as rq
 from .formal_checks import has_translatable_words, run_formal_checks
+from .epub_archive import MATH_CLOSE, MATH_OPEN
 from .semantic_review import detect_risk_triggers as semantic_risks
 from .glossary import validate_glossary
 from .segmentation import validate_structure
@@ -24,6 +25,7 @@ HEBREW_EXPANSION_HYPOTHESIS = 1.35
 MAX_ATTEMPTS_PER_QA_GROUP = 3
 ENVELOPE_TOKENS = 1024
 _HEBREW_RE = re.compile(r'[֑-׿]')
+_MATH_TOKEN_RE = re.compile(MATH_OPEN + '[^' + MATH_OPEN + MATH_CLOSE + ']*' + MATH_CLOSE)
 _MATERIAL_SEVERITIES = {'CRITICAL', 'MAJOR'}
 
 class ChapterPipelineError(ValueError):
@@ -181,7 +183,12 @@ def build_batch_translation_prompt(structure, glossary, unit_ids, profile_id, do
                                    _resolver=None, _prefix_text=None):
     prefix = _prefix_text if _prefix_text is not None else _prefix(
         structure, glossary, list(source_unit_ids or unit_ids), profile_id, _resolver)
-    return CacheablePrompt(prefix, _batch_suffix(unit_ids, document_state))
+    suffix = _batch_suffix(unit_ids, document_state)
+    wanted = set(unit_ids)
+    if any(MATH_OPEN in u['text'] for u in structure['units'] if u['unit_id'] in wanted):
+        suffix += (' Text between ' + MATH_OPEN + ' and ' + MATH_CLOSE + ' is a protected formula: copy each such '
+                   'token exactly, markers included, once, in the position Hebrew grammar requires.')
+    return CacheablePrompt(prefix, suffix)
 
 def _envelope_tokens(unit_id):
     return _ub(json.dumps({'unit_id': unit_id, 'translation': '', 'translation_note': None}))
@@ -239,7 +246,36 @@ def _render_review(request, role):
             'glossary_and_decisions': rq._glossary_text(request.glossary_decisions)})
     return rq._render(rq.UNIT_REVIEW_PROMPT_ID, {'source_text': request.source_text,
         'translation': request.translation, 'source_context': rq._context_text(request.source_context),
-        'glossary_and_decisions': rq._glossary_text(request.glossary_decisions)})
+        'glossary_and_decisions': rq._glossary_text(request.glossary_decisions),
+        'review_focus': _review_focus(request.risk_flags.get('configured_risk_flags', []))})
+
+# What the unit reviewer should check for each deterministic trigger type.
+REVIEW_FOCUS_TEXT = {
+    'negation': 'every negation is preserved (not dropped, added or reversed)',
+    'quantifier': 'quantifiers and their scope (all, some, only, none) are exact',
+    'scope_modality': 'modal force (must, may, can, should) is neither strengthened nor weakened',
+    'japanese_context_dependence': 'omitted subjects and objects are resolved only as far as context supports',
+    'citation': 'citations, references and page numbers are kept exactly',
+    'number_unit': 'numbers, units, percentages and ranges are exact',
+    'formula_math': 'formulas, symbols and variables are kept verbatim and left-to-right',
+    'definition': 'definitions keep the defined term and its exact scope',
+    'contrast_concession': 'contrast and concession (however, although, whereas) keep their direction',
+    'conditional_causal': 'conditions and causal links (if, unless, because, therefore) are unchanged',
+    'hedge': 'hedges and degrees of certainty are neither removed nor strengthened',
+    'comparative_degree': 'comparisons and limits (more than, at least, almost) are exact',
+    'original_term': 'emphasised or quoted terms are rendered consistently, original kept where useful',
+    'footnote_marker': 'footnote markers stay attached to the right word',
+    'literary_dialogue': 'dialogue keeps its speaker, voice and register',
+    'literary_exclamation_question': 'exclamations and rhetorical questions keep their force',
+    'literary_wordplay_marker': 'wordplay or emphasised words keep their effect',
+}
+
+def _review_focus(flag_types):
+    lines = [REVIEW_FOCUS_TEXT[t] for t in sorted(flag_types) if t in REVIEW_FOCUS_TEXT]
+    if not lines:
+        return ''
+    return ('\n\nREVIEW_FOCUS (deterministic flags found in the source; not errors by themselves -- '
+            'check that the translation handles them):\n' + '\n'.join('- ' + line for line in lines))
 
 def _review_transport(prompt, request, role, prefix, ids):
     source = request.source_chapter if role == 'chapter_qa' else request.source_text
@@ -868,7 +904,8 @@ def repartition_qa_groups(unit_records, capabilities, headroom_fraction=None):
 def detect_risk_triggers(record, profile=None):
     language = record.get('source_language', 'en')
     unit = {'text': record['source_text'], 'warnings': record.get('source_warnings', [])}
-    triggers = semantic_risks(unit, language, record.get('findings', []), profile=profile)
+    triggers = semantic_risks(unit, language, record.get('findings', []), profile=profile,
+                             academic=profile == 'scholarly')
     return {'configured_risk_flags': sorted({t['type'] for t in triggers}),
         'translation_notes': bool(record.get('translation_note')),
         'formal_check_failure': bool(record.get('findings')),
@@ -948,8 +985,11 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
         translation = item["translation"]
         if not isinstance(translation, str) or not translation.strip():
             raise ChapterPipelineError("translation response contains an empty translation")
+        source = source_texts.get(unit_id)
+        if isinstance(source, str) and MATH_OPEN in source + translation and (
+                sorted(_MATH_TOKEN_RE.findall(source)) != sorted(_MATH_TOKEN_RE.findall(translation))):
+            raise ChapterPipelineError("translation changed, dropped or added a protected formula")
         if not _HEBREW_RE.search(translation):
-            source = source_texts.get(unit_id)
             if (not isinstance(source, str) or has_translatable_words(source)
                     or has_translatable_words(translation)):
                 raise ChapterPipelineError("translation response target is not Hebrew")

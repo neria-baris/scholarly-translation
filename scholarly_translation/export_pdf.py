@@ -21,12 +21,13 @@ from __future__ import annotations
 import io
 from dataclasses import dataclass, field
 
+from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as rl_canvas
 
 from .export_common import (
-    ExportError, ordered_render_units, reorder_bidi_line, require_translation,
+    ExportError, display_math, font_runs, ordered_render_units, reorder_bidi_line, require_translation,
     resolve_hebrew_font, validate_translations_mapping, wrap_logical_lines,
 )
 from .segmentation import validate_structure
@@ -112,15 +113,26 @@ class _PdfWriter:
                 self._new_page()
                 self.canvas.setFont(font, size)
             visual_line = reorder_bidi_line(logical_line)
-            align = style.get("align", "right")
-            if align == "center":
-                self.canvas.drawCentredString((self.left_x + self.right_x) / 2, self.y, visual_line)
-            elif align == "left":
-                self.canvas.drawString(self.left_x, self.y, visual_line)
-            else:
-                self.canvas.drawRightString(self.right_x - indent, self.y, visual_line)
+            self._draw_line(visual_line, font, size, style.get("align", "right"), indent)
             self.y -= line_height
         self.y -= style.get("after", 0)
+
+    def _draw_line(self, visual_line, font, size, align, indent):
+        """Draw one visual-order line, switching to a glyph-fallback font for
+        characters the Hebrew font lacks (math symbols, Greek, super/subscripts)."""
+        runs = font_runs(visual_line, font)
+        width = sum(pdfmetrics.stringWidth(part, name, size) for name, part in runs)
+        if align == "center":
+            x = (self.left_x + self.right_x) / 2 - width / 2
+        elif align == "left":
+            x = self.left_x
+        else:
+            x = self.right_x - indent - width
+        for name, part in runs:
+            self.canvas.setFont(name, size)
+            self.canvas.drawString(x, self.y, part)
+            x += pdfmetrics.stringWidth(part, name, size)
+        self.canvas.setFont(font, size)
 
     def draw_image(self, image_bytes, caption_width_ratio=0.8):
         reader = ImageReader(io.BytesIO(image_bytes))
@@ -210,6 +222,7 @@ def export_pdf(structure, translations, *, images=None, title=None, font_id=None
             limitations.append({"kind": "missing_translation", "unit_id": unit_id,
                                  "node_ids": node_ids,
                                  "detail": "no translation supplied; rendered original source text"})
+        text = display_math(text)
 
         if kind == "unsupported" and not text.strip():
             manifest.append({"unit_id": unit_id, "node_ids": node_ids, "kind": kind,

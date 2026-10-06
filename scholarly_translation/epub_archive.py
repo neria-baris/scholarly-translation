@@ -115,8 +115,68 @@ def encrypted_paths(archive: zipfile.ZipFile) -> set:
     return {archive_path("", e.get("URI", "")) for e in encryption.iter() if local_tag(e.tag) == "CipherReference"}
 
 
+MATH_OPEN, MATH_CLOSE = "⟦", "⟧"   # protected-formula markers: ⟦ … ⟧
+_SUPERSCRIPT = str.maketrans("0123456789+-=()ni", "⁰¹²³⁴⁵⁶⁷⁸⁹"
+                                                  "⁺⁻⁼⁽⁾ⁿⁱ")
+_SUBSCRIPT = str.maketrans("0123456789+-=()", "₀₁₂₃₄₅₆₇₈₉"
+                                              "₊₋₌₍₎")
+
+
+def math_text(el) -> str:
+    """Readable one-line Unicode form of a MathML element (alttext when given)."""
+    alt = el.get("alttext")
+    if local_tag(el.tag) == "math" and alt and alt.strip():
+        return " ".join(alt.split()).replace(MATH_OPEN, "").replace(MATH_CLOSE, "")
+
+    def lin(node):
+        tag = local_tag(node.tag)
+        kids = [k for k in node if local_tag(k.tag) != "annotation-xml" and local_tag(k.tag) != "annotation"]
+        if tag == "mo":
+            op = (node.text or "").strip()
+            return op if op in ("", "(", ")", "[", "]", "{", "}", "|", ",", ".", "⁡", "⁢") else " " + op + " "
+        if tag in ("mi", "mn", "mtext", "ms"):
+            return (node.text or "").strip()
+        if tag == "semantics" and kids:
+            return lin(kids[0])
+        if tag in ("msup", "msub") and len(kids) == 2:
+            base, script = lin(kids[0]), lin(kids[1])
+            table = _SUPERSCRIPT if tag == "msup" else _SUBSCRIPT
+            converted = script.translate(table)
+            if all(ch != orig or ch.isspace() for ch, orig in zip(converted, script)):
+                return base + converted
+            return base + ("^" if tag == "msup" else "_") + "(" + script + ")"
+        if tag == "msubsup" and len(kids) == 3:
+            return lin(kids[0]) + "_(" + lin(kids[1]) + ")^(" + lin(kids[2]) + ")"
+        if tag == "mfrac" and len(kids) == 2:
+            return "(" + lin(kids[0]) + ")/(" + lin(kids[1]) + ")"
+        if tag == "msqrt":
+            return "√(" + "".join(lin(k) for k in kids) + ")"
+        if tag == "mroot" and len(kids) == 2:
+            return "√[" + lin(kids[1]) + "](" + lin(kids[0]) + ")"
+        return "".join(lin(k) for k in kids) if kids else (node.text or "").strip()
+
+    text = " ".join(lin(el).split())
+    return text.replace(MATH_OPEN, "").replace(MATH_CLOSE, "") or "math"
+
+
 def block_text(el) -> str:
-    return "".join(el.itertext()).strip()
+    """Block text with every inline MathML element replaced by ⟦readable form⟧,
+    so formulas travel through translation as protected tokens."""
+    parts = []
+
+    def walk(node):
+        if node.text:
+            parts.append(node.text)
+        for child in node:
+            if local_tag(child.tag) == "math":
+                parts.append(MATH_OPEN + math_text(child) + MATH_CLOSE)
+            else:
+                walk(child)
+            if child.tail:
+                parts.append(child.tail)
+
+    walk(el)
+    return "".join(parts).strip()
 
 
 def resolve_spine(archive: zipfile.ZipFile, package, base: str) -> list:

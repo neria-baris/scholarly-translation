@@ -196,6 +196,70 @@ def _resolve_bundled_font(font_id):
         return result
 
 
+# Glyph fallback for characters the Hebrew fonts lack (math operators, Greek,
+# super/subscripts): Noto Sans Math first, then Noto Sans. SIL OFL 1.1, bundled.
+_FALLBACK_FONTS = (
+    ("export-fallback-noto-sans-math", "notosansmath/NotoSansMath-Regular.ttf"),
+    ("export-fallback-noto-sans", "notosans/NotoSans-Regular.ttf"),
+)
+
+
+def fallback_fonts() -> list:
+    """Register (once) and return the available glyph-fallback font names, in order."""
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    with _font_lock:
+        if "fallback" in _font_cache:
+            return _font_cache["fallback"]
+        names = []
+        for name, relative in _FALLBACK_FONTS:
+            path = _BUNDLED_FONT_ROOT / relative
+            try:
+                if name not in pdfmetrics.getRegisteredFontNames():
+                    if not path.is_file():
+                        continue
+                    pdfmetrics.registerFont(TTFont(name, str(path)))
+                names.append(name)
+            except Exception:
+                continue
+        _font_cache["fallback"] = names
+        return names
+
+
+def _glyph_map(font_name):
+    from reportlab.pdfbase import pdfmetrics
+    face = getattr(pdfmetrics.getFont(font_name), "face", None)
+    return getattr(face, "charToGlyph", None)
+
+
+def font_runs(text: str, font_name: str, fallbacks=None) -> list:
+    """Split ``text`` into ``[(font, substring)]`` runs: each character uses
+    ``font_name`` when it has the glyph, else the first fallback that has it,
+    else ``font_name`` (spaces always stay in the current run)."""
+    primary = _glyph_map(font_name)
+    if primary is None:   # built-in Type 1 font: no cmap to consult
+        return [(font_name, text)] if text else []
+    chain = [(name, _glyph_map(name)) for name in (fallback_fonts() if fallbacks is None else fallbacks)]
+    runs = []
+    for ch in text:
+        if ch.isspace() and runs:
+            chosen = runs[-1][0]
+        elif ord(ch) in primary or ch.isspace():
+            chosen = font_name
+        else:
+            chosen = next((name for name, cmap in chain if cmap is not None and ord(ch) in cmap), font_name)
+        if runs and runs[-1][0] == chosen:
+            runs[-1][1].append(ch)
+        else:
+            runs.append((chosen, [ch]))
+    return [(name, "".join(chars)) for name, chars in runs]
+
+
+def mixed_string_width(text: str, font_name: str, font_size: float) -> float:
+    from reportlab.pdfbase import pdfmetrics
+    return sum(pdfmetrics.stringWidth(part, name, font_size) for name, part in font_runs(text, font_name))
+
+
 def resolve_hebrew_font(font_id=None):
     """Register and return ``(regular_font_name, bold_font_name, limitation)``.
 
@@ -333,7 +397,7 @@ def wrap_logical_lines(text: str, font_name: str, font_size: float, max_width: f
         current = []
         for word in words:
             candidate = " ".join(current + [word])
-            width = pdfmetrics.stringWidth(candidate, font_name, font_size)
+            width = mixed_string_width(candidate, font_name, font_size)
             if current and width > max_width:
                 out_lines.append(" ".join(current))
                 current = [word]
@@ -342,6 +406,12 @@ def wrap_logical_lines(text: str, font_name: str, font_size: float, max_width: f
         if current:
             out_lines.append(" ".join(current))
     return out_lines
+
+
+def display_math(text: str) -> str:
+    """Show protected EPUB formula tokens as their readable form: drop the
+    MATH_OPEN/MATH_CLOSE markers (U+27E6/U+27E7) used to carry them through translation."""
+    return (text or "").replace("⟦", "").replace("⟧", "")
 
 
 def normalize_nfc(text: str) -> str:

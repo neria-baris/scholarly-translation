@@ -35,6 +35,16 @@ rejection (HTTP 429/500/502/503/504/529 before any output; backoff 2/8/20 s,
 Retry-After <= 60 s honoured); connection errors, timeouts and mid-stream
 failures still become user decisions. Targeted suites OK (not full suite).
 
+SCHOLARLY-MATH (contract audit/contracts/scholarly_profile_and_math.md): keeper prompt
+and tags per profile (scholarly = argument so far + terminology rules); BOOK_NOTEBOOK
+header: follow unless source contradicts, approved terminology overrides. Academic
+risk triggers (10 types, en/fr + language-independent) for the scholarly chapter
+pipeline, passed to the unit reviewer as REVIEW_FOCUS (legacy prompt unchanged).
+Maths: math tokens are non-lexical (formula-only units pass through), Unicode display
+formulas become formula nodes, PDF per-glyph fallback to bundled Noto Sans Math/Noto
+Sans (OFL), HTML formula LTR + math font stack, EPUB MathML carried as protected
+⟦…⟧ tokens (validated) and re-inserted on export. No math OCR. 840 tests OK.
+
 LIBRARY-DELETE + HELP: library entries (both tabs) can be deleted permanently after
 a confirm prompt (POST /document-delete requires confirm:true; refused while that
 job runs; removes only that job folder). help.html gains Library, "When translation

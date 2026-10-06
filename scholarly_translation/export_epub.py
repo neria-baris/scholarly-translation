@@ -26,7 +26,9 @@ byte-for-byte unchanged.
 """
 from __future__ import annotations
 
+import copy
 import io
+import re
 import zipfile
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
@@ -36,6 +38,8 @@ from .epub_archive import (
     EpubArchiveError,
     HEADING_TAGS as _HEADING_TAGS,
     INLINE_LINK_TAG as _INLINE_LINK_TAG,
+    MATH_CLOSE,
+    MATH_OPEN,
     MEDIA_TAGS as _MEDIA_TAGS,
     XHTML_MEDIA_TYPES as _XHTML_MEDIA_TYPES,
     archive_path as _archive_path,
@@ -138,6 +142,32 @@ def _set_rtl_attributes(root) -> None:
                 el.set("{http://www.w3.org/XML/1998/namespace}lang", "he")
 
 
+_MATH_TOKEN_RE = re.compile(MATH_OPEN + "[^" + MATH_OPEN + MATH_CLOSE + "]*" + MATH_CLOSE)
+
+
+def _reinsert_math(el, translated_text, maths, node, unit_id, limitations):
+    """Replace each ⟦formula⟧ token of the translation, in order, with the
+    block's original MathML element; never silently lose a formula."""
+    pieces = _MATH_TOKEN_RE.split(translated_text)
+    tokens = _MATH_TOKEN_RE.findall(translated_text)
+    el.text = pieces[0]
+    last = None
+    for index, original in enumerate(maths):
+        clone = copy.deepcopy(original)
+        clone.tail = pieces[index + 1] if index < len(tokens) else None
+        el.append(clone)
+        last = clone
+    if len(tokens) > len(maths):
+        last.tail = (last.tail or "") + "".join(tokens[len(maths) + i] + pieces[len(maths) + i + 1]
+                                                for i in range(len(tokens) - len(maths)))
+    if len(tokens) != len(maths):
+        limitations.append({
+            "kind": "math_placement_uncertain", "unit_id": unit_id, "node_id": node["node_id"],
+            "detail": "the translation has %d formula tokens for %d MathML formulas; formulas were kept "
+                      "in source order and any extras appended" % (len(tokens), len(maths)),
+        })
+
+
 def _apply_translation_to_element(el, translated_text: str, node: dict, unit_id: str, limitations: list) -> None:
     """Substitute ``el``'s content with ``translated_text``.
 
@@ -163,9 +193,12 @@ def _apply_translation_to_element(el, translated_text: str, node: dict, unit_id:
         return
     children = list(el)
     links = [child for child in children if _local(child.tag) == _INLINE_LINK_TAG]
+    maths = [m for m in el.iter() if m is not el and _local(m.tag) == "math"]
     for child in children:
         el.remove(child)
     el.text = translated_text
+    if maths:
+        _reinsert_math(el, translated_text, maths, node, unit_id, limitations)
     if links:
         el.text += " "
         for link in links:

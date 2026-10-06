@@ -49,7 +49,7 @@ SOURCE_CONTEXT:
 </HEBREW_TRANSLATION>
 
 GLOSSARY_AND_APPROVED_DECISIONS:
-{{glossary_and_decisions}}
+{{glossary_and_decisions}}{{review_focus}}
 
 Output:
 

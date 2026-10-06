@@ -442,8 +442,12 @@ class DocumentDraftTests(unittest.TestCase):
 
         translator, keeper = FakeBatchTranslationAdapter(), FakeKeeperAdapter()
         factory = self.make_adapter_factory(translator=translator, chapter_qa=keeper)
+        # The scholarly keeper prompt (argument + terminology guidance) needs a little more
+        # than this fixture's 7000-token keeper context; a too-small keeper is skipped by design.
+        config = _json.loads(_json.dumps(MOCK_MODEL_CONFIG))
+        config["models"]["chapter_qa"]["capabilities"] = {"context_window": 12000, "usable_context_tokens": 10000}
         _, job = self.run_job(
-            {"model": "configured", "budget_usd": 2.0, "model_config": MOCK_MODEL_CONFIG, "quality": "fast", "automation": True},
+            {"model": "configured", "budget_usd": 2.0, "model_config": config, "quality": "fast", "automation": True},
             adapter_factory=factory,
         )
         self.assertEqual(job["status"], "completed")

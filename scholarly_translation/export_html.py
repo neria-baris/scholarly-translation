@@ -21,7 +21,7 @@ import html
 
 from .export_common import (
     _BUNDLED_FONT_ROOT, _PDF_FONTS, ExportError, _resolve_bundled_font, normalize_nfc,
-    ordered_render_units, require_translation, validate_translations_mapping,
+    display_math, ordered_render_units, require_translation, validate_translations_mapping,
 )
 from .segmentation import validate_structure
 from .source_reading import StructureError
@@ -46,7 +46,8 @@ _TAG_BY_KIND = {
 }
 _DEFAULT_TAG = ("p", None)
 
-_SYSTEM_FONT_STACK = '"David", "Frank Ruehl", "Times New Roman", "Noto Serif Hebrew", "Arial", serif'
+_SYSTEM_FONT_STACK = ('"David", "Frank Ruehl", "Times New Roman", "Noto Serif Hebrew", "Arial", '
+                      '"Cambria Math", "STIX Two Math", "Noto Sans Math", "Segoe UI Symbol", serif')
 
 _BASE_CSS = """
 body { font-family: %(family)s; max-width: 46em; margin: 2em auto; padding: 0 1em;
@@ -59,6 +60,7 @@ blockquote { margin: .6em 2em .6em 0; }
 p.list { margin-right: 1.5em; }
 p.note { font-size: .82em; }
 p.caption, p.formula, p.scene-break { text-align: center; }
+p.formula { direction: ltr; unicode-bidi: isolate; }
 p.caption { font-size: .82em; }
 p.bib { font-size: .92em; }
 """
@@ -114,6 +116,7 @@ def export_html(structure, translations, title, font_id=None) -> bytes:
             text, _, _ = require_translation(render_unit["unit_id"], translations)
         except ExportError:
             text = render_unit["source_text"]
+        text = display_math(text)
         if kind == "unsupported" and not text.strip():
             continue
         tag, css_class = _TAG_BY_KIND.get(kind, _DEFAULT_TAG)

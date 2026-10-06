@@ -20,6 +20,30 @@ SUGGESTED_TAGS = (
     "wordplay", "humor", "quote", "allusion", "name", "character", "description",
     "place", "term", "register", "motif", "ambiguity", "style", "address", "gender",
 )
+SCHOLARLY_SUGGESTED_TAGS = (
+    "term", "concept", "definition", "distinction", "argument", "author", "work",
+    "citation", "quotation", "abbreviation", "transliteration", "notation", "ambiguity",
+    "register", "style",
+)
+_PROFILE_GUIDANCE = {
+    "literary": (
+        "- \"story_so_far\" is the translation's only memory of the plot. Rewrite it from the existing "
+        "STORY_SO_FAR plus this chapter, keeping every plot line, subplot, relationship, secret and open "
+        "question that may still matter. Compress older or resolved events instead of dropping threads.",
+        "updated running summary of the whole book so far"),
+    "scholarly": (
+        "- \"story_so_far\" holds THE ARGUMENT SO FAR: the translation's only memory of the book's reasoning. "
+        "Rewrite it from the existing STORY_SO_FAR plus this chapter: the thesis, each step of the argument, the "
+        "concepts defined and how the author uses them, the distinctions the author insists on, the positions of "
+        "cited authors or opponents and the author's stance toward them, and questions left open. Compress "
+        "settled material instead of dropping it.\n"
+        "- Terminology is the main risk in scholarly translation. Record one Hebrew rendering per technical term "
+        "and keep it; note when the original-language term is kept in parentheses; record which established "
+        "Hebrew translation is used when canonical works are quoted; record transliterations of authors' names, "
+        "titles and foreign terms; record abbreviations and notation; and record the reading chosen for an "
+        "ambiguous term so later chapters keep it.",
+        "updated running summary of the whole argument so far"),
+}
 MAX_ENTRIES = 3000
 MAX_HISTORY = 200
 MAX_TAGS = 4
@@ -147,9 +171,12 @@ def validate_notebook(nb):
 def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, chapter_index, profile_id,
                         story_words=None):
     text = _PROMPT_PATH.read_text(encoding="utf-8")
+    scholarly = profile_id == "scholarly"
+    guidance, story_description = _PROFILE_GUIDANCE["scholarly" if scholarly else "literary"]
     subs = {
         "PROFILE_ID": str(profile_id), "CHAPTER_INDEX": str(chapter_index),
-        "SUGGESTED_TAGS": ", ".join(SUGGESTED_TAGS),
+        "SUGGESTED_TAGS": ", ".join(SCHOLARLY_SUGGESTED_TAGS if scholarly else SUGGESTED_TAGS),
+        "PROFILE_GUIDANCE": guidance, "STORY_DESCRIPTION": story_description,
         "NOTEBOOK_EXCERPT": notebook_excerpt_text or "(empty)",
         "SOURCE_CHAPTER": source_chapter or "", "HEBREW_CHAPTER": hebrew_chapter or "",
         "STORY_LENGTH": ("as long as the book needs to keep every thread" if not story_words
@@ -386,7 +413,8 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
                 buckets[3].append(e)
     ordered = [e for b in buckets for e in b]
 
-    header = "BOOK_NOTEBOOK (memory of this book; use for consistency, do not quote)"
+    header = ("BOOK_NOTEBOOK (memory of this book; follow unless the source contradicts, "
+              "note departures; approved terminology overrides; do not quote)")
     tail_parts = []
     if notebook["story_so_far"]:
         tail_parts.append("STORY_SO_FAR:\n" + notebook["story_so_far"])
