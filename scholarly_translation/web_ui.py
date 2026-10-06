@@ -215,7 +215,7 @@ def _document_in_progress(document_jobs) -> list[dict]:
     return documents
 
 
-def make_handler(token: str, model_config_path: str | None = None):
+def make_handler(token: str, model_config_path: str | None = None, *, learning_service=None):
     from .document_draft import (
         DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download, validate_settings,
     )
@@ -238,6 +238,69 @@ def make_handler(token: str, model_config_path: str | None = None):
     session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
     document_jobs = DocumentJobs(OUTPUT_ROOT)
+    learning_holder = [learning_service]
+    learning_lock = threading.Lock()
+
+    def _learning():
+        with learning_lock:
+            if learning_holder[0] is None:
+                from .learning_service import LearningService
+                learning_holder[0] = LearningService(OUTPUT_ROOT.parent / "learning")
+            return learning_holder[0]
+
+    def _learning_adapter():
+        from .learning_contracts import require
+        configuration = model_settings.build_configuration({"translator": {
+            "source": "catalog", "provider": "openai", "model": "gpt-6-luna"}})
+        keys = _key_snapshot(configuration)
+        require(bool(keys.get("openai")), "missing_api_key")
+        return configuration, _adapter_factory_for(configuration, keys)
+
+    def _learning_action(path, data):
+        from .learning_contracts import require
+        service = _learning()
+        if path == "/learning/state":
+            return service.summary()
+        if path == "/learning/language":
+            return service.select_language(data.get("language"))
+        if path == "/learning/import-translation":
+            snapshot = document_jobs.get(data.get("job_id", ""))
+            # Validate completed Hebrew content before opening the saved source.
+            from .learning_import import import_translation_job
+            import_translation_job(snapshot)
+            template = None
+            if snapshot.get('source_kind') == 'epub':
+                try:
+                    original = document_jobs.source_path(snapshot['job_id'], 'epub')
+                    template = render_download(snapshot, 'epub', source_path=original)
+                except (DocumentDraftError, OSError, ValueError):
+                    # Legacy/missing original: import remains useful as text;
+                    # book metadata and export UI report the missing layout.
+                    template = None
+            return service.import_translation(snapshot, epub_template=template)
+        if path == "/learning/effort":
+            return service.set_effort(data.get("level_id"))
+        if path == "/learning/prepare":
+            configuration, factory = _learning_adapter()
+            return service.start(data.get("book_id"), data.get("budget_usd"), configuration, factory,
+                                 context_chars=data.get('context_chars', 4000), output_tokens=data.get('output_tokens', 6000))
+        if path == "/learning/resume":
+            _configuration, factory = _learning_adapter()
+            return service.resume(data.get("session_id"), factory, budget_usd=data.get("budget_usd"),
+                                  context_chars=data.get('context_chars'), output_tokens=data.get('output_tokens'),
+                                  retry=data.get('retry', False))
+        if path == "/learning/pause":
+            return service.pause(data.get("session_id"))
+        if path == "/learning/abandon":
+            return service.abandon(data.get("session_id"))
+        if path == "/learning/read":
+            return service.reader(data.get("session_id"), data.get("chapter_index", 0),
+                                  gloss_on_click=data.get("gloss_on_click", False))
+        if path == "/learning/cursor":
+            return service.cursor(data.get("session_id"), data.get("chapter_index"))
+        if path == "/learning/complete":
+            return service.complete(data.get("session_id"), data.get("prepared_hash"), data.get("completion_id"))
+        require(False, "unknown_action")
 
     def _environment_key(definition):
         # Only standard native endpoints or the locally supplied deployment
@@ -373,6 +436,24 @@ def make_handler(token: str, model_config_path: str | None = None):
             self._reply(status, json.dumps(value, ensure_ascii=False).encode("utf-8"))
 
         def do_GET(self) -> None:
+            if urlparse(self.path).path == "/learning/wordlist":
+                language = parse_qs(urlparse(self.path).query).get('language', [''])[0]
+                if language not in ('fr', 'de', 'es', 'yi', 'it'):
+                    self._json(404, {"error": "not found"})
+                    return
+                self._reply(200, (ROOT / 'prompts' / 'language_learning' / 'wordlists' / (language + '_500.md')).read_bytes(), 'text/plain')
+                return
+            if urlparse(self.path).path == '/learning/help':
+                self._reply(200, (UI_DIR / 'learning_help.html').read_bytes(), 'text/html')
+                return
+            if self.path in ("/learning.js", "/learning.css"):
+                name = self.path.removeprefix("/")
+                self._reply(200, (UI_DIR / name).read_bytes(), "text/javascript" if name.endswith(".js") else "text/css")
+                return
+            if urlparse(self.path).path == "/learning":
+                config = json.dumps({"token": token}, ensure_ascii=False)
+                self._reply(200, (UI_DIR / "learning.html").read_text(encoding="utf-8").replace("__CONFIG__", config).encode("utf-8"), "text/html")
+                return
             if self.path == "/help":
                 try:
                     rows = "".join(
@@ -440,6 +521,22 @@ def make_handler(token: str, model_config_path: str | None = None):
                 self._json(413, {"error": "invalid or oversized request"})
                 return
             route = urlparse(self.path)
+            if route.path == "/learning/upload-epub":
+                from .learning_contracts import LearningError
+                if length > MAX_FILE_BYTES:
+                    self._json(413, {"error": "הקובץ גדול מדי.", "code": "oversized_epub"})
+                    return
+                try:
+                    name = parse_qs(route.query).get("name", [""])[0]
+                    if not name.lower().endswith(".epub"):
+                        raise LearningError("unsupported_format")
+                    content = self.rfile.read(length)
+                    if len(content) != length:
+                        raise LearningError("incomplete_upload")
+                    self._json(200, _learning().import_epub(content))
+                except (LearningError, ValueError, OSError):
+                    self._json(400, {"error": "לא ניתן לקלוט את הספר. בדקו שזה EPUB בעברית ללא הגנה.", "code": "epub_import_failed"})
+                return
             if route.path == "/upload":
                 name = Path(parse_qs(route.query).get("name", [""])[0]).name
                 if not name or name in (".", ".."):
@@ -464,6 +561,29 @@ def make_handler(token: str, model_config_path: str | None = None):
                 data = json.loads(self.rfile.read(length))
                 if not isinstance(data, dict):
                     raise ValueError("invalid request")
+                if route.path.startswith("/learning/"):
+                    from .learning_contracts import LearningError
+                    try:
+                        if route.path == '/learning/export':
+                            result = _learning().export_book(data.get('session_id'),
+                                format=data.get('format', 'epub'), include_meanings=data.get('include_meanings', True),
+                                preserve_layout=data.get('preserve_layout', True))
+                            self.send_response(200)
+                            self.send_header('Content-Type', result['media_type'])
+                            self.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(result['filename']))
+                            self.send_header('Content-Length', str(len(result['body'])))
+                            self.send_header('Cache-Control', 'no-store')
+                            self.send_header('X-Content-Type-Options', 'nosniff')
+                            self.send_header('X-Learning-Export-Warnings', ','.join(result['warnings']))
+                            self.end_headers()
+                            self.wfile.write(result['body'])
+                        else:
+                            self._json(200, _learning_action(route.path, data))
+                    except LearningError as exc:
+                        self._json(400, {"error": "פעולת הלמידה לא הושלמה.", "code": exc.code})
+                    except (ValueError, TypeError, KeyError, OSError):
+                        self._json(400, {"error": "פעולת הלמידה לא הושלמה.", "code": "invalid_learning_request"})
+                    return
                 if route.path == "/document-config":
                     translator_label = None
                     if server_model_config is not None:

@@ -1,0 +1,6613 @@
+{
+  "schema_version": 1,
+  "language": "fr",
+  "version": "fr-common@2",
+  "provenance": {
+    "basis": "French surface-form candidates follow Hermit Dave FrequencyWords/OpenSubtitles2018 ranks in european_500.json, not a universal usefulness or CEFR ranking. All v1 items, IDs, senses and forms are retained verbatim. New forms use stable fr-freq-NNN IDs and source rank priority. Inflected, gendered and plural forms remain separate items, not normalized dictionary lemmas. New Hebrew labels are model-assisted first-pass meanings without bilingual human or linguistic review; model generation must disambiguate actual context and skip unsafe uses. 500 forms are an initial milestone, not a catalog or learner-history ceiling. Corpus token ii is retained with min_level99 (unavailable); bibliothèque is an extra authored learning word beyond the source500.",
+    "source": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/fr/fr_50k.txt (commit 525f9b560de45753a5ea01069454e72e9aa541c6), the same pinned commit used by prompts/language_learning/wordlists/european_500.json; curated_common Hebrew glosses and the two grammar items were hand-authored for the scholarly-translation project (v1). The 467 new fr-freq-* Hebrew sense_he labels added in fr-common@2 are model-assisted: drafted by Claude Code and the Sol conductor directly from the bare French surface forms, with no human bilingual review and no dedicated disambiguation model pass. They should be treated as a usable, concise first-pass gloss, not a verified or expert-curated translation.",
+    "license": "CC-BY-SA-4.0 (https://creativecommons.org/licenses/by-sa/4.0/) applies to the frequency-derived French forms, both the v1 subset and the new fr-freq-* forms added in fr-common@2; the Hebrew gloss/grammar text is original project content, authored (v1) or model-assisted and not linguistically reviewed (new fr-freq-* additions) as noted above. No claim of universal usefulness, CEFR alignment or expert curation is made for any item in this catalog."
+  },
+  "items": [
+    {
+      "item_id": "fr-de",
+      "kind": "word",
+      "lemma": "de",
+      "sense_he": "של / מ-",
+      "forms": [
+        "de"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-je",
+      "kind": "word",
+      "lemma": "je",
+      "sense_he": "אני",
+      "forms": [
+        "je"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-est",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "הינו / הינה (הפועל להיות, גוף שלישי יחיד בהווה)",
+      "forms": [
+        "est"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-pas",
+      "kind": "word",
+      "lemma": "pas",
+      "sense_he": "לא (חלק ממבנה שלילה)",
+      "forms": [
+        "pas"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-le",
+      "kind": "word",
+      "lemma": "le",
+      "sense_he": "ה' הידיעה (זכר) / אותו",
+      "forms": [
+        "le"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-la",
+      "kind": "word",
+      "lemma": "la",
+      "sense_he": "ה' הידיעה (נקבה) / אותה",
+      "forms": [
+        "la"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-vous",
+      "kind": "word",
+      "lemma": "vous",
+      "sense_he": "אתם/אתן, אתה (נימוס)",
+      "forms": [
+        "vous"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-tu",
+      "kind": "word",
+      "lemma": "tu",
+      "sense_he": "אתה/את",
+      "forms": [
+        "tu"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-un",
+      "kind": "word",
+      "lemma": "un",
+      "sense_he": "אחד / א' (זכר)",
+      "forms": [
+        "un"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-une",
+      "kind": "word",
+      "lemma": "une",
+      "sense_he": "אחת / א' (נקבה)",
+      "forms": [
+        "une"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-il",
+      "kind": "word",
+      "lemma": "il",
+      "sense_he": "הוא",
+      "forms": [
+        "il"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-elle",
+      "kind": "word",
+      "lemma": "elle",
+      "sense_he": "היא",
+      "forms": [
+        "elle"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-nous",
+      "kind": "word",
+      "lemma": "nous",
+      "sense_he": "אנחנו",
+      "forms": [
+        "nous"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-mais",
+      "kind": "word",
+      "lemma": "mais",
+      "sense_he": "אבל",
+      "forms": [
+        "mais"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-oui",
+      "kind": "word",
+      "lemma": "oui",
+      "sense_he": "כן",
+      "forms": [
+        "oui"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-non",
+      "kind": "word",
+      "lemma": "non",
+      "sense_he": "לא (תשובה)",
+      "forms": [
+        "non"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-merci",
+      "kind": "word",
+      "lemma": "merci",
+      "sense_he": "תודה",
+      "forms": [
+        "merci"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-bonjour",
+      "kind": "word",
+      "lemma": "bonjour",
+      "sense_he": "שלום / בוקר טוב",
+      "forms": [
+        "bonjour"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-moi",
+      "kind": "word",
+      "lemma": "moi",
+      "sense_he": "אני (כינוי מושא/הדגשה)",
+      "forms": [
+        "moi"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-que",
+      "kind": "word",
+      "lemma": "que",
+      "sense_he": "ש- / ש",
+      "forms": [
+        "que"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-en",
+      "kind": "word",
+      "lemma": "en",
+      "sense_he": "ב- / ממנו",
+      "forms": [
+        "en"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-toi",
+      "kind": "word",
+      "lemma": "toi",
+      "sense_he": "אתה (כינוי מושא/הדגשה)",
+      "forms": [
+        "toi"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-ils",
+      "kind": "word",
+      "lemma": "ils",
+      "sense_he": "הם",
+      "forms": [
+        "ils"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-elles",
+      "kind": "word",
+      "lemma": "elles",
+      "sense_he": "הן",
+      "forms": [
+        "elles"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-ou",
+      "kind": "word",
+      "lemma": "ou",
+      "sense_he": "או",
+      "forms": [
+        "ou"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-pere",
+      "kind": "word",
+      "lemma": "père",
+      "sense_he": "אבא",
+      "forms": [
+        "père"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-mere",
+      "kind": "word",
+      "lemma": "mère",
+      "sense_he": "אמא",
+      "forms": [
+        "mère"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-fille",
+      "kind": "word",
+      "lemma": "fille",
+      "sense_he": "בת / ילדה",
+      "forms": [
+        "fille"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-fils",
+      "kind": "word",
+      "lemma": "fils",
+      "sense_he": "בן",
+      "forms": [
+        "fils"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-homme",
+      "kind": "word",
+      "lemma": "homme",
+      "sense_he": "איש / גבר",
+      "forms": [
+        "homme"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-femme",
+      "kind": "word",
+      "lemma": "femme",
+      "sense_he": "אישה",
+      "forms": [
+        "femme"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 2
+    },
+    {
+      "item_id": "fr-enfant",
+      "kind": "word",
+      "lemma": "enfant",
+      "sense_he": "ילד / ילדה",
+      "forms": [
+        "enfant"
+      ],
+      "priority_tier": 3,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 3
+    },
+    {
+      "item_id": "fr-vie",
+      "kind": "word",
+      "lemma": "vie",
+      "sense_he": "חיים",
+      "forms": [
+        "vie"
+      ],
+      "priority_tier": 3,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 3
+    },
+    {
+      "item_id": "fr.g-etre-present",
+      "kind": "grammar",
+      "lemma": "être (הווה)",
+      "sense_he": "נטיית הפועל 'להיות' בהווה",
+      "forms": [
+        "je suis ici"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [
+        "fr-je"
+      ],
+      "explanation_he": "הפועל être (להיות) בגוף ראשון יחיד בהווה הוא suis: בצירוף je suis ici — אני כאן. הכלל מודגם בתוך הביטוי הצרפתי.",
+      "min_level": 3
+    },
+    {
+      "item_id": "fr.g-negation",
+      "kind": "grammar",
+      "lemma": "שלילה: ne...pas",
+      "sense_he": "מבנה השלילה הבסיסי",
+      "forms": [
+        "je ne sais pas"
+      ],
+      "priority_tier": 2,
+      "prerequisite_ids": [
+        "fr-pas",
+        "fr-je"
+      ],
+      "explanation_he": "מבנה השלילה הבסיסי בצרפתית: ne + פועל + pas, למשל je ne sais pas.",
+      "min_level": 3
+    },
+    {
+      "item_id": "fr-phrase-ici",
+      "kind": "phrase",
+      "lemma": "je suis ici",
+      "sense_he": "אני כאן",
+      "forms": [
+        "je suis ici"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [
+        "fr-je"
+      ],
+      "explanation_he": "",
+      "min_level": 3
+    },
+    {
+      "item_id": "fr-phrase-sais",
+      "kind": "phrase",
+      "lemma": "je ne sais pas",
+      "sense_he": "אני לא יודע / אני לא יודעת",
+      "forms": [
+        "je ne sais pas"
+      ],
+      "priority_tier": 1,
+      "prerequisite_ids": [
+        "fr-je"
+      ],
+      "explanation_he": "",
+      "min_level": 3
+    },
+    {
+      "item_id": "fr-freq-011",
+      "kind": "word",
+      "lemma": "à",
+      "sense_he": "אל / ל- / ב- (מילת יחס לכיוון, מקום או זמן)",
+      "forms": [
+        "à"
+      ],
+      "priority_tier": 11,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-012",
+      "kind": "word",
+      "lemma": "et",
+      "sense_he": "ו- (וו החיבור)",
+      "forms": [
+        "et"
+      ],
+      "priority_tier": 12,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-014",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "יש לו/לה (הפועל avoir, גוף שלישי יחיד בהווה)",
+      "forms": [
+        "a"
+      ],
+      "priority_tier": 14,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-015",
+      "kind": "word",
+      "lemma": "ne",
+      "sense_he": "לא (חלק ראשון של מבנה השלילה ne...pas)",
+      "forms": [
+        "ne"
+      ],
+      "priority_tier": 15,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-016",
+      "kind": "word",
+      "lemma": "les",
+      "sense_he": "ה' הידיעה (רבים) / אותם/אותן",
+      "forms": [
+        "les"
+      ],
+      "priority_tier": 16,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-018",
+      "kind": "word",
+      "lemma": "on",
+      "sense_he": "אנחנו / אנשים (כינוי גוף סתמי-כללי)",
+      "forms": [
+        "on"
+      ],
+      "priority_tier": 18,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-019",
+      "kind": "word",
+      "lemma": "ça",
+      "sense_he": "זה (לשון דיבור)",
+      "forms": [
+        "ça"
+      ],
+      "priority_tier": 19,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-021",
+      "kind": "word",
+      "lemma": "ce",
+      "sense_he": "זה / זאת (כינוי רמז, גם לפני שם עצם)",
+      "forms": [
+        "ce"
+      ],
+      "priority_tier": 21,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-022",
+      "kind": "word",
+      "lemma": "pour",
+      "sense_he": "בשביל / כדי ל-",
+      "forms": [
+        "pour"
+      ],
+      "priority_tier": 22,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-023",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "יש לי (הפועל avoir, גוף ראשון יחיד בהווה)",
+      "forms": [
+        "ai"
+      ],
+      "priority_tier": 23,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-024",
+      "kind": "word",
+      "lemma": "des",
+      "sense_he": "תווית רבים לא מיודעת ('כמה/-ים', לפני שם עצם ברבים)",
+      "forms": [
+        "des"
+      ],
+      "priority_tier": 24,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-025",
+      "kind": "word",
+      "lemma": "qui",
+      "sense_he": "מי / ש- (כינוי שאלה או זיקה לנושא)",
+      "forms": [
+        "qui"
+      ],
+      "priority_tier": 25,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-027",
+      "kind": "word",
+      "lemma": "dans",
+      "sense_he": "ב- / בתוך",
+      "forms": [
+        "dans"
+      ],
+      "priority_tier": 27,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-030",
+      "kind": "word",
+      "lemma": "me",
+      "sense_he": "אותי / לי (כינוי מושא, גוף ראשון יחיד)",
+      "forms": [
+        "me"
+      ],
+      "priority_tier": 30,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-031",
+      "kind": "word",
+      "lemma": "bien",
+      "sense_he": "טוב / היטב",
+      "forms": [
+        "bien"
+      ],
+      "priority_tier": 31,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-032",
+      "kind": "word",
+      "lemma": "si",
+      "sense_he": "אם / כן (בניגוד לשלילה קודמת)",
+      "forms": [
+        "si"
+      ],
+      "priority_tier": 32,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-033",
+      "kind": "word",
+      "lemma": "du",
+      "sense_he": "מן ה- / קצת (תווית חלקית, מיזוג de+le)",
+      "forms": [
+        "du"
+      ],
+      "priority_tier": 33,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-034",
+      "kind": "word",
+      "lemma": "y",
+      "sense_he": "שם / לכך (כינוי מקום/עניין)",
+      "forms": [
+        "y"
+      ],
+      "priority_tier": 34,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-035",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "אני (הפועל être, גוף ראשון יחיד בהווה)",
+      "forms": [
+        "suis"
+      ],
+      "priority_tier": 35,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-037",
+      "kind": "word",
+      "lemma": "avec",
+      "sense_he": "עם",
+      "forms": [
+        "avec"
+      ],
+      "priority_tier": 37,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-038",
+      "kind": "word",
+      "lemma": "tout",
+      "sense_he": "הכול / כל (זכר יחיד)",
+      "forms": [
+        "tout"
+      ],
+      "priority_tier": 38,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-039",
+      "kind": "word",
+      "lemma": "plus",
+      "sense_he": "יותר / עוד (ne...plus = כבר לא)",
+      "forms": [
+        "plus"
+      ],
+      "priority_tier": 39,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-040",
+      "kind": "word",
+      "lemma": "mon",
+      "sense_he": "שלי (כינוי שייכות, זכר יחיד)",
+      "forms": [
+        "mon"
+      ],
+      "priority_tier": 40,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-041",
+      "kind": "word",
+      "lemma": "te",
+      "sense_he": "אותך / לך (כינוי מושא, גוף שני יחיד, לא רשמי)",
+      "forms": [
+        "te"
+      ],
+      "priority_tier": 41,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-042",
+      "kind": "word",
+      "lemma": "au",
+      "sense_he": "אל ה- / ל- (מיזוג à+le)",
+      "forms": [
+        "au"
+      ],
+      "priority_tier": 42,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-043",
+      "kind": "word",
+      "lemma": "faire",
+      "sense_he": "עושה / עשה (הפועל faire) / עובדה (שם עצם fait)",
+      "forms": [
+        "fait"
+      ],
+      "priority_tier": 43,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-046",
+      "kind": "word",
+      "lemma": "aller",
+      "sense_he": "הולך/הולכת (הפועל aller, גוף שלישי יחיד בהווה)",
+      "forms": [
+        "va"
+      ],
+      "priority_tier": 46,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-047",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "היה/הייתה (הפועל être בעבר, גוף שלישי יחיד)",
+      "forms": [
+        "était"
+      ],
+      "priority_tier": 47,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-048",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "יש לך (הפועל avoir, גוף שני יחיד בהווה)",
+      "forms": [
+        "as"
+      ],
+      "priority_tier": 48,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-049",
+      "kind": "word",
+      "lemma": "faire",
+      "sense_he": "לעשות / להכין (צורת המקור)",
+      "forms": [
+        "faire"
+      ],
+      "priority_tier": 49,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-051",
+      "kind": "word",
+      "lemma": "sur",
+      "sense_he": "על",
+      "forms": [
+        "sur"
+      ],
+      "priority_tier": 51,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-052",
+      "kind": "word",
+      "lemma": "quoi",
+      "sense_he": "מה (כינוי שאלה, עצמאי)",
+      "forms": [
+        "quoi"
+      ],
+      "priority_tier": 52,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-053",
+      "kind": "word",
+      "lemma": "se",
+      "sense_he": "את עצמו/עצמה (כינוי גוף חוזר)",
+      "forms": [
+        "se"
+      ],
+      "priority_tier": 53,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-054",
+      "kind": "word",
+      "lemma": "comme",
+      "sense_he": "כמו / כש-",
+      "forms": [
+        "comme"
+      ],
+      "priority_tier": 54,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-055",
+      "kind": "word",
+      "lemma": "savoir",
+      "sense_he": "אני יודע / אתה יודע (הפועל savoir, גוף ראשון/שני יחיד)",
+      "forms": [
+        "sais"
+      ],
+      "priority_tier": 55,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-056",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "להיות (צורת המקור)",
+      "forms": [
+        "être"
+      ],
+      "priority_tier": 56,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-057",
+      "kind": "word",
+      "lemma": "vouloir",
+      "sense_he": "אני רוצה / אתה רוצה (הפועל vouloir, גוף ראשון/שני יחיד)",
+      "forms": [
+        "veux"
+      ],
+      "priority_tier": 57,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-058",
+      "kind": "word",
+      "lemma": "ici",
+      "sense_he": "כאן",
+      "forms": [
+        "ici"
+      ],
+      "priority_tier": 58,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-059",
+      "kind": "word",
+      "lemma": "ma",
+      "sense_he": "שלי (כינוי שייכות, נקבה יחיד)",
+      "forms": [
+        "ma"
+      ],
+      "priority_tier": 59,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-061",
+      "kind": "word",
+      "lemma": "est-ce que",
+      "sense_he": "האם (מבנה שאלה)",
+      "forms": [
+        "est-ce"
+      ],
+      "priority_tier": 61,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-062",
+      "kind": "word",
+      "lemma": "dire",
+      "sense_he": "אמר / אומר (הפועל dire, גוף שלישי יחיד / עבר)",
+      "forms": [
+        "dit"
+      ],
+      "priority_tier": 62,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-063",
+      "kind": "word",
+      "lemma": "lui",
+      "sense_he": "לו / לה (כינוי מושא עקיף) / הוא (בהדגשה)",
+      "forms": [
+        "lui"
+      ],
+      "priority_tier": 63,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-064",
+      "kind": "word",
+      "lemma": "votre",
+      "sense_he": "שלכם / שלך (נימוס, כינוי שייכות)",
+      "forms": [
+        "votre"
+      ],
+      "priority_tier": 64,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-065",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "אתה/את (הפועל être, גוף שני יחיד בהווה)",
+      "forms": [
+        "es"
+      ],
+      "priority_tier": 65,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-066",
+      "kind": "word",
+      "lemma": "pourquoi",
+      "sense_he": "למה",
+      "forms": [
+        "pourquoi"
+      ],
+      "priority_tier": 66,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-067",
+      "kind": "word",
+      "lemma": "où",
+      "sense_he": "איפה / לאן",
+      "forms": [
+        "où"
+      ],
+      "priority_tier": 67,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-068",
+      "kind": "word",
+      "lemma": "là",
+      "sense_he": "כאן / שם (הצבעה על מקום)",
+      "forms": [
+        "là"
+      ],
+      "priority_tier": 68,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-069",
+      "kind": "word",
+      "lemma": "rien",
+      "sense_he": "כלום / שום דבר",
+      "forms": [
+        "rien"
+      ],
+      "priority_tier": 69,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-070",
+      "kind": "word",
+      "lemma": "cette",
+      "sense_he": "הזאת / זו (כינוי רמז, נקבה יחיד)",
+      "forms": [
+        "cette"
+      ],
+      "priority_tier": 70,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-071",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "הם/הן (הפועל être, גוף שלישי רבים בהווה)",
+      "forms": [
+        "sont"
+      ],
+      "priority_tier": 71,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-072",
+      "kind": "word",
+      "lemma": "quand",
+      "sense_he": "מתי / כש-",
+      "forms": [
+        "quand"
+      ],
+      "priority_tier": 72,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-073",
+      "kind": "word",
+      "lemma": "pouvoir",
+      "sense_he": "אני יכול / אתה יכול (הפועל pouvoir, גוף ראשון/שני יחיד)",
+      "forms": [
+        "peux"
+      ],
+      "priority_tier": 73,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-074",
+      "kind": "word",
+      "lemma": "dire",
+      "sense_he": "להגיד / לומר (צורת המקור)",
+      "forms": [
+        "dire"
+      ],
+      "priority_tier": 74,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-075",
+      "kind": "word",
+      "lemma": "son",
+      "sense_he": "שלו / שלה (כינוי שייכות, זכר יחיד)",
+      "forms": [
+        "son"
+      ],
+      "priority_tier": 75,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-076",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "יש לכם (הפועל avoir, גוף שני רבים/נימוס)",
+      "forms": [
+        "avez"
+      ],
+      "priority_tier": 76,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-077",
+      "kind": "word",
+      "lemma": "aller",
+      "sense_he": "אני הולך (הפועל aller, גוף ראשון יחיד בהווה)",
+      "forms": [
+        "vais"
+      ],
+      "priority_tier": 77,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-078",
+      "kind": "word",
+      "lemma": "alors",
+      "sense_he": "אז / אם כך",
+      "forms": [
+        "alors"
+      ],
+      "priority_tier": 78,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-079",
+      "kind": "word",
+      "lemma": "ton",
+      "sense_he": "שלך (כינוי שייכות, זכר יחיד, לא רשמי)",
+      "forms": [
+        "ton"
+      ],
+      "priority_tier": 79,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-080",
+      "kind": "word",
+      "lemma": "comment",
+      "sense_he": "איך",
+      "forms": [
+        "comment"
+      ],
+      "priority_tier": 80,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-081",
+      "kind": "word",
+      "lemma": "par",
+      "sense_he": "על ידי / דרך",
+      "forms": [
+        "par"
+      ],
+      "priority_tier": 81,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-083",
+      "kind": "word",
+      "lemma": "chose",
+      "sense_he": "דבר (שם עצם)",
+      "forms": [
+        "chose"
+      ],
+      "priority_tier": 83,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-084",
+      "kind": "word",
+      "lemma": "bon",
+      "sense_he": "טוב (זכר)",
+      "forms": [
+        "bon"
+      ],
+      "priority_tier": 84,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-085",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "יש להם/להן (הפועל avoir, גוף שלישי רבים)",
+      "forms": [
+        "ont"
+      ],
+      "priority_tier": 85,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-087",
+      "kind": "word",
+      "lemma": "juste",
+      "sense_he": "רק / בדיוק / הוגן",
+      "forms": [
+        "juste"
+      ],
+      "priority_tier": 87,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-088",
+      "kind": "word",
+      "lemma": "très",
+      "sense_he": "מאוד",
+      "forms": [
+        "très"
+      ],
+      "priority_tier": 88,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-089",
+      "kind": "word",
+      "lemma": "jamais",
+      "sense_he": "לעולם (לא) / אף פעם",
+      "forms": [
+        "jamais"
+      ],
+      "priority_tier": 89,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-090",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "היה (בינוני פעול של être) / קיץ (שם עצם été)",
+      "forms": [
+        "été"
+      ],
+      "priority_tier": 90,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-091",
+      "kind": "word",
+      "lemma": "aussi",
+      "sense_he": "גם / כמו כן",
+      "forms": [
+        "aussi"
+      ],
+      "priority_tier": 91,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-092",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "להיות ל- / לקבל (צורת המקור, 'יש')",
+      "forms": [
+        "avoir"
+      ],
+      "priority_tier": 92,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-093",
+      "kind": "word",
+      "lemma": "vraiment",
+      "sense_he": "באמת",
+      "forms": [
+        "vraiment"
+      ],
+      "priority_tier": 93,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-094",
+      "kind": "word",
+      "lemma": "voir",
+      "sense_he": "לראות (צורת המקור)",
+      "forms": [
+        "voir"
+      ],
+      "priority_tier": 94,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-095",
+      "kind": "word",
+      "lemma": "même",
+      "sense_he": "אותו הדבר / אפילו",
+      "forms": [
+        "même"
+      ],
+      "priority_tier": 95,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-096",
+      "kind": "word",
+      "lemma": "sa",
+      "sense_he": "שלו / שלה (כינוי שייכות, נקבה יחיד)",
+      "forms": [
+        "sa"
+      ],
+      "priority_tier": 96,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-097",
+      "kind": "word",
+      "lemma": "oh",
+      "sense_he": "הו (קריאת פליאה/תגובה)",
+      "forms": [
+        "oh"
+      ],
+      "priority_tier": 97,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-098",
+      "kind": "word",
+      "lemma": "maintenant",
+      "sense_he": "עכשיו",
+      "forms": [
+        "maintenant"
+      ],
+      "priority_tier": 98,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-099",
+      "kind": "word",
+      "lemma": "tous",
+      "sense_he": "כולם / כל (זכר רבים)",
+      "forms": [
+        "tous"
+      ],
+      "priority_tier": 99,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-100",
+      "kind": "word",
+      "lemma": "pouvoir",
+      "sense_he": "הוא/היא יכול/ה (הפועל pouvoir, גוף שלישי יחיד)",
+      "forms": [
+        "peut"
+      ],
+      "priority_tier": 100,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-101",
+      "kind": "word",
+      "lemma": "deux",
+      "sense_he": "שתיים/שני",
+      "forms": [
+        "deux"
+      ],
+      "priority_tier": 101,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-102",
+      "kind": "word",
+      "lemma": "ces",
+      "sense_he": "האלה (רבים)",
+      "forms": [
+        "ces"
+      ],
+      "priority_tier": 102,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-103",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "אתם (être, גוף שני רבים)",
+      "forms": [
+        "êtes"
+      ],
+      "priority_tier": 103,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-104",
+      "kind": "word",
+      "lemma": "aller",
+      "sense_he": "אתם הולכים / קדימה (aller, גוף שני רבים)",
+      "forms": [
+        "allez"
+      ],
+      "priority_tier": 104,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-105",
+      "kind": "word",
+      "lemma": "ta",
+      "sense_he": "שלך (נקבה)",
+      "forms": [
+        "ta"
+      ],
+      "priority_tier": 105,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-106",
+      "kind": "word",
+      "lemma": "autre",
+      "sense_he": "אחר/ת",
+      "forms": [
+        "autre"
+      ],
+      "priority_tier": 106,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-107",
+      "kind": "word",
+      "lemma": "peu",
+      "sense_he": "קצת/מעט",
+      "forms": [
+        "peu"
+      ],
+      "priority_tier": 107,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-108",
+      "kind": "word",
+      "lemma": "temps",
+      "sense_he": "זמן / מזג אוויר",
+      "forms": [
+        "temps"
+      ],
+      "priority_tier": 108,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-109",
+      "kind": "word",
+      "lemma": "quelque",
+      "sense_he": "איזשהו/קצת",
+      "forms": [
+        "quelque"
+      ],
+      "priority_tier": 109,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-110",
+      "kind": "word",
+      "lemma": "faire",
+      "sense_he": "עושה (faire, גוף א/ב יחיד)",
+      "forms": [
+        "fais"
+      ],
+      "priority_tier": 110,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-111",
+      "kind": "word",
+      "lemma": "toujours",
+      "sense_he": "תמיד/עדיין",
+      "forms": [
+        "toujours"
+      ],
+      "priority_tier": 111,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-112",
+      "kind": "word",
+      "lemma": "encore",
+      "sense_he": "עוד/שוב",
+      "forms": [
+        "encore"
+      ],
+      "priority_tier": 112,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-113",
+      "kind": "word",
+      "lemma": "notre",
+      "sense_he": "שלנו",
+      "forms": [
+        "notre"
+      ],
+      "priority_tier": 113,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-114",
+      "kind": "word",
+      "lemma": "mes",
+      "sense_he": "שלי (רבים)",
+      "forms": [
+        "mes"
+      ],
+      "priority_tier": 114,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-115",
+      "kind": "word",
+      "lemma": "besoin",
+      "sense_he": "צורך",
+      "forms": [
+        "besoin"
+      ],
+      "priority_tier": 115,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-116",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "היה לו (avoir בעבר, גוף שלישי יחיד)",
+      "forms": [
+        "avait"
+      ],
+      "priority_tier": 116,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-117",
+      "kind": "word",
+      "lemma": "accord",
+      "sense_he": "הסכם (d'accord=בסדר)",
+      "forms": [
+        "accord"
+      ],
+      "priority_tier": 117,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-118",
+      "kind": "word",
+      "lemma": "falloir",
+      "sense_he": "צריך (il faut)",
+      "forms": [
+        "faut"
+      ],
+      "priority_tier": 118,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-119",
+      "kind": "word",
+      "lemma": "devoir",
+      "sense_he": "אני/אתה חייב (devoir, גוף א/ב יחיד)",
+      "forms": [
+        "dois"
+      ],
+      "priority_tier": 119,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-121",
+      "kind": "word",
+      "lemma": "peut-être",
+      "sense_he": "אולי",
+      "forms": [
+        "peut-être"
+      ],
+      "priority_tier": 121,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-122",
+      "kind": "word",
+      "lemma": "aller",
+      "sense_he": "ללכת",
+      "forms": [
+        "aller"
+      ],
+      "priority_tier": 122,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-123",
+      "kind": "word",
+      "lemma": "fois",
+      "sense_he": "פעם (ציון מספר פעמים)",
+      "forms": [
+        "fois"
+      ],
+      "priority_tier": 123,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-124",
+      "kind": "word",
+      "lemma": "voir",
+      "sense_he": "ראה/נראה (בינוני פעול)",
+      "forms": [
+        "vu"
+      ],
+      "priority_tier": 124,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-125",
+      "kind": "word",
+      "lemma": "donc",
+      "sense_he": "אז/לכן",
+      "forms": [
+        "donc"
+      ],
+      "priority_tier": 125,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-126",
+      "kind": "word",
+      "lemma": "sans",
+      "sense_he": "בלי",
+      "forms": [
+        "sans"
+      ],
+      "priority_tier": 126,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-127",
+      "kind": "word",
+      "lemma": "monde",
+      "sense_he": "עולם/אנשים",
+      "forms": [
+        "monde"
+      ],
+      "priority_tier": 127,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-128",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "הייתי/היית (être בעבר)",
+      "forms": [
+        "étais"
+      ],
+      "priority_tier": 128,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-129",
+      "kind": "word",
+      "lemma": "parce",
+      "sense_he": "כי (parce que)",
+      "forms": [
+        "parce"
+      ],
+      "priority_tier": 129,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-130",
+      "kind": "word",
+      "lemma": "avant",
+      "sense_he": "לפני",
+      "forms": [
+        "avant"
+      ],
+      "priority_tier": 130,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-131",
+      "kind": "word",
+      "lemma": "sûr",
+      "sense_he": "בטוח",
+      "forms": [
+        "sûr"
+      ],
+      "priority_tier": 131,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-132",
+      "kind": "word",
+      "lemma": "trop",
+      "sense_he": "יותר מדי",
+      "forms": [
+        "trop"
+      ],
+      "priority_tier": 132,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-133",
+      "kind": "word",
+      "lemma": "parler",
+      "sense_he": "לדבר",
+      "forms": [
+        "parler"
+      ],
+      "priority_tier": 133,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-134",
+      "kind": "word",
+      "lemma": "personne",
+      "sense_he": "אדם / אף אחד (בשלילה)",
+      "forms": [
+        "personne"
+      ],
+      "priority_tier": 134,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-135",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "היה לי/לך (avoir בעבר)",
+      "forms": [
+        "avais"
+      ],
+      "priority_tier": 135,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-137",
+      "kind": "word",
+      "lemma": "croire",
+      "sense_he": "מאמין (croire, גוף א/ב יחיד)",
+      "forms": [
+        "crois"
+      ],
+      "priority_tier": 137,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-138",
+      "kind": "word",
+      "lemma": "après",
+      "sense_he": "אחרי",
+      "forms": [
+        "après"
+      ],
+      "priority_tier": 138,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-139",
+      "kind": "word",
+      "lemma": "aux",
+      "sense_he": "אל ה- (à+les)",
+      "forms": [
+        "aux"
+      ],
+      "priority_tier": 139,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-140",
+      "kind": "word",
+      "lemma": "dieu",
+      "sense_he": "אלוהים",
+      "forms": [
+        "dieu"
+      ],
+      "priority_tier": 140,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-141",
+      "kind": "word",
+      "lemma": "ouais",
+      "sense_he": "כן (לשון דיבור)",
+      "forms": [
+        "ouais"
+      ],
+      "priority_tier": 141,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-142",
+      "kind": "word",
+      "lemma": "ses",
+      "sense_he": "שלו/שלה (רבים)",
+      "forms": [
+        "ses"
+      ],
+      "priority_tier": 142,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-143",
+      "kind": "word",
+      "lemma": "penser",
+      "sense_he": "חושב/ת (penser)",
+      "forms": [
+        "pense"
+      ],
+      "priority_tier": 143,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-144",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "היה לו (בינוני פעול)",
+      "forms": [
+        "eu"
+      ],
+      "priority_tier": 144,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-145",
+      "kind": "word",
+      "lemma": "aimer",
+      "sense_he": "אוהב/ת",
+      "forms": [
+        "aime"
+      ],
+      "priority_tier": 145,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-146",
+      "kind": "word",
+      "lemma": "leur",
+      "sense_he": "שלהם / להם",
+      "forms": [
+        "leur"
+      ],
+      "priority_tier": 146,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-148",
+      "kind": "word",
+      "lemma": "venir",
+      "sense_he": "בא (venir, גוף א/ב יחיד)",
+      "forms": [
+        "viens"
+      ],
+      "priority_tier": 148,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-149",
+      "kind": "word",
+      "lemma": "vrai",
+      "sense_he": "נכון/אמיתי",
+      "forms": [
+        "vrai"
+      ],
+      "priority_tier": 149,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-151",
+      "kind": "word",
+      "lemma": "ok",
+      "sense_he": "בסדר",
+      "forms": [
+        "ok"
+      ],
+      "priority_tier": 151,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-152",
+      "kind": "word",
+      "lemma": "devoir",
+      "sense_he": "חייב/ת (גוף שלישי יחיד)",
+      "forms": [
+        "doit"
+      ],
+      "priority_tier": 152,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-153",
+      "kind": "word",
+      "lemma": "vouloir",
+      "sense_he": "רוצה (גוף שלישי יחיד)",
+      "forms": [
+        "veut"
+      ],
+      "priority_tier": 153,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-154",
+      "kind": "word",
+      "lemma": "ans",
+      "sense_he": "שנים (גיל)",
+      "forms": [
+        "ans"
+      ],
+      "priority_tier": 154,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-155",
+      "kind": "word",
+      "lemma": "mal",
+      "sense_he": "רע/בצורה גרועה / כאב (avoir mal)",
+      "forms": [
+        "mal"
+      ],
+      "priority_tier": 155,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-156",
+      "kind": "word",
+      "lemma": "chez",
+      "sense_he": "בבית של/אצל",
+      "forms": [
+        "chez"
+      ],
+      "priority_tier": 156,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-157",
+      "kind": "word",
+      "lemma": "déjà",
+      "sense_he": "כבר",
+      "forms": [
+        "déjà"
+      ],
+      "priority_tier": 157,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-158",
+      "kind": "word",
+      "lemma": "depuis",
+      "sense_he": "מאז",
+      "forms": [
+        "depuis"
+      ],
+      "priority_tier": 158,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-159",
+      "kind": "word",
+      "lemma": "beaucoup",
+      "sense_he": "הרבה",
+      "forms": [
+        "beaucoup"
+      ],
+      "priority_tier": 159,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-160",
+      "kind": "word",
+      "lemma": "vos",
+      "sense_he": "שלכם (רבים)",
+      "forms": [
+        "vos"
+      ],
+      "priority_tier": 160,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-161",
+      "kind": "word",
+      "lemma": "bon",
+      "sense_he": "טובה (נקבה)",
+      "forms": [
+        "bonne"
+      ],
+      "priority_tier": 161,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-162",
+      "kind": "word",
+      "lemma": "mort",
+      "sense_he": "מוות/מת",
+      "forms": [
+        "mort"
+      ],
+      "priority_tier": 162,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-163",
+      "kind": "word",
+      "lemma": "mieux",
+      "sense_he": "יותר טוב",
+      "forms": [
+        "mieux"
+      ],
+      "priority_tier": 163,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-164",
+      "kind": "word",
+      "lemma": "aller",
+      "sense_he": "הולך (גוף שני יחיד)",
+      "forms": [
+        "vas"
+      ],
+      "priority_tier": 164,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-166",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "יהיה (être בעתיד)",
+      "forms": [
+        "sera"
+      ],
+      "priority_tier": 166,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-167",
+      "kind": "word",
+      "lemma": "dire",
+      "sense_he": "אומר (גוף א/ב יחיד)",
+      "forms": [
+        "dis"
+      ],
+      "priority_tier": 167,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-169",
+      "kind": "word",
+      "lemma": "tes",
+      "sense_he": "שלך (רבים)",
+      "forms": [
+        "tes"
+      ],
+      "priority_tier": 169,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-170",
+      "kind": "word",
+      "lemma": "gens",
+      "sense_he": "אנשים",
+      "forms": [
+        "gens"
+      ],
+      "priority_tier": 170,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-171",
+      "kind": "word",
+      "lemma": "quel",
+      "sense_he": "איזה (זכר)",
+      "forms": [
+        "quel"
+      ],
+      "priority_tier": 171,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-172",
+      "kind": "word",
+      "lemma": "voir",
+      "sense_he": "רואה (גוף א/ב יחיד)",
+      "forms": [
+        "vois"
+      ],
+      "priority_tier": 172,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-173",
+      "kind": "word",
+      "lemma": "désolé",
+      "sense_he": "מצטער (זכר)",
+      "forms": [
+        "désolé"
+      ],
+      "priority_tier": 173,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-174",
+      "kind": "word",
+      "lemma": "ça",
+      "sense_he": "זה (כתיב חלופי)",
+      "forms": [
+        "ca"
+      ],
+      "priority_tier": 174,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-175",
+      "kind": "word",
+      "lemma": "voilà",
+      "sense_he": "הנה",
+      "forms": [
+        "voilà"
+      ],
+      "priority_tier": 175,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-176",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "יש לנו",
+      "forms": [
+        "avons"
+      ],
+      "priority_tier": 176,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-177",
+      "kind": "word",
+      "lemma": "petit",
+      "sense_he": "קטן (זכר)",
+      "forms": [
+        "petit"
+      ],
+      "priority_tier": 177,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-178",
+      "kind": "word",
+      "lemma": "maison",
+      "sense_he": "בית",
+      "forms": [
+        "maison"
+      ],
+      "priority_tier": 178,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-179",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "שיהיה (סובייקטיב) / או...או",
+      "forms": [
+        "soit"
+      ],
+      "priority_tier": 179,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-180",
+      "kind": "word",
+      "lemma": "cela",
+      "sense_he": "זה/זאת (רשמי)",
+      "forms": [
+        "cela"
+      ],
+      "priority_tier": 180,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-181",
+      "kind": "word",
+      "lemma": "autre",
+      "sense_he": "אחרים (רבים)",
+      "forms": [
+        "autres"
+      ],
+      "priority_tier": 181,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-182",
+      "kind": "word",
+      "lemma": "tout",
+      "sense_he": "כולה (נקבה)",
+      "forms": [
+        "toute"
+      ],
+      "priority_tier": 182,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-183",
+      "kind": "word",
+      "lemma": "soir",
+      "sense_he": "ערב",
+      "forms": [
+        "soir"
+      ],
+      "priority_tier": 183,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-184",
+      "kind": "word",
+      "lemma": "passer",
+      "sense_he": "עבר (בינוני פעול/שם עצם)",
+      "forms": [
+        "passé"
+      ],
+      "priority_tier": 184,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-185",
+      "kind": "word",
+      "lemma": "prendre",
+      "sense_he": "לקחת",
+      "forms": [
+        "prendre"
+      ],
+      "priority_tier": 185,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-186",
+      "kind": "word",
+      "lemma": "jour",
+      "sense_he": "יום",
+      "forms": [
+        "jour"
+      ],
+      "priority_tier": 186,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-187",
+      "kind": "word",
+      "lemma": "monsieur",
+      "sense_he": "אדון",
+      "forms": [
+        "monsieur"
+      ],
+      "priority_tier": 187,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-188",
+      "kind": "word",
+      "lemma": "nos",
+      "sense_he": "שלנו (רבים)",
+      "forms": [
+        "nos"
+      ],
+      "priority_tier": 188,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-189",
+      "kind": "word",
+      "lemma": "savoir",
+      "sense_he": "לדעת",
+      "forms": [
+        "savoir"
+      ],
+      "priority_tier": 189,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-190",
+      "kind": "word",
+      "lemma": "chose",
+      "sense_he": "דברים (רבים)",
+      "forms": [
+        "choses"
+      ],
+      "priority_tier": 190,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-191",
+      "kind": "word",
+      "lemma": "salut",
+      "sense_he": "שלום/היי (לא רשמי)",
+      "forms": [
+        "salut"
+      ],
+      "priority_tier": 191,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-192",
+      "kind": "word",
+      "lemma": "ce",
+      "sense_he": "הזה (לפני תנועה)",
+      "forms": [
+        "cet"
+      ],
+      "priority_tier": 192,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-193",
+      "kind": "word",
+      "lemma": "nom",
+      "sense_he": "שם (של אדם)",
+      "forms": [
+        "nom"
+      ],
+      "priority_tier": 193,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-194",
+      "kind": "word",
+      "lemma": "argent",
+      "sense_he": "כסף",
+      "forms": [
+        "argent"
+      ],
+      "priority_tier": 194,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-196",
+      "kind": "word",
+      "lemma": "nuit",
+      "sense_he": "לילה",
+      "forms": [
+        "nuit"
+      ],
+      "priority_tier": 196,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-197",
+      "kind": "word",
+      "lemma": "raison",
+      "sense_he": "סיבה / צדק (avoir raison)",
+      "forms": [
+        "raison"
+      ],
+      "priority_tier": 197,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-198",
+      "kind": "word",
+      "lemma": "moins",
+      "sense_he": "פחות",
+      "forms": [
+        "moins"
+      ],
+      "priority_tier": 198,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-199",
+      "kind": "word",
+      "lemma": "arriver",
+      "sense_he": "מגיע/קורה",
+      "forms": [
+        "arrive"
+      ],
+      "priority_tier": 199,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-200",
+      "kind": "word",
+      "lemma": "maman",
+      "sense_he": "אמא",
+      "forms": [
+        "maman"
+      ],
+      "priority_tier": 200,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-201",
+      "kind": "word",
+      "lemma": "rester",
+      "sense_he": "נשאר/ת",
+      "forms": [
+        "reste"
+      ],
+      "priority_tier": 201,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-202",
+      "kind": "word",
+      "lemma": "moment",
+      "sense_he": "רגע",
+      "forms": [
+        "moment"
+      ],
+      "priority_tier": 202,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-203",
+      "kind": "word",
+      "lemma": "vouloir",
+      "sense_he": "רציתי/רצית",
+      "forms": [
+        "voulais"
+      ],
+      "priority_tier": 203,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-204",
+      "kind": "word",
+      "lemma": "seul",
+      "sense_he": "לבד (זכר)",
+      "forms": [
+        "seul"
+      ],
+      "priority_tier": 204,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-205",
+      "kind": "word",
+      "lemma": "aider",
+      "sense_he": "לעזור",
+      "forms": [
+        "aider"
+      ],
+      "priority_tier": 205,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-206",
+      "kind": "word",
+      "lemma": "air",
+      "sense_he": "אוויר / מראה (avoir l'air)",
+      "forms": [
+        "air"
+      ],
+      "priority_tier": 206,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-207",
+      "kind": "word",
+      "lemma": "entre",
+      "sense_he": "בין",
+      "forms": [
+        "entre"
+      ],
+      "priority_tier": 207,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-208",
+      "kind": "word",
+      "lemma": "papa",
+      "sense_he": "אבא",
+      "forms": [
+        "papa"
+      ],
+      "priority_tier": 208,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-209",
+      "kind": "word",
+      "lemma": "passer",
+      "sense_he": "עובר/ת",
+      "forms": [
+        "passe"
+      ],
+      "priority_tier": 209,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-210",
+      "kind": "word",
+      "lemma": "avoir",
+      "sense_he": "היה לי (תנאי)",
+      "forms": [
+        "aurais"
+      ],
+      "priority_tier": 210,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-211",
+      "kind": "word",
+      "lemma": "problème",
+      "sense_he": "בעיה",
+      "forms": [
+        "problème"
+      ],
+      "priority_tier": 211,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-212",
+      "kind": "word",
+      "lemma": "ah",
+      "sense_he": "אה (קריאה)",
+      "forms": [
+        "ah"
+      ],
+      "priority_tier": 212,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-213",
+      "kind": "word",
+      "lemma": "peur",
+      "sense_he": "פחד (avoir peur)",
+      "forms": [
+        "peur"
+      ],
+      "priority_tier": 213,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-214",
+      "kind": "word",
+      "lemma": "regarder",
+      "sense_he": "מביט/ה",
+      "forms": [
+        "regarde"
+      ],
+      "priority_tier": 214,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-215",
+      "kind": "word",
+      "lemma": "vouloir",
+      "sense_he": "רוצים (רבים/נימוס)",
+      "forms": [
+        "voulez"
+      ],
+      "priority_tier": 215,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-216",
+      "kind": "word",
+      "lemma": "gars",
+      "sense_he": "בחור",
+      "forms": [
+        "gars"
+      ],
+      "priority_tier": 216,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-217",
+      "kind": "word",
+      "lemma": "trouver",
+      "sense_he": "מצא (בינוני פעול)",
+      "forms": [
+        "trouvé"
+      ],
+      "priority_tier": 217,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-219",
+      "kind": "word",
+      "lemma": "attendre",
+      "sense_he": "מחכה (גוף א/ב יחיד)",
+      "forms": [
+        "attends"
+      ],
+      "priority_tier": 219,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-220",
+      "kind": "word",
+      "lemma": "savoir",
+      "sense_he": "יודעים (רבים/נימוס)",
+      "forms": [
+        "savez"
+      ],
+      "priority_tier": 220,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-221",
+      "kind": "word",
+      "lemma": "trouver",
+      "sense_he": "למצוא",
+      "forms": [
+        "trouver"
+      ],
+      "priority_tier": 221,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-222",
+      "kind": "word",
+      "lemma": "trois",
+      "sense_he": "שלוש/שלושה",
+      "forms": [
+        "trois"
+      ],
+      "priority_tier": 222,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-223",
+      "kind": "word",
+      "lemma": "assez",
+      "sense_he": "מספיק/די",
+      "forms": [
+        "assez"
+      ],
+      "priority_tier": 223,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-224",
+      "kind": "word",
+      "lemma": "famille",
+      "sense_he": "משפחה",
+      "forms": [
+        "famille"
+      ],
+      "priority_tier": 224,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-225",
+      "kind": "word",
+      "lemma": "devoir",
+      "sense_he": "היה חייב (בינוני פעול) / חוב",
+      "forms": [
+        "dû"
+      ],
+      "priority_tier": 225,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-226",
+      "kind": "word",
+      "lemma": "eh",
+      "sense_he": "היי (קריאה)",
+      "forms": [
+        "eh"
+      ],
+      "priority_tier": 226,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-227",
+      "kind": "word",
+      "lemma": "tout",
+      "sense_he": "כולן (נקבה רבים)",
+      "forms": [
+        "toutes"
+      ],
+      "priority_tier": 227,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-228",
+      "kind": "word",
+      "lemma": "plaire",
+      "sense_he": "מוצא חן (s'il vous plaît=בבקשה)",
+      "forms": [
+        "plaît"
+      ],
+      "priority_tier": 228,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-229",
+      "kind": "word",
+      "lemma": "pouvoir",
+      "sense_he": "היה יכול (תנאי, גוף שלישי יחיד)",
+      "forms": [
+        "pourrait"
+      ],
+      "priority_tier": 229,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-230",
+      "kind": "word",
+      "lemma": "travail",
+      "sense_he": "עבודה",
+      "forms": [
+        "travail"
+      ],
+      "priority_tier": 230,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-231",
+      "kind": "word",
+      "lemma": "prendre",
+      "sense_he": "לקח (בינוני פעול)",
+      "forms": [
+        "pris"
+      ],
+      "priority_tier": 231,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-232",
+      "kind": "word",
+      "lemma": "pouvoir",
+      "sense_he": "הצליח (בינוני פעול)",
+      "forms": [
+        "pu"
+      ],
+      "priority_tier": 232,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-233",
+      "kind": "word",
+      "lemma": "tête",
+      "sense_he": "ראש",
+      "forms": [
+        "tête"
+      ],
+      "priority_tier": 233,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-234",
+      "kind": "word",
+      "lemma": "quel",
+      "sense_he": "איזו (נקבה)",
+      "forms": [
+        "quelle"
+      ],
+      "priority_tier": 234,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-235",
+      "kind": "word",
+      "lemma": "savoir",
+      "sense_he": "יודע/ת (גוף שלישי יחיד)",
+      "forms": [
+        "sait"
+      ],
+      "priority_tier": 235,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-236",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "אנחנו (être, גוף א רבים)",
+      "forms": [
+        "sommes"
+      ],
+      "priority_tier": 236,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-237",
+      "kind": "word",
+      "lemma": "appeler",
+      "sense_he": "קורא ל-/נקרא",
+      "forms": [
+        "appelle"
+      ],
+      "priority_tier": 237,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-238",
+      "kind": "word",
+      "lemma": "quelques",
+      "sense_he": "כמה/אחדים",
+      "forms": [
+        "quelques"
+      ],
+      "priority_tier": 238,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-239",
+      "kind": "word",
+      "lemma": "faire",
+      "sense_he": "עושים (רבים/נימוס)",
+      "forms": [
+        "faites"
+      ],
+      "priority_tier": 239,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-240",
+      "kind": "word",
+      "lemma": "partir",
+      "sense_he": "לעזוב/לצאת לדרך",
+      "forms": [
+        "partir"
+      ],
+      "priority_tier": 240,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-241",
+      "kind": "word",
+      "lemma": "vite",
+      "sense_he": "מהר",
+      "forms": [
+        "vite"
+      ],
+      "priority_tier": 241,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-242",
+      "kind": "word",
+      "lemma": "arrêter",
+      "sense_he": "עוצר/מפסיק",
+      "forms": [
+        "arrête"
+      ],
+      "priority_tier": 242,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-243",
+      "kind": "word",
+      "lemma": "seul",
+      "sense_he": "לבדה (נקבה)",
+      "forms": [
+        "seule"
+      ],
+      "priority_tier": 243,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-244",
+      "kind": "word",
+      "lemma": "être",
+      "sense_he": "היה (תנאי, גוף שלישי יחיד)",
+      "forms": [
+        "serait"
+      ],
+      "priority_tier": 244,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-245",
+      "kind": "word",
+      "lemma": "voiture",
+      "sense_he": "מכונית",
+      "forms": [
+        "voiture"
+      ],
+      "priority_tier": 245,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-246",
+      "kind": "word",
+      "lemma": "enfant",
+      "sense_he": "ילדים (רבים)",
+      "forms": [
+        "enfants"
+      ],
+      "priority_tier": 246,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-247",
+      "kind": "word",
+      "lemma": "tuer",
+      "sense_he": "להרוג",
+      "forms": [
+        "tuer"
+      ],
+      "priority_tier": 247,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-248",
+      "kind": "word",
+      "lemma": "merde",
+      "sense_he": "חרא (קללה)",
+      "forms": [
+        "merde"
+      ],
+      "priority_tier": 248,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-249",
+      "kind": "word",
+      "lemma": "hé",
+      "sense_he": "היי (קריאה)",
+      "forms": [
+        "hé"
+      ],
+      "priority_tier": 249,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-250",
+      "kind": "word",
+      "lemma": "pendant",
+      "sense_he": "במהלך/במשך",
+      "forms": [
+        "pendant"
+      ],
+      "priority_tier": 250,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-251",
+      "kind": "word",
+      "lemma": "idée",
+      "sense_he": "רעיון",
+      "forms": [
+        "idée"
+      ],
+      "priority_tier": 251,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-252",
+      "kind": "word",
+      "lemma": "chance",
+      "sense_he": "מזל / הזדמנות",
+      "forms": [
+        "chance"
+      ],
+      "priority_tier": 252,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-253",
+      "kind": "word",
+      "lemma": "parle",
+      "sense_he": "מדבר / מדברת / דבר",
+      "forms": [
+        "parle"
+      ],
+      "priority_tier": 253,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-254",
+      "kind": "word",
+      "lemma": "aurait",
+      "sense_he": "היה לו / הייתה לו (תנאי, avoir)",
+      "forms": [
+        "aurait"
+      ],
+      "priority_tier": 254,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-255",
+      "kind": "word",
+      "lemma": "part",
+      "sense_he": "חלק / יוצא / יוצאת",
+      "forms": [
+        "part"
+      ],
+      "priority_tier": 255,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-257",
+      "kind": "word",
+      "lemma": "jours",
+      "sense_he": "ימים",
+      "forms": [
+        "jours"
+      ],
+      "priority_tier": 257,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-258",
+      "kind": "word",
+      "lemma": "grand",
+      "sense_he": "גדול / גבוה",
+      "forms": [
+        "grand"
+      ],
+      "priority_tier": 258,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-259",
+      "kind": "word",
+      "lemma": "aujourd'hui",
+      "sense_he": "היום",
+      "forms": [
+        "aujourd'hui"
+      ],
+      "priority_tier": 259,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-260",
+      "kind": "word",
+      "lemma": "venir",
+      "sense_he": "לבוא",
+      "forms": [
+        "venir"
+      ],
+      "priority_tier": 260,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-261",
+      "kind": "word",
+      "lemma": "ami",
+      "sense_he": "חבר",
+      "forms": [
+        "ami"
+      ],
+      "priority_tier": 261,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-262",
+      "kind": "word",
+      "lemma": "demain",
+      "sense_he": "מחר",
+      "forms": [
+        "demain"
+      ],
+      "priority_tier": 262,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-263",
+      "kind": "word",
+      "lemma": "hein",
+      "sense_he": "הא / אה (שאלה או בקשת אישור)",
+      "forms": [
+        "hein"
+      ],
+      "priority_tier": 263,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-264",
+      "kind": "word",
+      "lemma": "tard",
+      "sense_he": "מאוחר",
+      "forms": [
+        "tard"
+      ],
+      "priority_tier": 264,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-265",
+      "kind": "word",
+      "lemma": "puis",
+      "sense_he": "אחר כך / ואז / יכול (צורה של pouvoir)",
+      "forms": [
+        "puis"
+      ],
+      "priority_tier": 265,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-266",
+      "kind": "word",
+      "lemma": "truc",
+      "sense_he": "דבר / משהו / טריק",
+      "forms": [
+        "truc"
+      ],
+      "priority_tier": 266,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-267",
+      "kind": "word",
+      "lemma": "passer",
+      "sense_he": "לעבור / להעביר",
+      "forms": [
+        "passer"
+      ],
+      "priority_tier": 267,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-268",
+      "kind": "word",
+      "lemma": "petite",
+      "sense_he": "קטנה",
+      "forms": [
+        "petite"
+      ],
+      "priority_tier": 268,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-269",
+      "kind": "word",
+      "lemma": "tant",
+      "sense_he": "כל כך הרבה / כל כך",
+      "forms": [
+        "tant"
+      ],
+      "priority_tier": 269,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-270",
+      "kind": "word",
+      "lemma": "connais",
+      "sense_he": "מכיר / מכירה",
+      "forms": [
+        "connais"
+      ],
+      "priority_tier": 270,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-271",
+      "kind": "word",
+      "lemma": "combien",
+      "sense_he": "כמה",
+      "forms": [
+        "combien"
+      ],
+      "priority_tier": 271,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-272",
+      "kind": "word",
+      "lemma": "mec",
+      "sense_he": "בחור / גבר (מדובר)",
+      "forms": [
+        "mec"
+      ],
+      "priority_tier": 272,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-273",
+      "kind": "word",
+      "lemma": "sens",
+      "sense_he": "משמעות / חוש / כיוון / מרגיש",
+      "forms": [
+        "sens"
+      ],
+      "priority_tier": 273,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-274",
+      "kind": "word",
+      "lemma": "pouvez",
+      "sense_he": "יכולים / יכולות / יכול (פנייה מנומסת)",
+      "forms": [
+        "pouvez"
+      ],
+      "priority_tier": 274,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-275",
+      "kind": "word",
+      "lemma": "porte",
+      "sense_he": "דלת / נושא / נושאת / לובש / לובשת",
+      "forms": [
+        "porte"
+      ],
+      "priority_tier": 275,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-276",
+      "kind": "word",
+      "lemma": "sortir",
+      "sense_he": "לצאת",
+      "forms": [
+        "sortir"
+      ],
+      "priority_tier": 276,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-277",
+      "kind": "word",
+      "lemma": "super",
+      "sense_he": "מעולה / מצוין",
+      "forms": [
+        "super"
+      ],
+      "priority_tier": 277,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-278",
+      "kind": "word",
+      "lemma": "heure",
+      "sense_he": "שעה",
+      "forms": [
+        "heure"
+      ],
+      "priority_tier": 278,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-279",
+      "kind": "word",
+      "lemma": "contre",
+      "sense_he": "נגד / כנגד",
+      "forms": [
+        "contre"
+      ],
+      "priority_tier": 279,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-280",
+      "kind": "word",
+      "lemma": "coup",
+      "sense_he": "מכה / חבטה",
+      "forms": [
+        "coup"
+      ],
+      "priority_tier": 280,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-281",
+      "kind": "word",
+      "lemma": "comprends",
+      "sense_he": "מבין / מבינה",
+      "forms": [
+        "comprends"
+      ],
+      "priority_tier": 281,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-282",
+      "kind": "word",
+      "lemma": "entendu",
+      "sense_he": "נשמע / שמע (בינוני עבר, entendre)",
+      "forms": [
+        "entendu"
+      ],
+      "priority_tier": 282,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-283",
+      "kind": "word",
+      "lemma": "vient",
+      "sense_he": "בא / באה / מגיע / מגיעה",
+      "forms": [
+        "vient"
+      ],
+      "priority_tier": 283,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-284",
+      "kind": "word",
+      "lemma": "allons",
+      "sense_he": "הולכים / הולכות / נלך",
+      "forms": [
+        "allons"
+      ],
+      "priority_tier": 284,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-285",
+      "kind": "word",
+      "lemma": "ensemble",
+      "sense_he": "יחד / ביחד / מכלול",
+      "forms": [
+        "ensemble"
+      ],
+      "priority_tier": 285,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-286",
+      "kind": "word",
+      "lemma": "nouveau",
+      "sense_he": "חדש",
+      "forms": [
+        "nouveau"
+      ],
+      "priority_tier": 286,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-287",
+      "kind": "word",
+      "lemma": "amour",
+      "sense_he": "אהבה",
+      "forms": [
+        "amour"
+      ],
+      "priority_tier": 287,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-288",
+      "kind": "word",
+      "lemma": "importe",
+      "sense_he": "חשוב / מייבא / מייבאת",
+      "forms": [
+        "importe"
+      ],
+      "priority_tier": 288,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-289",
+      "kind": "word",
+      "lemma": "sang",
+      "sense_he": "דם",
+      "forms": [
+        "sang"
+      ],
+      "priority_tier": 289,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-290",
+      "kind": "word",
+      "lemma": "désolée",
+      "sense_he": "מצטערת",
+      "forms": [
+        "désolée"
+      ],
+      "priority_tier": 290,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-291",
+      "kind": "word",
+      "lemma": "cas",
+      "sense_he": "מקרה",
+      "forms": [
+        "cas"
+      ],
+      "priority_tier": 291,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-292",
+      "kind": "word",
+      "lemma": "sous",
+      "sense_he": "מתחת / תחת",
+      "forms": [
+        "sous"
+      ],
+      "priority_tier": 292,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-293",
+      "kind": "word",
+      "lemma": "rester",
+      "sense_he": "להישאר",
+      "forms": [
+        "rester"
+      ],
+      "priority_tier": 293,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-294",
+      "kind": "word",
+      "lemma": "amis",
+      "sense_he": "חברים",
+      "forms": [
+        "amis"
+      ],
+      "priority_tier": 294,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-295",
+      "kind": "word",
+      "lemma": "prends",
+      "sense_he": "לוקח / לוקחת / קח / קחי",
+      "forms": [
+        "prends"
+      ],
+      "priority_tier": 295,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-296",
+      "kind": "word",
+      "lemma": "fini",
+      "sense_he": "גמור / הסתיים / סיים (בינוני עבר)",
+      "forms": [
+        "fini"
+      ],
+      "priority_tier": 296,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-297",
+      "kind": "word",
+      "lemma": "hommes",
+      "sense_he": "גברים / בני אדם",
+      "forms": [
+        "hommes"
+      ],
+      "priority_tier": 297,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-298",
+      "kind": "word",
+      "lemma": "tué",
+      "sense_he": "הרוג / הרג (בינוני עבר, tuer)",
+      "forms": [
+        "tué"
+      ],
+      "priority_tier": 298,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-299",
+      "kind": "word",
+      "lemma": "question",
+      "sense_he": "שאלה",
+      "forms": [
+        "question"
+      ],
+      "priority_tier": 299,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-300",
+      "kind": "word",
+      "lemma": "partie",
+      "sense_he": "חלק / משחק / יצאה (בינוני עבר)",
+      "forms": [
+        "partie"
+      ],
+      "priority_tier": 300,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-301",
+      "kind": "word",
+      "lemma": "histoire",
+      "sense_he": "סיפור / היסטוריה",
+      "forms": [
+        "histoire"
+      ],
+      "priority_tier": 301,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-302",
+      "kind": "word",
+      "lemma": "devrais",
+      "sense_he": "צריך / צריכה / אמור / אמורה (תנאי)",
+      "forms": [
+        "devrais"
+      ],
+      "priority_tier": 302,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-303",
+      "kind": "word",
+      "lemma": "aide",
+      "sense_he": "עזרה / עוזר / עוזרת",
+      "forms": [
+        "aide"
+      ],
+      "priority_tier": 303,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-304",
+      "kind": "word",
+      "lemma": "dernière",
+      "sense_he": "אחרונה",
+      "forms": [
+        "dernière"
+      ],
+      "priority_tier": 304,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-305",
+      "kind": "word",
+      "lemma": "demande",
+      "sense_he": "בקשה / מבקש / מבקשת / שואל / שואלת",
+      "forms": [
+        "demande"
+      ],
+      "priority_tier": 305,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-306",
+      "kind": "word",
+      "lemma": "chercher",
+      "sense_he": "לחפש",
+      "forms": [
+        "chercher"
+      ],
+      "priority_tier": 306,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-307",
+      "kind": "word",
+      "lemma": "pensais",
+      "sense_he": "חשבתי / חשבת (עבר מתמשך)",
+      "forms": [
+        "pensais"
+      ],
+      "priority_tier": 307,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-308",
+      "kind": "word",
+      "lemma": "genre",
+      "sense_he": "סוג / מין / ז'אנר",
+      "forms": [
+        "genre"
+      ],
+      "priority_tier": 308,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-309",
+      "kind": "word",
+      "lemma": "seulement",
+      "sense_he": "רק / בלבד",
+      "forms": [
+        "seulement"
+      ],
+      "priority_tier": 309,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-310",
+      "kind": "word",
+      "lemma": "police",
+      "sense_he": "משטרה",
+      "forms": [
+        "police"
+      ],
+      "priority_tier": 310,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-311",
+      "kind": "word",
+      "lemma": "car",
+      "sense_he": "כי / מפני ש / אוטובוס בין־עירוני",
+      "forms": [
+        "car"
+      ],
+      "priority_tier": 311,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-312",
+      "kind": "word",
+      "lemma": "mois",
+      "sense_he": "חודש / חודשים",
+      "forms": [
+        "mois"
+      ],
+      "priority_tier": 312,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-313",
+      "kind": "word",
+      "lemma": "frère",
+      "sense_he": "אח",
+      "forms": [
+        "frère"
+      ],
+      "priority_tier": 313,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-314",
+      "kind": "word",
+      "lemma": "laisser",
+      "sense_he": "להשאיר / להניח / לאפשר",
+      "forms": [
+        "laisser"
+      ],
+      "priority_tier": 314,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-315",
+      "kind": "word",
+      "lemma": "aucun",
+      "sense_he": "אף אחד / שום",
+      "forms": [
+        "aucun"
+      ],
+      "priority_tier": 315,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-316",
+      "kind": "word",
+      "lemma": "mettre",
+      "sense_he": "לשים / להניח",
+      "forms": [
+        "mettre"
+      ],
+      "priority_tier": 316,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-317",
+      "kind": "word",
+      "lemma": "eux",
+      "sense_he": "הם / אותם (כינוי מודגש)",
+      "forms": [
+        "eux"
+      ],
+      "priority_tier": 317,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-318",
+      "kind": "word",
+      "lemma": "laisse",
+      "sense_he": "משאיר / משאירה / השאר / השאירי",
+      "forms": [
+        "laisse"
+      ],
+      "priority_tier": 318,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-319",
+      "kind": "word",
+      "lemma": "chaque",
+      "sense_he": "כל (כל אחד בנפרד)",
+      "forms": [
+        "chaque"
+      ],
+      "priority_tier": 319,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-320",
+      "kind": "word",
+      "lemma": "ville",
+      "sense_he": "עיר",
+      "forms": [
+        "ville"
+      ],
+      "priority_tier": 320,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-321",
+      "kind": "word",
+      "lemma": "arrivé",
+      "sense_he": "הגיע / הגיעו (בינוני עבר בזכר יחיד)",
+      "forms": [
+        "arrivé"
+      ],
+      "priority_tier": 321,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-322",
+      "kind": "word",
+      "lemma": "devrait",
+      "sense_he": "צריך / צריכה / אמור / אמורה (גוף שלישי, תנאי)",
+      "forms": [
+        "devrait"
+      ],
+      "priority_tier": 322,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-323",
+      "kind": "word",
+      "lemma": "parlé",
+      "sense_he": "דיבר / דיברה (בינוני עבר)",
+      "forms": [
+        "parlé"
+      ],
+      "priority_tier": 323,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-324",
+      "kind": "word",
+      "lemma": "avez-vous",
+      "sense_he": "האם יש לכם / האם יש לכן / האם יש לך (מנומס)",
+      "forms": [
+        "avez-vous"
+      ],
+      "priority_tier": 324,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-325",
+      "kind": "word",
+      "lemma": "vont",
+      "sense_he": "הולכים / הולכות",
+      "forms": [
+        "vont"
+      ],
+      "priority_tier": 325,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-326",
+      "kind": "word",
+      "lemma": "longtemps",
+      "sense_he": "זמן רב / הרבה זמן",
+      "forms": [
+        "longtemps"
+      ],
+      "priority_tier": 326,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-327",
+      "kind": "word",
+      "lemma": "aucune",
+      "sense_he": "אף אחת / שום (נקבה)",
+      "forms": [
+        "aucune"
+      ],
+      "priority_tier": 327,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-328",
+      "kind": "word",
+      "lemma": "heures",
+      "sense_he": "שעות",
+      "forms": [
+        "heures"
+      ],
+      "priority_tier": 328,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-329",
+      "kind": "word",
+      "lemma": "bébé",
+      "sense_he": "תינוק / תינוקת",
+      "forms": [
+        "bébé"
+      ],
+      "priority_tier": 329,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-330",
+      "kind": "word",
+      "lemma": "place",
+      "sense_he": "מקום / כיכר / מציב / מציבה",
+      "forms": [
+        "place"
+      ],
+      "priority_tier": 330,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-331",
+      "kind": "word",
+      "lemma": "revoir",
+      "sense_he": "לראות שוב / לשוב ולראות",
+      "forms": [
+        "revoir"
+      ],
+      "priority_tier": 331,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-332",
+      "kind": "word",
+      "lemma": "putain",
+      "sense_he": "זונה / לעזאזל (גס)",
+      "forms": [
+        "putain"
+      ],
+      "priority_tier": 332,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-333",
+      "kind": "word",
+      "lemma": "compris",
+      "sense_he": "מובן / הבין (בינוני עבר)",
+      "forms": [
+        "compris"
+      ],
+      "priority_tier": 333,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-334",
+      "kind": "word",
+      "lemma": "ni",
+      "sense_he": "וגם לא / ולא (שלילה מתואמת)",
+      "forms": [
+        "ni"
+      ],
+      "priority_tier": 334,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-335",
+      "kind": "word",
+      "lemma": "savais",
+      "sense_he": "ידעתי / ידעת (עבר מתמשך)",
+      "forms": [
+        "savais"
+      ],
+      "priority_tier": 335,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-336",
+      "kind": "word",
+      "lemma": "leurs",
+      "sense_he": "שלהם / שלהן (לפני שם עצם ברבים)",
+      "forms": [
+        "leurs"
+      ],
+      "priority_tier": 336,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-337",
+      "kind": "word",
+      "lemma": "étaient",
+      "sense_he": "היו (עבר מתמשך, être)",
+      "forms": [
+        "étaient"
+      ],
+      "priority_tier": 337,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-338",
+      "kind": "word",
+      "lemma": "attention",
+      "sense_he": "תשומת לב / זהירות",
+      "forms": [
+        "attention"
+      ],
+      "priority_tier": 338,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-339",
+      "kind": "word",
+      "lemma": "donner",
+      "sense_he": "לתת",
+      "forms": [
+        "donner"
+      ],
+      "priority_tier": 339,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-340",
+      "kind": "word",
+      "lemma": "affaire",
+      "sense_he": "עניין / עסק / פרשה",
+      "forms": [
+        "affaire"
+      ],
+      "priority_tier": 340,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-341",
+      "kind": "word",
+      "lemma": "endroit",
+      "sense_he": "מקום",
+      "forms": [
+        "endroit"
+      ],
+      "priority_tier": 341,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-342",
+      "kind": "word",
+      "lemma": "pourrais",
+      "sense_he": "יכולתי / יכולת (תנאי, pouvoir)",
+      "forms": [
+        "pourrais"
+      ],
+      "priority_tier": 342,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-343",
+      "kind": "word",
+      "lemma": "corps",
+      "sense_he": "גוף / גופים",
+      "forms": [
+        "corps"
+      ],
+      "priority_tier": 343,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-344",
+      "kind": "word",
+      "lemma": "façon",
+      "sense_he": "אופן / דרך",
+      "forms": [
+        "façon"
+      ],
+      "priority_tier": 344,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-345",
+      "kind": "word",
+      "lemma": "donné",
+      "sense_he": "נתון / נתן (בינוני עבר)",
+      "forms": [
+        "donné"
+      ],
+      "priority_tier": 345,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-346",
+      "kind": "word",
+      "lemma": "est-il",
+      "sense_he": "האם הוא / האם זה (היפוך שאלה, être)",
+      "forms": [
+        "est-il"
+      ],
+      "priority_tier": 346,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-347",
+      "kind": "word",
+      "lemma": "voici",
+      "sense_he": "הנה",
+      "forms": [
+        "voici"
+      ],
+      "priority_tier": 347,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-348",
+      "kind": "word",
+      "lemma": "train",
+      "sense_he": "רכבת",
+      "forms": [
+        "train"
+      ],
+      "priority_tier": 348,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-349",
+      "kind": "word",
+      "lemma": "dont",
+      "sense_he": "אשר / ש־ / של (כינוי זיקה המקושר ל־de)",
+      "forms": [
+        "dont"
+      ],
+      "priority_tier": 349,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-350",
+      "kind": "word",
+      "lemma": "écoute",
+      "sense_he": "הקשבה / מקשיב / מקשיבה / הקשב / הקשיבי",
+      "forms": [
+        "écoute"
+      ],
+      "priority_tier": 350,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-351",
+      "kind": "word",
+      "lemma": "yeux",
+      "sense_he": "עיניים",
+      "forms": [
+        "yeux"
+      ],
+      "priority_tier": 351,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-352",
+      "kind": "word",
+      "lemma": "trouve",
+      "sense_he": "מוצא / מוצאת / מצא / מצאי",
+      "forms": [
+        "trouve"
+      ],
+      "priority_tier": 352,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-353",
+      "kind": "word",
+      "lemma": "pouvoir",
+      "sense_he": "להיות יכול / יכולת / כוח / סמכות",
+      "forms": [
+        "pouvoir"
+      ],
+      "priority_tier": 353,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-354",
+      "kind": "word",
+      "lemma": "type",
+      "sense_he": "סוג / טיפוס / בחור",
+      "forms": [
+        "type"
+      ],
+      "priority_tier": 354,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-355",
+      "kind": "word",
+      "lemma": "perdu",
+      "sense_he": "אבוד / איבד (בינוני עבר)",
+      "forms": [
+        "perdu"
+      ],
+      "priority_tier": 355,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-356",
+      "kind": "word",
+      "lemma": "premier",
+      "sense_he": "ראשון",
+      "forms": [
+        "premier"
+      ],
+      "priority_tier": 356,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-357",
+      "kind": "word",
+      "lemma": "première",
+      "sense_he": "ראשונה",
+      "forms": [
+        "première"
+      ],
+      "priority_tier": 357,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-358",
+      "kind": "word",
+      "lemma": "côté",
+      "sense_he": "צד",
+      "forms": [
+        "côté"
+      ],
+      "priority_tier": 358,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-359",
+      "kind": "word",
+      "lemma": "point",
+      "sense_he": "נקודה / כלל לא (שלילה)",
+      "forms": [
+        "point"
+      ],
+      "priority_tier": 359,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-360",
+      "kind": "word",
+      "lemma": "tellement",
+      "sense_he": "כל כך",
+      "forms": [
+        "tellement"
+      ],
+      "priority_tier": 360,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-361",
+      "kind": "word",
+      "lemma": "main",
+      "sense_he": "יד",
+      "forms": [
+        "main"
+      ],
+      "priority_tier": 361,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-362",
+      "kind": "word",
+      "lemma": "tiens",
+      "sense_he": "מחזיק / מחזיקה / קח / קחי / הנה",
+      "forms": [
+        "tiens"
+      ],
+      "priority_tier": 362,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-363",
+      "kind": "word",
+      "lemma": "sois",
+      "sense_he": "היה / היי / שאהיה / שתהיה (être)",
+      "forms": [
+        "sois"
+      ],
+      "priority_tier": 363,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-365",
+      "kind": "word",
+      "lemma": "vieux",
+      "sense_he": "זקן / ישן",
+      "forms": [
+        "vieux"
+      ],
+      "priority_tier": 365,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-366",
+      "kind": "word",
+      "lemma": "matin",
+      "sense_he": "בוקר",
+      "forms": [
+        "matin"
+      ],
+      "priority_tier": 366,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-367",
+      "kind": "word",
+      "lemma": "venu",
+      "sense_he": "בא / הגיע (בינוני עבר)",
+      "forms": [
+        "venu"
+      ],
+      "priority_tier": 367,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-368",
+      "kind": "word",
+      "lemma": "pardon",
+      "sense_he": "סליחה / מחילה",
+      "forms": [
+        "pardon"
+      ],
+      "priority_tier": 368,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-369",
+      "kind": "word",
+      "lemma": "là-bas",
+      "sense_he": "שם / שם רחוק",
+      "forms": [
+        "là-bas"
+      ],
+      "priority_tier": 369,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-370",
+      "kind": "word",
+      "lemma": "suite",
+      "sense_he": "המשך / סדרה",
+      "forms": [
+        "suite"
+      ],
+      "priority_tier": 370,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-371",
+      "kind": "word",
+      "lemma": "vers",
+      "sense_he": "אל / לכיוון / בערך / שורות שירה",
+      "forms": [
+        "vers"
+      ],
+      "priority_tier": 371,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-372",
+      "kind": "word",
+      "lemma": "minutes",
+      "sense_he": "דקות",
+      "forms": [
+        "minutes"
+      ],
+      "priority_tier": 372,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-373",
+      "kind": "word",
+      "lemma": "demandé",
+      "sense_he": "ביקש / שאל (בינוני עבר)",
+      "forms": [
+        "demandé"
+      ],
+      "priority_tier": 373,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-374",
+      "kind": "word",
+      "lemma": "venez",
+      "sense_he": "בואו / באים / באות (גם פנייה מנומסת)",
+      "forms": [
+        "venez"
+      ],
+      "priority_tier": 374,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-375",
+      "kind": "word",
+      "lemma": "devant",
+      "sense_he": "לפני / מול",
+      "forms": [
+        "devant"
+      ],
+      "priority_tier": 375,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-376",
+      "kind": "word",
+      "lemma": "dr",
+      "sense_he": "דוקטור (קיצור תואר)",
+      "forms": [
+        "dr"
+      ],
+      "priority_tier": 376,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-377",
+      "kind": "word",
+      "lemma": "enfin",
+      "sense_he": "לבסוף / סוף סוף",
+      "forms": [
+        "enfin"
+      ],
+      "priority_tier": 377,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-378",
+      "kind": "word",
+      "lemma": "arrêter",
+      "sense_he": "לעצור / להפסיק",
+      "forms": [
+        "arrêter"
+      ],
+      "priority_tier": 378,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-379",
+      "kind": "word",
+      "lemma": "cause",
+      "sense_he": "סיבה / גורם / גורם ל־",
+      "forms": [
+        "cause"
+      ],
+      "priority_tier": 379,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-380",
+      "kind": "word",
+      "lemma": "nouvelle",
+      "sense_he": "חדשה / ידיעה / נובלה",
+      "forms": [
+        "nouvelle"
+      ],
+      "priority_tier": 380,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-381",
+      "kind": "word",
+      "lemma": "attendez",
+      "sense_he": "חכו / המתינו / מחכים / מחכות",
+      "forms": [
+        "attendez"
+      ],
+      "priority_tier": 381,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-382",
+      "kind": "word",
+      "lemma": "chambre",
+      "sense_he": "חדר / חדר שינה / לשכה",
+      "forms": [
+        "chambre"
+      ],
+      "priority_tier": 382,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-383",
+      "kind": "word",
+      "lemma": "droit",
+      "sense_he": "זכות / חוק / ישר / ימני",
+      "forms": [
+        "droit"
+      ],
+      "priority_tier": 383,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-384",
+      "kind": "word",
+      "lemma": "parti",
+      "sense_he": "מפלגה / יצא / עזב (בינוני עבר)",
+      "forms": [
+        "parti"
+      ],
+      "priority_tier": 384,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-385",
+      "kind": "word",
+      "lemma": "mis",
+      "sense_he": "שם / הניח (בינוני עבר)",
+      "forms": [
+        "mis"
+      ],
+      "priority_tier": 385,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-386",
+      "kind": "word",
+      "lemma": "eau",
+      "sense_he": "מים",
+      "forms": [
+        "eau"
+      ],
+      "priority_tier": 386,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-387",
+      "kind": "word",
+      "lemma": "compte",
+      "sense_he": "חשבון / סופר / סופרת / נחשב",
+      "forms": [
+        "compte"
+      ],
+      "priority_tier": 387,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-388",
+      "kind": "word",
+      "lemma": "dirait",
+      "sense_he": "היה אומר / הייתה אומרת (תנאי, dire)",
+      "forms": [
+        "dirait"
+      ],
+      "priority_tier": 388,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-389",
+      "kind": "word",
+      "lemma": "terre",
+      "sense_he": "אדמה / ארץ / כדור הארץ",
+      "forms": [
+        "terre"
+      ],
+      "priority_tier": 389,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-390",
+      "kind": "word",
+      "lemma": "belle",
+      "sense_he": "יפה (נקבה)",
+      "forms": [
+        "belle"
+      ],
+      "priority_tier": 390,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-391",
+      "kind": "word",
+      "lemma": "espère",
+      "sense_he": "מקווה / קווה / קווי",
+      "forms": [
+        "espère"
+      ],
+      "priority_tier": 391,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-392",
+      "kind": "word",
+      "lemma": "aimerais",
+      "sense_he": "הייתי רוצה / הייתי אוהב / הייתי אוהבת (תנאי)",
+      "forms": [
+        "aimerais"
+      ],
+      "priority_tier": 392,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-393",
+      "kind": "word",
+      "lemma": "loin",
+      "sense_he": "רחוק",
+      "forms": [
+        "loin"
+      ],
+      "priority_tier": 393,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-394",
+      "kind": "word",
+      "lemma": "as-tu",
+      "sense_he": "האם יש לך (פנייה ביחיד)",
+      "forms": [
+        "as-tu"
+      ],
+      "priority_tier": 394,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-395",
+      "kind": "word",
+      "lemma": "mari",
+      "sense_he": "בעל (בן זוג)",
+      "forms": [
+        "mari"
+      ],
+      "priority_tier": 395,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-396",
+      "kind": "word",
+      "lemma": "donne",
+      "sense_he": "נותן / נותנת / תן / תני",
+      "forms": [
+        "donne"
+      ],
+      "priority_tier": 396,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-397",
+      "kind": "word",
+      "lemma": "fin",
+      "sense_he": "סוף / דק / עדין",
+      "forms": [
+        "fin"
+      ],
+      "priority_tier": 397,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-398",
+      "kind": "word",
+      "lemma": "croire",
+      "sense_he": "להאמין",
+      "forms": [
+        "croire"
+      ],
+      "priority_tier": 398,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-399",
+      "kind": "word",
+      "lemma": "mme",
+      "sense_he": "גברת (קיצור של Madame)",
+      "forms": [
+        "mme"
+      ],
+      "priority_tier": 399,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-400",
+      "kind": "word",
+      "lemma": "aura",
+      "sense_he": "יהיה לו / תהיה לו / הילה",
+      "forms": [
+        "aura"
+      ],
+      "priority_tier": 400,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-401",
+      "kind": "word",
+      "lemma": "gros",
+      "sense_he": "גדול / שמן / עבה",
+      "forms": [
+        "gros"
+      ],
+      "priority_tier": 401,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-402",
+      "kind": "word",
+      "lemma": "boulot",
+      "sense_he": "עבודה (מדובר)",
+      "forms": [
+        "boulot"
+      ],
+      "priority_tier": 402,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-403",
+      "kind": "word",
+      "lemma": "plutôt",
+      "sense_he": "די / למדי / דווקא / מוטב",
+      "forms": [
+        "plutôt"
+      ],
+      "priority_tier": 403,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-404",
+      "kind": "word",
+      "lemma": "chérie",
+      "sense_he": "יקירה / אהובה",
+      "forms": [
+        "chérie"
+      ],
+      "priority_tier": 404,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-405",
+      "kind": "word",
+      "lemma": "prêt",
+      "sense_he": "מוכן / הלוואה",
+      "forms": [
+        "prêt"
+      ],
+      "priority_tier": 405,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-406",
+      "kind": "word",
+      "lemma": "filles",
+      "sense_he": "בנות / נערות",
+      "forms": [
+        "filles"
+      ],
+      "priority_tier": 406,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-407",
+      "kind": "word",
+      "lemma": "bureau",
+      "sense_he": "משרד / שולחן כתיבה",
+      "forms": [
+        "bureau"
+      ],
+      "priority_tier": 407,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-408",
+      "kind": "word",
+      "lemma": "mourir",
+      "sense_he": "למות",
+      "forms": [
+        "mourir"
+      ],
+      "priority_tier": 408,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-409",
+      "kind": "word",
+      "lemma": "hier",
+      "sense_he": "אתמול",
+      "forms": [
+        "hier"
+      ],
+      "priority_tier": 409,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-410",
+      "kind": "word",
+      "lemma": "possible",
+      "sense_he": "אפשרי",
+      "forms": [
+        "possible"
+      ],
+      "priority_tier": 410,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-411",
+      "kind": "word",
+      "lemma": "jouer",
+      "sense_he": "לשחק / לנגן",
+      "forms": [
+        "jouer"
+      ],
+      "priority_tier": 411,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-412",
+      "kind": "word",
+      "lemma": "demander",
+      "sense_he": "לבקש / לשאול",
+      "forms": [
+        "demander"
+      ],
+      "priority_tier": 412,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-413",
+      "kind": "word",
+      "lemma": "celui",
+      "sense_he": "זה / ההוא (כינוי זכר יחיד)",
+      "forms": [
+        "celui"
+      ],
+      "priority_tier": 413,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-414",
+      "kind": "word",
+      "lemma": "voulait",
+      "sense_he": "רצה / רצתה (עבר מתמשך)",
+      "forms": [
+        "voulait"
+      ],
+      "priority_tier": 414,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-415",
+      "kind": "word",
+      "lemma": "beau",
+      "sense_he": "יפה (זכר)",
+      "forms": [
+        "beau"
+      ],
+      "priority_tier": 415,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-416",
+      "kind": "word",
+      "lemma": "jeune",
+      "sense_he": "צעיר / צעירה",
+      "forms": [
+        "jeune"
+      ],
+      "priority_tier": 416,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-417",
+      "kind": "word",
+      "lemma": "euh",
+      "sense_he": "אה / אממ (היסוס)",
+      "forms": [
+        "euh"
+      ],
+      "priority_tier": 417,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-418",
+      "kind": "word",
+      "lemma": "dehors",
+      "sense_he": "בחוץ / החוצה",
+      "forms": [
+        "dehors"
+      ],
+      "priority_tier": 418,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-419",
+      "kind": "word",
+      "lemma": "docteur",
+      "sense_he": "דוקטור / רופא",
+      "forms": [
+        "docteur"
+      ],
+      "priority_tier": 419,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-420",
+      "kind": "word",
+      "lemma": "a-t-il",
+      "sense_he": "האם יש לו / האם הוא (היפוך שאלה, avoir)",
+      "forms": [
+        "a-t-il"
+      ],
+      "priority_tier": 420,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-421",
+      "kind": "word",
+      "lemma": "confiance",
+      "sense_he": "אמון / ביטחון",
+      "forms": [
+        "confiance"
+      ],
+      "priority_tier": 421,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-422",
+      "kind": "word",
+      "lemma": "appeler",
+      "sense_he": "לקרוא / להתקשר",
+      "forms": [
+        "appeler"
+      ],
+      "priority_tier": 422,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-423",
+      "kind": "word",
+      "lemma": "années",
+      "sense_he": "שנים",
+      "forms": [
+        "années"
+      ],
+      "priority_tier": 423,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-424",
+      "kind": "word",
+      "lemma": "vérité",
+      "sense_he": "אמת",
+      "forms": [
+        "vérité"
+      ],
+      "priority_tier": 424,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-425",
+      "kind": "word",
+      "lemma": "école",
+      "sense_he": "בית ספר / אסכולה",
+      "forms": [
+        "école"
+      ],
+      "priority_tier": 425,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-426",
+      "kind": "word",
+      "lemma": "chef",
+      "sense_he": "ראש / מנהל / שף",
+      "forms": [
+        "chef"
+      ],
+      "priority_tier": 426,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-427",
+      "kind": "word",
+      "lemma": "femmes",
+      "sense_he": "נשים",
+      "forms": [
+        "femmes"
+      ],
+      "priority_tier": 427,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-428",
+      "kind": "word",
+      "lemma": "propos",
+      "sense_he": "דברים / אמירות / עניין",
+      "forms": [
+        "propos"
+      ],
+      "priority_tier": 428,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-429",
+      "kind": "word",
+      "lemma": "semaine",
+      "sense_he": "שבוע",
+      "forms": [
+        "semaine"
+      ],
+      "priority_tier": 429,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-430",
+      "kind": "word",
+      "lemma": "vivre",
+      "sense_he": "לחיות",
+      "forms": [
+        "vivre"
+      ],
+      "priority_tier": 430,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-431",
+      "kind": "word",
+      "lemma": "regardez",
+      "sense_he": "הביטו / הסתכלו / מביטים / מסתכלים",
+      "forms": [
+        "regardez"
+      ],
+      "priority_tier": 431,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-432",
+      "kind": "word",
+      "lemma": "feu",
+      "sense_he": "אש",
+      "forms": [
+        "feu"
+      ],
+      "priority_tier": 432,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-433",
+      "kind": "word",
+      "lemma": "journée",
+      "sense_he": "יום / שעות היום",
+      "forms": [
+        "journée"
+      ],
+      "priority_tier": 433,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-434",
+      "kind": "word",
+      "lemma": "madame",
+      "sense_he": "גברת",
+      "forms": [
+        "madame"
+      ],
+      "priority_tier": 434,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-435",
+      "kind": "word",
+      "lemma": "hey",
+      "sense_he": "היי (קריאת תשומת לב)",
+      "forms": [
+        "hey"
+      ],
+      "priority_tier": 435,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-436",
+      "kind": "word",
+      "lemma": "téléphone",
+      "sense_he": "טלפון / מטלפן / מטלפנת",
+      "forms": [
+        "téléphone"
+      ],
+      "priority_tier": 436,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-437",
+      "kind": "word",
+      "lemma": "près",
+      "sense_he": "קרוב / ליד",
+      "forms": [
+        "près"
+      ],
+      "priority_tier": 437,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-438",
+      "kind": "word",
+      "lemma": "affaires",
+      "sense_he": "עסקים / עניינים / חפצים",
+      "forms": [
+        "affaires"
+      ],
+      "priority_tier": 438,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-439",
+      "kind": "word",
+      "lemma": "meilleur",
+      "sense_he": "טוב יותר / הטוב ביותר",
+      "forms": [
+        "meilleur"
+      ],
+      "priority_tier": 439,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-440",
+      "kind": "word",
+      "lemma": "devez",
+      "sense_he": "צריכים / צריכות / חייבים / חייבות",
+      "forms": [
+        "devez"
+      ],
+      "priority_tier": 440,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-441",
+      "kind": "word",
+      "lemma": "dessus",
+      "sense_he": "על / מעל / החלק העליון",
+      "forms": [
+        "dessus"
+      ],
+      "priority_tier": 441,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-442",
+      "kind": "word",
+      "lemma": "mains",
+      "sense_he": "ידיים",
+      "forms": [
+        "mains"
+      ],
+      "priority_tier": 442,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-443",
+      "kind": "word",
+      "lemma": "penses",
+      "sense_he": "חושב / חושבת (גוף שני)",
+      "forms": [
+        "penses"
+      ],
+      "priority_tier": 443,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-444",
+      "kind": "word",
+      "lemma": "prie",
+      "sense_he": "מתפלל / מתפללת / מבקש / מבקשת",
+      "forms": [
+        "prie"
+      ],
+      "priority_tier": 444,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-445",
+      "kind": "word",
+      "lemma": "équipe",
+      "sense_he": "צוות / קבוצה",
+      "forms": [
+        "équipe"
+      ],
+      "priority_tier": 445,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-446",
+      "kind": "word",
+      "lemma": "vas-y",
+      "sense_he": "לך / קדימה (ציווי מדובר)",
+      "forms": [
+        "vas-y"
+      ],
+      "priority_tier": 446,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-447",
+      "kind": "word",
+      "lemma": "grande",
+      "sense_he": "גדולה / גבוהה",
+      "forms": [
+        "grande"
+      ],
+      "priority_tier": 447,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-448",
+      "kind": "word",
+      "lemma": "manger",
+      "sense_he": "לאכול",
+      "forms": [
+        "manger"
+      ],
+      "priority_tier": 448,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-449",
+      "kind": "word",
+      "lemma": "arriver",
+      "sense_he": "להגיע / לקרות",
+      "forms": [
+        "arriver"
+      ],
+      "priority_tier": 449,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-450",
+      "kind": "word",
+      "lemma": "dur",
+      "sense_he": "קשה / קשיח",
+      "forms": [
+        "dur"
+      ],
+      "priority_tier": 450,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-451",
+      "kind": "word",
+      "lemma": "guerre",
+      "sense_he": "מלחמה",
+      "forms": [
+        "guerre"
+      ],
+      "priority_tier": 451,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-452",
+      "kind": "word",
+      "lemma": "ait",
+      "sense_he": "שיהיה לו / שתהיה לו (סובז'ונקטיב, avoir)",
+      "forms": [
+        "ait"
+      ],
+      "priority_tier": 452,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-453",
+      "kind": "word",
+      "lemma": "appelé",
+      "sense_he": "נקרא / קרא / התקשר (בינוני עבר)",
+      "forms": [
+        "appelé"
+      ],
+      "priority_tier": 453,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-454",
+      "kind": "word",
+      "lemma": "marche",
+      "sense_he": "הליכה / מדרגה / הולך / הולכת / עובד",
+      "forms": [
+        "marche"
+      ],
+      "priority_tier": 454,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-455",
+      "kind": "word",
+      "lemma": "sécurité",
+      "sense_he": "בטיחות / ביטחון / אבטחה",
+      "forms": [
+        "sécurité"
+      ],
+      "priority_tier": 455,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-456",
+      "kind": "word",
+      "lemma": "garçon",
+      "sense_he": "ילד / נער / מלצר",
+      "forms": [
+        "garçon"
+      ],
+      "priority_tier": 456,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-457",
+      "kind": "word",
+      "lemma": "essaie",
+      "sense_he": "מנסה / נסה / נסי",
+      "forms": [
+        "essaie"
+      ],
+      "priority_tier": 457,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-458",
+      "kind": "word",
+      "lemma": "important",
+      "sense_he": "חשוב",
+      "forms": [
+        "important"
+      ],
+      "priority_tier": 458,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-459",
+      "kind": "word",
+      "lemma": "dites",
+      "sense_he": "אמרו / אומרים / אומרות (גם פנייה מנומסת)",
+      "forms": [
+        "dites"
+      ],
+      "priority_tier": 459,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-460",
+      "kind": "word",
+      "lemma": "exactement",
+      "sense_he": "בדיוק",
+      "forms": [
+        "exactement"
+      ],
+      "priority_tier": 460,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-461",
+      "kind": "word",
+      "lemma": "font",
+      "sense_he": "עושים / עושות",
+      "forms": [
+        "font"
+      ],
+      "priority_tier": 461,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-462",
+      "kind": "word",
+      "lemma": "fort",
+      "sense_he": "חזק / בקול רם / מבצר",
+      "forms": [
+        "fort"
+      ],
+      "priority_tier": 462,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-463",
+      "kind": "word",
+      "lemma": "presque",
+      "sense_he": "כמעט",
+      "forms": [
+        "presque"
+      ],
+      "priority_tier": 463,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-464",
+      "kind": "word",
+      "lemma": "plein",
+      "sense_he": "מלא",
+      "forms": [
+        "plein"
+      ],
+      "priority_tier": 464,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-465",
+      "kind": "word",
+      "lemma": "derrière",
+      "sense_he": "מאחורי / מאחור",
+      "forms": [
+        "derrière"
+      ],
+      "priority_tier": 465,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-466",
+      "kind": "word",
+      "lemma": "ben",
+      "sense_he": "ובכן (מדובר)",
+      "forms": [
+        "ben"
+      ],
+      "priority_tier": 466,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-467",
+      "kind": "word",
+      "lemma": "mariage",
+      "sense_he": "נישואים / חתונה",
+      "forms": [
+        "mariage"
+      ],
+      "priority_tier": 467,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-468",
+      "kind": "word",
+      "lemma": "parents",
+      "sense_he": "הורים / קרובי משפחה",
+      "forms": [
+        "parents"
+      ],
+      "priority_tier": 468,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-469",
+      "kind": "word",
+      "lemma": "capitaine",
+      "sense_he": "קפטן / סרן",
+      "forms": [
+        "capitaine"
+      ],
+      "priority_tier": 469,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-470",
+      "kind": "word",
+      "lemma": "dernier",
+      "sense_he": "אחרון",
+      "forms": [
+        "dernier"
+      ],
+      "priority_tier": 470,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-471",
+      "kind": "word",
+      "lemma": "fou",
+      "sense_he": "משוגע",
+      "forms": [
+        "fou"
+      ],
+      "priority_tier": 471,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-472",
+      "kind": "word",
+      "lemma": "ceux",
+      "sense_he": "אלה / ההם (כינוי זכר רבים)",
+      "forms": [
+        "ceux"
+      ],
+      "priority_tier": 472,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-473",
+      "kind": "word",
+      "lemma": "tomber",
+      "sense_he": "ליפול",
+      "forms": [
+        "tomber"
+      ],
+      "priority_tier": 473,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-474",
+      "kind": "word",
+      "lemma": "attendre",
+      "sense_he": "לחכות / להמתין",
+      "forms": [
+        "attendre"
+      ],
+      "priority_tier": 474,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-475",
+      "kind": "word",
+      "lemma": "vue",
+      "sense_he": "ראייה / נוף / ראתה (בינוני עבר)",
+      "forms": [
+        "vue"
+      ],
+      "priority_tier": 475,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-476",
+      "kind": "word",
+      "lemma": "pensé",
+      "sense_he": "חשב / חשבה (בינוני עבר)",
+      "forms": [
+        "pensé"
+      ],
+      "priority_tier": 476,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-477",
+      "kind": "word",
+      "lemma": "souviens",
+      "sense_he": "זוכר / זוכרת (בצירוף se souvenir)",
+      "forms": [
+        "souviens"
+      ],
+      "priority_tier": 477,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-478",
+      "kind": "word",
+      "lemma": "envie",
+      "sense_he": "חשק / רצון / קנאה",
+      "forms": [
+        "envie"
+      ],
+      "priority_tier": 478,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-479",
+      "kind": "word",
+      "lemma": "fête",
+      "sense_he": "חג / מסיבה / חוגג / חוגגת",
+      "forms": [
+        "fête"
+      ],
+      "priority_tier": 479,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-480",
+      "kind": "word",
+      "lemma": "jeu",
+      "sense_he": "משחק",
+      "forms": [
+        "jeu"
+      ],
+      "priority_tier": 480,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-481",
+      "kind": "word",
+      "lemma": "génial",
+      "sense_he": "נהדר / גאוני",
+      "forms": [
+        "génial"
+      ],
+      "priority_tier": 481,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-482",
+      "kind": "word",
+      "lemma": "pays",
+      "sense_he": "ארץ / מדינה / ארצות",
+      "forms": [
+        "pays"
+      ],
+      "priority_tier": 482,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-483",
+      "kind": "word",
+      "lemma": "garde",
+      "sense_he": "שמירה / שומר / שומרת / שמור / שמרי",
+      "forms": [
+        "garde"
+      ],
+      "priority_tier": 483,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-484",
+      "kind": "word",
+      "lemma": "cours",
+      "sense_he": "קורס / שיעור / מסלול / רץ / רצה",
+      "forms": [
+        "cours"
+      ],
+      "priority_tier": 484,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-485",
+      "kind": "word",
+      "lemma": "bientôt",
+      "sense_he": "בקרוב",
+      "forms": [
+        "bientôt"
+      ],
+      "priority_tier": 485,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-486",
+      "kind": "word",
+      "lemma": "ii",
+      "sense_he": "II — שתיים בספרות רומיות; אינו אוצר מילים צרפתי רגיל",
+      "forms": [
+        "ii"
+      ],
+      "priority_tier": 486,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 99
+    },
+    {
+      "item_id": "fr-freq-487",
+      "kind": "word",
+      "lemma": "numéro",
+      "sense_he": "מספר",
+      "forms": [
+        "numéro"
+      ],
+      "priority_tier": 487,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-488",
+      "kind": "word",
+      "lemma": "personnes",
+      "sense_he": "אנשים",
+      "forms": [
+        "personnes"
+      ],
+      "priority_tier": 488,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-489",
+      "kind": "word",
+      "lemma": "cinq",
+      "sense_he": "חמש",
+      "forms": [
+        "cinq"
+      ],
+      "priority_tier": 489,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-490",
+      "kind": "word",
+      "lemma": "parfait",
+      "sense_he": "מושלם",
+      "forms": [
+        "parfait"
+      ],
+      "priority_tier": 490,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-491",
+      "kind": "word",
+      "lemma": "excusez-moi",
+      "sense_he": "סלחו לי / סליחה (פנייה מנומסת)",
+      "forms": [
+        "excusez-moi"
+      ],
+      "priority_tier": 491,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-492",
+      "kind": "word",
+      "lemma": "laissé",
+      "sense_he": "השאיר / הניח (בינוני עבר)",
+      "forms": [
+        "laissé"
+      ],
+      "priority_tier": 492,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-493",
+      "kind": "word",
+      "lemma": "ainsi",
+      "sense_he": "כך / באופן זה",
+      "forms": [
+        "ainsi"
+      ],
+      "priority_tier": 493,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-494",
+      "kind": "word",
+      "lemma": "retour",
+      "sense_he": "חזרה / שיבה",
+      "forms": [
+        "retour"
+      ],
+      "priority_tier": 494,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-495",
+      "kind": "word",
+      "lemma": "semble",
+      "sense_he": "נראה / נדמה",
+      "forms": [
+        "semble"
+      ],
+      "priority_tier": 495,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-496",
+      "kind": "word",
+      "lemma": "autant",
+      "sense_he": "באותה מידה / כל כך הרבה",
+      "forms": [
+        "autant"
+      ],
+      "priority_tier": 496,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-497",
+      "kind": "word",
+      "lemma": "peine",
+      "sense_he": "צער / קושי / עונש",
+      "forms": [
+        "peine"
+      ],
+      "priority_tier": 497,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-498",
+      "kind": "word",
+      "lemma": "minute",
+      "sense_he": "דקה",
+      "forms": [
+        "minute"
+      ],
+      "priority_tier": 498,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-499",
+      "kind": "word",
+      "lemma": "essayé",
+      "sense_he": "ניסה / ניסתה (בינוני עבר)",
+      "forms": [
+        "essayé"
+      ],
+      "priority_tier": 499,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-freq-500",
+      "kind": "word",
+      "lemma": "plan",
+      "sense_he": "תוכנית / תכנית / מפה",
+      "forms": [
+        "plan"
+      ],
+      "priority_tier": 500,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    },
+    {
+      "item_id": "fr-bibliotheque",
+      "kind": "word",
+      "lemma": "bibliothèque",
+      "sense_he": "ספרייה / ספריה",
+      "forms": [
+        "bibliothèque",
+        "bibliothèques"
+      ],
+      "priority_tier": 501,
+      "prerequisite_ids": [],
+      "explanation_he": "",
+      "min_level": 1
+    }
+  ],
+  "levels": [
+    {
+      "level_id": "1",
+      "new_items_per_chunk": 3,
+      "max_foreign_share": 0.1,
+      "max_grammar_per_chunk": 1,
+      "max_foreign_words_per_edit": 1,
+      "support_mode": "context"
+    },
+    {
+      "level_id": "2",
+      "new_items_per_chunk": 3,
+      "max_foreign_share": 0.2,
+      "max_grammar_per_chunk": 1,
+      "max_foreign_words_per_edit": 2,
+      "support_mode": "context"
+    },
+    {
+      "level_id": "3",
+      "new_items_per_chunk": 4,
+      "max_foreign_share": 0.3,
+      "max_grammar_per_chunk": 1,
+      "max_foreign_words_per_edit": 5,
+      "support_mode": "context"
+    }
+  ]
+}

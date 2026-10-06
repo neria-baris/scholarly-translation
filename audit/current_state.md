@@ -1,72 +1,39 @@
-# Current state
-Updated: 2026-10-06 | BLOCK-DECISIONS integrated (Claude continuity, user-directed)
+# Current state — LEARN-7 main integration verification
+User authorizes main/installer integration and preservation of original EPUB
+images/layout; active translation must remain uninterrupted. Feature delivery
+1e21a742fa9b7bf0bd4baf99ee724d76935dbfd3:23 reviewed intended paths, staged diff
+check/index matched, clean feature tree; receipt recorded in next integration audit.
+Integration checkout codex/learning-main-integration based on da6beb2 (main).
+Merge keeps newer library delete/in-progress/partial export/job decisions, OCR
+and scholarly math. Conflicts UI/web resolved additively;108 scoped integration tests passed across runs.
+Main current concurrent review-effect edits are not owned or staged by learning.
 
-BLOCK-DECISIONS (contract audit/contracts/user_decided_blocks.md, base 9898011):
-user job c69bb5fc stopped at chapter 30/64 because the book-notebook keeper output
-was truncated at 4096 tokens; settle() held the call as uncertain and stopped the
-task; the job was invisible in the library. Implemented:
-- Keeper default output cap 4096 -> 16384 (bounded by role max output and usable
-  context / 3). story_so_far has no word cap by default: the keeper is told to keep
-  every plot line/subplot and compress instead of dropping; stored safety bound
-  60000 chars (warned); notebook context budget 6000 -> 24000 tokens; an oversized
-  story is middle-trimmed in the excerpt, never dropped. Job overrides
-  keeper_output_cap and notebook_story_words (user "shorten" = 300 words).
-- ControlStore user actions (append-only events): user_settle (observed usage, else
-  held worst case), user_resume, user_raise_limits (increase only). Integrity check
-  takes the latest settlement per reservation; anomaly stops until user_resumed.
-- Journal reset_for_retry (explicit decision only; prior raw kept in job retry_history).
-- job_blocks.diagnose/apply_decision: notebook_truncated (raise cap / shorten story to 300 words /
-  skip chapter), failed_call, unknown_outcome, over_cap_anomaly, stopped, call_limit,
-  budget_limit. Decisions never send; resume is the only sender.
-- UI: library tabs "מוכנים" / "בתהליך עבודה"; in-progress entries with progress,
-  spend, blocker, partial PDF/EPUB/HTML download; decision box in processing panel
-  that applies the choice then resumes.
-Evidence: 816 offline tests OK; offline replay of a copy of c69bb5fc reaches the
-chapter-30 keeper call with cap 16384 after raise_notebook_cap; live loopback smoke
-on a copy lists it in progress (29/64 chapters, 213/378 units, $0.2244), offers the
-three notebook options and serves partial EPUB/HTML. Not verified: real browser
-click-through of the new tab/decision box. No provider calls.
+Learning: five languages fr/de/es/yi/it, cumulative book vocabulary, same-call
+expansion beyond500; deterministic exactly-once 'read' commits progress. Optional
+click meanings, personal dictionary and grammar archive, help, adjustable budget/
+context/output and explicit retry retain all raw/accepted/uncertain evidence.
+EPUB/HTML export uses frozen complete content without calls/history changes.
+New imports retain immutable hashed EPUB/template sidecar; exact cross-inline
+span patch preserves images/fonts/CSS/media/links/nav. Unsafe mapping visible
+with user text fallback; corrupt retained assets error. Legacy text-only warning.
+Original package version retained. Yiddish rtl/isolate/color/dotted underline.
+MathML DOM preserved through protected coordinate slots; edits crossing formulas,
+nested overlaps and ambiguous templates offer explicit text fallback.
+Installer verifies UI, all five seeds and legacy/current prompt assets; no new deps.
+Feature acceptance103 affected+22 library tests across focused runs; no full-suite
+rerun/paid pilot. Browser verifies RTL/style/options and binary-response success;
+IAB download event unavailable, saved-file completion not claimed. Screenshot
+learning-conductor/outputs/learning7-yiddish-export.png. Own preview86550 at62144 replaces own63982,
+0 new fake/paid calls, only own preview restarted. Local agents not_metered;
+external model0/Astra0/critic0; linguistic quality remains unverified.
 
-LIMITS-RELAX (user audit request): notebook chapter summary 1200 -> 5000 chars,
-entry note 600 -> 2000, rendering 200 -> 600, match terms 12 -> 24, all clips now
-warned; prompt asks for complete chapter summaries; chapter bridge 1200 -> 4000
-chars. Provider adapters resend automatically only after an explicit unprocessed
-rejection (HTTP 429/500/502/503/504/529 before any output; backoff 2/8/20 s,
-Retry-After <= 60 s honoured); connection errors, timeouts and mid-stream
-failures still become user decisions. Targeted suites OK (not full suite).
-
-SCANNED-OCR (contract audit/contracts/scanned_ocr_vision.md): scanned PDF pages are
-read in the job's reading stage: local Tesseract (parallel, per-page cache, bundled
-pinned fra/jpn tessdata_fast), then per-page vision review by the translator model
-(ImagePrompt via OpenAI/Anthropic/compatible adapters, journaled+budgeted, stage
-ocr-vision; output aligned onto Tesseract word boxes; bundle stage local-ocr+vision@1;
-strong disagreement -> job exception). Scanned jobs fix max_calls from page count;
-resume before structure reruns reading without resend; preview estimates vision
-cost; decision option skip_ocr_review. Setting ocr_review vision|off. 848 tests OK.
-Tesseract must be installed on the machine (present here: v5.4).
-
-SCHOLARLY-MATH (contract audit/contracts/scholarly_profile_and_math.md): keeper prompt
-and tags per profile (scholarly = argument so far + terminology rules); BOOK_NOTEBOOK
-header: follow unless source contradicts, approved terminology overrides. Academic
-risk triggers (10 types, en/fr + language-independent) for the scholarly chapter
-pipeline, passed to the unit reviewer as REVIEW_FOCUS (legacy prompt unchanged).
-Maths: math tokens are non-lexical (formula-only units pass through), Unicode display
-formulas become formula nodes, PDF per-glyph fallback to bundled Noto Sans Math/Noto
-Sans (OFL), HTML formula LTR + math font stack, EPUB MathML carried as protected
-⟦…⟧ tokens (validated) and re-inserted on export. No math OCR. 840 tests OK.
-
-LIBRARY-DELETE + HELP: library entries (both tabs) can be deleted permanently after
-a confirm prompt (POST /document-delete requires confirm:true; refused while that
-job runs; removes only that job folder). help.html gains Library, "When translation
-stops" (decision table, automatic-resend policy) and Book-notebook sections.
-Batch parser accepts stray closers/code fence after a complete array (59122a4).
-
-Earlier today: b56df6b and 9898011 fixed untranslatable (URL-only) units blocking
-translation and review. Side project LEARN-PROMPTS/WORDLISTS delivered separately
-(f675162, 5a46350); user asked to keep it out of this product line of work.
-
-Gate10 remains blocked on genuine sources/references, runtime authorization and
-expert judgments. Existing unrelated builder worktrees and outputs preserved.
-
-Next exact action: user restarts the UI, opens Library -> "בתהליך עבודה", chooses an
-option for Jade City and resumes; then await user direction.
+Main prior work: BLOCK-DECISIONS exposes held-call/budget/failed-call/keeper
+choices; job c69bb5fc previously stopped29/64, no changes to live job by learning.
+Keeper output16384/context24000 and user resize/resume; limits/retry preserves
+uncertain holds. SCHOLARLY-MATH367d07f, SCANNED-OCR05748c8 and UNBLOCKda6beb2
+remain included; full historical evidence in commits/contracts. Gate10 remains
+blocked on genuine sources/expert judgments and quality acceptance.
+Transient Windows destination locks retry at most6 times; persistent lock reports
+learning_save_failed, retaining prior state and complete staged file.
+Next: commit clean verified merge,
+verify root/remote state before authorized fast-forward main/push. No live restart.

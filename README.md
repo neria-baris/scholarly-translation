@@ -1,5 +1,44 @@
 # Scholarly translation
 
+## Language learning through Hebrew books
+
+The `/learning` page accepts Hebrew EPUBs and completed Hebrew translations from
+the library. French, German, Spanish, Yiddish and Italian use the same cumulative
+learning mechanism, with separate histories. Known vocabulary recurs across
+chapters; explicit book completion carries accepted vocabulary and effort into
+the next book. One generation call may propose additional words and grammar;
+the 500-word frequency lists are a starting milestone, not a vocabulary ceiling.
+Meanings appear only after an optional deliberate click.
+
+Ready/completed learning books export to EPUB or self-contained offline HTML,
+including every chapter, accepted substitutions and chapter-end vocabulary and
+grammar examples. Optional note links reveal meanings. New EPUB imports retain
+an immutable original archive; EPUB export preserves its images/fonts/CSS and
+inline formatting while substituting accepted spans. Completed EPUB library
+imports retain a Hebrew export template when the original is available.
+Legacy sources, HTML and the explicit text-only option use newly typeset text.
+Unsafe mapping fails with a visible option to choose text-only export;
+corrupt retained templates never silently fall back. Yiddish keeps RTL isolation
+and a subtle color/dotted underline in the reader and exports. Export makes no
+model call or completion change; return to mark the book read after external
+reading. Reader support for EPUB note popovers varies.
+
+Preparation exposes total budget, surrounding context and output allowance.
+Stopped preparation retains accepted chunks and raw responses, permits changed
+settings and requires an explicit choice for a fresh retry. Earlier spending and
+uncertain call reservations remain in the budget. Provider context/output limits
+still apply; incomplete responses never become completed chapters.
+
+Dedicated Hebrew help is at `/learning/help`. Under the learning data root,
+`personal/<language>/dictionary.json` and `dictionary.md` store saved and current
+vocabulary separately. `grammar/` retains every opened chapter's explanations
+and actual examples as immutable JSON and readable Markdown. Save failures show
+a warning while reading remains available; reopening retries the archive.
+
+These additions are on the isolated `codex/language-learning` checkout and
+preview, pending integration with the active translator. No separate linguistic
+review or paid quality pilot has been performed.
+
 ## Simple local document UI
 
 Run `./run-ui.ps1` on Windows (or `Run Scholarly Translation.vbs` at the repo

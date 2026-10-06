@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light"><title>למידת שפה</title>
+<link rel="stylesheet" href="/learning.css">
+</head>
+<body>
+<header class="app-header">
+<a class="brand" href="/" aria-label="חזרה לתרגום מסמכים"><span>← תרגום מסמכים</span></a>
+<h1 class="page-title">למידת שפה</h1>
+<a href="/learning/help" target="learning-help" rel="noopener">עזרה ללמידת שפה</a>
+</header>
+<main class="workspace">
+<p id="import-error" class="message" role="alert" hidden></p>
+
+<section id="upload-section" class="card" aria-labelledby="upload-title">
+<h2 id="upload-title">העלאת EPUB בעברית</h2>
+<p class="muted">מעלים ספר EPUB בעברית כדי להתחיל ללמוד שפה דרך קריאה.</p>
+<input id="epub-file" class="visually-hidden" type="file" accept=".epub,application/epub+zip" aria-label="בחירת קובץ EPUB בעברית">
+<button id="epub-choose" type="button" class="secondary-button">בחירת קובץ EPUB</button>
+<p id="upload-message" class="message" role="alert" hidden></p>
+</section>
+
+<section id="effort-section" class="card" aria-labelledby="effort-title">
+<h2 id="effort-title">רמת מאמץ</h2>
+<label for="learning-language">השפה שלומדים</label>
+<select id="learning-language" aria-describedby="language-note"></select>
+<p id="language-note" class="muted">לכל שפה היסטוריה ורמת מאמץ משלה. אפשר להחליף שפה כשאין ספר פעיל.</p>
+<p class="muted">האחוזים מגבילים חומר חדש; מילים שכבר פגשתם ממשיכות להצטבר בפרקים הבאים.</p>
+<p class="muted">לומדים מההקשר, עם אפשרות לבקש פירוש בלחיצה. אין פירוש אוטומטי צמוד למילה בשום רמה.</p>
+<p class="muted" id="effort-note"></p>
+<div id="effort-levels" class="levels" role="radiogroup" aria-labelledby="effort-title"></div>
+</section>
+
+<section id="key-section" class="card" aria-labelledby="key-title">
+<details><summary id="key-title">מפתח להכנת ספר</summary>
+<p class="muted">המפתח נשמר בזיכרון השרת המקומי בלבד לאורך הפעלה זו; אינו נשמר בדפדפן, בדיסק או בכתובת. אפשר גם להגדיר אותו <a href="/" target="_blank" rel="noopener">במסך התרגום הראשי</a>.</p>
+<label for="learning-key">מפתח OpenAI</label>
+<input id="learning-key" type="password" autocomplete="off" dir="ltr">
+<button id="save-key" type="button" class="secondary-button">שמירת מפתח</button>
+<span id="key-message" class="key-message" role="status"></span>
+</details>
+</section>
+
+<section id="languages-section" class="card" aria-labelledby="languages-title">
+<details><summary id="languages-title">500 מילים בכל אחת מחמש השפות</summary>
+<p class="muted">רשימות השכיחות מנחות את תחילת הלמידה בחמש השפות. המודל יכול לבחור גם מילים נוספות לפי הספר ורמת המאמץ; 500 מילים הן יעד ראשון.</p>
+<p class="muted">מילים ומבנים חדשים נוצרים בעזרת המודל ונשמרים להמשך. הפירושים והדקדוק אינם עוברים ביקורת לשונית נפרדת.</p>
+<ul id="language-list" class="language-list"></ul>
+</details>
+</section>
+
+<section id="books-section" class="card" aria-labelledby="books-title">
+<h2 id="books-title">הספרים שלי</h2>
+<p id="books-empty" class="muted" hidden>עדיין אין ספרים מיובאים. העלו EPUB בעברית או העבירו תרגום מהספרייה.</p>
+<ul id="books-list" class="books-list"></ul>
+</section>
+
+<section id="reader-section" class="card" hidden aria-labelledby="reader-title">
+<div class="reader-toolbar">
+<h2 id="reader-title"></h2>
+<label class="click-gloss-option"><input id="reader-gloss" type="checkbox" checked> פירוש בלחיצה</label>
+<button id="reader-progress" type="button" class="secondary-button" aria-controls="progress-section" aria-expanded="false">התקדמות ומילים</button>
+<button id="reader-close" type="button" class="quiet-button" aria-label="סגירת הקריאה">✕</button>
+</div>
+<div id="reader-export"></div>
+<p id="reader-chapter-title" class="muted"></p>
+<nav class="reader-nav">
+<button id="reader-prev" type="button" class="secondary-button">← הקודם</button>
+<span id="reader-position" aria-live="polite"></span>
+<button id="reader-next" type="button" class="secondary-button">הבא →</button>
+</nav>
+<div id="reader-html" class="reader-html" tabindex="-1"></div>
+<aside id="gloss-popup" class="gloss-popup" role="status" aria-live="polite" hidden>
+<p><bdi id="gloss-word" dir="auto"></bdi> — <span id="gloss-meaning"></span></p>
+<button id="gloss-close" type="button" class="quiet-button" aria-label="סגירת הפירוש">✕</button>
+</aside>
+<section id="recap-section" aria-labelledby="recap-title">
+<h3 id="recap-title">סיכום פרק</h3>
+<p id="recap-empty" class="muted" hidden></p>
+<ul id="recap-vocabulary" class="recap-list"></ul>
+<ul id="recap-grammar" class="recap-list"></ul>
+<ul id="recap-warnings" class="recap-list warnings"></ul>
+</section>
+<div class="completion-row">
+<button id="complete-button" type="button" class="primary-button">קראתי</button>
+<span class="muted">רק סימון זה שומר את הלמידה לספר הבא.</span>
+<span id="completion-message" role="status"></span>
+</div>
+</section>
+
+<section id="progress-section" class="card" aria-labelledby="progress-title">
+<h2 id="progress-title">התקדמות</h2>
+<button id="progress-return" type="button" class="quiet-button" hidden>חזרה לקריאה</button>
+<p id="progress-summary" class="muted"></p>
+<p id="personal-archive" class="muted"></p>
+<p id="archive-warning" class="message" role="alert" hidden></p>
+<div id="progress-detail" hidden>
+<p id="progress-milestone" class="muted"></p>
+<div id="progress-current-book" class="progress-current" hidden>
+<h3 class="progress-subtitle">הספר הנוכחי</h3>
+<p id="progress-current-title" class="muted" dir="auto"></p>
+<p id="progress-current-counts" class="muted"></p>
+</div>
+<div class="progress-search">
+<label for="vocab-search">חיפוש באוצר המילים (זר או עברית)</label>
+<input id="vocab-search" type="text" dir="auto" autocomplete="off">
+</div>
+<div class="vocab-columns">
+<div><h3 class="progress-subtitle">מילים וביטויים</h3><ul id="vocab-words-list" class="vocab-list"></ul></div>
+<div><h3 class="progress-subtitle">מבנים לשוניים</h3><ul id="vocab-grammar-list" class="vocab-list"></ul></div>
+</div>
+</div>
+</section>
+</main>
+<footer class="app-footer"><span>כל הנתונים נשמרים במחשב שלכם.</span></footer>
+<script>window.UI_CONFIG = __CONFIG__;</script><script src="/learning.js"></script>
+</body></html>

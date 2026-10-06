@@ -108,6 +108,7 @@ function Invoke-ProcessWithUi {
     param([string]$FilePath, [string[]]$Arguments = @())
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $FilePath
+    $psi.WorkingDirectory = $projectRoot
     $psi.Arguments = (($Arguments | ForEach-Object { ConvertTo-ProcessArgument $_ }) -join ' ')
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
@@ -307,7 +308,7 @@ function New-DesktopShortcut {
     $shortcut.TargetPath = Join-Path $ProjectRoot 'Run Scholarly Translation.vbs'
     $shortcut.WorkingDirectory = $ProjectRoot
     $shortcut.IconLocation = 'shell32.dll,1'
-    $shortcut.Description = 'Translate a PDF or EPUB to Hebrew (local UI)'
+    $shortcut.Description = 'Translate books to Hebrew and learn languages through reading (local UI)'
     $shortcut.Save()
     return $shortcutPath
 }
@@ -379,7 +380,7 @@ function Run-Install {
         Set-Progress 80
 
         Write-Log 'Verifying the installation...'
-        $verifyCode = "import sys; assert sys.version_info >= (3, 10); import $($verifyModules -join ', '); print('ok')"
+        $verifyCode = "import sys; assert sys.version_info >= (3, 10); import $($verifyModules -join ', '); from scholarly_translation.learning_install_check import verify_learning_assets; verify_learning_assets(); print('ok')"
         $code = Invoke-ProcessWithUi -FilePath $venvPython -Arguments @('-B', '-c', $verifyCode)
         if ($code -ne 0) { throw 'Verification failed (see log above).' }
         Set-Progress 90
@@ -390,7 +391,7 @@ function Run-Install {
         Set-Progress 100
 
         Write-Log ''
-        Write-Log 'Setup complete. Click "Run now" to open the translator, or use the desktop shortcut next time.'
+        Write-Log 'Setup complete. Click "Run now" to open book translation and language learning, or use the desktop shortcut next time.'
         $runButton.Enabled = $true
     } catch {
         Write-Log ''

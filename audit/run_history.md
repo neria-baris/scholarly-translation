@@ -705,3 +705,156 @@ passed. Normal authorized push b56df6b..f675162 succeeded; post-push fetch verif
 main == origin/main and clean tree. Prior product fix preserved. Workers/runtime calls
 0; documentation/data acceptance only. This separate receipt records that known hash.
 Next: deliver links; later execution requires the user's instruction to start building.
+
+
+## 2026-10-06T01:25:07.7972847+03:00 | LEARN-0 | PASS isolated bootstrap
+
+- User authorized execution and warned about an active translation. Isolated conductor worktree/branch codex/language-learning from 9898011; active root checkout/server/data/credentials untouched. No merge/deployment while book runs.
+- Contract audit/contracts/learn_0.md and learn_1.md; executable schema1/source/hash/learner/catalog/plan/generated/recap validation, numeric effort policy and Unicode fixture. Four bootstrap tests OK; 22 existing library tests OK (correct discovery; initial module invocation lacked tests path and sandbox prevented node, corrected locally).
+- No model/provider calls yet; conductor usage unknown. Three Claude Code Sonnet builders will own disjoint paths in isolated common-base worktrees. Measured invocation caps 2 USD each, shared list cap10; subscription charge unknown. No runtime pilot authorized.
+- Git: verified local bootstrap commit follows; push intentionally not attempted outside standing origin/main authorization, and main remains untouched. Full integration accepted only after tests and separate UI preview.
+
+## 2026-10-06 | LEARN-1A
+A scoped Sonnet invocation list estimate1.0036326 USD,443292ms,20 CLI turns; observed Sonnet5 plus auxiliary Haiku4.5, subscription charge unknown. No recursive agents or runtime calls. Frozen APIs and28 unit tests passed after deterministic integration repairs. Bootstrap receipt d1f71e2 (preceded1d73c5e). Git local feature only.
+
+## 2026-10-06 | LEARN-1B
+B Sonnet list1.181225 USD,345309ms,33 CLI turns; models Sonnet5 plus auxiliary Haiku4.5, actual charge unknown.15 import tests and43 total learning checks passed after boundary/language fixes. Total A+B2.1848576 USD; no paid runtime. Commit follows local feature only.
+
+## 2026-10-06T01:58:00+03:00 | LEARN-1C/2
+C Sonnet list0.795209 USD,1475103ms,21 turns; Sonnet5/auxiliaryHaiku4.5; actual charge unknown. Initial C fixtures yielded7 errors+1 failure (wrong codepoint offsets); fixed deterministically. Combined service stage contained invalid '@' character, found before any dispatch, fixed to learning-generate-v1.100 tests pass. Total3 invocations list2.9800666 USD, no fix-model calls, no runtime calls. Integration receipts A8228b2d,B9684c4b. D only after this verified backend, max2 USD, shared stop-loss10.
+
+## 2026-10-05T23:04:12.6191027Z | LEARN-2 hardening
+Sol deterministic integration fixes only; no additional model invocation. Four Sonnet builders dispatched in total (D running, cap2/shared10); ABC observable total2.9800666 USD. Phase timestamps in prior entries are phase labels; this UTC entry records the checkpoint time. Git closure is local feature; remote push not attempted.
+
+
+## 2026-10-06T04:30:37.313304+00:00 | LEARN-3 | final integrated run
+Four builders completed; D list1.1052398 USD,371038ms,33 turns, Sonnet5/auxiliaryHaiku4.5, actual charge unknown. Observable total4.0853064 USD under shared10 stop-loss; no runtime paid calls or fix-model calls.925 tests/284.829s OK,1 skip;121 learning tests. Synthetic browser acceptance and isolated restart passed. Full-page screenshot viewport artifacts are a tool limitation; visible overview proof saved locally. Main clean at9898011, active translator untouched. Local feature commit pending, feature push not attempted, merge/deploy deferred while book runs. No linguistic acceptance or paid pilot claimed.
+
+
+## 2026-10-06T04:31:45.974175+00:00 | LEARN-3 | verified local commit receipt
+Delivery64cc48231ccb67c97f94a0c6091b4c908b868355 contains exactly12 reviewed UI/documentation/audit paths, staged diff checked and matched working files. Feature worktree was clean after commit.925 tests passed(1 skip),121 learning checks; browser acceptance on synthetic data only. Backend predecessor b411b82. Remote feature push not attempted; no merge/deploy into main, which remains9898011 clean. D input-scope recorder correction appended without replacing original event. No additional model/runtime calls. This receipt commit changes audit only.
+
+
+## 2026-10-06T05:11:15.744912+00:00 | LEARN-4 | correction, cap stop and final verification
+E completed UI; F stopped safely at2 USD cap with219 new forms. Conductor completed248 missing meanings, artifact deferral and beyond500 word, without another external invocation. Interim test1325-char provenance refusal fixed; obsolete click expectation revised; browser CSS specificity fix verified.138 learning tests and942 full tests(1 skip) passed;26 UI retest after CSS fix. Two new Sonnet calls list2.7367588 USD; all6 LEARN calls6.8220652 USD; actual unknown, Sol unmetered, Opus/Astra0, runtime paid0. Preview3 fake calls on own synthetic data only. Main now has concurrent external changes; isolate feature Git closure, no main merge/push/restart.
+
+## 2026-10-06T05:16:39+00:00 | LEARN-4 | verified local commit receipt
+Delivery019d14077c7084541711924a3cda7f0272a582a3 contains exactly23 intended reviewed paths. Complete and staged diffs checked; staged bytes matched working files; diff checks passed and feature worktree clean after commit. Acceptance remains942 tests with1 skip,138 learning tests and26 post-CSS UI checks, synthetic browser evidence only. No model calls after verification. Main concurrent changes preserved; remote feature push not attempted, no merge/deploy/restart. This receipt changes audit only.
+
+
+## 2026-10-06T05:28:44.276993+00:00 | LEARN-5 | PASS optional click meaning
+Optional click meaning now separate from text flow and hidden until a deliberate click/Enter/Space; checkbox-off returns context-only text, Escape/close dismiss. Read endpoint optional boolean defaults false; display choice does not alter prepared hashes, source, learner, effort, budget/cache or trigger generation. Aria label names foreign word rather than revealing meaning automatically. HTML escaping and textContent retained.
+54 targeted tests passed:14 renderer,26 UI,8 cumulative/service(7.530s),6 HTTP(3.323s); JS syntax and diff checks passed. Full suite deliberately not rerun: changed boundary is reader presentation plus read-only endpoint forwarding, covered by focused tests. Prior LEARN-4 full942 result remains historical, not a fresh result.
+Synthetic browser verifies initially hidden meaning, merci->Hebrew gloss after click, Escape, Enter, close, checkbox-off removes focusable gloss occurrences, re-enable works. Screenshot outputs/learning-click-gloss-verified.png uses viewport capture because full-page capture was offset; DOM shows no horizontal overflow. Own preview session1410 on62144 restarted with same isolated demo data, synthetic_calls0; active translator/main never touched.
+Explained other4 languages share mechanism but lack implemented teaching catalogs and service selection path. Model-proposed vocabulary direction documented in learn_5 contract: same generation call, bounded grounded proposals, stable IDs and persisted definitions, accepted edits only, book-local recurrence then explicit completion. Runtime proposal/other-language activation not implemented in this small display correction; parser still closed, no false support claim.
+Sol direct small fix, no Sonnet/Opus/Astra/external development or paid runtime calls this gate; Sol not_metered. Previous6 builder list estimate6.8220652 USD unchanged, actual unknown. Isolated local reviewed commit/receipt follows; main concurrent edits preserved, feature push not attempted, no merge/deploy.
+
+
+## 2026-10-06T05:29:33.699090+00:00 | LEARN-5 | verified local commit receipt
+Delivery f4e0efc445dabd03b3b18e3bc02c9eb5607f39e9 contains exactly15 intended reviewed paths; staged diff check passed and index matched working files. Feature tree clean after commit.54 scoped tests and synthetic browser PASS; no full rerun or additional model calls. Main active translation/concurrent changes preserved. Push not attempted; no merge/deploy. Receipt changes audit only.
+
+
+## 2026-10-06T06:11:57.338877+00:00 | LEARN-6 | local integration and scoped verification
+
+LEARN-6-BUILDER/LOCAL/RECOVERY/PROMPT attempts recorded; one failed external CLI
+event, rejected escalation not an executed model call. Local help_archive agent
+owned archive/help/12 archive tests only, copied and reviewed sequentially.
+166 learning tests PASS35.733s. Initial HTTP fixture incorrectly mocked nested
+handler closures; replaced by actual route with synthetic key and mocked service,
+no provider dispatch.22 library tests initially had blocked default Node shim;
+process-local bundled Node path corrected environment,22 PASS4.566s. Two meaningful
+follow-up scenarios (corrupt costs and actual grammar receipt) added;9 tests PASS
+12.441s. Sent-prompt schema boundary corrected on diff review;53 focused tests
+PASS16.655s, JS syntax PASS, no complete translation-suite rerun.
+Synthetic preview10 fake calls/paid0; browser selector/yi history, adjustable
+options, click meaning, recap/progress/received-grammar files and help verified.
+Archive test retains180k+ explanation; no truncation or false full-save claim.
+No active checkout/runtime/data/credential change. Local reviewed commit/receipt
+follows; feature push/main merge/deploy not attempted. No paid quality pilot.
+
+
+## 2026-10-06T06:15:43.039844+00:00 | LEARN-6 | final explicit unknown-outcome recovery PASS
+
+Final diff review found shared dispatcher cross-step guard still blocked an
+explicit distinct retry after a lost dispatch. Learning-only supported journal
+transition now records old unknown outcome as failed with user-choice reason;
+original identities/events/held costs preserved. One-use authorization is saved
+as consumed before another call; a later loss requires a fresh checkbox choice.
+26 focused controls/integration/multilingual/HTTP tests PASS25.662s, including
+two losses/no automatic resend/final explicit success/prior holds.169 unique
+learning tests and22 library tests covered across scoped runs. No shared
+dispatcher/journal/control module change, model invocation or full-suite rerun.
+This extends earlier LEARN-6 acceptance; reviewed local Git closure follows.
+
+
+## 2026-10-06T06:17:33.131705+00:00 | LEARN-6 | verified local commit receipt
+
+Delivery cc1fc6ce0852351b2b5c077dc43e03642628b9b1 contains exactly28 reviewed intended code/test/document/audit
+paths. Full and staged changes reviewed, staged diff check passed, index matched
+working files, feature tree clean after commit.169 distinct learning tests and22
+library tests passed across documented scoped runs; final26 recovery tests PASS.
+No full translation suite rerun or additional model calls. Own preview54603 on
+62144 restarted after final fix with0 fake calls; help visibly verified again,
+prior demo data retained. Active main translator never changed/stopped/restarted.
+Branch codex/language-learning; feature remote push not attempted, no main merge
+or deploy. Actual linguistic quality unverified. This receipt changes audit only.
+
+
+## 2026-10-06T09:35:32.491399+00:00 | LEARN-7 | isolated software acceptance; main integration pending
+Contract audit/contracts/learn_7.md amended by user for original EPUB preservation,
+Yiddish marking and main/installer integration. Deterministic EPUB/HTML export
+includes complete frozen source, edits, recaps/examples and optional note links;
+read-only, no completion/cursor/model effects. Source archive retained atomically
+with hashes. Preservation patches XML text slots across inline tags, retains
+assets/CSS/fonts/media/nav/package bytes; exact alignment only. Missing legacy
+archive explicitly warns; mismatch/corruption errors offer user text-only option.
+Original EPUB version retained; reader note support varies. Protected MathML /
+nested overlapping blocks and ambiguous template mapping offer explicit fallback.
+Installer verifies bundled UI, all five 500-word seeds and three prompt versions
+without calls/state; same dependencies. Completed library handoff can retain a
+Hebrew EPUB template. Active translator/root untouched. Own preview54603 replaced
+by63982 at62144, restart0 fake/paid calls. Browser verified Yiddish rtl/isolate/
+dotted underline, export options and binary-response success status; IAB download
+event timed out, so browser saved-file completion not claimed. Screenshot
+outputs/learning7-yiddish-export.png. HTTP binary length/content validated.
+Acceptance across scoped runs:103 unique affected export/preservation/assets/
+service/HTTP/render/UI/integration/installer tests plus22 library tests PASS.
+Final new service cases5 PASS8.473s; library22 PASS4.318s using bundled Node path
+(default Windows node shim denied), actual JS syntax and diff checks PASS.
+Initial provisional/runtime plan-ID mismatch fixed with read-only accepted ID
+view; negative test expected mapping error corrected to stronger hash rejection.
+Sol owns integration; export_builder10 preservation tests, installer_integration
+read-only advice; local usage not_metered, no external model calls, Opus/Astra0.
+No full-suite rerun or paid linguistic pilot. Reviewed feature Git closure next;
+clean main-integration worktree nowda6beb2 preserves newer math/OCR/unblock code.
+Concurrent main review-effect edits remain untouched; no live restart/deploy.
+
+
+## 2026-10-06T09:46:44.954122+00:00 | LEARN-7 | feature receipt and verified main integration
+Feature delivery1e21a742fa9b7bf0bd4baf99ee724d76935dbfd3:23 intended paths,
+full/staged changes reviewed, index matches worktree, staged check PASS, clean
+feature tree. Feature push not attempted; this is its subsequent receipt.
+Merged in isolated codex/learning-main-integration from main da6beb2, preserving
+367d07f math,05748c8 OCR andda6beb2 unblock plus library delete/in-progress/partial
+exports/decision controls. UI and handler conflicts resolved additively; learning
+handoff only completed library. No live root/server/job/credential changes.
+108 affected merged tests PASS across scoped runs: initial105 in42.926s had one
+Windows sharing failure in service replace; unique staging+bounded PermissionError
+retry fixes it.27 service/assets/HTTP/integration PASS23.302s incl deterministic
+transient/persistent locks; prior JSON retained and staged full JSON on final
+failure with visible learning_save_failed.12 preserved EPUB tests PASS0.087s incl
+new main MathML immutable logical slots, unchanged formula DOM around edits and
+explicit refusal of edits across formula. Other104 initial tests passed; no full
+suite repeated. JS syntax and working/staged diff checks PASS.
+Browser merged main shell/library shows learning link and both library tabs,
+Yiddish rtl/isolate/dotted underline and export options. Screenshot
+outputs/learning7-main-library.png plus conductor/outputs/learning7-yiddish-export.png.
+Own preview86550 at62144 replaced own63982 only; same synthetic root,0 fake/paid
+new calls. IAB blob download event unavailable; verified successful byte-response
+status and HTTP content/length, no saved browser-file claim. Local export_builder
+and read-only installer_integration only, not_metered; external model0, critic0,
+Opus/Astra0. Installer checks assets/prompts/five seeds, no extra dependencies.
+Remote main observed05748c82448c62dc3257a22da7485e4bd094535c at this checkpoint;
+ancestor of integration. Root main has active concurrent review-effect changes,
+not owned/staged here. Reviewed clean integration commit follows; main checkout
+fast-forward and push require stable checked status, never forced/divergence.

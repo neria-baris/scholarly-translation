@@ -579,13 +579,15 @@ function renderLibrary(documents){
       <div class="library-actions"><button type="button" class="primary-button library-download" data-format="${kind}">הורדת ${kind.toUpperCase()} <span aria-hidden="true">↓</span></button>
       <button type="button" class="secondary-button library-download" data-format="html">הורדת HTML <span aria-hidden="true">↓</span></button>
       <button type="button" class="text-button library-open">פתיחה <span aria-hidden="true">←</span></button>
-      <button type="button" class="text-button library-delete">מחיקה</button></div>
+      <button type="button" class="text-button library-delete">מחיקה</button>
+      <button type="button" class="text-button library-learning">העבר ללמידת שפה <span aria-hidden="true">←</span></button></div>
       <p class="message library-error" role="alert" hidden></p></div>`;
     const entry=item.querySelector('.library-entry'),detail=item.querySelector('.library-detail');
     entry.onclick=()=>{const open=entry.getAttribute('aria-expanded')!=='true';entry.setAttribute('aria-expanded',String(open));detail.hidden=!open;item.classList.toggle('open',open)};
     item.querySelectorAll('.library-download').forEach(button=>button.onclick=()=>libraryDownload(doc,button,item));
     item.querySelector('.library-open').onclick=()=>libraryOpen(doc);
     item.querySelector('.library-delete').onclick=()=>libraryDelete(doc,item,false);
+    item.querySelector('.library-learning').onclick=()=>openLearningWindow(doc,item.querySelector('.library-error'));
     list.append(item);
   });
 }
@@ -673,6 +675,14 @@ async function libraryDownload(doc,button,item){
     const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=libraryStem(doc.filename)+(partial?'.he.partial.':'.he.')+format;
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(caught){error.textContent=caught.message;error.hidden=false}finally{button.disabled=false}
+}
+function openLearningWindow(doc,errorNode){
+  errorNode.hidden=true;
+  const target='/learning?job_id='+encodeURIComponent(doc.job_id);
+  const win=window.open(target,'scholarly-learning');
+  if(!win){errorNode.innerHTML='';const link=document.createElement('a');link.href=target;link.target='scholarly-learning';link.rel='noopener';
+    link.className='text-button';link.textContent='פתיחת למידת שפה בחלון חדש';errorNode.append(link);errorNode.hidden=false;return}
+  win.focus?.();
 }
 function libraryOpen(doc){
   clearTimeout(pollTimer);remember('document-last-job',doc.job_id);

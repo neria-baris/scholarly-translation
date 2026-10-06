@@ -439,3 +439,193 @@ passed. Normal authorized push b56df6b..f675162 succeeded; post-push fetch verif
 main == origin/main and clean tree. Prior product fix preserved. Workers/runtime calls
 0; documentation/data acceptance only. This separate receipt records that known hash.
 Next: deliver links; later execution requires the user's instruction to start building.
+
+
+## 2026-10-06T01:25:07.7972847+03:00 | LEARN-0 | PASS isolated bootstrap
+
+- User authorized execution and warned about an active translation. Isolated conductor worktree/branch codex/language-learning from 9898011; active root checkout/server/data/credentials untouched. No merge/deployment while book runs.
+- Contract audit/contracts/learn_0.md and learn_1.md; executable schema1/source/hash/learner/catalog/plan/generated/recap validation, numeric effort policy and Unicode fixture. Four bootstrap tests OK; 22 existing library tests OK (correct discovery; initial module invocation lacked tests path and sandbox prevented node, corrected locally).
+- No model/provider calls yet; conductor usage unknown. Three Claude Code Sonnet builders will own disjoint paths in isolated common-base worktrees. Measured invocation caps 2 USD each, shared list cap10; subscription charge unknown. No runtime pilot authorized.
+- Git: verified local bootstrap commit follows; push intentionally not attempted outside standing origin/main authorization, and main remains untouched. Full integration accepted only after tests and separate UI preview.
+
+## 2026-10-06 | LEARN-1A | PASS local component
+Builder A integrated first from d1f71e2.28 tests pass, including continuity, deterministic plans, stale state and receipt scope. Conductor adapted pytest-style tests to repository unittest without dependencies, repaired fixture hashes, added atomic slot acquisition and source opportunity ranking. Small French35-item starter; four other catalogs unavailable. No runtime calls; no quality claim. Commit follows, feature push not attempted; main remains untouched.
+
+## 2026-10-06 | LEARN-1B | PASS local component
+B integrated after A receipt8228b2d.43 learning tests pass. Reused safe EPUB reader and chapter grouping; conductor preserves explicit short chapters, checks Hebrew targets. Immutable source snapshots, damaged/wrong-language/unfinished input refusals, stable splits and headings. No live app changes; shared integration remains in progress, not a deploy gate.
+
+## 2026-10-06T01:58:00+03:00 | LEARN-1C/2 | PASS software integration
+C integrated after A/B;100 learning tests pass (offline). Strict source slices/words/approved forms/grammar, duplicate-key refusal, source-bound content hashes, grounded recap, RTL safe render including Yiddish marks. Conductor repaired fixture offsets and prompt shape omission, enforced complete allowed surfaces and actual rendered share. French37-item curated starter now includes2 complete phrases and applicable grammar. Service uses existing single-role controlled call, cap/cache/journal; restart/pause/orphan-budget recovery, explicit completion, idempotency, abandonment without exposures. Token/origin HTTP protection, memory-only keys, no client paths. Legacy808 tests previously passed,1 skip; UI pending. Main untouched; no paid runtime; no linguistic acceptance.
+
+## 2026-10-05T23:04:12.6191027Z | LEARN-2 hardening | PASS
+102 offline learning tests pass. Added source chapter/count completeness, prepared-file hash verification, session-bound receipts, catalog/effort pinning, local curated grammar explanations and real accepted examples. Grammar phrase and missing-chapter tests distinguish those invariants. Previous integration receipt88a94c4. No runtime call; D UI uses same API in isolated checkout. Main unchanged.
+
+
+## 2026-10-06T04:30:37.313304+00:00 | LEARN-3 | PASS software and isolated browser acceptance
+
+- D integrated from frozen learn_3 contract: separate Hebrew RTL window, library handoff, Hebrew EPUB upload, numeric effort controls, explicit-budget prepare/pause/resume/abandon, reader/gloss keyboard actions, chapter recap, persistent cursor and explicit completion. Conductor fixed preparation polling, abandoned-session selection, plain-language recap labels/examples, stale navigation handling and completion reconciliation. Existing translation controls preserved.
+- Full regression:925 tests in284.829s, OK with1 skip;121 learning checks included. Node syntax checks for both UI scripts and diff whitespace check passed. No new dependencies. Complete UI files and legacy additive diff reviewed by conductor.
+- Browser on synthetic isolated data: library transfer opened separate window and imported completed Hebrew snapshot; EPUB upload added queued source; Enter toggled gloss; chapter2 cursor survived reload; explicit completion recorded1 distinct item/2 encounters, level2 retained for next book. Own preview restart retained completion with0 new model calls.360px reader geometry fits viewport without horizontal overflow. Screenshot tool full-page rendering had viewport artifacts; native visible overview capture saved as outputs/learning-window-preview.png. No private source/key was copied.
+- Four scoped Claude Code Sonnet builders completed, list estimates A1.0036326+B1.181225+C0.795209+D1.1052398=4.0853064 USD; actual subscription charge unknown. Observed models Sonnet5 plus auxiliary Haiku4.5. D371038ms/33 turns. No recursive delegates, Astra/Opus, fix-model invocation or paid learning runtime. Conductor internal usage not_metered.
+- Initial French37-item curriculum only; all5 languages have500 frequency forms, other4 learning catalogs unavailable. One Luna generation role; deterministic storage/plans/validation/recap. No linguistic or pedagogical acceptance claimed; live generation pilot not run. Single server per learning data root; cross-process locking unsupported.
+- Active main HEAD98980111425d14ab7d7c9c8b9493e9781e4eeba9 remains clean, checked read-only. No active process restart, main merge, deploy or remote push. Local feature closure follows; push intentionally not attempted outside standing origin/main permission. Backend receipt b411b82. All outputs and raw model payloads remain ignored.
+
+
+## 2026-10-06T04:31:45.974175+00:00 | LEARN-3 | verified local commit receipt
+Delivery64cc48231ccb67c97f94a0c6091b4c908b868355 contains exactly12 reviewed UI/documentation/audit paths, staged diff checked and matched working files. Feature worktree was clean after commit.925 tests passed(1 skip),121 learning checks; browser acceptance on synthetic data only. Backend predecessor b411b82. Remote feature push not attempted; no merge/deploy into main, which remains9898011 clean. D input-scope recorder correction appended without replacing original event. No additional model/runtime calls. This receipt commit changes audit only.
+
+
+## 2026-10-06T05:11:15.744912+00:00 | LEARN-4 | PASS cumulative context-reading software
+- User rejected beside-word glosses and requested growing recurrence, vocabulary status and a first500 milestone with future growth. Contract learn_4 supersedes prior support assumptions. New books use context mode; server also suppresses glosses for legacy stored modes. Legacy catalog/prompt1 remain available; inactive learner upgrade preserves IDs/history/effort before next book.
+- Policy2 separates known recurrence from new-material effort quotas. All relevant known items may recur beyond new quota; targets rise65%..95% with accepted per-edit exposures. Later chapters replan from earlier accepted edits; source ambiguity never permits blanket substitution. Larger structured-output allowance for dense known-word passages uses existing budget/journal controls and fixed shared book cap. New prompt/stage/input identity versioned; old policy1 replay keeps prior prompt and6000 cap.
+- Progress shows durable completed-book history versus current visited chapters; prepared-but-unread is excluded, backward navigation retains furthest visited prefix. Searchable foreign/Hebrew rows, counts, milestone and access from reader. Browser found CSS specificity bug hiding the progress view; fixed and reverified,26 UI tests repeated after fix. No new dependencies or additional runtime model role.
+- French505 items:501 word records(500 eligible),2 phrases,2 grammar. All500 source forms represented; v1 records identical. Corpus ii retained but deferred min_level99, extra bibliothèque beyond500. F stopped at per-invocation cap after219/467 additions; conductor supplied remaining248 meanings locally and tests, shortened1325-char provenance basis to valid bounded metadata. Labels model-assisted, not linguistically reviewed; no universal-usefulness/CEFR claim. >500 extension fixture passes.
+-138 learning tests passed21.063s; full942 tests passed305.049s with1 skip. JS syntax/diff checks passed. Synthetic cumulative test3->11->12 occurrences,26 preserved next-book encounters; older completed state survives catalog upgrade. Browser verifies context-only text, chapter2 Bonjour12/12 and je/merci9/12, saved/current word lists, uppercase French and Hebrew searches, explicit completion:2 demo books/3 saved words with35,23,23 exposures. Screenshot outputs/learning-progress-verified.png. Narrow viewport attempt did not change reported width1280; no new mobile-browser acceptance claim.
+- E Sonnet626116ms/30 turns/list0.790448 USD; F1185748ms/16 turns/list1.9463108 USD, partial_at_cap despite CLI is_error=false. No fix-model call, cap increase, Astra/Opus or paid runtime;6 builder invocations total list6.8220652 USD under10, actual subscription charge unknown, Sol usage not_metered. Own synthetic preview only restarted on62144,3 fake generation calls, old history retained. Main translator never touched/restarted.
+- Main HEAD9898011 unchanged, but concurrent tracked/untracked changes now observed in translation/library/job-block files, not this task's edits. Preserve them; do not reconcile/stage/push main. Isolated feature diff reviewed separately; local commit follows. Remote feature push not attempted, main merge/deploy deferred until active translation and parallel changes can be reconciled in an authorized gate.
+
+## 2026-10-06T05:16:39+00:00 | LEARN-4 | verified local commit receipt
+Delivery019d14077c7084541711924a3cda7f0272a582a3 contains exactly23 intended reviewed paths. Complete and staged diffs checked; staged bytes matched working files; diff checks passed and feature worktree clean after commit. Acceptance remains942 tests with1 skip,138 learning tests and26 post-CSS UI checks, synthetic browser evidence only. No model calls after verification. Main concurrent changes preserved; remote feature push not attempted, no merge/deploy/restart. This receipt changes audit only.
+
+
+## 2026-10-06T05:28:44.276993+00:00 | LEARN-5 | PASS optional click meaning
+Optional click meaning now separate from text flow and hidden until a deliberate click/Enter/Space; checkbox-off returns context-only text, Escape/close dismiss. Read endpoint optional boolean defaults false; display choice does not alter prepared hashes, source, learner, effort, budget/cache or trigger generation. Aria label names foreign word rather than revealing meaning automatically. HTML escaping and textContent retained.
+54 targeted tests passed:14 renderer,26 UI,8 cumulative/service(7.530s),6 HTTP(3.323s); JS syntax and diff checks passed. Full suite deliberately not rerun: changed boundary is reader presentation plus read-only endpoint forwarding, covered by focused tests. Prior LEARN-4 full942 result remains historical, not a fresh result.
+Synthetic browser verifies initially hidden meaning, merci->Hebrew gloss after click, Escape, Enter, close, checkbox-off removes focusable gloss occurrences, re-enable works. Screenshot outputs/learning-click-gloss-verified.png uses viewport capture because full-page capture was offset; DOM shows no horizontal overflow. Own preview session1410 on62144 restarted with same isolated demo data, synthetic_calls0; active translator/main never touched.
+Explained other4 languages share mechanism but lack implemented teaching catalogs and service selection path. Model-proposed vocabulary direction documented in learn_5 contract: same generation call, bounded grounded proposals, stable IDs and persisted definitions, accepted edits only, book-local recurrence then explicit completion. Runtime proposal/other-language activation not implemented in this small display correction; parser still closed, no false support claim.
+Sol direct small fix, no Sonnet/Opus/Astra/external development or paid runtime calls this gate; Sol not_metered. Previous6 builder list estimate6.8220652 USD unchanged, actual unknown. Isolated local reviewed commit/receipt follows; main concurrent edits preserved, feature push not attempted, no merge/deploy.
+
+
+## 2026-10-06T05:29:33.699090+00:00 | LEARN-5 | verified local commit receipt
+Delivery f4e0efc445dabd03b3b18e3bc02c9eb5607f39e9 contains exactly15 intended reviewed paths; staged diff check passed and index matched working files. Feature tree clean after commit.54 scoped tests and synthetic browser PASS; no full rerun or additional model calls. Main active translation/concurrent changes preserved. Push not attempted; no merge/deploy. Receipt changes audit only.
+
+
+## 2026-10-06T06:11:57.338877+00:00 | LEARN-6 | PASS isolated software acceptance
+
+Contract audit/contracts/learn_6.md plus user-directed controls/help/archive amendment.
+Five languages fr/de/es/yi/it now share same-call model vocabulary proposals with
+stable local IDs/provenance, accepted definitions, cumulative recurrence and
+exactly-once completion.500 is an initial milestone; dynamic definitions extend
+French beyond500 in the lifecycle fixture. Separate language histories/effort,
+language selector and Yiddish direction; no extra dictionary or critic role.
+Dedicated /learning/help. Personal per-language dictionary JSON/Markdown plus
+immutable received chapter grammar/examples under personal/<language>/grammar/.
+Reader archives before returning; current vs completed vocabulary distinct.
+Archive write failures explicit/retryable; complete original text retained.
+User budget/context/output adjustable on preparation/resume; former100 USD limit
+removed. Raw incomplete responses and accepted chunks retained, explicit new
+retry with prior spent/uncertain held aggregated across epochs. Physical model
+limits and actual context excerpts reported. Corrupt accounting never ignored.
+
+Evidence:166 learning tests passed35.733s; after two added scenarios and final
+prompt correction,53 focused generation/proposal/control/multilingual/HTTP tests
+passed16.655s (168 distinct learning tests).22 affected library tests passed4.566s.
+JS syntax/diff checks passed. No blanket full translation suite rerun. Browser
+verified language switch/separate yi history, budget1000/context50000/output16000
+fields, model-added click meaning, actual grammar recap/progress/archive path,
+help anchors and no horizontal overflow. Screenshot outputs/learning6-help-verified.png
+and learning6-progress-verified.png; isolated fake demo10 calls, paid runtime0.
+
+Ownership/cost: Sol local integration and one scoped local help_archive agent;
+local usage not_metered. One external Sonnet CLI failed ConnectionRefused185.178s,
+zero observed tokens/list estimate. Automatic approval review rejected escalation
+before execution for possible repository-context export to Claude. Safe local
+fallback completed; no further external invocation, Opus/Astra0. Prior6 successful
+builders cumulative list6.8220652 USD unchanged; actual charge unknown.
+
+Git: isolated codex/language-learning; latest known contract1a85412e404928199fae943cdba4fe3f9cdc0f75.
+Reviewed intended local delivery commit and separate receipt follow. Feature push
+not attempted; origin/main untouched, no merge/deploy/active translator restart.
+Own preview replaces only session1410 with45742 on62144, using new synthetic
+outputs/learning-browser-check-learn6; previous demo data retained.
+Limits: software evidence only, real linguistic/pedagogical quality unverified;
+one process per learning root and atomic individual files, no cross-file archive
+transaction. User's removal of two-subagent limit recorded; no unnecessary extra
+agent dispatch. Integration with running main deferred to protect active book.
+
+
+## 2026-10-06T06:15:43.039844+00:00 | LEARN-6 | final explicit unknown-outcome recovery PASS
+
+Final diff review found shared dispatcher cross-step guard still blocked an
+explicit distinct retry after a lost dispatch. Learning-only supported journal
+transition now records old unknown outcome as failed with user-choice reason;
+original identities/events/held costs preserved. One-use authorization is saved
+as consumed before another call; a later loss requires a fresh checkbox choice.
+26 focused controls/integration/multilingual/HTTP tests PASS25.662s, including
+two losses/no automatic resend/final explicit success/prior holds.169 unique
+learning tests and22 library tests covered across scoped runs. No shared
+dispatcher/journal/control module change, model invocation or full-suite rerun.
+This extends earlier LEARN-6 acceptance; reviewed local Git closure follows.
+
+
+## 2026-10-06T06:17:33.131705+00:00 | LEARN-6 | verified local commit receipt
+
+Delivery cc1fc6ce0852351b2b5c077dc43e03642628b9b1 contains exactly28 reviewed intended code/test/document/audit
+paths. Full and staged changes reviewed, staged diff check passed, index matched
+working files, feature tree clean after commit.169 distinct learning tests and22
+library tests passed across documented scoped runs; final26 recovery tests PASS.
+No full translation suite rerun or additional model calls. Own preview54603 on
+62144 restarted after final fix with0 fake calls; help visibly verified again,
+prior demo data retained. Active main translator never changed/stopped/restarted.
+Branch codex/language-learning; feature remote push not attempted, no main merge
+or deploy. Actual linguistic quality unverified. This receipt changes audit only.
+
+
+## 2026-10-06T09:35:32.491399+00:00 | LEARN-7 | isolated software acceptance; main integration pending
+Contract audit/contracts/learn_7.md amended by user for original EPUB preservation,
+Yiddish marking and main/installer integration. Deterministic EPUB/HTML export
+includes complete frozen source, edits, recaps/examples and optional note links;
+read-only, no completion/cursor/model effects. Source archive retained atomically
+with hashes. Preservation patches XML text slots across inline tags, retains
+assets/CSS/fonts/media/nav/package bytes; exact alignment only. Missing legacy
+archive explicitly warns; mismatch/corruption errors offer user text-only option.
+Original EPUB version retained; reader note support varies. Protected MathML /
+nested overlapping blocks and ambiguous template mapping offer explicit fallback.
+Installer verifies bundled UI, all five 500-word seeds and three prompt versions
+without calls/state; same dependencies. Completed library handoff can retain a
+Hebrew EPUB template. Active translator/root untouched. Own preview54603 replaced
+by63982 at62144, restart0 fake/paid calls. Browser verified Yiddish rtl/isolate/
+dotted underline, export options and binary-response success status; IAB download
+event timed out, so browser saved-file completion not claimed. Screenshot
+outputs/learning7-yiddish-export.png. HTTP binary length/content validated.
+Acceptance across scoped runs:103 unique affected export/preservation/assets/
+service/HTTP/render/UI/integration/installer tests plus22 library tests PASS.
+Final new service cases5 PASS8.473s; library22 PASS4.318s using bundled Node path
+(default Windows node shim denied), actual JS syntax and diff checks PASS.
+Initial provisional/runtime plan-ID mismatch fixed with read-only accepted ID
+view; negative test expected mapping error corrected to stronger hash rejection.
+Sol owns integration; export_builder10 preservation tests, installer_integration
+read-only advice; local usage not_metered, no external model calls, Opus/Astra0.
+No full-suite rerun or paid linguistic pilot. Reviewed feature Git closure next;
+clean main-integration worktree nowda6beb2 preserves newer math/OCR/unblock code.
+Concurrent main review-effect edits remain untouched; no live restart/deploy.
+
+
+## 2026-10-06T09:46:44.954122+00:00 | LEARN-7 | feature receipt and verified main integration
+Feature delivery1e21a742fa9b7bf0bd4baf99ee724d76935dbfd3:23 intended paths,
+full/staged changes reviewed, index matches worktree, staged check PASS, clean
+feature tree. Feature push not attempted; this is its subsequent receipt.
+Merged in isolated codex/learning-main-integration from main da6beb2, preserving
+367d07f math,05748c8 OCR andda6beb2 unblock plus library delete/in-progress/partial
+exports/decision controls. UI and handler conflicts resolved additively; learning
+handoff only completed library. No live root/server/job/credential changes.
+108 affected merged tests PASS across scoped runs: initial105 in42.926s had one
+Windows sharing failure in service replace; unique staging+bounded PermissionError
+retry fixes it.27 service/assets/HTTP/integration PASS23.302s incl deterministic
+transient/persistent locks; prior JSON retained and staged full JSON on final
+failure with visible learning_save_failed.12 preserved EPUB tests PASS0.087s incl
+new main MathML immutable logical slots, unchanged formula DOM around edits and
+explicit refusal of edits across formula. Other104 initial tests passed; no full
+suite repeated. JS syntax and working/staged diff checks PASS.
+Browser merged main shell/library shows learning link and both library tabs,
+Yiddish rtl/isolate/dotted underline and export options. Screenshot
+outputs/learning7-main-library.png plus conductor/outputs/learning7-yiddish-export.png.
+Own preview86550 at62144 replaced own63982 only; same synthetic root,0 fake/paid
+new calls. IAB blob download event unavailable; verified successful byte-response
+status and HTTP content/length, no saved browser-file claim. Local export_builder
+and read-only installer_integration only, not_metered; external model0, critic0,
+Opus/Astra0. Installer checks assets/prompts/five seeds, no extra dependencies.
+Remote main observed05748c82448c62dc3257a22da7485e4bd094535c at this checkpoint;
+ancestor of integration. Root main has active concurrent review-effect changes,
+not owned/staged here. Reviewed clean integration commit follows; main checkout
+fast-forward and push require stable checked status, never forced/divergence.
