@@ -128,7 +128,9 @@ class UnitReviewTests(unittest.TestCase):
         self.assertIsNotNone(review["error"])
         self.assertFalse(review["approved"])
 
-    def test_partly_parseable_issue_block_fails_closed(self):
+    def test_each_issue_stands_alone_stray_text_drops_only_its_issue(self):
+        # REVIEW-EFFECT: an issue followed by stray text (often a retraction) is dropped
+        # and counted; the other grounded issues are kept. A leading preface is ignored.
         request = build_unit_review_request(SOURCE, TRANSLATION_ISSUE, policy="all")
         response = (
             "VERDICT: REVISE\n\nISSUES:\n"
@@ -138,9 +140,45 @@ class UnitReviewTests(unittest.TestCase):
             "   Translation span: תקפה\n"
             "   Problem: negation dropped\n"
             "   Suggested correction: אינה תקפה\n"
+            "2. Severity: MAJOR\n"
+            "   Source span: in this case\n"
+            "   Translation span: במקרה זה\n"
+            "   Problem: scope\n"
+            "   Suggested correction: בעניין זה\n"
+            "   On reflection this is fine; no issue.\n"
         )
         review = run_unit_review(request, _fake_generate(response))
-        self.assertEqual(review["status"], "needs_human")
+        self.assertEqual(review["status"], "completed")
+        self.assertEqual([i["severity"] for i in review["issues"]], ["CRITICAL"])
+        self.assertEqual(review["dropped_issues"], 1)
+
+    def test_quoted_spans_are_grounded_and_stored_unwrapped(self):
+        request = build_unit_review_request(SOURCE, TRANSLATION_ISSUE, policy="all")
+        response = (
+            "VERDICT: REVISE\n\nISSUES:\n"
+            "1. Severity: CRITICAL\n"
+            "   Source span: “is not valid”.\n"
+            "   Translation span: `\"״תקפה״\"`\n"
+            "   Problem: negation dropped\n"
+            "   Suggested correction: ״אינה תקפה״\n"
+        )
+        review = run_unit_review(request, _fake_generate(response))
+        self.assertEqual(review["status"], "completed")
+        self.assertEqual(review["issues"][0]["source_span"], "is not valid")
+        self.assertEqual(review["issues"][0]["translation_span"], "תקפה")
+
+    def test_ungrounded_or_no_op_issues_never_survive(self):
+        request = build_unit_review_request(SOURCE, TRANSLATION_ISSUE, policy="all")
+        for source_span, translation_span, correction in (
+                ("an invented span", "תקפה", "אינה תקפה"),            # not in the source
+                ("not valid", "“לא קיים”", "אינה תקפה"),    # not in the translation
+                ("not valid", "תקפה", "״תקפה״")):           # correction == current text
+            response = ("VERDICT: REVISE\n\nISSUES:\n1. Severity: MAJOR\n   Source span: %s\n"
+                        "   Translation span: %s\n   Problem: p\n   Suggested correction: %s\n"
+                        % (source_span, translation_span, correction))
+            review = run_unit_review(request, _fake_generate(response))
+            self.assertEqual(review["status"], "needs_human")
+            self.assertEqual(review["issues"], [])
 
     def test_adapter_exception_is_bounded(self):
         request = build_unit_review_request(SOURCE, TRANSLATION_ISSUE, policy="all")
@@ -398,7 +436,10 @@ class ChapterQATests(unittest.TestCase):
             "- [terminology] claim :: טענה :: established :: Chapter one begins here\n"
         )
         qa = run_chapter_qa(request, _fake_generate(response))
-        self.assertEqual(qa["status"], "needs_human")
+        # REVIEW-EFFECT: the line is dropped (never applied); the QA result is kept.
+        self.assertEqual(qa["status"], "completed")
+        self.assertEqual(qa["proposed_state_updates"], [])
+        self.assertEqual(qa["dropped_state_updates"], 1)
 
     def test_state_update_span_must_be_grounded_in_source(self):
         request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
@@ -407,7 +448,25 @@ class ChapterQATests(unittest.TestCase):
             "- [terminology] claim :: טענה :: likely :: an invented span not in the source\n"
         )
         qa = run_chapter_qa(request, _fake_generate(response))
-        self.assertEqual(qa["status"], "needs_human")
+        self.assertEqual(qa["status"], "completed")
+        self.assertEqual(qa["proposed_state_updates"], [])
+        self.assertEqual(qa["dropped_state_updates"], 1)
+
+    def test_chapter_issue_keeps_grounded_issues_and_drops_the_rest(self):
+        request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")
+        response = (
+            "VERDICT: REVISE\n\nISSUES:\n"
+            "1. Category: consistency\n   Severity: MAJOR\n   Span: `\"הפרק הראשון מסתיים כאן\"`\n"
+            "   Correction: הפרק הראשון נגמר כאן\n"
+            "2. Category: consistency\n   Severity: MAJOR\n   Span: “not in the chapter”\n"
+            "   Correction: x\n"
+            "3. Category: style\n   Severity: MINOR\n   Span: הפרק\n   Correction: y\n"
+            "\nCHAPTER_LEVEL_NOTES:\nnone\n\nSTATE_UPDATES:\nnone\n"
+        )
+        qa = run_chapter_qa(request, _fake_generate(response))
+        self.assertEqual(qa["status"], "completed")
+        self.assertEqual([i["span"] for i in qa["issues"]], ["הפרק הראשון מסתיים כאן"])
+        self.assertEqual(qa["dropped_issues"], 2)
 
     def test_malformed_response_fails_closed(self):
         request = build_chapter_qa_request(self.SOURCE_CHAPTER, self.HEBREW_CHAPTER, policy="on")

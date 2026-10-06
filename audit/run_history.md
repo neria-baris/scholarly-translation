@@ -871,3 +871,32 @@ no main checkout fast-forward/push/restart attempted. Remote main previously
 observed05748c8, ancestor; publication pending. Preserve both histories and owner
 changes; recheck updated main and resolve additively after a clean completed
 main checkpoint. Own merged preview86550 only, paid0.
+
+## 2026-10-06T11:40+03:00 | UNBLOCK + REVIEW-EFFECT | Claude continuity, user-directed
+
+User asked what the Jade City run (c69bb5fc) showed and why it stopped again. Audit
+of 51 chapters: chapter-48 answer complete but missing the final `]`; resend replayed
+the cached answer; most review/QA output discarded by over-strict span grounding;
+proper-name findings made every unit risky; notebook excerpt starved late chapters.
+User decisions: QA auto-corrects consistency/continuity only; `checked` reviews all
+units except short headings; salvage chapters 1-51; improve keeper/reviewer/QA prompts.
+UNBLOCK da6beb2 and REVIEW-EFFECT committed under audit/contracts/review_effect.md.
+861 offline tests OK; offline replays on job copies (no provider calls) confirm
+chapter 48 validates from the saved answer and salvage reopens 51 chapters with ~112
+corrections queued. Paid/model calls: 0. Next: user rechecks and resumes in the UI.
+
+
+## 2026-10-06T10:54:49.702372+00:00 | LEARN-7 | completed-owner compatibility integration PASS
+User confirms parallel main work finished, authorizes careful integration.
+Root main and remote verified34b0b6cbfb6640e7ad907d85a9bc8b84cb8c851f, clean.
+Merge latest main into isolated verified integration; shared UI/web auto-merge
+preserves learning/library-delete/in-progress/recheck controls. Only audit state
+and history conflicted; retain both append-only histories, refreshed checkpoint.
+Incoming main code/prompts/tests outside three additive shared UI/web files match
+main byte-for-byte. REVIEW-EFFECT/FORMAT-TOLERANCE remain intact.
+68 targeted tests PASS46.759s: learning integration/HTTP/export service, library
+UI/HTML, UI automation, web, saved-review salvage, job-block HTTP. Actual bundled
+Node syntax checks PASS for ui.js/learning.js; diff check PASS. No full-suite run,
+paid/provider/critic/Astra calls0, Sol local usage not_metered. No live restart,
+job mutation or source-data migration. Main c69bb5fc stopped52/64 untouched.
+Reviewed merge closure then verified fast-forward main/push authorized; no force.

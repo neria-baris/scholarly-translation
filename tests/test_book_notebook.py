@@ -187,11 +187,34 @@ class BookNotebookTests(unittest.TestCase):
         self.assertIn("BOOK_NOTEBOOK", text)
         self.assertIn("STORY_SO_FAR:\nstory0", text)
         self.assertIn("PREVIOUS_CHAPTER_SUMMARY:\nprev chapter ten", text)
-        order = [text.index(t) for t in ("Pinned rule", "Global voice", "Matching Harry", "Recent thing")]
+        # REVIEW-EFFECT: entries matching the chapter come before other global entries.
+        order = [text.index(t) for t in ("Pinned rule", "Matching Harry", "Global voice", "Recent thing")]
         self.assertEqual(order, sorted(order))
         self.assertNotIn("Old thing", text)
         self.assertNotIn("Matching Harry", bn.render_for_chapter(nb, "Harrypotter nothing", count_tokens=len))
         self.assertEqual(text, bn.render_for_chapter(nb, "Then Harry arrived.", count_tokens=lambda t: len(t)))
+
+    def test_story_share_leaves_room_for_matching_entries(self):
+        nb = self._book()
+        nb["story_so_far"] = "Long story. " * 400
+        budget = 2000
+        text = bn.render_for_chapter(nb, "Then Harry arrived.", token_budget=budget, count_tokens=len)
+        self.assertIn("Matching Harry", text)
+        story = text[text.index("STORY_SO_FAR:"):]
+        self.assertLessEqual(len(story), budget * bn.STORY_SHARE + 5)
+        self.assertIn("omitted for length", story)
+        keeper = bn.render_for_chapter(nb, "Then Harry arrived.", token_budget=8000, count_tokens=len, story_share=1)
+        self.assertIn(nb["story_so_far"].strip(), keeper)   # the keeper sees the whole story
+
+    def test_entries_for_text_lists_only_relevant_entries(self):
+        nb = self._book()
+        text = bn.render_entries_for_text(nb, "Harry speaks.", count_tokens=len)
+        self.assertIn("Matching Harry", text)
+        self.assertIn("Pinned rule", text)
+        self.assertNotIn("Global voice", text)
+        self.assertNotIn("STORY_SO_FAR", text)
+        nb["entries"][0]["pinned"] = False
+        self.assertEqual(bn.render_entries_for_text(nb, "nothing relevant", count_tokens=len), "")
 
     def test_budget_truncates_lowest_priority_first(self):
         nb = self._book()

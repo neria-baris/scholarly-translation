@@ -216,7 +216,8 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
                              'conservative_cost_usd': q['ceiling'] * 2})
         reviewer, _ = roles['semantic_reviewer']
         for record in records:
-            cap = _review_cap(reviewer)
+            # REVIEW-EFFECT: the unit review cap grows with unit length (mirrors the planner).
+            cap = min(reviewer.capabilities.max_output_tokens or 4096, 2048 + 128 + len(record['source_text']) // 6)
             request = _review_request('semantic_reviewer', [record], configuration, profile_id, cap)
             prefix = full_prefix
             prompt = _review_transport(_render_review(request, 'semantic_reviewer'), request, 'semantic_reviewer', prefix, [record['unit_id']])

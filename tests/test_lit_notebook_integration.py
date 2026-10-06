@@ -260,6 +260,75 @@ class LitNotebookTests(unittest.TestCase):
         self.assertIn('literary_dialogue', pipeline.detect_risk_triggers(clean, 'literary')['configured_risk_flags'])
         self.assertEqual(pipeline.detect_risk_triggers(clean, 'scholarly')['configured_risk_flags'], [])
 
+    # REVIEW-EFFECT
+    def test_keeper_reads_chapter_from_the_cached_translation_prefix(self):
+        sent = []
+        inner = self.factory()
+        def make(role, descriptor):
+            adapter = inner(role, descriptor)
+            return SimpleNamespace(generate=lambda prompt, model: (sent.append(prompt), adapter.generate(prompt, model))[1])
+        job = self.job()
+        self.execute(job, make)
+        translate = [p for p in sent if 'Translate exactly these units' in str(p)]
+        keeper = [p for p in sent if KEEPER_MARK in str(p)]
+        self.assertEqual(len(keeper), 2)
+        for t, k in zip(translate, keeper):
+            self.assertEqual(k.stable_prefix, t.stable_prefix)
+            self.assertIn(pipeline.KEEPER_SOURCE_REFERENCE, k.suffix)
+            self.assertNotIn('Where is the whale', k.suffix)
+        self.assertEqual(len(job['book_notebook']['entries']), 1)
+
+    def test_format_repairs_are_counted_once_per_accepted_answer(self):
+        inner = self.factory()
+        def make(role, descriptor):
+            adapter = inner(role, descriptor)
+            def generate(prompt, model):
+                result = adapter.generate(prompt, model)
+                if 'Translate exactly these units' in str(prompt):   # drop the final "]"
+                    result = TextGenerationResult(result.status, result.text.rstrip()[:-1], result.token_usage, model, 0)
+                return result
+            return SimpleNamespace(generate=generate)
+        job = self.job()
+        self.execute(job, make)
+        self.assertEqual(len(job['units']), len(self.structure['units']))
+        self.assertEqual(job['format_repairs'], 2)            # one per chapter translation
+        self.execute(job, make)                               # completed: replay counts nothing
+        self.assertEqual(job['format_repairs'], 2)
+
+    def test_checked_reviews_every_unit_but_short_headings_with_notebook_entries(self):
+        job = self.job('checked')
+        self.execute(job, self.factory())
+        reviewed = {r['unit_id'] for r in job['units'] if (r['review'] or {}).get('status') == 'completed'}
+        short = [r for r in job['units'] if pipeline._short_unit(r)]
+        self.assertTrue(short)
+        for record in short:
+            self.assertEqual(record['review']['skip_reason'], 'short_unit_chapter_qa_only')
+        self.assertEqual(reviewed, {r['unit_id'] for r in job['units'] if not pipeline._short_unit(r)})
+        ahab = [p for p in self.prompts('review') if 'Ahab' in p.split('BOOK_NOTEBOOK:', 1)[0]]
+        self.assertTrue(ahab and all('Captain Ahab' in p.split('BOOK_NOTEBOOK:', 1)[1] for p in ahab))
+        for prompt in self.prompts('qa'):
+            self.assertIn('write `STATE_UPDATES: none`', prompt)
+
+    def test_qa_corrects_automatically_only_consistency_and_continuity(self):
+        unit_issue = {'severity': 'MAJOR', 'source_span': 'a', 'translation_span': 'ב'}
+        self.assertTrue(pipeline._corrects_automatically(unit_issue))
+        for category, expected in (('consistency', True), ('continuity', True),
+                                   ('hebrew_quality', False), ('completeness', False)):
+            self.assertEqual(pipeline._corrects_automatically(
+                {'category': category, 'severity': 'MAJOR', 'span': 'x'}), expected)
+        self.assertFalse(pipeline._corrects_automatically({'category': 'consistency', 'severity': 'MINOR', 'span': 'x'}))
+
+    def test_proper_names_are_kept_once_and_never_trigger_review(self):
+        findings = pipeline._unit_findings('Ahab met Ahab and Starbuck.', 'אחאב פגש את אחאב ואת סטארבק.', 'en')
+        names = [f['source_token'] for f in findings if f['type'] == 'proper_name_candidate']
+        self.assertEqual(len(names), len(set(names)))
+        record = {'source_text': 'Ahab met Starbuck.', 'source_language': 'en', 'findings': findings,
+                  'translation_note': None}
+        flags = pipeline.detect_risk_triggers(record, 'scholarly')
+        self.assertEqual(flags['configured_risk_flags'], [])
+        self.assertFalse(flags['formal_check_failure'])
+        self.assertEqual(pipeline._material_findings(findings), [])
+
     # (h)
     def test_notebook_markdown_download_route(self):
         job = self.job()

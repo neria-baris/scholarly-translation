@@ -67,8 +67,9 @@ STRUCTURED_OUTPUT_CONTRACT:
 In ISSUES, write `none` or number every issue using exactly these fields:
 1. Category: completeness | consistency | continuity | hebrew_quality
    Severity: CRITICAL | MAJOR | MINOR
-   Span: an exact literal substring of SOURCE_CHAPTER or HEBREW_CHAPTER
-   Correction: a nonempty local correction, never a wholesale retranslation
+   Span: one line copied verbatim from HEBREW_CHAPTER or SOURCE_CHAPTER, without added quotes or backticks
+   Correction: a nonempty local correction that changes the text, never a wholesale retranslation
+Each field on one line. List only issues you stand behind: no comments or retractions inside ISSUES.
 In STATE_UPDATES, write `none` or one proposed persistent-state item per
 line, in exactly this form (double-colon separated, no extra `::`):
 - [category] label :: value :: certainty :: span
@@ -290,14 +291,48 @@ _UNIT_ISSUE_RE = re.compile(
 )
 
 
-def _matches_cover_block(block, matches):
-    """Require the structured parser to consume the complete non-whitespace block."""
-    cursor = 0
-    for match in matches:
-        if block[cursor:match.start()].strip():
-            return False
-        cursor = match.end()
-    return not block[cursor:].strip()
+_SPAN_WRAPPERS = (('"', '"'), ("“", "”"), ("„", "”"), ("„", "“"),
+                  ("״", "״"), ("'", "'"), ("‘", "’"), ("`", "`"), ("«", "»"),
+                  ("”", "”"))
+
+
+def _unwrap_once(text):
+    for opening, closing in _SPAN_WRAPPERS:
+        if len(text) > len(opening) + len(closing) and text.startswith(opening) and text.endswith(closing):
+            return text[len(opening):-len(closing)].strip()
+    if len(text) > 1 and text.endswith("."):
+        return text[:-1].strip()
+    return None
+
+
+def _unwrap(text):
+    text = (text or "").strip()
+    while True:
+        inner = _unwrap_once(text)
+        if inner is None or not inner:
+            return text
+        text = inner
+
+
+def ground_span(span, *texts):
+    """The span as it literally occurs in one of ``texts``: exact first, else after
+    removing matching quote/backtick wrappers and a final period (repeatedly). Models
+    often quote the span they cite; the stored span is always a real substring.
+    Returns None when the span is not grounded."""
+    candidate = (span or "").strip()
+    while candidate:
+        if any(candidate in text for text in texts):
+            return candidate
+        candidate = _unwrap_once(candidate)
+    return None
+
+
+def _issue_slices(block, matches):
+    """(match, stray) per structured issue; ``stray`` is any non-blank text between this
+    issue and the next one (comments, retractions, extra lines)."""
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(block)
+        yield match, block[match.end():end].strip()
 
 
 def _parse_unit_review_response(raw_text, request: UnitReviewRequest):
@@ -313,42 +348,35 @@ def _parse_unit_review_response(raw_text, request: UnitReviewRequest):
         return None, "model response did not contain an ISSUES section"
     issues_block = issues_match.group(1).strip()
 
-    if issues_block.lower() == "none":
-        issues = []
-    else:
-        issues = []
+    issues, dropped = [], 0
+    if issues_block.rstrip(".").lower() != "none":
         matches = list(_UNIT_ISSUE_RE.finditer(issues_block))
-        if not matches or not _matches_cover_block(issues_block, matches):
+        if not matches:
             return None, "ISSUES section contains malformed or unexpected content"
-        for match in matches:
+        # Each issue stands alone: one that is ungrounded, incomplete or followed by
+        # stray text (often a retraction) is dropped and counted, never guessed at.
+        for match, stray in _issue_slices(issues_block, matches):
             severity = match.group("severity").strip()
-            if severity not in SEVERITIES:
-                return None, "issue severity is not allowlisted"
-            source_span = match.group("source_span").strip()
-            translation_span = match.group("translation_span").strip()
+            source_span = ground_span(match.group("source_span"), request.source_text)
+            translation_span = ground_span(match.group("translation_span"), request.translation)
             problem = match.group("problem").strip()
             correction = match.group("correction").strip()
-            if not source_span or source_span not in request.source_text:
-                return None, "issue source span is not a grounded substring of the source"
-            if not translation_span or translation_span not in request.translation:
-                return None, "issue translation span is not a grounded substring of the translation"
-            if not problem:
-                return None, "issue problem description is missing"
-            if not correction:
-                return None, "issue suggested correction is missing"
+            if (stray or severity not in SEVERITIES or source_span is None or translation_span is None
+                    or not problem or not correction or _unwrap(correction) == translation_span):
+                dropped += 1
+                continue
             issues.append({
                 "severity": severity, "source_span": source_span,
                 "translation_span": translation_span, "problem": problem,
                 "suggested_correction": correction,
             })
-        if not issues:
-            return None, "ISSUES section did not contain a parseable issue"
 
     if verdict == "PASS" and issues:
         return None, "PASS verdict must not carry invented issues"
     if verdict == "REVISE" and not issues:
-        return None, "REVISE verdict must carry at least one grounded issue"
-    return {"verdict": verdict, "issues": issues}, None
+        return None, ("every REVISE issue was ungrounded or malformed" if dropped
+                      else "REVISE verdict must carry at least one grounded issue")
+    return {"verdict": verdict, "issues": issues, "dropped_issues": dropped}, None
 
 
 def run_unit_review(request: UnitReviewRequest, generate=None) -> dict:
@@ -416,6 +444,7 @@ def run_unit_review(request: UnitReviewRequest, generate=None) -> dict:
     return dict(
         base, status="completed", skip_reason=None,
         verdict=parsed["verdict"], issues=parsed["issues"], call=call,
+        dropped_issues=parsed["dropped_issues"],
     )
 
 
@@ -693,32 +722,31 @@ _STATE_UPDATE_LINE_RE = re.compile(
 
 
 def _parse_state_updates_block(block, source_chapter):
-    if block.lower() == "none":
-        return [], None
-    updates = []
+    """Proposed state items, one per line. A malformed, non-allowlisted, ``established``
+    or ungrounded line is dropped and counted; it never fails the whole QA result."""
+    if block.rstrip(".").lower() == "none":
+        return [], 0
+    updates, dropped = [], 0
     for raw_line in block.splitlines():
         line = raw_line.strip()
         if not line:
             continue
         match = _STATE_UPDATE_LINE_RE.fullmatch(line)
         if match is None:
-            return None, "a STATE_UPDATES line is malformed"
+            dropped += 1
+            continue
         category = match.group("category").strip()
-        if category not in STATE_CATEGORIES:
-            return None, "a STATE_UPDATES category is not allowlisted"
         certainty = match.group("certainty").strip()
-        if certainty not in STATE_UPDATE_CERTAINTIES:
-            return None, "a STATE_UPDATES certainty must be likely or unresolved (never established)"
         label = match.group("label").strip()
         value = match.group("value").strip()
-        span = match.group("span").strip()
-        if not label or not value or not span:
-            return None, "a STATE_UPDATES line is missing a required field"
-        if span not in source_chapter:
-            return None, "a STATE_UPDATES span is not a grounded substring of the source chapter"
+        span = ground_span(match.group("span"), source_chapter)
+        if (category not in STATE_CATEGORIES or certainty not in STATE_UPDATE_CERTAINTIES
+                or not label or not value or span is None):
+            dropped += 1
+            continue
         updates.append({"category": category, "label": label, "value": value,
                          "certainty": certainty, "span": span})
-    return updates, None
+    return updates, dropped
 
 
 def _parse_chapter_qa_response(raw_text, request: ChapterQARequest):
@@ -738,43 +766,35 @@ def _parse_chapter_qa_response(raw_text, request: ChapterQARequest):
     notes = sections_match.group(2).strip()
     state_updates_block = sections_match.group(3).strip()
 
-    if issues_block.lower() == "none":
-        issues = []
-    else:
-        issues = []
+    issues, dropped = [], 0
+    if issues_block.rstrip(".").lower() != "none":
         matches = list(_CHAPTER_ISSUE_RE.finditer(issues_block))
-        if not matches or not _matches_cover_block(issues_block, matches):
+        if not matches:
             return None, "ISSUES section contains malformed or unexpected content"
-        for match in matches:
+        for match, stray in _issue_slices(issues_block, matches):
             category = match.group("category").strip()
-            if category not in CHAPTER_ISSUE_CATEGORIES:
-                return None, "chapter issue category is not allowlisted"
             severity = match.group("severity").strip()
-            if severity not in SEVERITIES:
-                return None, "chapter issue severity is not allowlisted"
-            span = match.group("span").strip()
-            if not span or (span not in request.source_chapter and span not in request.hebrew_chapter):
-                return None, "chapter issue span is not a grounded substring of the chapter"
+            span = ground_span(match.group("span"), request.source_chapter, request.hebrew_chapter)
             correction = match.group("correction").strip()
-            if not correction:
-                return None, "chapter issue correction is missing"
+            if (stray or category not in CHAPTER_ISSUE_CATEGORIES or severity not in SEVERITIES
+                    or span is None or not correction or _unwrap(correction) == span):
+                dropped += 1
+                continue
             issues.append({
                 "category": category, "severity": severity, "span": span, "correction": correction,
             })
-        if not issues:
-            return None, "ISSUES section did not contain a parseable issue"
 
     if verdict == "PASS" and issues:
         return None, "PASS verdict must not carry invented issues"
     if verdict == "REVISE" and not issues:
-        return None, "REVISE verdict must carry at least one grounded issue"
+        return None, ("every REVISE issue was ungrounded or malformed" if dropped
+                      else "REVISE verdict must carry at least one grounded issue")
 
-    state_updates, state_error = _parse_state_updates_block(state_updates_block, request.source_chapter)
-    if state_error is not None:
-        return None, state_error
+    state_updates, state_dropped = _parse_state_updates_block(state_updates_block, request.source_chapter)
 
     return {"verdict": verdict, "issues": issues, "chapter_level_notes": notes,
-            "proposed_state_updates": state_updates}, None
+            "proposed_state_updates": state_updates, "dropped_issues": dropped,
+            "dropped_state_updates": state_dropped}, None
 
 
 def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
@@ -843,5 +863,6 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
     return dict(
         base, status="completed", skip_reason=None, verdict=parsed["verdict"],
         issues=parsed["issues"], chapter_level_notes=parsed["chapter_level_notes"], call=call,
-        proposed_state_updates=parsed["proposed_state_updates"],
+        proposed_state_updates=parsed["proposed_state_updates"], dropped_issues=parsed["dropped_issues"],
+        dropped_state_updates=parsed["dropped_state_updates"],
     )

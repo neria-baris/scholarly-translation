@@ -62,3 +62,12 @@ Acceptance: tests per parser rule (positive/negative), eviction leads to a real 
 QA category routing, review policy, notebook excerpt priority, keeper cache transport,
 salvage re-parse and reopen; offline replay of a copy of c69bb5fc: chapter 48 validates from the
 saved response without a call; salvage counts reported; full suite green.
+
+Addendum (2026-10-06, user-approved "layer 1"): the batch translation parser replaces
+the per-symptom tolerances (stray closers, missing final `]`) with one rule. Strict JSON
+first; otherwise the answer is read as a stream of complete JSON objects, skipping only
+brackets, commas, stray `}` and code fences around or between them. Free text between
+items or an object cut off before its end still fails; coverage/order/duplicate/Hebrew/
+formula checks decide validity. Every accepted answer that needed this is counted once
+in job `format_repairs` (also for local corrections). Provider-enforced structured
+output ("layer 2") is out of scope until model support is verified in documentation.

@@ -642,3 +642,19 @@ no main checkout fast-forward/push/restart attempted. Remote main previously
 observed05748c8, ancestor; publication pending. Preserve both histories and owner
 changes; recheck updated main and resolve additively after a clean completed
 main checkpoint. Own merged preview86550 only, paid0.
+
+
+## 2026-10-06T10:54:49.702372+00:00 | LEARN-7 | completed-owner compatibility integration PASS
+User confirms parallel main work finished, authorizes careful integration.
+Root main and remote verified34b0b6cbfb6640e7ad907d85a9bc8b84cb8c851f, clean.
+Merge latest main into isolated verified integration; shared UI/web auto-merge
+preserves learning/library-delete/in-progress/recheck controls. Only audit state
+and history conflicted; retain both append-only histories, refreshed checkpoint.
+Incoming main code/prompts/tests outside three additive shared UI/web files match
+main byte-for-byte. REVIEW-EFFECT/FORMAT-TOLERANCE remain intact.
+68 targeted tests PASS46.759s: learning integration/HTTP/export service, library
+UI/HTML, UI automation, web, saved-review salvage, job-block HTTP. Actual bundled
+Node syntax checks PASS for ui.js/learning.js; diff check PASS. No full-suite run,
+paid/provider/critic/Astra calls0, Sol local usage not_metered. No live restart,
+job mutation or source-data migration. Main c69bb5fc stopped52/64 untouched.
+Reviewed merge closure then verified fast-forward main/push authorized; no force.

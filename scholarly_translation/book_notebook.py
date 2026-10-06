@@ -385,33 +385,44 @@ def _entry_line(e):
     return line
 
 
-def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens=None):
-    """Deterministic, budgeted excerpt of the notebook for the chapter about to be handled.
-
-    Priority: pinned, global, entries matching the chapter source, entries touched
-    in the last 2 summarised chapters; then STORY_SO_FAR and the previous
-    chapter's summary (the latest summarised chapter).
-    """
-    counter = count_tokens or _default_counter
-    low = (chapter_source or "").casefold()
+def _ranked_entries(notebook, text):
+    """Active entries as (pinned, matching, other global, recent local) buckets for ``text``."""
+    low = (text or "").casefold()
     entries = [e for e in notebook["entries"] if e["status"] == "active"]
     matchers = _compile_terms(entries)
     cur = max((int(k) for k in notebook["chapter_summaries"]), default=-1)
-    prev_summary = notebook["chapter_summaries"].get(str(cur), "") if cur >= 0 else ""
     recent_from = max(0, cur - 1)
     buckets = [[], [], [], []]
     for idx, e in enumerate(entries):
+        rx, cjk = matchers[idx]
         if e["pinned"]:
             buckets[0].append(e)
-        elif e["scope"] == "global":
+        elif (rx is not None and rx.search(low)) or any(t in low for t in cjk):
             buckets[1].append(e)
-        else:
-            rx, cjk = matchers[idx]
-            if (rx is not None and rx.search(low)) or any(t in low for t in cjk):
-                buckets[2].append(e)
-            elif cur >= 0 and e["last_chapter"] >= recent_from:
-                buckets[3].append(e)
-    ordered = [e for b in buckets for e in b]
+        elif e["scope"] == "global":
+            buckets[2].append(e)
+        elif cur >= 0 and e["last_chapter"] >= recent_from:
+            buckets[3].append(e)
+    return buckets
+
+
+STORY_SHARE = 0.4  # translation/review excerpts: story + previous summary use at most 40%
+
+
+def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens=None, story_share=STORY_SHARE):
+    """Deterministic, budgeted excerpt of the notebook for the chapter about to be handled.
+
+    STORY_SO_FAR and the previous chapter's summary get at most ``story_share`` of the
+    budget (middle shortened, opening and latest events kept; the previous summary is
+    dropped last). Entries fill the rest in priority order: pinned, entries whose match
+    terms occur in the chapter (any scope), other global entries, entries touched in the
+    last 2 summarised chapters. The keeper passes ``story_share=1`` because it rebuilds
+    the story from this excerpt and must see all of it.
+    """
+    counter = count_tokens or _default_counter
+    cur = max((int(k) for k in notebook["chapter_summaries"]), default=-1)
+    prev_summary = notebook["chapter_summaries"].get(str(cur), "") if cur >= 0 else ""
+    pinned, matching, other_global, recent = _ranked_entries(notebook, chapter_source)
 
     header = ("BOOK_NOTEBOOK (memory of this book; follow unless the source contradicts, "
               "note departures; approved terminology overrides; do not quote)")
@@ -425,11 +436,10 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
         body = header + ":\n" + ("\n".join(lines) if lines else "(no relevant entries)")
         return body + ("\n\n" + tail if tail else "") + "\n"
 
-    # Never drop story_so_far (the keeper rebuilds it from this excerpt): shorten its
-    # middle, keeping the opening and the latest events; drop the previous summary last.
+    story_limit = token_budget * min(max(story_share, 0), 1)
     tail_text = "\n\n".join(tail_parts)
     story = notebook["story_so_far"]
-    while counter(assemble([], tail_text)) > token_budget and tail_parts:
+    while tail_parts and (counter(assemble([], tail_text)) > token_budget or counter(tail_text) > story_limit):
         if story and len(story) > 400:
             keep = int(len(story) * .8) // 2
             story = story[:keep] + " [... earlier middle of the story omitted for length ...] " + story[-keep:]
@@ -440,7 +450,7 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
         tail_text = "\n\n".join(tail_parts)
     used = counter(assemble([], tail_text))
     lines = []
-    for e in ordered:
+    for e in pinned + matching + other_global + recent:
         line = _entry_line(e)
         cost = counter(line + "\n")
         if used + cost > token_budget:
@@ -452,6 +462,24 @@ def render_for_chapter(notebook, chapter_source, token_budget=6000, count_tokens
         lines.pop()
         result = assemble(lines, tail_text)
     return result
+
+
+def render_entries_for_text(notebook, text, token_budget=3000, count_tokens=None):
+    """Only the pinned entries and the entries whose match terms occur in ``text``
+    (for a unit reviewer); empty string when none apply."""
+    counter = count_tokens or _default_counter
+    pinned, matching, _, _ = _ranked_entries(notebook, text)
+    header = ("BOOK_NOTEBOOK entries for this passage (earlier decisions for this book; the translation "
+              "should follow them unless the source contradicts; approved terminology overrides):")
+    lines, used = [], counter(header + "\n")
+    for e in pinned + matching:
+        line = _entry_line(e)
+        cost = counter(line + "\n")
+        if used + cost > token_budget:
+            break
+        lines.append(line)
+        used += cost
+    return header + "\n" + "\n".join(lines) + "\n" if lines else ""
 
 
 # ---------------------------------------------------------------- markdown

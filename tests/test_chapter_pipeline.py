@@ -127,15 +127,36 @@ class ChapterPipelineTests(unittest.TestCase):
             with self.assertRaises(ChapterPipelineError):
                 parse_batch_translation_response(raw, ["u1"])
 
-    def test_tolerates_only_a_missing_final_bracket_after_a_complete_item(self):
+    def test_punctuation_slips_around_complete_items_are_tolerated(self):
         items = [{"unit_id": u, "translation": HEBREW, "translation_note": None} for u in ("u1", "u2")]
-        body = json.dumps(items)[:-1]   # complete items, final "]" missing
-        self.assertEqual(set(parse_batch_translation_response(body, ["u1", "u2"])), {"u1", "u2"})
-        for raw, ids in ((body, ["u1", "u2", "u3"]),          # a unit is still missing -> coverage fails
-                         (body + ",", ["u1", "u2"]),           # dangling comma
-                         (body[:-1], ["u1", "u2"])):           # cut inside the last item
-            with self.assertRaises(ChapterPipelineError):
+        one, two = (json.dumps(i, ensure_ascii=False) for i in items)
+        body = json.dumps(items, ensure_ascii=False)
+        for raw in (body[:-1],                          # final "]" missing (job c69bb5fc, chapter 48)
+                    body[:-1] + ",",                     # dangling comma
+                    body + "}]}",                        # stray closers
+                    one + "\n" + two,                    # no brackets, no comma
+                    "[" + one + "},\n" + two + "]",      # stray brace between items
+                    "```json\n[" + one + ",\n```\n" + two + "]\n```"):   # fence in the middle
+            repairs = []
+            result = parse_batch_translation_response(raw, ["u1", "u2"], on_format_repair=lambda: repairs.append(1))
+            self.assertEqual(list(result), ["u1", "u2"], raw)
+            self.assertEqual(repairs, [1], raw)
+
+    def test_content_still_decides_and_truncation_still_fails(self):
+        items = [{"unit_id": u, "translation": HEBREW, "translation_note": None} for u in ("u1", "u2")]
+        one, two = (json.dumps(i, ensure_ascii=False) for i in items)
+        for raw, ids in (("[" + one + "]", ["u1", "u2"]),                       # a unit is missing
+                         ("[" + one + "," + two[:-5], ["u1", "u2"]),            # cut inside the last item
+                         ("[" + one + ", " + two + ", " + one + "]", ["u1", "u2"]),  # duplicate
+                         ("[" + two + ", " + one + "]", ["u1", "u2"]),          # wrong order
+                         ("[" + one + ", note: done, " + two + "]", ["u1", "u2"]),  # free text between items
+                         ("[1, 2]", ["u1", "u2"]),                               # not objects
+                         ("[]}", ["u1"])):                                       # nothing
+            with self.assertRaises(ChapterPipelineError, msg=raw):
                 parse_batch_translation_response(raw, ids)
+        repairs = []
+        parse_batch_translation_response(json.dumps(items), ["u1", "u2"], on_format_repair=lambda: repairs.append(1))
+        self.assertEqual(repairs, [])                    # strict JSON is not a repair
 
     def test_never_falls_back_to_source_text(self):
         source_text = "Some scholars argue that the point holds."

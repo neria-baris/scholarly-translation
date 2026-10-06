@@ -166,8 +166,10 @@ class Automation3HTTPTests(unittest.TestCase):
         settings_other = {
             **settings_luna,
             "role_selections": {
+                # REVIEW-EFFECT: the chapter-QA template grew by ~370 upper-bound tokens
+                # (span/output rules); this small model also serves as QA and keeper.
                 "translator": {"source": "other", "provider_type": "openai", "model": "some-future-model",
-                               "context_window": 10000, "max_output_tokens": 500},
+                               "context_window": 12000, "max_output_tokens": 500},
                 "semantic_reviewer": {"source": "catalog", "provider": "openai", "model": "gpt-6-luna"},
             },
         }

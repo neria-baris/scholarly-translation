@@ -41,6 +41,7 @@ For literary text:
 BOOK_NOTEBOOK holds earlier decisions for this book (names and renderings, voice, forms of address, running jokes, wordplay strategies). It is a reference; SOURCE_CHAPTER stays authoritative.
 - Check the chapter follows the relevant entries; flag an entry the chapter contradicts (cite its title) unless the source requires the departure.
 - Report only relevant entries, not every unused one.
+- Do not change a name, rendering or form of address it records unless the source requires it.
 
 ## Literary effect (literary text only)
 - humor, irony, wordplay and allusions that do not land in Hebrew;
@@ -50,7 +51,7 @@ Report only real problems; no stylistic rewrite.
 ## Hebrew quality
 Flag genuinely awkward or unclear Hebrew when it impairs readability or meaning, but do not turn this into a general stylistic rewrite.
 
-For every issue, identify the smallest affected span(s) and propose a local correction.
+For every issue, identify the smallest affected span(s) and propose a local correction. Headings and chapter numbers on their own line are not omissions.
 
 ## Persistent state for later chapters
 
