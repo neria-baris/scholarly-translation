@@ -12,7 +12,7 @@ Evaluate:
 4. terminology;
 5. preservation of ambiguity and qualification;
 6. reference/speaker handling;
-7. Hebrew quality.
+7. Hebrew quality, including keeping the source's punctuation and rhythm (a dash the source lacks is a defect).
 
 First identify material differences. Then classify each difference as:
 - stylistic only;

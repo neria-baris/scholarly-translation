@@ -454,6 +454,9 @@ class DocumentDraftTests(unittest.TestCase):
         # than this fixture's 7000-token keeper context; a too-small keeper is skipped by design.
         config = _json.loads(_json.dumps(MOCK_MODEL_CONFIG))
         config["models"]["chapter_qa"]["capabilities"] = {"context_window": 16000, "usable_context_tokens": 14000}
+        # The scholarly style profile (incl. punctuation/rhythm guidance) also outgrows the
+        # fixture's 6000-token translator budget for this chapter.
+        config["models"]["translator"]["capabilities"] = {"context_window": 10000, "usable_context_tokens": 8000}
         _, job = self.run_job(
             {"model": "configured", "budget_usd": 2.0, "model_config": config, "quality": "fast", "automation": True},
             adapter_factory=factory,

@@ -234,9 +234,13 @@ class Automation3HTTPTests(unittest.TestCase):
     # ---- actual pause/resume route (never a UI placebo) ----
     def test_pause_and_resume_call_the_real_document_jobs_api(self):
         uploaded = self.upload_sample()
+        # The scholarly style profile outgrows the fixture's 6000-token budget; widen it here only.
+        config = json.loads(json.dumps(MOCK_CONFIG))
+        for role in config["models"].values():
+            role["capabilities"].update(context_window=10000, usable_context_tokens=8000)
         settings = {
             "profile": "scholarly", "quality": "fast", "language": "en", "budget_usd": 2, "model": "configured",
-            "model_config": MOCK_CONFIG, "automation": True,
+            "model_config": config, "automation": True,
         }
         started = self.post("/document-translate", {"path": uploaded["path"], "settings": settings, "paid_confirm": True})
         with self.assertRaises(HTTPError) as caught:

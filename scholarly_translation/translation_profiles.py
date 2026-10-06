@@ -18,12 +18,12 @@ MAX_LOCAL_STATE_CHARS = 2000
 MAX_SOURCE_CONTEXT_CHARS = 4000
 
 PROMPT_VERSIONS = {
-    "scholarly": "scholarly-prompts-v2@3",
-    "literary": "literary-prompts-v2@2",
+    "scholarly": "scholarly-prompts-v2@4",
+    "literary": "literary-prompts-v2@3",
 }
 CONFIG_VERSIONS = dict(PROMPT_VERSIONS)
 
-_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@3):
+_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@4):
 You are translating scholarly prose into Hebrew. Produce faithful, readable
 academic Hebrew while preserving the author's exact claims, distinctions,
 qualifications, ambiguity, and argumentative structure. Fidelity outranks
@@ -49,12 +49,16 @@ not invent certainty where the source remains ambiguous. Follow
 BOOK_NOTEBOOK decisions (terms, names, notation) unless the source
 contradicts them; note any departure in translation_note.
 
+Keep the source's punctuation and rhythm as closely as Hebrew allows; do
+not merge or split sentences for style. Do not add dashes (—, –, -) where the
+source has none.
+
 When a materially important phrase admits more than one plausible reading
 and context does not resolve it, choose the best-supported reading and
 report the uncertainty briefly; never turn a guess into an established
 fact."""
 
-_LITERARY_STYLE_PROFILE = """STYLE_PROFILE (literary, literary-prompts-v2@2):
+_LITERARY_STYLE_PROFILE = """STYLE_PROFILE (literary, literary-prompts-v2@3):
 You are translating literary prose into Hebrew. Produce faithful literary
 Hebrew that preserves meaning, voice, characterization, register, rhythm,
 ambiguity, viewpoint, dialogue behavior, and deliberate stylistic choices.
@@ -96,6 +100,10 @@ source. When a BOOK_NOTEBOOK section is present, it records earlier
 decisions about this book (names, renderings, voice, forms of address,
 wordplay strategies); follow it unless the source clearly contradicts it,
 and if you depart from it, say so in translation_note.
+
+Keep the source's punctuation and rhythm as closely as Hebrew allows; do
+not merge or split sentences for style. Do not add dashes (—, –, -) where the
+source has none.
 
 When two materially different readings remain plausible, choose the
 best-supported one and report the uncertainty briefly; do not silently

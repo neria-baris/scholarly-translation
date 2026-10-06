@@ -44,6 +44,7 @@ Output rules:
 - Write each field on a single line.
 - Decide before writing. List only issues you stand behind; never add comments, second thoughts or retractions inside ISSUES. An issue you doubt is simply not listed.
 - The suggested correction is the replacement Hebrew for the translation span and must differ from it.
+- A suggested correction keeps the source's punctuation and rhythm and adds no dash (—, –, -) the source lacks.
 
 SOURCE_CONTEXT:
 {{source_context}}
