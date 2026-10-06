@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 from scholarly_translation import web_ui
 from scholarly_translation.learning_service import LearningService
 from test_learning_import import _completed_job_snapshot, _hebrew_epub_bytes
+from test_learning_integration import Adapter, configuration, source
 
 
 class LearningHttpTests(unittest.TestCase):
@@ -109,3 +110,27 @@ class LearningHttpTests(unittest.TestCase):
             self.assertIn('500', response.read().decode())
         status, _ = self.post('/learning/upload-epub?name=book.pdf', b'bad', raw=True)
         self.assertEqual(status, 400)
+
+    def test_export_is_guarded_binary_download_without_api_key(self):
+        self.assertEqual(self.post('/learning/export', {'session_id': 'any'}, token='wrong')[0], 403)
+        self.assertEqual(self.post('/learning/export', {'session_id': 'any'}, origin='https://example.org')[0], 403)
+        self.service._add_source(source())
+        adapter = Adapter(self.service)
+        ready = self.service.start('book-one', 1, configuration(), adapter.factory, background=False)
+        with patch.dict('os.environ', {}, clear=True), patch('scholarly_translation.model_adapter.build_translation_adapter', side_effect=AssertionError('unexpected provider')):
+            for format, content_type in [('epub', 'application/epub+zip'), ('html', 'text/html; charset=utf-8')]:
+                data = json.dumps({'session_id': ready['session_id'], 'format': format,
+                                   'include_meanings': False}).encode()
+                with urlopen(Request(self.base + '/learning/export', data,
+                    {'X-UI-Token': 'test-token', 'Content-Type': 'application/json'}), timeout=5) as response:
+                    body = response.read()
+                    self.assertEqual(response.headers['Content-Type'], content_type)
+                    self.assertEqual(int(response.headers['Content-Length']), len(body))
+                    self.assertIn('attachment;', response.headers['Content-Disposition'])
+                    self.assertIn('.fr.' + format, response.headers['Content-Disposition'])
+                    self.assertEqual(response.headers['X-Learning-Export-Warnings'], 'reflowed_text')
+                    self.assertTrue(body.startswith(b'PK') if format == 'epub' else b'<html' in body)
+        self.assertIsNone(self.service.store.get_session(ready['session_id'])['read_cursor'])
+        self.assertEqual(adapter.calls, 1)
+        status, error = self.post('/learning/export', {'session_id': ready['session_id'], 'format': 'pdf'})
+        self.assertEqual((status, error['code']), (400, 'invalid_export_format'))

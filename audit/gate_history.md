@@ -569,3 +569,33 @@ No full translation suite rerun or additional model calls. Own preview54603 on
 prior demo data retained. Active main translator never changed/stopped/restarted.
 Branch codex/language-learning; feature remote push not attempted, no main merge
 or deploy. Actual linguistic quality unverified. This receipt changes audit only.
+
+
+## 2026-10-06T09:35:32.491399+00:00 | LEARN-7 | isolated software acceptance; main integration pending
+Contract audit/contracts/learn_7.md amended by user for original EPUB preservation,
+Yiddish marking and main/installer integration. Deterministic EPUB/HTML export
+includes complete frozen source, edits, recaps/examples and optional note links;
+read-only, no completion/cursor/model effects. Source archive retained atomically
+with hashes. Preservation patches XML text slots across inline tags, retains
+assets/CSS/fonts/media/nav/package bytes; exact alignment only. Missing legacy
+archive explicitly warns; mismatch/corruption errors offer user text-only option.
+Original EPUB version retained; reader note support varies. Protected MathML /
+nested overlapping blocks and ambiguous template mapping offer explicit fallback.
+Installer verifies bundled UI, all five 500-word seeds and three prompt versions
+without calls/state; same dependencies. Completed library handoff can retain a
+Hebrew EPUB template. Active translator/root untouched. Own preview54603 replaced
+by63982 at62144, restart0 fake/paid calls. Browser verified Yiddish rtl/isolate/
+dotted underline, export options and binary-response success status; IAB download
+event timed out, so browser saved-file completion not claimed. Screenshot
+outputs/learning7-yiddish-export.png. HTTP binary length/content validated.
+Acceptance across scoped runs:103 unique affected export/preservation/assets/
+service/HTTP/render/UI/integration/installer tests plus22 library tests PASS.
+Final new service cases5 PASS8.473s; library22 PASS4.318s using bundled Node path
+(default Windows node shim denied), actual JS syntax and diff checks PASS.
+Initial provisional/runtime plan-ID mismatch fixed with read-only accepted ID
+view; negative test expected mapping error corrected to stronger hash rejection.
+Sol owns integration; export_builder10 preservation tests, installer_integration
+read-only advice; local usage not_metered, no external model calls, Opus/Astra0.
+No full-suite rerun or paid linguistic pilot. Reviewed feature Git closure next;
+clean main-integration worktree nowda6beb2 preserves newer math/OCR/unblock code.
+Concurrent main review-effect edits remain untouched; no live restart/deploy.

@@ -1,7 +1,8 @@
 # LEARN-7 — offline learning book export
 
-User requests export for reading outside the website. Isolated feature checkout
-only, no active translator/main/server/source credentials, merge or deploy.
+User requests export for reading outside the website. Extension 2026-10-06:
+preserve original EPUB assets/layout, then integrate into main and installer.
+Never restart the active translator, alter its jobs or touch credentials.
 
 Component: learning_export.py deterministic bytes builder. Input: validated
 schema1 source, ordered plans, prepared chunks/recaps, pinned session/catalog
@@ -43,4 +44,32 @@ download/header, prepared integrity, legacy1/2. Browser actual EPUB download and
 help/options, source preparation calls unchanged. Only affected export/service/
 render/HTTP/library checks and JS syntax; no full-suite rerun or paid pilot.
 No third-party linguistic critic. Reviewed clean isolated local commit/receipt,
-feature push not attempted; main integration deferred during active translation.
+feature push not attempted. Main integration now authorized, on a checked clean
+integration checkout; unexpected concurrent main edits block only main Git
+mutation, not isolated implementation. Preserve newer main behavior.
+
+Extension component learning_epub_preserve.py: pure build_preserved_epub(raw,
+source, plans, prepared, session, catalog, *, include_meanings=True) -> bytes.
+Validate all records using learning_export; map source units to original XHTML
+blocks by pN-sN IDs for EPUB imports, or exact sequential text for translation
+templates. Require complete unambiguous mapping. Replace only accepted text
+spans across XML text/tail slots, retaining inline elements/attributes/images,
+CSS/fonts/cover/nav/spine and all other ZIP entries. Insert recap and optional
+footnotes after each learning chapter's final mapped block. Preserve whitespace
+including long-paragraph normalized source via an explicit character mapping.
+No guess on failed mapping: preservation_unavailable triggers visible warning
+and offered text-only export; retained corrupt/mismatched assets must error.
+Original EPUB bytes are immutable sidecar with SHA256, source_hash and kind;
+new imports retain them atomically before publishing book. Translation import
+can retain existing Hebrew EPUB export template from completed library source.
+Legacy books remain readable/exportable with explicit text-only warning.
+HTML remains self-contained text. Strict complete coverage, no state/model
+changes; service export uses accepted chunk IDs on a copied plan view because
+runtime replan IDs differ from provisional stored plans.
+Yiddish preserves rtl unicode-bidi:isolate plus subtle color/dotted underline
+in site and all exports, no adjacent meaning. User preference 2026-10-06.
+Acceptance adds identical image/CSS/font bytes and unchanged inline/media/link
+structure, cross-inline spans, long whitespace and translation template cases,
+missing legacy vs corrupt retained assets; focused installer/main compatibility.
+Local builder owns only learning_epub_preserve.py and its test file; Sol owns
+asset retention, service, UI, installer and Git integration. No live deployment.

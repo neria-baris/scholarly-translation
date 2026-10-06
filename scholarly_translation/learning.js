@@ -16,6 +16,14 @@ const ERROR_MESSAGES={
   invalid_generation:'התשובה לא עמדה בחוזה ולכן לא שולבה. התשובה הגולמית נשמרה; אפשר לשנות הגדרות ולבחור ניסיון חדש.',
   archive_save_failed:'הספר זמין לקריאה, אך שמירת המילון או הסברי הדקדוק בתיקייה האישית נכשלה. פנו מקום או בדקו הרשאות ופתחו שוב את הפרק.',
   accounting_unavailable:'תיעוד העלויות אינו זמין או פגום. נתוני הקריאה נשמרו; יש לשחזר את התיעוד לפני יצירה נוספת כדי לשמור על התקציב.',
+  invalid_export_format:'בחרו EPUB או HTML לייצוא.',
+  invalid_export_options:'אפשרויות הייצוא אינן תקינות.',
+  invalid_preserved_epub:'עותק ה־EPUB השמור פגום או לא תואם לספר. הייצוא נעצר; אפשר לייבא מחדש או לבטל שמירת עיצוב ולייצא טקסט.',
+  preservation_unavailable:'לא ניתן לשלב בבטחה את המילים בעיצוב המקור. אפשר לבטל את שמירת העיצוב ולייצא את כל הטקסט והסיכומים בעימוד חדש.',
+  invalid_export_text:'הטקסט מכיל תו שאינו מתאים לקובץ ספר. הייצוא נעצר בלי לחתוך את הטקסט.',
+  invalid_export_coverage:'לא ניתן לאמת שהייצוא מכיל את כל הספר. נתוני הספר נשמרו והייצוא נעצר.',
+  corrupt_store:'נתוני הספר אינם תואמים לגרסה שנשמרה. הייצוא נעצר כדי שלא להוריד ספר פגום.',
+  export_failed:'לא ניתן להשלים את ההורדה. נתוני הספר נשמרו; נסו שוב.',
   active_book_conflict:'יש ספר פעיל אחד בלבד; יש לסיים או לנטוש אותו לפני התחלת ספר נוסף.',
   session_not_found:'ההפעלה לא נמצאה.',
   already_running:'ההכנה כבר רצה.',
@@ -190,12 +198,48 @@ function renderBooks(){
       read.textContent=session.status==='completed'?'קריאה חוזרת':(session.read_cursor?'המשך קריאה':'התחלת קריאה');
       read.onclick=()=>openReader(session,book);
       body.append(read);
+      body.append(exportForm(session));
     }
     host.append(item);
   }
 }
 function noteParagraph(text){const p=document.createElement('p');p.className='muted';p.textContent=text;return p}
 function errorParagraph(text){const p=document.createElement('p');p.className='message';p.setAttribute('role','alert');p.textContent=text;return p}
+function exportForm(session){
+  const form=document.createElement('form');form.className='export-form';
+  form.innerHTML=`<label>פורמט ייצוא<select name="format"><option value="epub">EPUB לקורא ספרים</option><option value="html">HTML לקריאה בדפדפן ללא חיבור</option></select></label>
+    <label><input name="meanings" type="checkbox" checked> קישורי פירוש בקובץ</label>
+    <label><input name="preserve" type="checkbox" checked> שמירת עיצוב ותמונות המקור ב־EPUB</label>
+    <button type="submit" class="secondary-button">הורדת ספר הלמידה</button>`;
+  const message=document.createElement('p');message.className='muted';message.setAttribute('role','status');
+  const book=state.books.find(entry=>entry.book_id===session.book_id);
+  message.textContent=book?.epub_layout==='retained'?
+    'EPUB משמר את התמונות, הגופנים והעיצוב ככל שניתן. HTML או ביטול שמירת העיצוב מפיקים טקסט בעימוד חדש. כולל סיכומי פרקים; תמיכה בפירושים תלויה בקורא. אחרי הקריאה חזרו לסמן קראתי.':
+    'לקובץ זה אין עותק EPUB מקורי שמור: הייצוא יהיה טקסט בעימוד חדש, ללא תמונות המקור. אפשר לייבא מחדש כדי לשמר אותן. אחרי הקריאה חזרו לסמן קראתי.';
+  form.append(message);
+  form.onsubmit=async(event)=>{
+    event.preventDefault();const button=form.querySelector('button');button.disabled=true;
+    try{
+      const response=await fetch('/learning/export',{method:'POST',headers:{'Content-Type':'application/json','X-UI-Token':token},
+        body:JSON.stringify({session_id:session.session_id,format:form.querySelector('[name=format]').value,
+                             include_meanings:form.querySelector('[name=meanings]').checked,
+                             preserve_layout:form.querySelector('[name=preserve]').checked})});
+      if(!response.ok){const result=await response.json();throw Error(errorText(result.code))}
+      const blob=await response.blob();
+      const expected=response.headers.get('Content-Length');
+      if(!blob.size||(expected&&blob.size!==Number(expected)))throw Error(errorText('export_failed'));
+      const match=(response.headers.get('Content-Disposition')||'').match(/filename\*=UTF-8''([^;]+)/i);
+      const url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download=match?decodeURIComponent(match[1]):'learning.'+form.querySelector('[name=format]').value;
+      document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      const warning=response.headers.get('X-Learning-Export-Warnings');
+      message.textContent=(warning?.includes('reflowed_text')?'הורד טקסט בעימוד חדש, ללא תמונות ועיצוב המקור. ':'הקובץ עם עיצוב המקור הוכן להורדה. ')+
+        'אחרי סיום הקריאה מחוץ לאתר חזרו לסמן קראתי; ההורדה אינה שומרת השלמה.';
+    }catch(error){message.textContent=Object.values(ERROR_MESSAGES).includes(error.message)?error.message:errorText('export_failed')}
+    finally{button.disabled=false}
+  };
+  return form;
+}
 function prepareForm(book){
   const wrap=document.createElement('form');wrap.className='budget-form';
   const disabled=!!state.learner.active_book_id;
@@ -379,6 +423,7 @@ async function loadChapter(index){
     activeReader.chapter_index=result.chapter_index;activeReader.chapter_count=result.chapter_count;
     activeReader.prepared_hash=result.session.prepared_hash;
     activeReader.language=result.language||result.session.language;
+    $('reader-export').replaceChildren(exportForm(result.session));
     $('reader-title').textContent=result.title;
     $('reader-chapter-title').textContent=result.chapter_title;
     $('reader-position').textContent=`פרק ${result.chapter_index+1} מתוך ${result.chapter_count}`;

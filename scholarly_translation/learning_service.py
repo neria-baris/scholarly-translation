@@ -77,19 +77,25 @@ class LearningService:
             os.fsync(stream.fileno())
         os.replace(temporary, self._path)
 
-    def _add_source(self, source):
+    def _add_source(self, source, *, epub=None, asset_kind='original'):
         validate_source(source)
         with self._lock:
+            if epub is not None:
+                from .learning_assets import retain_epub
+                retain_epub(self.root, source, epub, kind=asset_kind)
             self.store.save_source(source)
-            self._data['books'][source['book_id']] = {'book_id': source['book_id'], 'title': source['title'], 'origin': source['origin']['kind']}
+            self._data['books'][source['book_id']] = {'book_id': source['book_id'], 'title': source['title'],
+                'origin': source['origin']['kind'], 'epub_layout': 'retained' if epub is not None else 'text_only'}
             self._save()
         return deepcopy(self._data['books'][source['book_id']])
 
     def import_epub(self, content, title=None):
-        return self._add_source(import_hebrew_epub(content, book_id='book-' + secrets.token_hex(12), title=title))
+        raw = bytes(content) if isinstance(content, (bytes, bytearray)) else Path(content).read_bytes()
+        return self._add_source(import_hebrew_epub(raw, book_id='book-' + secrets.token_hex(12), title=title), epub=raw)
 
-    def import_translation(self, snapshot):
-        return self._add_source(import_translation_job(snapshot, book_id='book-' + secrets.token_hex(12)))
+    def import_translation(self, snapshot, *, epub_template=None):
+        return self._add_source(import_translation_job(snapshot, book_id='book-' + secrets.token_hex(12)),
+                                epub=epub_template, asset_kind='translation_template')
 
     def summary(self):
         with self._lock:
@@ -505,6 +511,43 @@ class LearningService:
             language = self.store.get_session(session_id)['language']
             archive = self._archive_snapshot(self.store.get_learner(language))
         return {'saved': True, 'archive_warning': archive['warning']}
+
+    def export_book(self, session_id, *, format='epub', include_meanings=True, preserve_layout=True):
+        """Download the complete frozen learning edition without reading/progress effects."""
+        from .learning_export import export_learning_book
+        require(format in ('epub', 'html'), 'invalid_export_format')
+        require(type(include_meanings) is bool, 'invalid_export_options')
+        require(type(preserve_layout) is bool, 'invalid_export_options')
+        with self._lock:
+            session = self.store.get_session(check_id(session_id))
+            require(session['status'] in ('ready', 'completed'), 'book_not_ready')
+            require(session_id in self._data['jobs'], 'session_not_found')
+            source = self.store.get_source(session['book_id'])
+            prepared = self.store.get_prepared(session_id)
+            catalog = effective_catalog(load_catalog(session['language'], version=session['catalog_version']),
+                                        session.get('vocabulary', []), prepared['chunks'])
+            plans = deepcopy(self._data['jobs'][session_id]['plans'])
+            require(len(plans) == len(prepared['chunks']), 'invalid_export_coverage')
+            # Stored plans describe source coverage; accepted chunks pin runtime
+            # replan identities. Build a read-only export view of those identities.
+            for plan, chunk in zip(plans, prepared['chunks']):
+                plan['plan_id'] = chunk['plan_id']
+            from .learning_assets import load_epub
+            raw = load_epub(self.root, source) if format == 'epub' and preserve_layout else None
+            if format == 'epub' and preserve_layout and self._data['books'][source['book_id']].get('epub_layout') == 'retained':
+                require(raw is not None, 'invalid_preserved_epub')
+            if raw is not None:
+                from .learning_epub_preserve import build_preserved_epub
+                body = build_preserved_epub(raw, source, plans, prepared, session, catalog,
+                                            include_meanings=include_meanings)
+                warnings = []
+            else:
+                body = export_learning_book(source, plans, prepared, session, catalog, format=format,
+                                            include_meanings=include_meanings)
+                warnings = ['reflowed_text']
+            return {'body': body, 'filename': 'learning-' + session_id + '.' + session['language'] + '.' + format,
+                    'media_type': 'application/epub+zip' if format == 'epub' else 'text/html; charset=utf-8',
+                    'warnings': warnings}
 
     def complete(self, session_id, expected_prepared_hash, completion_id):
         with self._lock:

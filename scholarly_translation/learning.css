@@ -48,10 +48,14 @@ input[type=number],input[type=password],input[type=text]{min-height:40px;border:
 .reader-html{font-size:18px;line-height:2;padding:10px 0}
 .learning-unit{margin:0 0 14px}
 .learning-foreign{color:#7a5420;font-weight:600}
+.learning-foreign[lang="yi"]{direction:rtl;unicode-bidi:isolate;color:#725125;text-decoration:underline dotted;text-underline-offset:.18em}
 .learning-foreign-click{cursor:pointer;border-bottom:1px dashed #b89a5e}
 .learning-foreign-click:focus-visible{outline:2px solid #ae9252;outline-offset:3px}
 .click-gloss-option{display:flex;align-items:center;gap:6px;font-size:13px;margin:0}
 #learning-language{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:180px}
+.export-form{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-block:12px;padding-block:10px;border-top:1px solid var(--line)}
+.export-form label{display:flex;align-items:center;gap:6px}.export-form select{font:inherit;max-width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.export-form p{flex-basis:100%;margin:0}.export-form input[type=checkbox]{flex-shrink:0}
 .gloss-popup{position:fixed;bottom:20px;inset-inline:20px;margin:auto;max-width:580px;z-index:10;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px #18372e30;padding:12px 18px;align-items:center;justify-content:space-between;gap:12px}
 .gloss-popup:not([hidden]){display:flex}.gloss-popup p{margin:0}
 .recap-list{list-style:disc;margin:6px 0 10px;padding-inline-start:22px;font-size:13px;color:var(--ink)}

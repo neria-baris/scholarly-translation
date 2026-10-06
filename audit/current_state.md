@@ -1,36 +1,23 @@
-# Current state — LEARN-6 isolated delivery
-Verified local delivery cc1fc6ce0852351b2b5c077dc43e03642628b9b1;
-reviewed28-path commit and clean feature tree confirmed; separate receipt follows. Branch codex/language-learning, isolated
-.claude/worktrees/learning-conductor from9898011. Active main translator and
-concurrent modifications untouched; no merge/deploy/push/restart.
-Contract audit/contracts/learn_6.md and user-directed budget/help/archive amendment.
-Five-language selection fr/de/es/yi/it, same-call model-chosen vocabulary beyond
-500, stable IDs/provenance/accepted definitions, book-local cumulative recurrence
-and exactly-once completion history. No critic/dictionary model. Legacy1/2
-prompts/schema still supported. Yiddish RTL/combining marks; optional click gloss.
-Adjustable budget/context/output and explicit new retry retain raw partial
-results, accepted chunks and all spent/uncertain held across ledgers. Corrupt
-accounting is visible and refuses further generation. Physical model ceilings
-remain explicit; source never silently cut. Context requested/provided reported.
-Help /learning/help; personal/<language>/dictionary.json/.md and grammar/<session>
---<chapter>.json/.md preserve received recap with actual examples before completion.
-Long explanations retained, atomic per-file writes, immutable identity, retryable
-save warnings while reader continues. One process per learning root.
-PASS166 learning tests35.733s; two new scenarios and final prompt correction
-followed by53 focused tests16.655s (169 unique learning tests),22 library4.566s,
-JS syntax/diff checks. Final26 recovery/integration/HTTP tests25.662s PASS:
-unknown calls require one-use explicit retry, original evidence/holds preserved;
-second loss needs a fresh choice. Shared runtime modules unchanged. No full-suite rerun. Browser on synthetic data
-verified selector/history/options/click/grammar/progress/help; no horizontal
-overflow. Screenshots outputs/learning6-help-verified.png and progress-verified.png.
-Own preview54603 on127.0.0.1:62144 replaces own45742 after final local recovery fix;
-restart made0 calls, new synthetic root
-outputs/learning-browser-check-learn6; prior fixture retained;10 fake calls/paid0.
-Local help_archive agent completed three scoped files; Sol integrates. Local
-usage not_metered. One external Sonnet CLI failed ConnectionRefused185.178s with
-zero observed tokens/list cost; escalation auto-review rejected possible
-repository-context export to Claude before execution. No workaround/retry;
-safe local implementation finished. Prior6 builder list6.8220652 USD unchanged,
-actual unknown; Opus/Astra0. User lifted two-agent cap, no unnecessary dispatch.
-Real linguistic/pedagogical quality unverified, no paid pilot. Next: deliver
-help/archive links; main integration after active book/changes are reconciled. Feature push not attempted outside origin/main authorization.
+# Current state — LEARN-7 integration pending
+Previous verified feature delivery cc1fc6ce0852351b2b5c077dc43e03642628b9b1;
+contract d7372e4. User now requests export preserving original EPUB/layout,
+Yiddish RTL/color/dotted marking and integration into main/installer.
+LEARN-7 software acceptance:103 affected tests +22 library across focused runs;
+JS syntax/diff PASS. No full suite/provider call. EPUB/HTML frozen complete export,
+optional notes and all recaps, no history/cursor/completion changes. Atomic
+immutable EPUB templates with source/hash pins; exact cross-inline text patches
+preserve media/CSS/fonts/links. Legacy/text option explicit; corrupt templates
+fail and unsafe mapping offers user-selected text option, never silent loss.
+Original EPUB version/reader limits retained. MathML protected-coordinate blocks,
+nested overlapping blocks and ambiguous translation template matches can need
+explicit text fallback. Installer checks bundled UI/catalogs/prompts, no new deps.
+Browser verified options, Yiddish rtl/isolate/style and successful binary-response
+status. Actual IAB download event timed out; no claim of saved browser file.
+Screenshot outputs/learning7-yiddish-export.png. Own preview63982 on62144 restarted
+from54603,0 new fake/paid calls. No main translator/job/credentials touched.
+Local export_builder owns pure preserve module/tests, installer agent read-only;
+no external calls/critic/Astra. Main clean integration worktree atda6beb2 includes
+newer scholarly/math/OCR/unblock changes; root has concurrent review-effect edits.
+Next: reviewed feature commit +receipt, merge in integration checkout and verify
+main UI/library/HTTP/runtime compatibility, then reconcile concurrent main status
+before safe fast-forward integration/push. Never restart active translation.

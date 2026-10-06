@@ -228,7 +228,20 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         if path == "/learning/language":
             return service.select_language(data.get("language"))
         if path == "/learning/import-translation":
-            return service.import_translation(document_jobs.get(data.get("job_id", "")))
+            snapshot = document_jobs.get(data.get("job_id", ""))
+            # Validate completed Hebrew content before opening the saved source.
+            from .learning_import import import_translation_job
+            import_translation_job(snapshot)
+            template = None
+            if snapshot.get('source_kind') == 'epub':
+                try:
+                    original = document_jobs.source_path(snapshot['job_id'], 'epub')
+                    template = render_download(snapshot, 'epub', source_path=original)
+                except (DocumentDraftError, OSError, ValueError):
+                    # Legacy/missing original: import remains useful as text;
+                    # book metadata and export UI report the missing layout.
+                    template = None
+            return service.import_translation(snapshot, epub_template=template)
         if path == "/learning/effort":
             return service.set_effort(data.get("level_id"))
         if path == "/learning/prepare":
@@ -515,7 +528,21 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 if route.path.startswith("/learning/"):
                     from .learning_contracts import LearningError
                     try:
-                        self._json(200, _learning_action(route.path, data))
+                        if route.path == '/learning/export':
+                            result = _learning().export_book(data.get('session_id'),
+                                format=data.get('format', 'epub'), include_meanings=data.get('include_meanings', True),
+                                preserve_layout=data.get('preserve_layout', True))
+                            self.send_response(200)
+                            self.send_header('Content-Type', result['media_type'])
+                            self.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(result['filename']))
+                            self.send_header('Content-Length', str(len(result['body'])))
+                            self.send_header('Cache-Control', 'no-store')
+                            self.send_header('X-Content-Type-Options', 'nosniff')
+                            self.send_header('X-Learning-Export-Warnings', ','.join(result['warnings']))
+                            self.end_headers()
+                            self.wfile.write(result['body'])
+                        else:
+                            self._json(200, _learning_action(route.path, data))
                     except LearningError as exc:
                         self._json(400, {"error": "פעולת הלמידה לא הושלמה.", "code": exc.code})
                     except (ValueError, TypeError, KeyError, OSError):
