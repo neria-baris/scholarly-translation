@@ -5,7 +5,8 @@ Feature 1e21a74 and initial verified merge e70449b/receipt72218c1 retained.
 Latest main REVIEW-EFFECT a1a3932 and FORMAT-TOLERANCE34b0b6c are merged into
 codex/learning-main-integration. Shared UI/web auto-merged additively; only audit
 checkpoint/history conflicted, both histories preserved. 68 focused compatibility tests PASS46.759s plus both JS syntax checks.
-Reviewed commit/fast-forward/push pending. No live restart.
+Delivery140a946f4cdd96ba0df0397508b6d6097fdbf0e2 committed, clean main
+fast-forwarded and normal push verified exact remote HEAD. No live restart.
 
 Learning: five languages fr/de/es/yi/it, 500-word seeds and same-call vocabulary
 expansion; cumulative chapter/book exposure, deterministic exactly-once explicit
@@ -40,5 +41,5 @@ recheck saved reviews then resume explicitly. Learning integration does neither.
 
 Gate10 human/source quality acceptance remains BLOCKED. External calls0,
 critic/Opus/Astra0; local conductor usage not_metered. Historical audits preserved.
-Next: clean merge, checked fast-forward main and
-ordinary verified push. Preserve unrelated worktrees/outputs and live job data.
+Next: use updated UI after a safe future restart; explicitly recheck/resume the
+translation only at user direction. Preserve unrelated worktrees/outputs/data.

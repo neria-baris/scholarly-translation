@@ -900,3 +900,17 @@ Node syntax checks PASS for ui.js/learning.js; diff check PASS. No full-suite ru
 paid/provider/critic/Astra calls0, Sol local usage not_metered. No live restart,
 job mutation or source-data migration. Main c69bb5fc stopped52/64 untouched.
 Reviewed merge closure then verified fast-forward main/push authorized; no force.
+
+
+## 2026-10-06T10:57:06.492146+00:00 | LEARN-7 | verified main delivery receipt PASS
+Merge140a946f4cdd96ba0df0397508b6d6097fdbf0e2 reviewed/staged check PASS,
+index matched files; isolated integration clean. Root main clean/unchanged34b0b6c
+before fast-forward, ff-only advanced to140a946. Verified intended origin URL
+https://github.com/neria-baris/scholarly-translation.git; remote34b0b6c ancestor;
+normal push succeeded and ls-remote confirms exact140a946. Main clean after push.
+68 focused compatibility tests PASS46.759s and two JS checks; no full-suite rerun
+or provider calls. Complete learning/installer/export integrated with newer main
+review-effect and format-tolerance code retained. No live restart/job modification.
+This receipt records delivery hash (not its own hash). No cleanup of other work.
+Limitations remain: linguistic quality and IAB saved-file event not verified.
+Next: user can load updated UI at a safe future restart after active translation.
