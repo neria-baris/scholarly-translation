@@ -1,6 +1,6 @@
 # Current state — LEARN-6 isolated delivery
-Latest known committed contract1a85412e404928199fae943cdba4fe3f9cdc0f75;
-delivery Git closure follows. Branch codex/language-learning, isolated
+Verified local delivery cc1fc6ce0852351b2b5c077dc43e03642628b9b1;
+reviewed28-path commit and clean feature tree confirmed; separate receipt follows. Branch codex/language-learning, isolated
 .claude/worktrees/learning-conductor from9898011. Active main translator and
 concurrent modifications untouched; no merge/deploy/push/restart.
 Contract audit/contracts/learn_6.md and user-directed budget/help/archive amendment.
@@ -32,6 +32,5 @@ zero observed tokens/list cost; escalation auto-review rejected possible
 repository-context export to Claude before execution. No workaround/retry;
 safe local implementation finished. Prior6 builder list6.8220652 USD unchanged,
 actual unknown; Opus/Astra0. User lifted two-agent cap, no unnecessary dispatch.
-Real linguistic/pedagogical quality unverified, no paid pilot. Next: verified
-isolated local commit and receipt; main integration after active book/changes
-are reconciled. Feature push not attempted outside origin/main authorization.
+Real linguistic/pedagogical quality unverified, no paid pilot. Next: deliver
+help/archive links; main integration after active book/changes are reconciled. Feature push not attempted outside origin/main authorization.
