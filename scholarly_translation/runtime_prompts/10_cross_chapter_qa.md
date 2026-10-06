@@ -8,18 +8,13 @@ Check for:
 
 ## Names (NAMES is binding)
 - Every name in NAMES must appear in the Hebrew exactly in the form given there (Hebrew prefixes ו ה ב כ ל מ ש attach as usual).
-- One person, place or term must have one Hebrew form in all chapters.
+- One person, place, work or term must have one Hebrew form in all chapters.
 - Two different people (or places, terms) must never share one Hebrew form. Consider prefixes and vav doubling: a word starting with ו doubles it after a prefix, so ון + ל = לוון, the same as ל + וון.
 - A name missing from NAMES: the form used in the earliest chapter wins (the REFERENCE chapter, when there is one); later chapters should follow it.
 - Never correct toward a form that contradicts NAMES.
 
 ## Other cross-chapter consistency
-- forms of address between the same characters;
-- titles and recurring terms;
-- recurring phrases and motifs;
-- gender agreement of each character (verbs, adjectives, pronouns) across chapters;
-- continuity contradictions introduced by the translation (not present in the source);
-- voice drift of a character or of the narrator.
+{{PROFILE_CHECKS}}
 
 ## Reporting
 For a wrong name or term form: Span = exactly that Hebrew form as it is written in the text (the shortest span, without prefix letters when possible), Correction = the right form, Severity MAJOR. For other issues give the smallest affected span and a local correction. The Span must be copied verbatim from a chapter text.

@@ -27,6 +27,10 @@ SCHOLARLY_SUGGESTED_TAGS = (
 )
 _PROFILE_GUIDANCE = {
     "literary": (
+        "- Record forms of address and the grammatical gender (Hebrew is gendered) of characters and "
+        "addressees, plus each character's voice and register.\n"
+        "- Record running jokes, recurring wordplay, motifs, quotations and allusions, and how they were "
+        "rendered in Hebrew.\n"
         "- \"story_so_far\" is the translation's only memory of the plot. Rewrite it from the existing "
         "STORY_SO_FAR plus this chapter, keeping every plot line, subplot, relationship, secret and open "
         "question that may still matter. Compress older or resolved events instead of dropping threads.",
@@ -41,7 +45,13 @@ _PROFILE_GUIDANCE = {
         "and keep it; note when the original-language term is kept in parentheses; record which established "
         "Hebrew translation is used when canonical works are quoted; record transliterations of authors' names, "
         "titles and foreign terms; record abbreviations and notation; and record the reading chosen for an "
-        "ambiguous term so later chapters keep it.",
+        "ambiguous term so later chapters keep it.\n"
+        "- Record the grammatical gender (Hebrew is gendered) of cited authors and of the reader or addressee, "
+        "the author's own voice (first person singular or plural, impersonal), register and hedging habits, "
+        "and how cross-references (chapters, sections, figures, equations, notes) are rendered.\n"
+        "- Names include cited authors and scholars (\"kind\": person), cited works (\"kind\": work, the "
+        "established Hebrew title when one exists) and the author's key technical terms and coinages "
+        "(\"kind\": term, the base form: singular, not in construct state).",
         "updated running summary of the whole argument so far"),
 }
 MAX_ENTRIES = 3000

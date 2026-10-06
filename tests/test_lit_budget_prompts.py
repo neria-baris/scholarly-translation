@@ -126,12 +126,16 @@ class PromptRenderTests(unittest.TestCase):
 
     def test_literary_style_guidance_and_version_bump(self):
         self.assertEqual(PROMPT_VERSIONS["literary"], "literary-prompts-v2@2")
-        self.assertEqual(PROMPT_VERSIONS["scholarly"], "scholarly-prompts-v2@2")
+        self.assertEqual(PROMPT_VERSIONS["scholarly"], "scholarly-prompts-v2@3")
         literary = style_profile_text("literary")
         self.assertIn("literary-prompts-v2@2", literary)
         for needle in ("BOOK_NOTEBOOK", "translation_note", "translationese", "dialogue punctuation"):
             self.assertIn(needle, literary)
-        self.assertNotIn("BOOK_NOTEBOOK", style_profile_text("scholarly"))
+        scholarly = style_profile_text("scholarly")
+        self.assertIn("scholarly-prompts-v2@3", scholarly)
+        for needle in ("BOOK_NOTEBOOK", "translation_note", "(terms, names, notation)"):
+            self.assertIn(needle, scholarly)
+        self.assertNotIn("dialogue punctuation", scholarly)
 
 
 class LiteraryTriggerTests(unittest.TestCase):

@@ -77,7 +77,7 @@ class PlannerEquivalenceTests(unittest.TestCase):
             ('roomy', configuration()),
             ('many-batches', configuration(translator_output=2200, context=9000, qa_context=12000, qa_output=2048)),
             ('bounded-reading', configuration(translator_output=4096, context=6000, qa_context=16000, qa_output=2048)),
-            ('qa-groups', configuration(translator_output=8192, context=60000, qa_context=12000, qa_output=2048)),
+            ('qa-groups', configuration(translator_output=8192, context=60000, qa_context=13000, qa_output=2048)),
         ]
 
     def test_small_fixtures_produce_identical_plans(self):

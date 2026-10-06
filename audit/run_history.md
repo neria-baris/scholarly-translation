@@ -944,3 +944,13 @@ prompt) and E2 (visible rerun entry, copy) in parallel; conductor integrated the
 pre-pass and rerun in chapter_pipeline.py. Offline dry run on c69bb5fc data: available, 4 source
 chunks, <= 1.14M upper-bound input tokens, 9 windows. Full offline suite 1143 OK (447s); mocks in
 four modules now answer or exclude the name-table call. Paid/provider calls 0; no restart.
+
+
+## 2026-10-06T19:30+03:00 | SCHOLARLY-PARITY | Claude continuity, user-directed
+User asked whether the narrative context edits were adapted for academic books. Verified: the
+notebook, name table and cross-chapter windows run for scholarly jobs, but prompts 09/10 were
+fiction-only, the keeper applied running-jokes/character-address rules to every book, 04/06
+described the notebook in literary terms and the scholarly style profile never mentioned
+BOOK_NOTEBOOK. Fixed in prompts/copy (contract scholarly_parity.md); new ScholarlyParityTests;
+stale assertion (scholarly profile without BOOK_NOTEBOOK) revised; planner fixture qa_context
+12000 -> 13000. Full offline suite 1151 OK (449s). Paid/provider calls 0; no restart.

@@ -15,6 +15,31 @@ MAX_OUTPUT_TOKENS = 8192
 SHORT_SPAN_CHARS = 40
 
 _PROMPT_PATH = Path(__file__).resolve().parent / "runtime_prompts" / "10_cross_chapter_qa.md"
+_PROFILE_CHECKS = {
+    "literary": (
+        "- forms of address between the same characters;\n"
+        "- titles and recurring terms;\n"
+        "- recurring phrases and motifs;\n"
+        "- gender agreement of each character (verbs, adjectives, pronouns) across chapters;\n"
+        "- continuity contradictions introduced by the translation (not present in the source);\n"
+        "- voice drift of a character or of the narrator."),
+    "scholarly": (
+        "- one Hebrew rendering per technical term and concept in all chapters; a term keeps the sense the "
+        "author defined, and the author's distinctions between neighbouring terms stay distinct in Hebrew;\n"
+        "- normal Hebrew inflection of a term (number, construct state, prefixes) is not an inconsistency: "
+        "report only a different word;\n"
+        "- definitions and theses restated in a later chapter agree with the earlier rendering;\n"
+        "- references to earlier chapters, sections, figures, tables, equations and notes match what they "
+        "point to, and their numbering and wording are consistent;\n"
+        "- cited authors and works: one Hebrew form per author and per title, and one established Hebrew "
+        "translation per quoted canonical text;\n"
+        "- abbreviations, symbols and notation, and whether the original-language term is kept in parentheses;\n"
+        "- gender agreement of each cited author and of the addressed reader across chapters;\n"
+        "- attribution: a claim the source attributes to the author, a cited author or an opponent keeps that "
+        "attribution and the author's stance (endorse, reject, report) in Hebrew;\n"
+        "- contradictions in the argument introduced by the translation (not present in the source);\n"
+        "- drift of the authorial voice (first person singular or plural, impersonal) or register."),
+}
 
 _OUTPUT_CONTRACT = """
 
@@ -62,13 +87,14 @@ def build_cross_qa_prompt(chapters, names_text, notebook_text, profile, referenc
         number = int(reference_index) + 1
         reference = (f"Chapter {number} was already checked together with the chapters before it and is "
                      f"authoritative. Where a later chapter of this window disagrees with chapter {number} "
-                     f"(names, terms, forms of address, recurring phrases), the later chapter is wrong: give the "
-                     f"span from the later chapter and chapter {number}'s form as the correction. Never report an "
+                     f"(names, terms, forms of address, recurring phrases, cross-references), the later chapter "
+                     f"is wrong: give the span from the later chapter and chapter {number}'s form as the correction. Never report an "
                      f"issue whose span occurs only in chapter {number}.")
     values = {
         "NAMES": (names_text or "").strip() or "(none)",
         "BOOK_NOTEBOOK": (notebook_text or "").strip() or "(none)",
         "PROFILE": (profile or "").strip() or "(none)",
+        "PROFILE_CHECKS": _PROFILE_CHECKS["scholarly" if (profile or "").strip() == "scholarly" else "literary"],
         "REFERENCE": reference,
         "CHAPTERS": "\n\n".join(parts),
     }

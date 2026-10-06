@@ -18,12 +18,12 @@ MAX_LOCAL_STATE_CHARS = 2000
 MAX_SOURCE_CONTEXT_CHARS = 4000
 
 PROMPT_VERSIONS = {
-    "scholarly": "scholarly-prompts-v2@2",
+    "scholarly": "scholarly-prompts-v2@3",
     "literary": "literary-prompts-v2@2",
 }
 CONFIG_VERSIONS = dict(PROMPT_VERSIONS)
 
-_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@2):
+_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@3):
 You are translating scholarly prose into Hebrew. Produce faithful, readable
 academic Hebrew while preserving the author's exact claims, distinctions,
 qualifications, ambiguity, and argumentative structure. Fidelity outranks
@@ -45,7 +45,9 @@ no satisfactory established Hebrew equivalent, use the best Hebrew
 rendering and retain the original-language term in parentheses when
 useful. For Japanese and other context-dependent languages, use broader
 source context to resolve omitted subjects, objects, and references, but do
-not invent certainty where the source remains ambiguous.
+not invent certainty where the source remains ambiguous. Follow
+BOOK_NOTEBOOK decisions (terms, names, notation) unless the source
+contradicts them; note any departure in translation_note.
 
 When a materially important phrase admits more than one plausible reading
 and context does not resolve it, choose the best-supported reading and

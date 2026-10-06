@@ -1,4 +1,14 @@
-# Current state — NAMES-CROSSQA + SOURCE-PASS delivered to main
+# Current state — SCHOLARLY-PARITY delivered to main (after NAMES-CROSSQA + SOURCE-PASS)
+Updated: 2026-10-06. Claude continuity, user-directed. Contract `audit/contracts/scholarly_parity.md`.
+The fiction-oriented context work now also fits scholarly books: name-table prompt and
+cross-chapter QA checks are profile-specific (scholarly: cited authors/works, key terms with
+inflection, definitions, cross-references, notation, attribution, authorial voice); keeper's
+literary-only rules moved to the literary guidance; scholarly translator follows BOOK_NOTEBOOK
+(scholarly-prompts-v2@3); name kinds person/work; 04/06 and UI/help copy updated. Prompts only:
+no new steps or calls. Full offline suite 1151 OK. Paid/provider calls 0; no restart.
+Next: unchanged from below (restart the UI at a safe time; running servers predate this too).
+
+## Previous: NAMES-CROSSQA + SOURCE-PASS delivered to main
 Updated: 2026-10-06. Claude continuity, user-directed. Contract
 `audit/contracts/names_cross_qa.md` (+ integration addendum). Base f61958c (contract) on
 b23a217. Feature branch `feat/names-crossqa`; main fast-forward and normal push follow the

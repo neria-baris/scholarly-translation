@@ -14,6 +14,8 @@ import pdfplumber
 
 from scholarly_translation import book_notebook as bn
 from scholarly_translation import chapter_pipeline as pipeline
+from scholarly_translation import cross_chapter_qa as cq
+from scholarly_translation import name_table as nt
 from scholarly_translation import review_qa as rq
 from scholarly_translation.document_structure import classify_line
 from scholarly_translation.epub_archive import MATH_CLOSE, MATH_OPEN, block_text
@@ -60,6 +62,54 @@ class KeeperProfileTests(unittest.TestCase):
         self.assertNotIn("subplot", scholarly)
         self.assertIn("subplot", literary)
         self.assertIn("wordplay, humor", literary)
+        for prompt in (scholarly, literary):
+            self.assertNotIn("{{", prompt)
+
+
+class ScholarlyParityTests(unittest.TestCase):
+    """Name table, cross-chapter QA and keeper prompts follow the profile (SCHOLARLY-PARITY)."""
+
+    def test_keeper_literary_lines_only_in_literary(self):
+        scholarly = bn.build_keeper_prompt("", "src", "עברית", 0, "scholarly")
+        literary = bn.build_keeper_prompt("", "src", "עברית", 0, "literary")
+        self.assertIn("running jokes, recurring wordplay", literary)
+        self.assertIn("forms of address and the grammatical gender", literary)
+        self.assertNotIn("running jokes, recurring wordplay", scholarly)
+        self.assertIn("cited authors", scholarly)
+        self.assertIn('"kind": work', scholarly)
+        self.assertIn("cross-references", scholarly)
+
+    def test_name_table_prompt_follows_profile(self):
+        chapters = [{"index": 0, "source": "Heidegger, Being and Time."}]
+        scholarly = nt.build_source_pass_prompt(chapters, "", [], "scholarly", "de")
+        literary = nt.build_source_pass_prompt(chapters, "", [], "literary", "en")
+        self.assertIn("cited author", scholarly)
+        self.assertIn("key technical terms", scholarly)
+        self.assertIn("German nouns", scholarly)
+        self.assertNotIn("cited author", literary)
+        self.assertIn("title or rank, and invented term", literary)
+        for prompt in (scholarly, literary):
+            self.assertNotIn("{{", prompt)
+
+    def test_name_table_accepts_person_and_work(self):
+        entries, dropped = nt.parse_names([
+            {"source": "Heidegger", "hebrew": "היידגר", "kind": "person", "gender": "male"},
+            {"source": "Being and Time", "hebrew": "הוויה וזמן", "kind": "work", "gender": "none"}])
+        self.assertEqual(dropped, [])
+        self.assertEqual([e["kind"] for e in entries], ["person", "work"])
+        table, _ = nt.merge_names(nt.new_table(), entries, 0, "prepass")
+        self.assertTrue(nt.validate_table(table))
+        self.assertIn("terms inflect", nt.render_names(table))
+
+    def test_cross_qa_checks_follow_profile(self):
+        chapters = [{"index": 0, "source": "S1", "hebrew": "H1"}, {"index": 1, "source": "S2", "hebrew": "H2"}]
+        scholarly = cq.build_cross_qa_prompt(chapters, "", "", "scholarly")
+        literary = cq.build_cross_qa_prompt(chapters, "", "", "literary")
+        self.assertIn("references to earlier chapters, sections, figures", scholarly)
+        self.assertIn("inflection of a term", scholarly)
+        self.assertNotIn("voice drift of a character", scholarly)
+        self.assertIn("voice drift of a character", literary)
+        self.assertNotIn("references to earlier chapters, sections", literary)
         for prompt in (scholarly, literary):
             self.assertNotIn("{{", prompt)
 

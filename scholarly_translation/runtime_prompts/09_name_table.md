@@ -17,15 +17,15 @@ CHAPTERS:
 {{CHAPTERS}}
 
 Task:
-- List every person, place, organization, title or rank, and invented term that appears in these chapters and is NOT already in NAMES_SO_FAR. Include lowercase invented terms and coinages. Skip ordinary words.
+{{PROFILE_GUIDANCE}}
 - Do not re-list a name from NAMES_SO_FAR, nor an alias or spelling variant of one. Never change an existing entry.
-- Group aliases under one entry: full name, short name, nickname, title forms. "source" is the most complete or most common form; "aliases" lists the other source forms, each once.
+- Group aliases under one entry: full name, short name, nickname, title forms, abbreviations and spelling variants. "source" is the most complete or most common form; "aliases" lists the other source forms, each once.
 - "gender": decide from the text: female, male, plural, none (not a person or no gender), or unknown.
-- "kind": character, place, organization, title, term or other.
-- Real people, places and works that have an established Hebrew form must use it. Otherwise transliterate by sound, consistently.
+- "kind": character, person, place, organization, title, work, term or other.
+- Real people, places, works and terms that have an established Hebrew form must use it. Otherwise transliterate names by sound, consistently; translate terms and titles into Hebrew.
 - DISTINCTNESS: every Hebrew form must differ from every Hebrew form in NAMES_SO_FAR and from every other form you list, also after the Hebrew prefixes ו ה ב כ ל מ ש are attached. A word starting with ו doubles that letter after a prefix: ון + ל gives לוון, identical to ל + וון, so Wen and Woon must not be ון and וון. Niqqud is allowed and encouraged to tell forms apart (for example שֵׁאי against שיי).
 - "hebrew" holds only the Hebrew name itself (no Latin letters, no explanation). "note" is optional and short (<= 300 characters).
 
 Output strict JSON only, with no text before or after it and no code fence:
-{"names":[{"source":"","aliases":[],"hebrew":"","kind":"character","gender":"unknown","note":""}]}
+{"names":[{"source":"","aliases":[],"hebrew":"","kind":"other","gender":"unknown","note":""}]}
 When nothing new appears, output {"names":[]}.

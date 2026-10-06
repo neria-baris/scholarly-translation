@@ -16,7 +16,7 @@ from pathlib import Path
 
 SCHEMA = "name-table@1"
 STATUSES = ("pending", "ready", "skipped")
-KINDS = ("character", "place", "organization", "title", "term", "other")
+KINDS = ("character", "person", "place", "organization", "title", "work", "term", "other")
 GENDERS = ("female", "male", "plural", "none", "unknown")
 ORIGINS = ("prepass", "keeper", "human")
 MAX_ENTRIES = 1000
@@ -28,7 +28,8 @@ MAX_NOTE = 300
 MAX_WARNINGS = 200
 MAX_WARNING_LEN = 300
 HEADER = ("NAMES (binding Hebrew forms for this book; use exactly these forms, Hebrew prefixes attach "
-          "as usual; two different names never share a Hebrew form):")
+          "as usual and terms inflect as Hebrew grammar requires; two different names never share a "
+          "Hebrew form):")
 
 # Languages written in a cased (Latin) script, where a capital letter marks a name.
 # Anything else (Hebrew, Arabic, CJK, Cyrillic/Greek, ...) yields no candidates.
@@ -185,7 +186,25 @@ def name_candidates(texts, language, limit=400, min_count=2, snippet_chars=160):
 
 # -------------------------------------------------------------------- prompt
 
-_PLACEHOLDER_RE = re.compile(r"\{\{(NAMES_SO_FAR|CANDIDATES|PROFILE_ID|SOURCE_LANGUAGE|CHAPTERS)\}\}")
+_PLACEHOLDER_RE = re.compile(
+    r"\{\{(NAMES_SO_FAR|CANDIDATES|PROFILE_ID|PROFILE_GUIDANCE|SOURCE_LANGUAGE|CHAPTERS)\}\}")
+_PROFILE_GUIDANCE = {
+    "literary": (
+        "- List every person, place, organization, title or rank, and invented term that appears in these "
+        "chapters and is NOT already in NAMES_SO_FAR. Include lowercase invented terms and coinages. Skip "
+        "ordinary words."),
+    "scholarly": (
+        "- This is a scholarly book. List every cited author, scholar or historical figure (kind person), "
+        "cited work such as a book, article or text (kind work), school, movement or -ism, institution and "
+        "place that appears in these chapters and is NOT already in NAMES_SO_FAR.\n"
+        "- Also list the author's key technical terms and coinages: terms the author defines, distinguishes "
+        "or keeps returning to (kind term). Give the base Hebrew form (singular, not in construct state); "
+        "it inflects as Hebrew grammar requires. When the original term should stay in parentheses at first "
+        "use, say so in \"note\". Skip ordinary vocabulary and words capitalized only by the source "
+        "language's rules (German nouns, for example).\n"
+        "- A work with an established Hebrew title uses it; otherwise translate the title and say so in "
+        "\"note\". \"gender\" of an author matters: Hebrew verbs agree with it (טוען / טוענת)."),
+}
 
 
 def build_source_pass_prompt(chapters, names_text, candidates, profile_id, source_language):
@@ -206,6 +225,7 @@ def build_source_pass_prompt(chapters, names_text, candidates, profile_id, sourc
         "NAMES_SO_FAR": str(names_text or "").strip() or "(none)",
         "CANDIDATES": "\n".join(lines) if lines else "(none)",
         "PROFILE_ID": str(profile_id or "literary"),
+        "PROFILE_GUIDANCE": _PROFILE_GUIDANCE["scholarly" if profile_id == "scholarly" else "literary"],
         "SOURCE_LANGUAGE": str(source_language or "unknown"),
         "CHAPTERS": "\n\n".join(blocks),
     }

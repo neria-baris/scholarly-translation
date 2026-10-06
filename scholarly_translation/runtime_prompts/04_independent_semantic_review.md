@@ -35,7 +35,7 @@ Classify each real issue as:
 
 For each issue, cite only the smallest relevant source and translation spans.
 
-BOOK_NOTEBOOK (when not "(none)") lists earlier decisions for this book: names, chosen Hebrew renderings, forms of address, voice. A translation that follows them is correct on those points: do not propose a different rendering for them unless this source requires it; do flag a departure from them.
+BOOK_NOTEBOOK (when not "(none)") lists earlier decisions for this book: names, chosen Hebrew renderings of names and terms, definitions, forms of address, voice. A translation that follows them is correct on those points: do not propose a different rendering for them unless this source requires it; do flag a departure from them.
 
 If there is no substantive issue, return PASS. Do not invent criticism merely because review was requested.
 
