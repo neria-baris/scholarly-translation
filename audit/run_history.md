@@ -957,3 +957,22 @@ stale assertion (scholarly profile without BOOK_NOTEBOOK) revised; planner fixtu
 Addendum: article wording and bibliography exclusion in the scholarly guidance; planner fixture
 qa_context 15000 (edge-sensitive). Full offline suite 1151: only that fixture failed before the
 retune; test_long_docs_planner 24 OK after. Paid/provider calls 0.
+
+
+## 2026-10-06T23:45+03:00 | EXPORT-NIQQUD | Claude continuity, user-directed
+User asked what was learned from the finished Senlin Ascends job dccf6947 (50/50, 533 Luna calls,
+$1.14 of $10, plan $1.135, ceiling $7.57). Offline findings: (1) EPUB export left 2333 of 2436
+blocks in English (whole-chapter units, translation only in the first block); (2) 127/145 name
+forms vocalized (prompt 09 encouraged niqqud), cross-chapter QA "corrected" prose to them: 5318
+niqqud marks in 90/103 units; (3) all 50 chapter QA REVISE, 400 notes retained (160 MAJOR
+hebrew_quality). User decided: fix 1 and 2; niqqud only in hard cases such as Wen/Woon.
+Contract export_niqqud.md, branch fix/export-niqqud (worktree; main had a concurrent session's
+PUNCT-RHYTHM change, now f87addb, no shared files; rebased on it). Delivered: line-per-block
+spread with proportional fallback; plain NAMES forms unless colliding (vav-doubling aware);
+prompts 07/09 unvocalized; cross QA drops niqqud-only additions. Two stale integration
+expectations (vocalized NAMES line) revised. Offline export of the Senlin data: Hebrew in every
+block, 1 realigned unit, 114 Latin words left (CSS/cover), inline italics/bold flattened as
+before (known limitation). Full offline suite 1164 OK after the revision. Paid/provider calls 0;
+no restart; job data untouched. Open: register guidance in the name-table pass (user: "to be
+considered"); niqqud already inside finished Senlin/Jade City text is not removed.
+

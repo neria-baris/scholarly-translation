@@ -1,4 +1,17 @@
-# Current state — SCHOLARLY-PARITY delivered to main (after NAMES-CROSSQA + SOURCE-PASS)
+# Current state — EXPORT-NIQQUD delivered to main (after PUNCT-RHYTHM f87addb)
+Updated: 2026-10-06. Claude continuity, user-directed. Contract `audit/contracts/export_niqqud.md`.
+From the Senlin Ascends job (dccf6947, completed 50/50, $1.14): EPUB export now spreads a merged
+unit's translation one line per original block (no English left behind); NAMES shows plain
+(unvocalized) forms unless two forms collide (Wen/Woon); prompts 07/09 ask for unvocalized
+forms; cross-chapter QA drops corrections that only add niqqud. Full offline suite 1164 OK.
+Paid/provider calls 0; no restart; job data untouched.
+Open: (a) register/voice guidance in the name-table source pass — proposal pending user
+decision; (b) niqqud already in finished Senlin/Jade City text stays until a user-started cross
+check or a user-approved local cleanup; (c) chapter QA retains many MAJOR hebrew_quality notes
+(Senlin 160) — no decision yet. PUNCT-RHYTHM (f87addb, concurrent session) has no audit entry.
+Next: restart the UI at a safe time; re-export Senlin to get the fixed EPUB (no model calls).
+
+## Previous: SCHOLARLY-PARITY delivered to main
 Updated: 2026-10-06. Claude continuity, user-directed. Contract `audit/contracts/scholarly_parity.md`.
 The fiction-oriented context work now also fits scholarly books: name-table prompt and
 cross-chapter QA checks are profile-specific (scholarly: cited authors/works, key terms with
