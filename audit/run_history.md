@@ -954,3 +954,6 @@ described the notebook in literary terms and the scholarly style profile never m
 BOOK_NOTEBOOK. Fixed in prompts/copy (contract scholarly_parity.md); new ScholarlyParityTests;
 stale assertion (scholarly profile without BOOK_NOTEBOOK) revised; planner fixture qa_context
 12000 -> 13000. Full offline suite 1151 OK (449s). Paid/provider calls 0; no restart.
+Addendum: article wording and bibliography exclusion in the scholarly guidance; planner fixture
+qa_context 15000 (edge-sensitive). Full offline suite 1151: only that fixture failed before the
+retune; test_long_docs_planner 24 OK after. Paid/provider calls 0.

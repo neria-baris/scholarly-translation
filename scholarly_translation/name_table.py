@@ -194,9 +194,11 @@ _PROFILE_GUIDANCE = {
         "chapters and is NOT already in NAMES_SO_FAR. Include lowercase invented terms and coinages. Skip "
         "ordinary words."),
     "scholarly": (
-        "- This is a scholarly book. List every cited author, scholar or historical figure (kind person), "
+        "- This is a scholarly book or article (for an article, \"book\" means the article and \"chapter\" "
+        "one of its parts). List every cited author, scholar or historical figure (kind person), "
         "cited work such as a book, article or text (kind work), school, movement or -ism, institution and "
-        "place that appears in these chapters and is NOT already in NAMES_SO_FAR.\n"
+        "place that appears in these chapters and is NOT already in NAMES_SO_FAR. List authors discussed "
+        "or cited in the running text; do not list every entry of a bibliography or reference list.\n"
         "- Also list the author's key technical terms and coinages: terms the author defines, distinguishes "
         "or keeps returning to (kind term). Give the base Hebrew form (singular, not in construct state); "
         "it inflects as Hebrew grammar requires. When the original term should stay in parentheses at first "

@@ -36,6 +36,8 @@ _PROFILE_GUIDANCE = {
         "question that may still matter. Compress older or resolved events instead of dropping threads.",
         "updated running summary of the whole book so far"),
     "scholarly": (
+        "- The text may be a single article rather than a book: \"book\" then means the article and "
+        "\"chapter\" one of its parts.\n"
         "- \"story_so_far\" holds THE ARGUMENT SO FAR: the translation's only memory of the book's reasoning. "
         "Rewrite it from the existing STORY_SO_FAR plus this chapter: the thesis, each step of the argument, the "
         "concepts defined and how the author uses them, the distinctions the author insists on, the positions of "

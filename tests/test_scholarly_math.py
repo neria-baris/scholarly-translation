@@ -86,6 +86,9 @@ class ScholarlyParityTests(unittest.TestCase):
         self.assertIn("cited author", scholarly)
         self.assertIn("key technical terms", scholarly)
         self.assertIn("German nouns", scholarly)
+        self.assertIn("single article", bn.build_keeper_prompt("", "s", "ע", 0, "scholarly"))
+        self.assertIn("book or article", scholarly)
+        self.assertIn("bibliography or reference list", scholarly)
         self.assertNotIn("cited author", literary)
         self.assertIn("title or rank, and invented term", literary)
         for prompt in (scholarly, literary):

@@ -30,8 +30,15 @@ Delivered (prompts and copy only; no new steps, no new calls, no deterministic c
 - translation_profiles: one short sentence, the scholarly translator follows BOOK_NOTEBOOK
   decisions (terms, names, notation); version scholarly-prompts-v2@3 (literary unchanged).
   Kept short: tight test fixtures sit at the context edge; the LONG-DOCS planner fixture
-  'qa-groups' moves from qa_context 12000 to 13000 so it still yields several QA groups.
+  'qa-groups' moves from qa_context 12000 to 15000 so it still yields several QA groups.
 - ui.html/help.html: copy states what the table, notebook and summary hold in a scholarly book.
 
 Not changed: job structure, budgets, windows, call counts, parsing. Existing scholarly jobs pick
 up the new prompts on their next calls (cache keys change for scholarly translation calls).
+
+Addendum (same day, user question "and if it is an article?"): an article is usually one
+chapter group (sections are not chapter nodes; split only above 60000 characters). Scholarly
+guidance in the name-table, cross-check and keeper prompts now says the text may be a single
+article ("book" = the article, "chapter" = one of its parts), and the name table lists authors
+cited in the running text, not every bibliography entry. Footnotes, reference lists and
+reassembly for articles are a separate contract (ARTICLE-NOTES).

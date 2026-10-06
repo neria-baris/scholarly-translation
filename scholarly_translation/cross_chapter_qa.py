@@ -24,6 +24,7 @@ _PROFILE_CHECKS = {
         "- continuity contradictions introduced by the translation (not present in the source);\n"
         "- voice drift of a character or of the narrator."),
     "scholarly": (
+        "- the text may be one article split into parts: \"chapter\" then means a part of it;\n"
         "- one Hebrew rendering per technical term and concept in all chapters; a term keeps the sense the "
         "author defined, and the author's distinctions between neighbouring terms stay distinct in Hebrew;\n"
         "- normal Hebrew inflection of a term (number, construct state, prefixes) is not an inconsistency: "
