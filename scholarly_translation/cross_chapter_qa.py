@@ -5,6 +5,7 @@ Offline helpers only; the caller (chapter_pipeline) owns provider calls."""
 import re
 from pathlib import Path
 
+from .name_table import plain_form
 from .review_qa import (
     SEVERITIES, VERDICTS, _CHAPTER_ISSUE_RE, _issue_slices, _unwrap, ground_span,
 )
@@ -51,6 +52,8 @@ In ISSUES, write `none` or number every issue using exactly these fields:
    Span: one line copied verbatim from a HEBREW or SOURCE chapter text, without added quotes or backticks
    Correction: a nonempty local correction that changes the text, never a wholesale retranslation
 Each field on one line. List only issues you stand behind: no comments or retractions inside ISSUES.
+The Hebrew text is written without niqqud. A form that differs only in niqqud is the same form: never
+report it, and never add niqqud in a correction.
 Write the sections in this order: VERDICT:, ISSUES:, NOTES:.
 """
 
@@ -109,6 +112,13 @@ def _needs_human(error, verdict=None, notes="", dropped=0):
             "dropped_issues": dropped, "error": error}
 
 
+def _adds_niqqud_only(span, correction):
+    """True when the correction is the span with niqqud added (removing niqqud is a real fix)."""
+    plain_span, plain_correction = plain_form(span), plain_form(correction)
+    return (plain_span == plain_correction
+            and len(correction) - len(plain_correction) > len(span) - len(plain_span))
+
+
 def parse_cross_qa_response(raw, source_text, hebrew_text):
     if not isinstance(raw, str) or not raw.strip():
         return _needs_human("model response was empty")
@@ -134,7 +144,8 @@ def parse_cross_qa_response(raw, source_text, hebrew_text):
             span = ground_span(match.group("span"), source_text, hebrew_text)
             correction = match.group("correction").strip()
             if (stray or category not in CROSS_ISSUE_CATEGORIES or severity not in SEVERITIES
-                    or span is None or not correction or _unwrap(correction) == span):
+                    or span is None or not correction or _unwrap(correction) == span
+                    or _adds_niqqud_only(span, _unwrap(correction))):
                 dropped += 1
                 continue
             issues.append({"category": category, "severity": severity,

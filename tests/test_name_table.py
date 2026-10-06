@@ -213,7 +213,7 @@ class RenderTests(unittest.TestCase):
         out = nt.render_names(merged(SHAE, WEN))
         lines = out.split("\n")
         self.assertTrue(lines[0].startswith("NAMES (binding Hebrew forms"))
-        self.assertEqual(lines[1], "- Shae (also: Kaul Shae, Shaelinsan) → שֵׁאי [character, female] — Green Bone")
+        self.assertEqual(lines[1], "- Shae (also: Kaul Shae, Shaelinsan) → שאי [character, female] — Green Bone")
         self.assertEqual(lines[2], "- Wen → ון [character, male]")
 
     def test_text_filter_whole_word_case_sensitive(self):
@@ -236,6 +236,42 @@ class RenderTests(unittest.TestCase):
     def test_invalid_table(self):
         with self.assertRaises(nt.NameTableError):
             nt.render_names({"schema": "x"})
+
+
+class NiqqudTests(unittest.TestCase):
+    """EXPORT-NIQQUD: prose is unvocalized, so NAMES shows plain forms except where they collide."""
+
+    def test_plain_form(self):
+        self.assertEqual(nt.plain_form("אָדָם בּוֹרֵיאַס"), "אדם בוריאס")
+        self.assertEqual(nt.plain_form("בַּת־יַעֲנָה"), "בת־יענה")
+        self.assertEqual(nt.plain_form("ג׳וֹן"), "ג׳ון")
+
+    def test_vocalized_form_rendered_plain(self):
+        adam = {"source": "Adam Boreas", "aliases": [], "hebrew": "אָדָם בּוֹרֵיאַס",
+                "kind": "character", "gender": "male"}
+        out = nt.render_names(merged(adam))
+        self.assertIn("→ אדם בוריאס [", out)
+        self.assertNotIn("אָדָם", out)
+
+    def test_niqqud_kept_where_plain_forms_collide(self):
+        a = {"source": "Bel", "aliases": [], "hebrew": "בֵּל", "kind": "character", "gender": "male"}
+        b = {"source": "Bal", "aliases": [], "hebrew": "בַּל", "kind": "place", "gender": "none"}
+        out = nt.render_names(merged(a, b, WEN))
+        self.assertIn("→ בֵּל [", out)
+        self.assertIn("→ בַּל [", out)
+        self.assertIn("- Wen → ון [", out)
+
+    def test_vav_doubling_counts_as_collision(self):
+        wen = dict(WEN, hebrew="וֶן")
+        woon = dict(WOON, hebrew="וּוּן")
+        out = nt.render_names(merged(wen, woon))
+        self.assertIn("→ וֶן [", out)
+        self.assertIn("→ וּוּן [", out)
+
+    def test_stored_table_unchanged(self):
+        t = merged(SHAE)
+        nt.render_names(t)
+        self.assertEqual(t["entries"][0]["hebrew"], "שֵׁאי")
 
 
 if __name__ == "__main__":

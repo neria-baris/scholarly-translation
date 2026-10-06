@@ -217,7 +217,7 @@ def _apply_translation_to_element(el, translated_text: str, node: dict, unit_id:
         })
 
 
-def export_epub(path_or_bytes, epub_structure, translations) -> EpubExportResult:
+def export_epub(path_or_bytes, epub_structure, translations, emptied=()) -> EpubExportResult:
     """Rebuild the EPUB at ``path_or_bytes`` with translated Hebrew text
     substituted into the blocks described by ``epub_structure`` (from
     :func:`extract_epub_structure`). Every file in the archive that is not
@@ -228,6 +228,8 @@ def export_epub(path_or_bytes, epub_structure, translations) -> EpubExportResult
     ``translations`` maps ``unit_id -> {"text", "approved", ...}``; a unit
     with no entry keeps its original (untranslated) source text and
     records a ``missing_translation`` limitation rather than being dropped.
+    A unit in ``emptied`` (part of a merged unit whose text lives in a
+    neighbouring block) has its block's text removed instead.
 
     Raises :class:`ExportError` for an invalid archive/structure/mapping.
     """
@@ -252,7 +254,7 @@ def export_epub(path_or_bytes, epub_structure, translations) -> EpubExportResult
                     if item.filename in nodes_by_chapter:
                         raw, chapter_manifest = _rewrite_chapter(
                             raw, nodes_by_chapter[item.filename], units_by_node_id,
-                            translations, limitations,
+                            translations, limitations, frozenset(emptied),
                         )
                         manifest.extend(chapter_manifest)
                     elif item.filename == package_path:
@@ -289,10 +291,10 @@ def _map_canonical_units_to_epub_units(structure: dict, epub_structure: dict):
 
     A unit spanning more than one canonical node (segmentation.py only
     ever merges consecutive ``paragraph`` nodes -- STRUCTURE_SCHEMA.md)
-    maps to more than one EPUB block; only the first carries the
-    translated text (mirroring export_pdf.py's own one-block-per-unit
-    rendering), and this is recorded as a ``units_merged_multiple_blocks``
-    limitation rather than silently duplicating or dropping text.
+    maps to more than one EPUB block; the caller spreads the translation's
+    lines over those blocks (:func:`_split_across_blocks`). The
+    ``units_merged_multiple_blocks`` limitation returned here is kept only
+    when that spread was not line-for-line.
     """
     canonical_nodes_by_page = {}
     for node in structure.get("nodes", []):
@@ -334,8 +336,9 @@ def _map_canonical_units_to_epub_units(structure: dict, epub_structure: dict):
                 "kind": "units_merged_multiple_blocks", "unit_id": link["unit_id"],
                 "node_ids": mapped_unit_ids,
                 "detail": f"{len(mapped_unit_ids)} original EPUB blocks were combined into one "
-                          "translation unit; only the first block carries the translated text, the "
-                          "remaining original-language block(s) were left untouched below it",
+                          "translation unit whose translation has a different number of lines; its "
+                          "lines were spread over the blocks by position, so paragraph breaks may "
+                          "move (a block without a line is left empty)",
             })
     return unit_id_map, limitations
 
@@ -361,15 +364,57 @@ def export_epub_from_document_structure(path_or_bytes, structure, translations) 
     epub_structure = extract_epub_structure(path_or_bytes)
     unit_id_map, extra_limitations = _map_canonical_units_to_epub_units(structure, epub_structure)
 
-    epub_translations = {}
+    text_by_epub_unit = {u["unit_id"]: u["text"] for u in epub_structure["units"]}
+    epub_translations, realigned, emptied = {}, set(), set()
     for unit_id, record in translations.items():
         mapped = unit_id_map.get(unit_id)
-        if mapped:
+        if not mapped:
+            continue
+        if len(mapped) == 1:
             epub_translations[mapped[0]] = record
+            continue
+        parts, exact = _split_across_blocks(record["text"], [text_by_epub_unit.get(m, "") for m in mapped])
+        if not exact:
+            realigned.add(unit_id)
+        for epub_unit_id, part in zip(mapped, parts):
+            if part:
+                epub_translations[epub_unit_id] = {**record, "text": part}
+            else:
+                emptied.add(epub_unit_id)
 
-    result = export_epub(path_or_bytes, epub_structure, epub_translations)
-    result.limitations = list(result.limitations) + extra_limitations
+    result = export_epub(path_or_bytes, epub_structure, epub_translations, emptied)
+    result.limitations = list(result.limitations) + [
+        l for l in extra_limitations if l["unit_id"] in realigned]
     return result
+
+
+def _split_across_blocks(text, block_texts):
+    """Spread a merged unit's translation over its EPUB blocks: ``(parts, exact)``.
+
+    Segmentation joins a unit's blocks with line breaks and the translation keeps
+    them, so normally line K belongs to block K (``exact``). Otherwise each line goes
+    to the block whose share of the source text its position falls in; a block that
+    gets no line is emptied, never left in the original language."""
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    n = len(block_texts)
+    if len(lines) == n:
+        return lines, True
+    weights = [max(len(t or ""), 1) for t in block_texts]
+    total = float(sum(weights))
+    bounds, acc = [], 0
+    for w in weights:
+        acc += w
+        bounds.append(acc / total)
+    lengths = [len(line) for line in lines]
+    line_total = float(sum(lengths)) or 1.0
+    parts = [[] for _ in range(n)]
+    pos = 0
+    for line, length in zip(lines, lengths):
+        mid = (pos + length / 2.0) / line_total
+        pos += length
+        index = next((i for i, b in enumerate(bounds) if mid <= b), n - 1)
+        parts[index].append(line)
+    return [" ".join(p) for p in parts], False
 
 
 def _rewrite_package_language(raw: bytes) -> bytes:
@@ -388,7 +433,8 @@ def _rewrite_package_language(raw: bytes) -> bytes:
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
 
-def _rewrite_chapter(raw: bytes, nodes: list, units_by_node_id: dict, translations: dict, limitations: list):
+def _rewrite_chapter(raw: bytes, nodes: list, units_by_node_id: dict, translations: dict, limitations: list,
+                     emptied=frozenset()):
     root = _xml(raw)
     body = next((e for e in root.iter() if _local(e.tag) == "body"), root)
     by_index = {}
@@ -406,6 +452,13 @@ def _rewrite_chapter(raw: bytes, nodes: list, units_by_node_id: dict, translatio
             continue
         unit_id = units_by_node_id[node["node_id"]]
         record = translations.get(unit_id)
+        if record is None and unit_id in emptied and not node["has_media"]:
+            for child in list(el):
+                el.remove(child)
+            el.text = None
+            manifest.append({"unit_id": unit_id, "node_ids": [node["node_id"]], "kind": node["kind"],
+                              "rendered": False, "translated": True, "reason": "merged_into_neighbour"})
+            continue
         if record is None:
             limitations.append({
                 "kind": "missing_translation", "unit_id": unit_id, "node_id": node["node_id"],

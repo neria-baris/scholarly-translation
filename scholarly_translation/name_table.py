@@ -38,6 +38,7 @@ CASED_LANGUAGES = frozenset(
 
 _PROMPT_PATH = Path(__file__).resolve().parent / "runtime_prompts" / "09_name_table.md"
 _HEBREW_RE = re.compile("[א-ת]")
+_NIQQUD_RE = re.compile("[֑-ׇֽֿׁׂׅׄ]")
 _WORD_RE = re.compile(r"(?<!\w)[^\W\d_](?:\w|['’\-](?=\w))*")
 _OPENERS = "\"'“„‘‚«‹([{¿¡—"
 
@@ -62,6 +63,11 @@ def _key(value):
 
 def _has_hebrew(value):
     return bool(_HEBREW_RE.search(value))
+
+
+def plain_form(value):
+    """``value`` without niqqud and cantillation marks (as Hebrew prose is written)."""
+    return _NIQQUD_RE.sub("", unicodedata.normalize("NFD", str(value or "")))
 
 
 def new_table():
@@ -359,14 +365,30 @@ def _occurs(form, text):
     return re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text) is not None
 
 
-def _line(e):
+def _line(e, hebrew):
     also = f" (also: {', '.join(e['aliases'])})" if e["aliases"] else ""
     note = f" — {e['note']}" if e["note"] else ""
-    return f"- {e['source']}{also} → {e['hebrew']} [{e['kind']}, {e['gender']}]{note}"
+    return f"- {e['source']}{also} → {hebrew} [{e['kind']}, {e['gender']}]{note}"
+
+
+def _alike_key(hebrew):
+    # After a prefix a leading ו is written twice (ל + ון = לוון = ל + וון), so ון and וון read alike.
+    plain = _nfc(plain_form(hebrew))
+    return "ו" + plain if plain.startswith("ו") and not plain.startswith("וו") else plain
+
+
+def _shown_forms(entries):
+    """Plain forms, except where two different stored forms would read alike without niqqud."""
+    stored_by_key = {}
+    for e in entries:
+        stored_by_key.setdefault(_alike_key(e["hebrew"]), set()).add(_nfc(e["hebrew"]))
+    return [_nfc(e["hebrew"]) if len(stored_by_key[_alike_key(e["hebrew"])]) > 1
+            else _nfc(plain_form(e["hebrew"])) for e in entries]
 
 
 def render_names(table, text=None, token_budget=None, count_tokens=None):
     validate_table(table)
+    shown = dict(zip(map(id, table["entries"]), _shown_forms(table["entries"])))
     entries = table["entries"]
     if text is not None:
         entries = [e for e in entries if any(_occurs(f, text) for f in (e["source"], *e["aliases"]))]
@@ -376,7 +398,7 @@ def render_names(table, text=None, token_budget=None, count_tokens=None):
     lines = [HEADER]
     used = counter(HEADER) if token_budget is not None else 0
     for i, e in enumerate(entries):
-        line = _line(e)
+        line = _line(e, shown[id(e)])
         if token_budget is not None:
             cost = counter("\n" + line)
             if used + cost > token_budget:

@@ -147,5 +147,35 @@ class CapTests(unittest.TestCase):
         self.assertEqual(cq.cross_qa_output_cap(SimpleNamespace(capabilities=None)), 8192)
 
 
+class NiqqudFilterTests(unittest.TestCase):
+    """EXPORT-NIQQUD: a correction that only adds niqqud is not an inconsistency."""
+
+    HEB = "מדריך כל אדם למגדל בבל. אָדָם הלך."
+
+    def parse(self, raw):
+        return cq.parse_cross_qa_response(raw, "Everyman's Guide. Adam went.", self.HEB)
+
+    def test_adding_niqqud_dropped(self):
+        good = issue_block(span="מדריך כל אדם", corr="מדריך כל איש", n=2)
+        bad = issue_block(span="אדם למגדל בבל", corr="אָדָם לְמִגְדַּל בָּבֶל")
+        r = self.parse(reply(bad + good))
+        self.assertEqual(r["status"], "completed")
+        self.assertEqual([i["correction"] for i in r["issues"]], ["מדריך כל איש"])
+        self.assertEqual(r["dropped_issues"], 1)
+
+    def test_only_niqqud_issue_needs_no_revision(self):
+        r = self.parse(reply(issue_block(span="אדם למגדל", corr="אָדָם לְמִגְדַּל")))
+        self.assertEqual(r["status"], "needs_human")
+        self.assertEqual(r["dropped_issues"], 1)
+
+    def test_removing_niqqud_kept(self):
+        r = self.parse(reply(issue_block(span="אָדָם", corr="אדם")))
+        self.assertEqual(r["issues"][0]["correction"], "אדם")
+
+    def test_prompt_says_prose_is_unvocalized(self):
+        prompt = cq.build_cross_qa_prompt([{"index": 0, "source": "a", "hebrew": "ב"}], "", "", "literary")
+        self.assertIn("written without niqqud", prompt)
+
+
 if __name__ == "__main__":
     unittest.main()

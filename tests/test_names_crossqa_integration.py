@@ -25,6 +25,7 @@ CROSS_MARK = 'several consecutive chapters'
 KEEPER_MARK = 'rolling NOTEBOOK for a book'
 CORRECTION_MARK = 'Correct ONLY the supplied Hebrew unit'
 WRONG, RIGHT = 'שיי', 'שֵׁאי'
+SHOWN = 'שאי'
 HEBREW = WRONG + ' הלכה הביתה לאורך הנמל, והים היה שקט.'
 
 
@@ -135,7 +136,7 @@ class NamesCrossQATests(unittest.TestCase):
         self.assertEqual(by_source['Shae']['hebrew'], RIGHT)
         self.assertEqual(by_source['Shae']['origin'], 'prepass')
         self.assertEqual(by_source['Harbour Master']['origin'], 'keeper')   # added by the keeper, add-only
-        line = '→ ' + RIGHT
+        line = '→ ' + SHOWN   # NAMES shows the plain form (EXPORT-NIQQUD)
         for kind in ('translate', 'qa', 'keeper'):
             self.assertTrue(all(line in p for p in self.prompts(kind)), kind)
         # A unit review gets only the names of its own unit.
@@ -220,7 +221,7 @@ class NamesCrossQATests(unittest.TestCase):
         self.assertIn('=== CHAPTER 1 ===', prompts[0])
         self.assertIn('Shae walked home along the harbour in chapter 1.', prompts[0])   # the original text itself
         self.assertNotIn(HEBREW, prompts[0])
-        self.assertIn('→ ' + RIGHT, prompts[1])          # later chunks see the names decided so far
+        self.assertIn('→ ' + SHOWN, prompts[1])          # later chunks see the names decided so far
         table = job['name_table']
         self.assertEqual((table['status'], table['chunks_done'], len(table['chunks'])), ('ready', 10, 10))
         self.assertEqual(self.kinds()[:CHAPTER_COUNT], ['names'] * CHAPTER_COUNT)   # all before chapter 1

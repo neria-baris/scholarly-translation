@@ -366,6 +366,65 @@ class ExportFromCanonicalDocumentStructureTests(unittest.TestCase):
             export_epub_from_document_structure(self.path, {"schema_version": 1}, {})
 
 
+class MergedUnitSpreadTests(unittest.TestCase):
+    """EXPORT-NIQQUD: a unit covering several EPUB blocks never leaves original text behind."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / "book.epub"
+        make_epub(self.path)
+        self.structure = _canonical_epub_structure(self.path)
+        links = {l["unit_id"]: l["node_ids"] for l in self.structure["unit_node_links"]}
+        self.merged = next(u for u in self.structure["units"] if len(links[u["unit_id"]]) > 1)
+        self.blocks = len(links[self.merged["unit_id"]])
+
+    def _export(self, merged_text):
+        translations = {u["unit_id"]: {"text": f"מתורגם {i}", "approved": True}
+                        for i, u in enumerate(self.structure["units"])}
+        translations[self.merged["unit_id"]] = {"text": merged_text, "approved": True}
+        result = export_epub_from_document_structure(self.path, self.structure, translations)
+        with zipfile.ZipFile(io.BytesIO(result.content)) as archive:
+            return result, archive.read("OEBPS/chapter0.xhtml").decode("utf-8")
+
+    def test_line_per_block_when_counts_match(self):
+        lines = [f"שורה {i}" for i in range(self.blocks)]
+        result, chapter0 = self._export("\n".join(lines))
+        for line in lines:
+            self.assertIn(f"<p>{line}", chapter0)
+        for original in ("A plain paragraph with no inline markup.", "inside it.", "for more."):
+            self.assertNotIn(original, chapter0)
+        kinds = {l["kind"] for l in result.limitations}
+        self.assertNotIn("missing_translation", kinds)
+        self.assertNotIn("units_merged_multiple_blocks", kinds)
+
+    def test_fewer_lines_empties_blocks_and_records_limitation(self):
+        result, chapter0 = self._export("שורה אחת בלבד")
+        self.assertEqual(chapter0.count("שורה אחת בלבד"), 1)
+        self.assertNotIn("A plain paragraph with no inline markup.", chapter0)
+        self.assertNotIn("for more.", chapter0)
+        kinds = [l["kind"] for l in result.limitations]
+        self.assertIn("units_merged_multiple_blocks", kinds)
+        self.assertNotIn("missing_translation", kinds)
+
+    def test_more_lines_are_all_kept_in_order(self):
+        lines = [f"שורה {i}" for i in range(self.blocks + 2)]
+        _, chapter0 = self._export("\n".join(lines))
+        positions = [chapter0.index(line) for line in lines]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn("A plain paragraph with no inline markup.", chapter0)
+
+
+class SplitAcrossBlocksTests(unittest.TestCase):
+    def test_exact_and_proportional(self):
+        from scholarly_translation.export_epub import _split_across_blocks
+        self.assertEqual(_split_across_blocks("א\n\nב", ["x", "y"]), (["א", "ב"], True))
+        parts, exact = _split_across_blocks("א\nב\nג", ["x" * 10, "y" * 10])
+        self.assertFalse(exact)
+        self.assertEqual(" ".join(parts).split(), ["א", "ב", "ג"])
+        self.assertEqual(_split_across_blocks("א", ["x", "y", "z"])[0].count(""), 2)
+
+
 class InputFormatDeterminesEpubOutputFormatTests(unittest.TestCase):
     def test_epub_input_produces_a_valid_zip_epub_by_default(self):
         tmp = tempfile.TemporaryDirectory()
