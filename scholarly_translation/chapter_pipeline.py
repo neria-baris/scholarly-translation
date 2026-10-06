@@ -9,7 +9,7 @@ from collections import deque
 from dataclasses import dataclass, replace
 from pathlib import Path
 from . import book_notebook as bn, context_strategy, document_state as document_state_module, review_qa as rq
-from . import cross_chapter_qa as cq, name_table as nt
+from . import article_layout, cross_chapter_qa as cq, name_table as nt
 from .formal_checks import has_translatable_words, run_formal_checks
 from .epub_archive import MATH_CLOSE, MATH_OPEN
 from .semantic_review import detect_risk_triggers as semantic_risks
@@ -138,6 +138,7 @@ class _TermResolver:
         if len(_VALIDATED) > 64:
             _VALIDATED.clear()
         self.units = _units_by_id(structure)
+        self.structure = structure
         latest = {}
         for row in glossary['rules']:
             current = latest.get(row['rule_id'])
@@ -154,7 +155,8 @@ class _TermResolver:
     def line(self, uid):
         row = self._lines.get(uid)
         if row is None:
-            row = self._lines[uid] = json.dumps({'unit_id': uid, 'source_text': self.unit(uid)['text']}, ensure_ascii=False)
+            row = self._lines[uid] = json.dumps({'unit_id': uid, 'source_text': article_layout.marked_text(
+                self.structure, self.unit(uid))}, ensure_ascii=False)
         return row
 
     def terms(self, uid):
@@ -217,6 +219,12 @@ def _batch_suffix(unit_ids, document_state):
             'Respond ONLY with a JSON array of objects with unit_id, translation (nonempty Hebrew), '
             'and translation_note (nonempty string or null). No missing or extra ids, commentary or markdown.')
 
+NOTE_MARK_RULE = (' [^n] is a footnote mark: copy each one exactly once, right after the Hebrew word or '
+                  'punctuation that corresponds to where it stands in the source. Mathematical expressions, '
+                  'variables, symbols and equation numbers such as (3) are copied exactly.')
+NOTE_UNIT_RULE = (' A unit that starts with a note number is a footnote: keep that number first, then the '
+                  'translated note.')
+
 def build_batch_translation_prompt(structure, glossary, unit_ids, profile_id, document_state=None, source_unit_ids=None,
                                    _resolver=None, _prefix_text=None):
     prefix = _prefix_text if _prefix_text is not None else _prefix(
@@ -226,6 +234,11 @@ def build_batch_translation_prompt(structure, glossary, unit_ids, profile_id, do
     if any(MATH_OPEN in u['text'] for u in structure['units'] if u['unit_id'] in wanted):
         suffix += (' Text between ' + MATH_OPEN + ' and ' + MATH_CLOSE + ' is a protected formula: copy each such '
                    'token exactly, markers included, once, in the position Hebrew grammar requires.')
+    notes = article_layout.note_index(structure)
+    if any(uid in notes['marks'] for uid in wanted):
+        suffix += NOTE_MARK_RULE
+    if any(uid in notes['notes'] for uid in wanted):
+        suffix += NOTE_UNIT_RULE
     return CacheablePrompt(prefix, suffix)
 
 def _envelope_tokens(unit_id):
@@ -1068,6 +1081,12 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
     _require(ids and len(set(ids)) == len(ids), 'chapter ids must be nonempty and unique')
     source = _units_by_id(structure)
     _require(all(uid in source for uid in ids), 'unknown chapter unit')
+    # Passthrough units (reference list, running headers, bare formulas) cost nothing.
+    passthrough = article_layout.note_index(structure)['passthrough']
+    if passthrough:
+        ids = [uid for uid in ids if uid not in passthrough]
+        if not ids:
+            return _passthrough_plan(structure, glossary, configuration, quality, profile_id, keeper)
     units = [source[uid] for uid in ids]
     translator, translator_def = roles['translator']
     source_fp, glossary_fp = fingerprint(structure), fingerprint(glossary)
@@ -1185,6 +1204,24 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
         'catalog_version': CATALOG_VERSION, 'quality_validation': 'experimental_unvalidated'}
     if keeper:
         plan.update(book_notebook=True, notebook_keeper=keeper_plan)
+    return plan
+
+def _passthrough_plan(structure, glossary, configuration, quality, profile_id, keeper):
+    """Plan for a chapter group holding only passthrough units: no provider call."""
+    plan = {'schema_version': 2, 'stage': 'chapter-plan@2', 'source_fingerprint': fingerprint(structure),
+        'config_fingerprint': fingerprint(configuration.to_dict()), 'glossary_fingerprint': fingerprint(glossary),
+        'profile_id': profile_id, 'prompt_fingerprint': fingerprint([PROMPT_VERSIONS[profile_id], CONFIG_VERSIONS[profile_id], 2]),
+        'document_state_version': 0, 'document_state_fingerprint': '', 'quality': quality, 'unit_count': 0,
+        'whole_chapter': True, 'context_mode': 'whole_chapter', 'batches': [], 'qa_groups': [], 'role_usage': {},
+        'qa_roles': [], 'qa_role_cost_usd': {}, 'qa_tail_usd': 0.0, 'expected_translation_cost_usd': 0.0,
+        'conservative_translation_ceiling_usd': 0.0, 'expected_total_cost_usd': 0.0,
+        'conservative_total_ceiling_usd': 0.0, 'max_attempts_per_qa_group': 3,
+        'hebrew_expansion_hypothesis': HEBREW_EXPANSION_HYPOTHESIS,
+        'expected_cost_assumptions': {'output_fraction_of_cap': .35, 'cache_reads': 0, 'automatic_corrections': 0,
+            'notice': 'Planning hypothesis, not a provider quote or measured chapter usage'},
+        'catalog_version': CATALOG_VERSION, 'quality_validation': 'experimental_unvalidated', 'passthrough_only': True}
+    if keeper:
+        plan.update(book_notebook=True, notebook_keeper=None)
     return plan
 
 def estimate_preview(*args, **kwargs):
@@ -1423,8 +1460,31 @@ def _item_stream(text, pos):
 
 
 def _untranslatable_passthrough(record):
-    return (not _HEBREW_RE.search(record['target_text'] or '')
+    return bool(record.get('passthrough')) or (not _HEBREW_RE.search(record['target_text'] or '')
             and not has_translatable_words(record['source_text']))
+
+
+def _unit_record(job, structure, unit, translated, state_version, passthrough=None):
+    """A job unit record. ``source_text`` shows note marks as [^n]; a passthrough unit
+    (reference entry, running header, bare formula) keeps its source text untranslated."""
+    source = article_layout.marked_text(structure, unit)
+    enclosing = context_strategy.find_enclosing_chapter_node(structure, unit)
+    target = unit['text'] if passthrough else translated['translation']
+    findings = [] if passthrough else _unit_findings(source, target, unit['language'])
+    if translated and translated.get('note_marks_relocated'):
+        findings.append({'type': 'note_mark_relocated', 'unit_id': unit['unit_id']})
+    record = {'unit_id': unit['unit_id'], 'order': len(job['units']), 'page_id': unit['page_id'],
+        'chapter_node_id': enclosing['node_id'] if enclosing else None, 'source_text': source,
+        'source_language': unit['language'], 'source_warnings': unit.get('warnings', []),
+        'source_char_start': unit['source_char_start'], 'source_char_end': unit['source_char_end'],
+        'target_text': target, 'translation_note': None if passthrough else translated['translation_note'],
+        'approved': False, 'human_edited': False, 'status': 'draft_unapproved', 'review': None,
+        'findings': findings, 'document_state_version': state_version, 'target_versions': []}
+    if passthrough:
+        record['passthrough'] = passthrough
+        record['review'] = {'status': 'skipped', 'skip_reason': 'passthrough_' + passthrough,
+                            'verdict': None, 'issues': []}
+    return record
 
 
 def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=None, on_format_repair=None):
@@ -1478,12 +1538,18 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
             if (not isinstance(source, str) or has_translatable_words(source)
                     or has_translatable_words(translation)):
                 raise ChapterPipelineError("translation response target is not Hebrew")
+        relocated = False
+        if isinstance(source, str) and "[^" in source + translation:
+            translation, relocated = article_layout.repair_marks(source, translation)
+            repaired = repaired or relocated
         note = item.get("translation_note")
         if isinstance(note, str) and not note.strip():
             note, repaired = None, True   # an empty note means no note
         if note is not None and not isinstance(note, str):
             raise ChapterPipelineError("translation_note must be a nonempty string or null")
         by_id[unit_id] = {"translation": translation, "translation_note": note}
+        if relocated:
+            by_id[unit_id]["note_marks_relocated"] = True
         seen_order.append(unit_id)
 
     if seen_order != expected:
@@ -1634,7 +1700,7 @@ def dispatch_batch_translation(job_id, structure, glossary, unit_ids, profile_id
     return _controlled(job_id, 'translator', 'chapter-translate', prompt, configuration, call_output_cap,
         store, journal, hard_list_usd, max_calls, shared_output_cap,
         lambda result: parse_batch_translation_response(result.text, unit_ids,
-            {uid: units[uid]['text'] for uid in unit_ids}, on_format_repair),
+            {uid: article_layout.marked_text(structure, units[uid]) for uid in unit_ids}, on_format_repair),
         {'ids': list(unit_ids), 'source': fingerprint(structure), 'glossary': fingerprint(glossary), 'profile': profile_id},
         adapter_factory, qa_tail_usd)
 
@@ -1804,26 +1870,40 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 for uid in batch['unit_ids']:
                     if uid in existing:
                         continue
-                    unit, translated = by_id[uid], translations[uid]
-                    enclosing = context_strategy.find_enclosing_chapter_node(structure, unit)
-                    record = {'unit_id': uid, 'order': len(job['units']), 'page_id': unit['page_id'],
-                        'chapter_node_id': enclosing['node_id'] if enclosing else None, 'source_text': unit['text'],
-                        'source_language': unit['language'], 'source_warnings': unit.get('warnings', []),
-                        'source_char_start': unit['source_char_start'], 'source_char_end': unit['source_char_end'],
-                        'target_text': translated['translation'], 'translation_note': translated['translation_note'],
-                        'approved': False, 'human_edited': False, 'status': 'draft_unapproved', 'review': None,
-                        'findings': _unit_findings(unit['text'], translated['translation'], unit['language']),
-                        'document_state_version': state_version, 'target_versions': []}
+                    record = _unit_record(job, structure, by_id[uid], translations[uid], state_version)
                     job['units'].append(record)
                     existing[uid] = record
                 job['completed_units'] = len(job['units'])
                 save()
+            passthrough = article_layout.note_index(structure)['passthrough']
+            kept = [uid for uid in ids if uid not in existing and uid in passthrough]
+            if kept:
+                # Reference lists, running headers and bare formulas keep their source text: no call.
+                by_id = _units_by_id(structure)
+                for uid in kept:
+                    record = _unit_record(job, structure, by_id[uid], None, state_version, passthrough[uid])
+                    job['units'].append(record)
+                    existing[uid] = record
+                # This chapter's records are the tail of job['units']: keep them in reading order.
+                position = {uid: i for i, uid in enumerate(ids)}
+                others = [r for r in job['units'] if r['unit_id'] not in position]
+                mine = sorted((r for r in job['units'] if r['unit_id'] in position), key=lambda r: position[r['unit_id']])
+                for offset, record in enumerate(mine):
+                    record['order'] = len(others) + offset
+                job['units'] = others + mine
+                job['completed_units'] = len(job['units'])
+                save()
             records = [existing[uid] for uid in ids]
+            # The translation prompt's chapter prefix leaves passthrough units out; QA and the
+            # keeper reuse that same prefix (prompt cache).
+            prefix_ids = [uid for uid in ids if uid not in passthrough] or ids
+            if notebook_mode and plan.get('passthrough_only'):
+                job.setdefault('notebook_applied', {})[key] = True     # nothing translated: no keeper call
             if notebook_mode and not job.setdefault('notebook_applied', {}).get(key):
                 keeper_cost = (plan.get('notebook_keeper') or {}).get('conservative_cost_usd', 0.0)
                 _run_keeper(job, key, index, records, configuration, profile, store, journal, hard, max_calls, shared_cap,
                             adapter_factory, future + max(plan['qa_tail_usd'] - keeper_cost, 0.0),
-                            prefix=_prefix(structure, glossary, ids, profile))
+                            prefix=_prefix(structure, glossary, prefix_ids, profile))
                 save()
             qa_notebook = job.get('qa_notebooks', {}).get(key, '') if notebook_mode else ''
             if quality != 'fast':
@@ -1834,7 +1914,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         record['review'] = {'status': 'skipped', 'skip_reason': 'untranslatable_passthrough',
                                             'verdict': None, 'issues': []}
                 records = [r for r in records if not _untranslatable_passthrough(r)]
-                prefix = _prefix(structure, glossary, ids, profile)
+                prefix = _prefix(structure, glossary, prefix_ids, profile)
                 qa_selection, qa_definition = configuration.resolve('chapter_qa')
                 qa_groups = repartition_qa_groups(records, qa_selection.capabilities)
                 # Recheck total actual QA input/call envelopes before any reviews.

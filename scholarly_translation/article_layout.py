@@ -25,6 +25,7 @@ FURNITURE_MIN_PAGES = 3
 EDGE_LINES = 2
 MARK_TOKEN_RE = re.compile(r"\[\^(\d{1,3}|[*†‡§]{1,3})\]")
 PASSTHROUGH_KINDS = frozenset({"page_furniture", "bibliography_entry"})
+_STRUCTURAL_KINDS = frozenset({"part", "chapter", "section", "subsection", "subheading"})
 BODY_KINDS = frozenset({"paragraph", "heading", "subheading", "section", "subsection", "chapter", "part",
                         "list", "quotation", "caption", "unsupported"})
 
@@ -100,6 +101,35 @@ def _normalise_edge(text):
 
 # ------------------------------------------------------------------ analysis
 
+def _line_gap(pages, body):
+    """Document-wide normal gap between consecutive lines (gaps under two body heights)."""
+    gaps = []
+    for _, lines in pages:
+        geo = [ln for ln in lines if ln["top"] is not None]
+        gaps.extend(b["top"] - a["bottom"] for a, b in zip(geo, geo[1:]) if b["top"] - a["bottom"] < 2 * body)
+    return statistics.median(gaps) if gaps else None
+
+
+def _edge_lines(lines, gap, body):
+    """Top and bottom blocks of at most EDGE_LINES lines set apart from the rest of the page
+    by a gap clearly wider than the document's normal line gap (geometry required)."""
+    geo = [ln for ln in lines if ln["top"] is not None]
+    if len(geo) < 3 or gap is None:
+        return []
+    gaps = [b["top"] - a["bottom"] for a, b in zip(geo, geo[1:])]
+    wide = max(gap * 1.6, gap + body * 0.5)
+    edge = []
+    for i in range(min(EDGE_LINES, len(gaps))):
+        if gaps[i] >= wide:
+            edge.extend(geo[:i + 1])
+            break
+    for i in range(min(EDGE_LINES, len(gaps))):
+        if gaps[-1 - i] >= wide:
+            edge.extend(geo[len(geo) - 1 - i:])
+            break
+    return edge
+
+
 def _selected_anchors(reading):
     selected = reading.get("selected") or {}
     for c in reading.get("alternatives", []):
@@ -123,24 +153,27 @@ def analyze_readings(readings):
         pages.append((r["page_id"], line_geometry(r["text"], anchors)))
     if not pages:
         return {}
+    from .document_structure import classify_line
     heights = [ln["height"] for _, lines in pages for ln in lines
                if ln["height"] and len(ln["text"].split()) >= MIN_BODY_WORDS]
     body = statistics.median(heights) if heights else None
     overrides = {page_id: {} for page_id, _ in pages}
 
-    # Running headers/footers: an edge line whose normalised text repeats across pages.
+    # Running headers/footers: an edge line, set apart from the text by a wider gap than the
+    # page's line spacing, whose normalised text repeats on at least 3 pages.
+    gap = _line_gap(pages, body) if body else None
+    edges = {page_id: _edge_lines(lines, gap, body) for page_id, lines in pages}
     edge_counts = {}
-    for _, lines in pages:
-        for key in {_normalise_edge(ln["text"]) for ln in lines[:EDGE_LINES] + lines[-EDGE_LINES:]}:
+    for edge in edges.values():
+        for key in {_normalise_edge(ln["text"]) for ln in edge}:
             edge_counts[key] = edge_counts.get(key, 0) + 1
-    needed = FURNITURE_MIN_PAGES if len(pages) >= FURNITURE_MIN_PAGES else len(pages)
     for page_id, lines in pages:
-        if len(pages) < 2:
+        if len(pages) < FURNITURE_MIN_PAGES:
             break
-        edge = lines[:EDGE_LINES] + lines[-EDGE_LINES:]
-        for ln in edge:
+        for ln in edges[page_id]:
             key = _normalise_edge(ln["text"])
-            if key and edge_counts.get(key, 0) >= needed and len(ln["text"].split()) <= 16:
+            if (key and edge_counts.get(key, 0) >= FURNITURE_MIN_PAGES and len(ln["text"].split()) <= 16
+                    and classify_line(ln["text"])[0] not in _STRUCTURAL_KINDS):   # "Chapter 3" is no header
                 overrides[page_id][ln["start"]] = ("page_furniture", None, ln["start"])
 
     # Bottom-of-page note zone.
@@ -181,6 +214,7 @@ def analyze_readings(readings):
                 if (ln["start"] not in page_over and ln["height"] and ln["height"] >= body * HEADING_HEIGHT_RATIO
                         and len(text.split()) <= 14 and not text.endswith((".", ",", ";", ":"))
                         and not _PAGE_NUMBER_RE.match(text) and not text[:1].islower()
+                        and classify_line(text)[0] == "paragraph"    # keep chapter/section/list kinds
                         # a raised note mark makes a body line taller; such a line is no heading
                         and not any(not _math_context(text, m.start(1)) for m in _MARK_RE.finditer(text))):
                     page_over[ln["start"]] = ("heading", 5, ln["start"])
@@ -268,7 +302,10 @@ _INDEX_CACHE = {}
 def note_index(structure):
     """``{"notes": {unit_id: {"label", "page_id", "continues"}}, "marks": {unit_id: [(s, e, label)]},
     "passthrough": {unit_id: reason}}`` for a schema-2 structure (cached per revision)."""
-    key = (structure.get("input_hash"), (structure.get("revision") or {}).get("id"), len(structure.get("units", [])))
+    units = structure.get("units", [])
+    key = (structure.get("input_hash"), (structure.get("revision") or {}).get("id"), len(units),
+           units[0]["unit_id"] if units else None, units[-1]["unit_id"] if units else None,
+           None if structure.get("revision") else id(structure), len(structure.get("nodes", [])))
     cached = _INDEX_CACHE.get(key)
     if cached is not None:
         return cached
