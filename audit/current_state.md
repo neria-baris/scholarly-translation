@@ -1,4 +1,18 @@
-# Current state — BOOK-VOICE delivered to main (after EXPORT-NIQQUD)
+# Current state — ARTICLE-NOTES delivered to main (after BOOK-VOICE)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/article_notes.md`.
+PDF articles (digital or scanned): line geometry marks bottom-of-page footnotes (also continued
+on the next page), running headers (wide gap, >= 3 pages), display-size headings and the reference
+list; note marks become [^n] for translator/review/correction and are repaired in answers;
+reference entries, running headers and bare formulas pass through with no call; math (x2, α3,
+(3)) is never a mark. PDF export puts each note at the bottom of its mark's page (continues on
+the next page when long); HTML links marks to a notes list. User decisions: notes at the page
+bottom, references kept in the original, input PDF digital/scanned, mathematics considered.
+New structures only (existing jobs keep their structure). Full offline suite 1192 OK.
+Paid/provider calls 0; no restart.
+Open: tested on a synthetic article only; the first real article should be checked by the user
+(two-column layouts and per-page note numbering are not handled).
+
+## Previous: BOOK-VOICE delivered to main (after EXPORT-NIQQUD)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/book_voice.md`.
 The first name-table source-pass call also decides the book's register and key words (title words
 included); they become global notebook entries (`voice`, `key-word`) that translator, reviewers and

@@ -988,3 +988,17 @@ parse_voice is tolerant and bounded; add_voice_entries adds one global `voice` e
 unchanged; a broken voice changes nothing else. No new calls or steps. 11 new tests; full
 offline suite 1175 OK (543s). Paid/provider calls 0; no restart.
 
+
+## 2026-10-07T09:00+03:00 | ARTICLE-NOTES | Claude continuity, user-directed
+User asked whether articles get the scholarly context work, then for finer handling of footnotes
+and reassembly as in the original, with mathematics. Evidence: `1 See ...` footnotes classified as
+paragraphs, marks plain digits, running headers repeated, references forced into Hebrew, notes
+inline in the PDF. Decisions: page-bottom notes, references in the original, digital/scanned PDF.
+Contract article_notes.md, branch feat/article-notes (worktree), rebased on 19a0a88. New
+article_layout.py (geometry analysis, note index, marks, repair, footnotes); document_structure
+applies overrides; chapter_pipeline passthrough records/plans and marked prompts; export_pdf
+footnote layout; export_html linked notes; superscript digit runs keep order in RTL lines; help
+section. Older tests: limitation renamed note_without_mark, HTML block parser accepts dir="ltr".
+17 new tests incl. an end-to-end job and page placement read back with pdfplumber. Full offline
+suite 1192 OK (483s). Paid/provider calls 0; no restart.
+
