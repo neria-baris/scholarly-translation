@@ -408,7 +408,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
     def _validated_settings(settings):
         if not isinstance(settings, dict) or set(settings) - {
             "profile", "quality", "language", "budget_usd", "model", "model_config",
-            "automation", "font_id", "role_selections", "use_server_config", "ocr_review"}:
+            "automation", "font_id", "role_selections", "use_server_config", "ocr_review", "target_language"}:
             raise DocumentDraftError("הגדרות המסמך אינן תקינות.")
         try:
             resolved = _resolve_model_config(dict(settings))

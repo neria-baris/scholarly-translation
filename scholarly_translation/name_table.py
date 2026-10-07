@@ -14,6 +14,9 @@ import re
 import unicodedata
 from pathlib import Path
 
+from . import target_languages
+from .target_languages import localize
+
 SCHEMA = "name-table@1"
 STATUSES = ("pending", "ready", "skipped")
 KINDS = ("character", "person", "place", "organization", "title", "work", "term", "other")
@@ -27,9 +30,7 @@ MAX_HEBREW = 80
 MAX_NOTE = 300
 MAX_WARNINGS = 200
 MAX_WARNING_LEN = 300
-HEADER = ("NAMES (binding Hebrew forms for this book; use exactly these forms, Hebrew prefixes attach "
-          "as usual and terms inflect as Hebrew grammar requires; two different names never share a "
-          "Hebrew form):")
+HEADER = "{{T:NAMES_HEADER}}"
 
 # Languages written in a cased (Latin) script, where a capital letter marks a name.
 # Anything else (Hebrew, Arabic, CJK, Cyrillic/Greek, ...) yields no candidates.
@@ -65,7 +66,8 @@ def _key(value):
 
 
 def _has_hebrew(value):
-    return bool(_HEBREW_RE.search(value))
+    """A letter of the active target language (Hebrew letters unless a pack is in use)."""
+    return bool(target_languages.current().letters_re.search(value))
 
 
 def plain_form(value):
@@ -209,12 +211,11 @@ _PROFILE_GUIDANCE = {
         "place that appears in these chapters and is NOT already in NAMES_SO_FAR. List authors discussed "
         "or cited in the running text; do not list every entry of a bibliography or reference list.\n"
         "- Also list the author's key technical terms and coinages: terms the author defines, distinguishes "
-        "or keeps returning to (kind term). Give the base Hebrew form (singular, not in construct state); "
-        "it inflects as Hebrew grammar requires. When the original term should stay in parentheses at first "
+        "or keeps returning to (kind term). {{T:NT_SCH_BASE}} When the original term should stay in parentheses at first "
         "use, say so in \"note\". Skip ordinary vocabulary and words capitalized only by the source "
         "language's rules (German nouns, for example).\n"
-        "- A work with an established Hebrew title uses it; otherwise translate the title and say so in "
-        "\"note\". \"gender\" of an author matters: Hebrew verbs agree with it (טוען / טוענת)."),
+        "- A work with an established {{T:TARGET}} title uses it; otherwise translate the title and say so in "
+        "\"note\". {{T:NT_SCH_GENDER}}"),
 }
 
 # BOOK-VOICE: the first source-pass step also fixes the book's register and key words.
@@ -222,27 +223,26 @@ _VOICE_TASK = (
     "- VOICE (this first step only): add to the same JSON object a field \"voice\": "
     "{{\"register\":\"\",\"key_words\":[{{\"source\":\"\",\"forms\":[],\"hebrew\":\"\",\"note\":\"\"}}]}}. "
     "Every later translation call follows it, so decide it now from the original.\n"
-    "- \"register\" (written in Hebrew, <= 1500 characters): {register}\n"
+    "- \"register\" (written in {{T:TARGET}}, <= 1500 characters): {register}\n"
     "- \"key_words\" (at most 20): {key_words} Not names: names go in \"names\". \"source\" is the base "
-    "word, \"forms\" the other source forms that occur (ascends, ascent), \"hebrew\" the chosen Hebrew base "
-    "form without niqqud (it inflects as Hebrew grammar requires), \"note\" why it fits the register "
+    "word, \"forms\" the other source forms that occur (ascends, ascent), {{T:VOICE_KEYWORD_FORM}}, \"note\" why it fits the register "
     "(<= 300 characters).\n"
     "- In this step the output object is {{\"names\":[...],\"voice\":{{...}}}}.\n")
 _VOICE_GUIDANCE = {
     "literary": {
-        "register": ("the book's voice and the matching Hebrew register: the narrator (person, distance, irony "
+        "register": ("the book's voice and the matching {{T:TARGET}} register: the narrator (person, distance, irony "
                      "or humor), period and flavor of the language, formality, sentence rhythm, how dialogue "
-                     "sounds, and which layer of Hebrew fits (for example literary Hebrew with light archaic "
+                     "sounds, and which layer of {{T:TARGET}} fits (for example literary {{T:TARGET}} with light archaic "
                      "touches and no slang)."),
-        "key_words": ("recurring ordinary words, motifs and the words of the book's title whose Hebrew choice "
+        "key_words": ("recurring ordinary words, motifs and the words of the book's title whose {{T:TARGET}} choice "
                       "carries the register and must stay the same throughout (for example a title verb such as "
-                      "\"ascend\": עולה, נוסק or מטפס)."),
+                      "{{T:VOICE_EXAMPLE}})."),
     },
     "scholarly": {
-        "register": ("the author's voice and the matching academic Hebrew register: first person singular or "
+        "register": ("the author's voice and the matching academic {{T:TARGET}} register: first person singular or "
                      "plural or impersonal, formality, hedging habits, polemical or neutral tone, and sentence "
                      "length and structure."),
-        "key_words": ("recurring non-technical words of the title, thesis and framing whose Hebrew choice "
+        "key_words": ("recurring non-technical words of the title, thesis and framing whose {{T:TARGET}} choice "
                       "carries the register and must stay the same throughout (technical terms go in "
                       "\"names\" as kind term)."),
     },
@@ -272,13 +272,14 @@ def build_source_pass_prompt(chapters, names_text, candidates, profile_id, sourc
         "NAMES_SO_FAR": str(names_text or "").strip() or "(none)",
         "CANDIDATES": "\n".join(lines) if lines else "(none)",
         "PROFILE_ID": str(profile_id or "literary"),
-        "PROFILE_GUIDANCE": _PROFILE_GUIDANCE["scholarly" if profile_id == "scholarly" else "literary"],
+        "PROFILE_GUIDANCE": localize(_PROFILE_GUIDANCE["scholarly" if profile_id == "scholarly" else "literary"]),
         "SOURCE_LANGUAGE": str(source_language or "unknown"),
         "CHAPTERS": "\n\n".join(blocks),
-        "VOICE_TASK": (_VOICE_TASK.format(**_VOICE_GUIDANCE["scholarly" if profile_id == "scholarly" else "literary"])
+        "VOICE_TASK": (localize(_VOICE_TASK).format(**{k: localize(v) for k, v in _VOICE_GUIDANCE[
+                           "scholarly" if profile_id == "scholarly" else "literary"].items()})
                        if ask_voice else ""),
     }
-    template = _PROMPT_PATH.read_text(encoding="utf-8")
+    template = localize(_PROMPT_PATH.read_text(encoding="utf-8"))
     # Single pass: text inserted for one placeholder is never scanned for others.
     return _PLACEHOLDER_RE.sub(lambda m: values[m.group(1)], template)
 
@@ -475,8 +476,9 @@ def render_names(table, text=None, token_budget=None, count_tokens=None):
     if not entries:
         return ""
     counter = count_tokens or _default_count
-    lines = [HEADER]
-    used = counter(HEADER) if token_budget is not None else 0
+    header = localize(HEADER)
+    lines = [header]
+    used = counter(header) if token_budget is not None else 0
     for i, e in enumerate(entries):
         line = _line(e, shown[id(e)])
         if token_budget is not None:

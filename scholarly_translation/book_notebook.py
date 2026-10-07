@@ -15,6 +15,8 @@ import re
 import unicodedata
 from pathlib import Path
 
+from .target_languages import localize
+
 SCHEMA = "book-notebook@1"
 SUGGESTED_TAGS = (
     "wordplay", "humor", "quote", "allusion", "name", "character", "description",
@@ -27,10 +29,10 @@ SCHOLARLY_SUGGESTED_TAGS = (
 )
 _PROFILE_GUIDANCE = {
     "literary": (
-        "- Record forms of address and the grammatical gender (Hebrew is gendered) of characters and "
+        "- Record forms of address and {{T:NB_GENDER}} of characters and "
         "addressees, plus each character's voice and register.\n"
         "- Record running jokes, recurring wordplay, motifs, quotations and allusions, and how they were "
-        "rendered in Hebrew.\n"
+        "rendered in {{T:TARGET}}.\n"
         "- \"story_so_far\" is the translation's only memory of the plot. Rewrite it from the existing "
         "STORY_SO_FAR plus this chapter, keeping every plot line, subplot, relationship, secret and open "
         "question that may still matter. Compress older or resolved events instead of dropping threads.",
@@ -43,17 +45,17 @@ _PROFILE_GUIDANCE = {
         "concepts defined and how the author uses them, the distinctions the author insists on, the positions of "
         "cited authors or opponents and the author's stance toward them, and questions left open. Compress "
         "settled material instead of dropping it.\n"
-        "- Terminology is the main risk in scholarly translation. Record one Hebrew rendering per technical term "
+        "- Terminology is the main risk in scholarly translation. Record one {{T:TARGET}} rendering per technical term "
         "and keep it; note when the original-language term is kept in parentheses; record which established "
-        "Hebrew translation is used when canonical works are quoted; record transliterations of authors' names, "
+        "{{T:TARGET}} translation is used when canonical works are quoted; record transliterations of authors' names, "
         "titles and foreign terms; record abbreviations and notation; and record the reading chosen for an "
         "ambiguous term so later chapters keep it.\n"
-        "- Record the grammatical gender (Hebrew is gendered) of cited authors and of the reader or addressee, "
+        "- Record {{T:NB_GENDER}} of cited authors and of the reader or addressee, "
         "the author's own voice (first person singular or plural, impersonal), register and hedging habits, "
         "and how cross-references (chapters, sections, figures, equations, notes) are rendered.\n"
         "- Names include cited authors and scholars (\"kind\": person), cited works (\"kind\": work, the "
-        "established Hebrew title when one exists) and the author's key technical terms and coinages "
-        "(\"kind\": term, the base form: singular, not in construct state).",
+        "established {{T:TARGET}} title when one exists) and the author's key technical terms and coinages "
+        "(\"kind\": term, {{T:NB_TERM_BASE}}).",
         "updated running summary of the whole argument so far"),
 }
 MAX_ENTRIES = 3000
@@ -182,9 +184,9 @@ def validate_notebook(nb):
 
 def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, chapter_index, profile_id,
                         story_words=None, names_text=""):
-    text = _PROMPT_PATH.read_text(encoding="utf-8")
+    text = localize(_PROMPT_PATH.read_text(encoding="utf-8"))
     scholarly = profile_id == "scholarly"
-    guidance, story_description = _PROFILE_GUIDANCE["scholarly" if scholarly else "literary"]
+    guidance, story_description = map(localize, _PROFILE_GUIDANCE["scholarly" if scholarly else "literary"])
     subs = {
         "PROFILE_ID": str(profile_id), "CHAPTER_INDEX": str(chapter_index),
         "CHAPTER_NUMBER": str(int(chapter_index) + 1),
@@ -480,7 +482,7 @@ def _compile_terms(entries):
 def _entry_line(e, with_id=False):
     line = "- [%s] %s — %s" % (", ".join(e["tags"]), e["title"], e["note"])
     if e.get("hebrew_rendering"):
-        line += " (Hebrew: %s)" % e["hebrew_rendering"]
+        line += localize(" ({{T:TARGET}}: ") + e["hebrew_rendering"] + ")"
     if with_id:
         line += " {entry_id: %s}" % e["entry_id"]
     return line

@@ -53,6 +53,7 @@ from .epub_archive import (
 )
 from .export_common import ExportError, validate_translations_mapping
 from .store import deterministic_id
+from . import target_languages
 
 SCHEMA = "epub-structure@1"
 
@@ -134,12 +135,14 @@ class EpubExportResult:
 
 
 def _set_rtl_attributes(root) -> None:
+    """Direction and language of the active target-language pack (Hebrew: rtl/he)."""
+    pack = target_languages.current()
     for el in root.iter():
         if _local(el.tag) in ("html", "body"):
-            el.set("dir", "rtl")
+            el.set("dir", pack.direction)
             if _local(el.tag) == "html":
-                el.set("lang", "he")
-                el.set("{http://www.w3.org/XML/1998/namespace}lang", "he")
+                el.set("lang", pack.html_lang)
+                el.set("{http://www.w3.org/XML/1998/namespace}lang", pack.html_lang)
 
 
 _MATH_TOKEN_RE = re.compile(MATH_OPEN + "[^" + MATH_OPEN + MATH_CLOSE + "]*" + MATH_CLOSE)
@@ -426,7 +429,7 @@ def _rewrite_package_language(raw: bytes) -> bytes:
     found = False
     for el in root.iter():
         if _local(el.tag) == "language":
-            el.text = "he"
+            el.text = target_languages.current().html_lang
             found = True
     if not found:
         return raw

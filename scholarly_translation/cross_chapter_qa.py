@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from .name_table import plain_form
+from .target_languages import localize
 from .review_qa import (
     SEVERITIES, VERDICTS, _CHAPTER_ISSUE_RE, _issue_slices, _unwrap, ground_span,
 )
@@ -21,24 +22,23 @@ _PROFILE_CHECKS = {
         "- forms of address between the same characters;\n"
         "- titles and recurring terms;\n"
         "- recurring phrases and motifs;\n"
-        "- gender agreement of each character (verbs, adjectives, pronouns) across chapters;\n"
+        "- {{T:CROSS_LIT_GENDER}};\n"
         "- continuity contradictions introduced by the translation (not present in the source);\n"
         "- voice drift of a character or of the narrator."),
     "scholarly": (
         "- the text may be one article split into parts: \"chapter\" then means a part of it;\n"
-        "- one Hebrew rendering per technical term and concept in all chapters; a term keeps the sense the "
-        "author defined, and the author's distinctions between neighbouring terms stay distinct in Hebrew;\n"
-        "- normal Hebrew inflection of a term (number, construct state, prefixes) is not an inconsistency: "
-        "report only a different word;\n"
+        "- one {{T:TARGET}} rendering per technical term and concept in all chapters; a term keeps the sense the "
+        "author defined, and the author's distinctions between neighbouring terms stay distinct in {{T:TARGET}};\n"
+        "- {{T:CROSS_SCH_INFLECTION}};\n"
         "- definitions and theses restated in a later chapter agree with the earlier rendering;\n"
         "- references to earlier chapters, sections, figures, tables, equations and notes match what they "
         "point to, and their numbering and wording are consistent;\n"
-        "- cited authors and works: one Hebrew form per author and per title, and one established Hebrew "
+        "- cited authors and works: one {{T:TARGET}} form per author and per title, and one established {{T:TARGET}} "
         "translation per quoted canonical text;\n"
         "- abbreviations, symbols and notation, and whether the original-language term is kept in parentheses;\n"
-        "- gender agreement of each cited author and of the addressed reader across chapters;\n"
+        "- {{T:CROSS_SCH_GENDER}};\n"
         "- attribution: a claim the source attributes to the author, a cited author or an opponent keeps that "
-        "attribution and the author's stance (endorse, reject, report) in Hebrew;\n"
+        "attribution and the author's stance (endorse, reject, report) in {{T:TARGET}};\n"
         "- contradictions in the argument introduced by the translation (not present in the source);\n"
         "- drift of the authorial voice (first person singular or plural, impersonal) or register."),
 }
@@ -49,11 +49,10 @@ STRUCTURED_OUTPUT_CONTRACT:
 In ISSUES, write `none` or number every issue using exactly these fields:
 1. Category: consistency | continuity
    Severity: CRITICAL | MAJOR | MINOR
-   Span: one line copied verbatim from a HEBREW or SOURCE chapter text, without added quotes or backticks
+   Span: one line copied verbatim from a {{T:TARGET_UPPER}} or SOURCE chapter text, without added quotes or backticks
    Correction: a nonempty local correction that changes the text, never a wholesale retranslation
 Each field on one line. List only issues you stand behind: no comments or retractions inside ISSUES.
-The Hebrew text is written without niqqud. A form that differs only in niqqud is the same form: never
-report it, and never add niqqud in a correction.
+{{T:CROSS_NIQQUD}}
 Write the sections in this order: VERDICT:, ISSUES:, NOTES:.
 """
 
@@ -79,12 +78,12 @@ def window_key(window):
 def build_cross_qa_prompt(chapters, names_text, notebook_text, profile, reference_index=None):
     """``reference_index``: the overlap chapter (0-based) already checked with the chapters
     before it; it is authoritative and the later chapters of the window follow it."""
-    parts = []
+    parts, upper = [], localize("{{T:TARGET_UPPER}}")
     for chapter in chapters:
         number = int(chapter["index"]) + 1
         mark = " (REFERENCE)" if reference_index is not None and int(chapter["index"]) == reference_index else ""
         parts.append(f"=== CHAPTER {number}{mark} — SOURCE ===\n{chapter['source']}\n"
-                     f"=== CHAPTER {number}{mark} — HEBREW ===\n{chapter['hebrew']}")
+                     f"=== CHAPTER {number}{mark} — {upper} ===\n{chapter['hebrew']}")
     if reference_index is None:
         reference = "(none: no chapter of this window has been checked across chapters yet)"
     else:
@@ -98,13 +97,13 @@ def build_cross_qa_prompt(chapters, names_text, notebook_text, profile, referenc
         "NAMES": (names_text or "").strip() or "(none)",
         "BOOK_NOTEBOOK": (notebook_text or "").strip() or "(none)",
         "PROFILE": (profile or "").strip() or "(none)",
-        "PROFILE_CHECKS": _PROFILE_CHECKS["scholarly" if (profile or "").strip() == "scholarly" else "literary"],
+        "PROFILE_CHECKS": localize(_PROFILE_CHECKS["scholarly" if (profile or "").strip() == "scholarly" else "literary"]),
         "REFERENCE": reference,
         "CHAPTERS": "\n\n".join(parts),
     }
-    text = _PROMPT_PATH.read_text(encoding="utf-8")
+    text = localize(_PROMPT_PATH.read_text(encoding="utf-8"))
     pattern = re.compile(r"\{\{(" + "|".join(values) + r")\}\}")
-    return pattern.sub(lambda match: values[match.group(1)], text) + _OUTPUT_CONTRACT
+    return pattern.sub(lambda match: values[match.group(1)], text) + localize(_OUTPUT_CONTRACT)
 
 
 def _needs_human(error, verdict=None, notes="", dropped=0):

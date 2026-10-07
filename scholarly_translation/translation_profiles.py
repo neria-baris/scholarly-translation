@@ -10,6 +10,8 @@ inputs.
 """
 from __future__ import annotations
 
+from .target_languages import localize
+
 SUPPORTED_PROFILE_IDS = ("scholarly", "literary")
 
 MAX_APPROVED_DECISIONS = 50
@@ -24,9 +26,9 @@ PROMPT_VERSIONS = {
 CONFIG_VERSIONS = dict(PROMPT_VERSIONS)
 
 _SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@5):
-Guidelines for translating scholarly prose into Hebrew (reviewers judge
+Guidelines for translating scholarly prose into {{T:TARGET}} (reviewers judge
 the translation by them). Produce faithful, readable
-academic Hebrew while preserving the author's exact claims, distinctions,
+academic {{T:TARGET}} while preserving the author's exact claims, distinctions,
 qualifications, ambiguity, and argumentative structure. Fidelity outranks
 elegance: do not simplify, explain, strengthen, weaken, summarize, or
 silently reinterpret the source merely to improve style.
@@ -42,7 +44,7 @@ definitions; citations and quotations; names, numbers, symbols, formulas,
 and references. Do not omit repetitions or parenthetical qualifications
 merely because they seem stylistically unnecessary. Prefer terminological
 consistency over stylistic variation. When an important technical term has
-no satisfactory established Hebrew equivalent, use the best Hebrew
+no satisfactory established {{T:TARGET}} equivalent, use the best {{T:TARGET}}
 rendering and retain the original-language term in parentheses when
 useful. For Japanese and other context-dependent languages, use broader
 source context to resolve omitted subjects, objects, and references, but do
@@ -53,7 +55,7 @@ BOOK_NOTEBOOK (terms, names, notation, voice) unless the source requires
 otherwise, noting any departure in translation_note; context and the
 previous passage only disambiguate.
 
-Keep the source's punctuation and rhythm as closely as Hebrew allows; do
+Keep the source's punctuation and rhythm as closely as {{T:TARGET}} allows; do
 not merge or split sentences for style. Do not add a dash (— or –) as
 punctuation the source lacks; a hyphen in a word or range is fine.
 
@@ -63,9 +65,9 @@ report the uncertainty briefly; never turn a guess into an established
 fact."""
 
 _LITERARY_STYLE_PROFILE = """STYLE_PROFILE (literary, literary-prompts-v2@4):
-Guidelines for translating literary prose into Hebrew (reviewers judge
+Guidelines for translating literary prose into {{T:TARGET}} (reviewers judge
 the translation by them). Produce faithful literary
-Hebrew that preserves meaning, voice, characterization, register, rhythm,
+{{T:TARGET}} that preserves meaning, voice, characterization, register, rhythm,
 ambiguity, viewpoint, dialogue behavior, and deliberate stylistic choices.
 Translate the author; do not rewrite or improve the author.
 
@@ -81,26 +83,25 @@ viewpoint and shifts of viewpoint; free indirect discourse; recurring
 images and metaphors; wordplay; ambiguity; scene and dialogue boundaries.
 Do not modernize an archaic voice automatically, make plain prose more
 poetic, make difficult prose simpler, normalize idiosyncratic speech, add
-biblical/rabbinic/colloquial Hebrew register unless the source supports it,
+{{T:LIT_REGISTER_LAYERS}} register unless the source supports it,
 or make implicit information explicit merely for convenience. For
-culturally specific expressions, prefer a natural Hebrew equivalent when it
+culturally specific expressions, prefer a natural {{T:TARGET}} equivalent when it
 preserves the literary effect; otherwise preserve the foreignness or
 ambiguity rather than inventing an explanation. For Japanese and other
 languages with omitted subjects, use broader context to infer only what the
 source supports.
 
-Literary craft guidance. Humor and irony must land in Hebrew: keep
+Literary craft guidance. Humor and irony must land in {{T:TARGET}}: keep
 understatement, deadpan and comic timing rather than explaining the joke.
-For puns and wordplay, recreate the effect in Hebrew in preference to a
+For puns and wordplay, recreate the effect in {{T:TARGET}} in preference to a
 literal rendering; keep the foreignness only when the effect cannot be
 recreated, and report the strategy chosen briefly in translation_note.
-For quotations and allusions, use an established Hebrew translation only if
+For quotations and allusions, use an established {{T:TARGET}} translation only if
 you are certain of it; otherwise translate the passage and note that it is
-your own rendering. Decide Hebrew grammatical gender and number deliberately
-for "you" (singular/plural, masculine/feminine) and for characters, and keep
+your own rendering. {{T:LIT_ADDRESS}}, and keep
 forms of address and register consistent for each relationship. Mark dialogue
 as the source does, consistently. Avoid translationese and
-calques: write what a Hebrew author would write, without drifting from the
+calques: write what a {{T:TARGET}} author would write, without drifting from the
 source.
 
 Order of authority: approved terminology and NAMES are binding; follow
@@ -108,7 +109,7 @@ BOOK_NOTEBOOK (terms, names, notation, voice) unless the source requires
 otherwise, noting any departure in translation_note; context and the
 previous passage only disambiguate.
 
-Keep the source's punctuation and rhythm as closely as Hebrew allows; do
+Keep the source's punctuation and rhythm as closely as {{T:TARGET}} allows; do
 not merge or split sentences for style. Do not add a dash (— or –) as
 punctuation the source lacks; a hyphen in a word or range is fine.
 
@@ -161,7 +162,7 @@ def validate_source_context(source_context):
 
 def style_profile_text(profile_id):
     validate_profile_id(profile_id)
-    return _STYLE_PROFILES[profile_id]
+    return localize(_STYLE_PROFILES[profile_id])
 
 
 def render_prompt(*, profile_id, style_profile, glossary_and_decisions, local_state,
@@ -196,7 +197,7 @@ def render_prompt(*, profile_id, style_profile, glossary_and_decisions, local_st
         "",
         "Return only:",
         "TRANSLATION:",
-        "<Hebrew translation of TARGET_UNIT only>",
+        localize("<{{T:TARGET}} translation of TARGET_UNIT only>"),
         "",
         "TRANSLATION_NOTE:",
         "<null, or one brief note for a material ambiguity, conflict, wordplay, or uncertainty>",

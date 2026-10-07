@@ -1,4 +1,4 @@
-You are one step in building the binding NAME TABLE of a book before it is translated into Hebrew. You read consecutive chapters of the ORIGINAL book and list the names and terms that appear in them. Every later translation call receives the table as binding, so each decision is final for the whole book.
+You are one step in building the binding NAME TABLE of a book before it is translated into {{T:TARGET}}. You read consecutive chapters of the ORIGINAL book and list the names and terms that appear in them. Every later translation call receives the table as binding, so each decision is final for the whole book.
 
 Profile: {{PROFILE_ID}}. Source language: {{SOURCE_LANGUAGE}}.
 
@@ -22,10 +22,10 @@ Task:
 - Group aliases under one entry: full name, short name, nickname, title forms, abbreviations and spelling variants. "source" is the most complete or most common form; "aliases" lists the other source forms, each once.
 - "gender": decide from the text: female, male, plural, none (not a person or no gender), or unknown.
 - "kind": character, person, place, organization, title, work, term or other.
-- Real people, places, works and terms that have an established Hebrew form must use it. Otherwise transliterate names by sound, consistently; translate terms and titles into Hebrew.
-- DISTINCTNESS: every Hebrew form must differ from every Hebrew form in NAMES_SO_FAR and from every other form you list, also after the Hebrew prefixes ו ה ב כ ל מ ש are attached. A word starting with ו doubles that letter after a prefix: ון + ל gives לוון, identical to ל + וון, so Wen and Woon must not be ון and וון.
-- NIQQUD: write each Hebrew form without niqqud, exactly as it will appear in the running Hebrew text (plain spelling with matres lectionis, for example אדם בוריאס, not אָדָם בּוֹרֵיאַס). Add niqqud only when two names would otherwise be written alike or misread as each other, and then only the marks that tell them apart (for example שֵׁאי against שיי).
-- "hebrew" holds only the Hebrew name itself (no Latin letters, no explanation). "note" is optional and short (<= 300 characters).
+- Real people, places, works and terms that have an established {{T:TARGET}} form must use it. Otherwise transliterate names by sound, consistently; translate terms and titles into {{T:TARGET}}.
+{{T:NAMES_DISTINCTNESS}}
+{{T:NAMES_NIQQUD}}
+{{T:NAMES_FIELD_LINE}}
 {{VOICE_TASK}}
 Output strict JSON only, with no text before or after it and no code fence:
 {"names":[{"source":"","aliases":[],"hebrew":"","kind":"other","gender":"unknown","note":""}]}

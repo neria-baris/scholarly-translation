@@ -10,6 +10,8 @@ import re
 import unicodedata
 from collections import Counter
 
+from . import target_languages
+
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)*")
 _PROPER_NAME_RE = re.compile(r"\b[A-Z][a-zA-ZÀ-ɏ]+\b")
 _SENTENCE_WORDS = {"The", "A", "An", "This", "That", "These", "Those", "Later", "Le", "La", "Les", "Un", "Une", "Ce", "Cette"}
@@ -135,10 +137,11 @@ def run_formal_checks(source_text, target_text, source_language):
                 "severity": "needs_human",
             })
 
-    if (target_text is not None and target_text.strip() and not _HEBREW_RE.search(target_text)
+    pack = target_languages.current()
+    if (target_text is not None and target_text.strip() and not pack.has_script(target_text)
             and has_translatable_words(source_text)):
         findings.append({
-            "type": "missing_hebrew_script",
+            "type": "missing_hebrew_script" if pack.code == "he" else "missing_target_script",
             "source_token": None,
             "source_char_start": None,
             "source_char_end": None,

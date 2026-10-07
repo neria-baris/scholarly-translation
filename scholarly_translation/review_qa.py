@@ -37,6 +37,8 @@ from .model_adapter import (
 from .document_state import CATEGORIES as STATE_CATEGORIES
 from .model_config import ModelCapabilities, ModelConfiguration, ProviderDefinition
 from .source_reading import fingerprint, text_hash
+from . import target_languages
+from .target_languages import localize
 
 SCHEMA_VERSION = 1
 STAGE_UNIT_REVIEW = "unit-review@1"
@@ -67,12 +69,13 @@ STRUCTURED_OUTPUT_CONTRACT:
 In ISSUES, write `none` or number every issue using exactly these fields:
 1. Category: completeness | consistency | continuity | hebrew_quality
    Severity: CRITICAL | MAJOR | MINOR
-   Span: one line copied verbatim from HEBREW_CHAPTER or SOURCE_CHAPTER, without added quotes or backticks
+   Span: one line copied verbatim from {{T:TARGET_UPPER}}_CHAPTER or SOURCE_CHAPTER, without added quotes or backticks
    Correction: a nonempty local correction that changes the text, never a wholesale retranslation
 Each field on one line. List only issues you stand behind: no comments or retractions inside ISSUES.
 Category per check: Completeness -> completeness; Consistency and Book notebook -> consistency;
-Continuity -> continuity; Literary effect, Hebrew quality and Punctuation and rhythm -> hebrew_quality.
-For omitted source material, Span is the omitted SOURCE_CHAPTER text and Correction its Hebrew.
+Continuity -> continuity; Literary effect, {{T:TARGET}} quality and Punctuation and rhythm -> hebrew_quality.
+{{T:QA_CATEGORY_NOTE}}
+For omitted source material, Span is the omitted SOURCE_CHAPTER text and Correction its {{T:TARGET}}.
 VERDICT is REVISE when ISSUES lists at least one issue and PASS when ISSUES is none.
 In STATE_UPDATES, write `none` or one proposed persistent-state item per
 line, in exactly this form (double-colon separated, no extra `::`):
@@ -114,8 +117,9 @@ def _require_nonempty_str(value, message):
 
 
 def _require_hebrew(value, message):
+    """Nonempty text in the active target language (Hebrew unless a pack is in use)."""
     _require_nonempty_str(value, message)
-    _require(bool(_HEBREW_RE.search(value)), message)
+    _require(target_languages.current().has_script(value), message)
 
 
 def _require_string_sequence(value, message):
@@ -125,7 +129,7 @@ def _require_string_sequence(value, message):
 
 def _prompt_text(prompt_id: str) -> str:
     path = _PROMPT_DIR / _PROMPT_FILENAMES[prompt_id]
-    return path.read_text(encoding="utf-8")
+    return localize(path.read_text(encoding="utf-8"))
 
 
 def _render(prompt_id: str, substitutions: dict) -> str:
@@ -139,7 +143,7 @@ def _render(prompt_id: str, substitutions: dict) -> str:
     text = text.replace("{{book_notebook}}", "(none)")
     # Optional block: callers without deterministic review focus add nothing.
     text = text.replace("{{review_focus}}", "")
-    return text + _OUTPUT_CONTRACTS.get(prompt_id, "")
+    return text + localize(_OUTPUT_CONTRACTS.get(prompt_id, ""))
 
 
 def _context_text(context_segments) -> str:

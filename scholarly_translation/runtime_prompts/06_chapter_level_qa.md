@@ -1,10 +1,10 @@
 # Chapter-Level QA Runtime Prompt
 
-You are reviewing a fully assembled Hebrew translation of one chapter after its translation units have been merged.
+You are reviewing a fully assembled {{T:TARGET}} translation of one chapter after its translation units have been merged.
 
 This is not a fresh translation task. Do not rewrite the chapter wholesale.
 
-Use the original chapter and the assembled Hebrew chapter to identify cross-unit problems that are difficult to detect locally.
+Use the original chapter and the assembled {{T:TARGET}} chapter to identify cross-unit problems that are difficult to detect locally.
 
 Check for:
 
@@ -44,15 +44,15 @@ BOOK_NOTEBOOK holds earlier decisions for this book (names and renderings, voice
 - Do not change a name, term rendering or form of address it records unless the source requires it.
 
 ## Literary effect (literary text only)
-- humor, irony, wordplay and allusions that do not land in Hebrew;
+- humor, irony, wordplay and allusions that do not land in {{T:TARGET}};
 - translationese/calques; dialogue marking that is inconsistent or differs from the source's; voice inconsistency.
 Report only real problems; no stylistic rewrite.
 
-## Hebrew quality
-Flag genuinely awkward or unclear Hebrew when it impairs readability or meaning, but do not turn this into a general stylistic rewrite.
+## {{T:TARGET}} quality
+Flag genuinely awkward or unclear {{T:TARGET}} when it impairs readability or meaning, but do not turn this into a general stylistic rewrite.
 
 ## Punctuation and rhythm
-The Hebrew keeps the source's punctuation and rhythm. A dash (— or –) used as punctuation the source lacks is a MINOR issue; never add one in a correction. A hyphen inside a word or a range is not a dash issue.
+The {{T:TARGET}} keeps the source's punctuation and rhythm. A dash (— or –) used as punctuation the source lacks is a MINOR issue; never add one in a correction. A hyphen inside a word or a range is not a dash issue.
 
 For every issue, identify the smallest affected span(s) and propose a local correction. Headings and chapter numbers on their own line are not omissions.
 
@@ -75,7 +75,7 @@ may do that. Use "likely" when you are reasonably confident, or
 SOURCE_CHAPTER:
 {{source_chapter}}
 
-HEBREW_CHAPTER:
+{{T:TARGET_UPPER}}_CHAPTER:
 {{hebrew_chapter}}
 
 PROFILE:

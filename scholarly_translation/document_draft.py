@@ -35,7 +35,7 @@ from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import chapter_pipeline, job_blocks, review_salvage, scanned_ocr
+from . import chapter_pipeline, job_blocks, review_salvage, scanned_ocr, target_languages
 from . import context_strategy, document_state as document_state_module
 from . import epub_extract, pdf_extract, segmentation
 from .work_journal import WorkJournal
@@ -380,6 +380,13 @@ def validate_settings(settings):
         raise DocumentDraftError("בחרו רמת בדיקה נתמכת.")
     if language not in LANGUAGES:
         raise DocumentDraftError("הגדרות תרגום לא תקינות.")
+    target = settings.get("target_language", target_languages.DEFAULT)
+    if target not in target_languages.available():
+        raise DocumentDraftError("בחרו שפת יעד נתמכת.")
+    if target != target_languages.DEFAULT and not (model_choice == "configured" and automation):
+        raise DocumentDraftError("תרגום לשפת יעד שאינה עברית זמין רק עם מודל מוגדר (API).")
+    if language == target:
+        raise DocumentDraftError("שפת המקור זהה לשפת היעד.")
     budget_valid = (type(budget) in (int, float) and not isinstance(budget, bool)
                     and math.isfinite(budget) and budget > 0)
     if model_choice == "configured":
@@ -408,7 +415,15 @@ def validate_settings(settings):
         "budget_usd": float(budget), "model": model_choice, "model_config": model_config_data,
         "automation": automation,
         'font_id': font_id, "ocr_review": ocr_review,
+        # Hebrew jobs keep their historical settings shape (no key = Hebrew).
+        **({"target_language": target} if target != target_languages.DEFAULT else {}),
     }
+
+
+def _check_source_differs(document, settings):
+    """A detected source language equal to the target language cannot be translated."""
+    if getattr(document, "language", None) == target_languages.settings_code(settings):
+        raise DocumentDraftError("שפת המקור זהה לשפת היעד.")
 
 
 def _write_json(path, value):
@@ -438,6 +453,12 @@ def _partial_translations_mapping(job):
 
 
 def render_download(job, kind, source_path=None, font_id=None, partial=False):
+    """Rebuild the translated document in the job's target language (see ``_render_download``)."""
+    with target_languages.use(target_languages.settings_code(job.get("settings"))):
+        return _render_download(job, kind, source_path, font_id, partial)
+
+
+def _render_download(job, kind, source_path=None, font_id=None, partial=False):
     """Rebuild the translated document from the job's current (possibly
     human-edited) unit texts; never a frozen completion-time snapshot.
 
@@ -664,12 +685,23 @@ class DocumentJobs:
         historical post-hoc grouping by ``chapter_node_id`` did."""
         return chapter_groups(structure, units)
 
+    def _target_settings(self, job_id):
+        try:
+            return self.get(job_id).get("settings")
+        except Exception:
+            return None
+
     def _run(self, job, path):
+        with target_languages.use(target_languages.settings_code(job.get("settings"))):
+            return self._run_body(job, path)
+
+    def _run_body(self, job, path):
         store = None
         try:
             job["status"], job["stage_label"] = "reading", "קריאת המסמך"
             self._persist(job)
             document = extract_document(path, job["settings"]["language"])
+            _check_source_differs(document, job["settings"])
             ocr_bundle = self._read_scanned_pages(job, path, document) if document.source_kind == "pdf" else None
             if job["settings"]["model"] == "configured" and job["settings"].get("automation"):
                 structure = _planned_structure(path, job["settings"]["language"],
@@ -1058,6 +1090,10 @@ class DocumentJobs:
     def recheck_saved_reviews(self, job_id):
         """Re-read saved review/QA answers with the current parser (no provider call)
         and reopen chapters whose results changed; the caller resumes afterwards."""
+        with target_languages.use(target_languages.settings_code(self._target_settings(job_id))):
+            return self._recheck_saved_reviews(job_id)
+
+    def _recheck_saved_reviews(self, job_id):
         folder = self._folder(job_id)
         journal_path = folder / "journal.sqlite3"
         with self.lock:
@@ -1172,6 +1208,10 @@ class DocumentJobs:
         return {"job_id": job_id}
 
     def _resume_run(self, job, source_path):
+        with target_languages.use(target_languages.settings_code(job.get("settings"))):
+            return self._resume_run_body(job, source_path)
+
+    def _resume_run_body(self, job, source_path):
         """Continue an automation job from its persisted structure/units/
         document_state, using its already-configured model/budget/quality
         settings unchanged. Completed journal steps replay with zero
@@ -1283,10 +1323,15 @@ class DocumentJobs:
         is created, no provider/network/journal/budget side effects occur.
         Raises the same validation errors ``start`` would."""
         settings = validate_settings(settings)
+        with target_languages.use(target_languages.settings_code(settings)):
+            return self._preview(path, settings)
+
+    def _preview(self, path, settings):
         if settings["model"] != "configured":
             raise DocumentDraftError("תצוגה מקדימה של עלות דורשת מודל מוגדר.")
         configuration = ModelConfiguration.from_dict(settings["model_config"])
         document = extract_document(path, settings["language"])
+        _check_source_differs(document, settings)
         if document.source_kind == "pdf" and scanned_ocr.scanned_pages(document):
             return self._scanned_preview(document, settings, configuration)
         structure = _planned_structure(path, settings["language"], configuration, document=document)
@@ -1352,6 +1397,10 @@ class DocumentJobs:
             return self._review_locked(job_id, unit_index, target_text, expected_revision)
 
     def _review_locked(self, job_id, unit_index, target_text, expected_revision):
+        with target_languages.use(target_languages.settings_code(self._target_settings(job_id))):
+            return self._review_locked_body(job_id, unit_index, target_text, expected_revision)
+
+    def _review_locked_body(self, job_id, unit_index, target_text, expected_revision):
         with self.lock:
             if self.active == job_id:
                 raise DocumentDraftError("המתינו לסיום התרגום לפני עריכה.")

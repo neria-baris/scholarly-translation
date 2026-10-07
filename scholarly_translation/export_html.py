@@ -27,6 +27,7 @@ from .export_common import (
 )
 from .segmentation import validate_structure
 from .source_reading import StructureError
+from . import target_languages
 
 # kind -> (tag, css class or None). Headings map to h2..h5 under the h1 title.
 _TAG_BY_KIND = {
@@ -88,6 +89,7 @@ def _font_css(font_id):
 
 
 _HEBREW_RE = re.compile("[֐-׿]")
+_LTR_CSS = "p.list { margin-right: 0; margin-left: 1.5em; }\n"
 
 
 def _escape_text(text):
@@ -95,11 +97,13 @@ def _escape_text(text):
 
 
 def export_html(structure, translations, title, font_id=None) -> bytes:
-    """Render a self-contained, RTL Hebrew HTML page as UTF-8 bytes.
+    """Render a self-contained HTML page (direction and language of the active target-language
+    pack: RTL Hebrew by default) as UTF-8 bytes.
 
     Raises :class:`ExportError` for an invalid structure, a malformed
     translation mapping or an unknown/unavailable explicit ``font_id``.
     """
+    pack = target_languages.current()
     try:
         validate_structure(structure)
     except StructureError as exc:
@@ -148,10 +152,11 @@ def export_html(structure, translations, title, font_id=None) -> bytes:
             continue
         tag, css_class = _TAG_BY_KIND.get(kind, _DEFAULT_TAG)
         attrs = f' class="{css_class}"' if css_class else ""
-        if not _HEBREW_RE.search(text):
+        original = pack.rtl and not _HEBREW_RE.search(text)
+        if original:
             attrs += ' dir="ltr"'          # a reference entry or other text kept in its original
-            if kind == "bibliography_entry":
-                text = " ".join(text.split())   # the source's line wrapping is not part of the entry
+        if (original or not pack.rtl) and kind == "bibliography_entry":
+            text = " ".join(text.split())   # the source's line wrapping is not part of the entry
         body.append(f"<{tag}{attrs}>{link_marks(_escape_text(text), pages[render_unit['unit_id']])}</{tag}>")
     if note_items:
         items = "".join(
@@ -160,10 +165,10 @@ def export_html(structure, translations, title, font_id=None) -> bytes:
             for n, key in note_items)
         body.append(f'<section class="footnotes" role="doc-endnotes"><hr><ol>{items}</ol></section>')
 
-    css = font_faces + _BASE_CSS % {"family": family}
+    css = font_faces + _BASE_CSS % {"family": family} + ("" if pack.rtl else _LTR_CSS)
     page = (
         "<!DOCTYPE html>\n"
-        '<html lang="he" dir="rtl">\n<head>\n<meta charset="utf-8">\n'
+        f'<html lang="{pack.html_lang}" dir="{pack.direction}">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f"<title>{html.escape(normalize_nfc(title_text), quote=True)}</title>\n"
         f"<style>\n{css}</style>\n</head>\n<body>\n"

@@ -1,6 +1,6 @@
 # Candidate Translation Comparison Runtime Prompt
 
-You are comparing several Hebrew translations of the same source unit.
+You are comparing several {{T:TARGET}} translations of the same source unit.
 
 Judge fidelity before fluency. Do not infer which model produced which candidate.
 
@@ -12,7 +12,7 @@ Evaluate:
 4. terminology;
 5. preservation of ambiguity and qualification;
 6. reference/speaker handling;
-7. Hebrew quality, including keeping the source's punctuation and rhythm (a dash — or – used as punctuation the source lacks is a defect; a hyphen inside a word or a range is not).
+7. {{T:TARGET}} quality, including keeping the source's punctuation and rhythm (a dash — or – used as punctuation the source lacks is a defect; a hyphen inside a word or a range is not).
 
 First identify material differences. Then classify each difference as:
 - stylistic only;

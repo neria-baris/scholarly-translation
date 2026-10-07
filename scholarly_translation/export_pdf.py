@@ -34,6 +34,7 @@ from .export_common import (
 )
 from .segmentation import validate_structure
 from .source_reading import StructureError
+from . import target_languages
 
 _HEBREW_RE = re.compile("[֐-׿]")
 MARGIN = 54.0  # 0.75 inch
@@ -114,7 +115,8 @@ class _PdfWriter:
         for line in self.foot:
             y -= self._note_line_height()
             saved, self.y = self.y, y
-            self._draw_line(reorder_bidi_line(line), self.font_name, FOOTNOTE_STYLE["size"], "right", 0)
+            self._draw_line(reorder_bidi_line(line), self.font_name, FOOTNOTE_STYLE["size"],
+                            "right" if target_languages.current().rtl else "left", 0)
             self.y = saved
         self.foot = []
 
@@ -333,7 +335,7 @@ def export_pdf(structure, translations, *, images=None, title=None, font_id=None
                                                    "caption text rendered without its figure"})
 
         style = _STYLE_BY_KIND.get(kind, _DEFAULT_STYLE)
-        if style.get("align") == "right" and not _HEBREW_RE.search(text):
+        if style.get("align") == "right" and (not target_languages.current().rtl or not _HEBREW_RE.search(text)):
             style = dict(style, align="left")     # a reference entry or other text kept in its original
             if kind == "bibliography_entry":
                 text = " ".join(text.split())     # the source's line wrapping is not part of the entry

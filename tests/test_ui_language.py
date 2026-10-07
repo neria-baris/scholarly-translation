@@ -12,7 +12,7 @@ UI_DIR = ROOT / "scholarly_translation"
 HEBREW = re.compile("[֐-׿]")
 # Elements whose Hebrew text is (re)written by ui.js on every render, so no static key is needed.
 DYNAMIC_IDS = {
-    "profile-summary", "quality-summary", "model-summary", "translate-label", "send-note",
+    "profile-summary", "quality-summary", "model-summary", "target-summary", "processing-eyebrow", "translate-label", "send-note",
     "quality-help", "model-help", "connection-label", "connection-detail", "processing-title",
     "processing-detail", "library-intro", "library-empty", "result-eyebrow", "result-title",
     "cross-review-button", "result-cross-review-button",
