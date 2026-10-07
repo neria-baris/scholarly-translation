@@ -224,6 +224,30 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn("- Wen", out)
         self.assertEqual(nt.render_names(t, text="Shaeless"), "")
 
+    def test_text_filter_cjk(self):
+        # Japanese has no spaces: a particle or the next word follows the name directly.
+        hilbert = {"source": "ヒルベルト", "aliases": [], "hebrew": "דויד הילברט", "kind": "person", "gender": "male"}
+        formalism = {"source": "形式主義", "aliases": [], "hebrew": "פורמליזם", "kind": "term", "gender": "none"}
+        zf = {"source": "ZF集合論", "aliases": [], "hebrew": "תורת הקבוצות של צרמלו ופרנקל", "kind": "term",
+              "gender": "none"}
+        kant = {"source": "Kant", "aliases": [], "hebrew": "קאנט", "kind": "person", "gender": "male"}
+        t = merged(hilbert, formalism, zf, kant)
+        out = nt.render_names(t, text="ヒルベルトの形式主義をZF集合論で論じた")
+        for name in ("ヒルベルト", "形式主義", "ZF集合論"):
+            self.assertIn("- " + name + " →", out)
+        self.assertNotIn("- Kant", out)
+        self.assertIn("- Kant →", nt.render_names(t, text="これはKantの議論である"))
+        self.assertEqual(nt.render_names(t, text="Kantian ethics"), "")
+
+    def test_markdown(self):
+        self.assertEqual(nt.render_markdown(nt.new_table()), "")
+        self.assertEqual(nt.render_markdown(None), "")
+        pipe = dict(WEN, note="a|b")
+        out = nt.render_markdown(merged(SHAE, pipe))
+        self.assertIn("| Source | Also | Hebrew | Kind | Note |", out)
+        self.assertIn("| Shae | Kaul Shae, Shaelinsan | שֵׁאי | character | Green Bone |", out)
+        self.assertIn("| Wen |  | ון | character | a\\|b |", out)
+
     def test_budget_truncation(self):
         t = merged(SHAE, WEN, WOON)
         out = nt.render_names(t, token_budget=40, count_tokens=lambda s: len(s.split()))

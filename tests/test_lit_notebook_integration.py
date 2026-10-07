@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 from scholarly_translation import book_notebook as bn
 from scholarly_translation import chapter_pipeline as pipeline
 from scholarly_translation import document_draft as dd
+from scholarly_translation import name_table as nt
 from scholarly_translation import web_ui
 from scholarly_translation.glossary import new_store
 from scholarly_translation.model_adapter import TextGenerationResult
@@ -347,6 +348,8 @@ class LitNotebookTests(unittest.TestCase):
         folder = root / 'documents' / job_id
         folder.mkdir(parents=True)
         stored = dict(job, job_id=job_id, status='completed', filename='moby.epub', source_kind='epub')
+        stored['name_table'], _ = nt.merge_names(nt.new_table(), [{'source': 'Ahab', 'aliases': [], 'hebrew': 'אחאב',
+                                                                   'kind': 'character', 'gender': 'male'}], 0, 'prepass')
         (folder / 'job.json').write_text(json.dumps(stored, ensure_ascii=False), encoding='utf-8')
         plain = 'b' * 32
         (root / 'documents' / plain).mkdir()
@@ -368,7 +371,9 @@ class LitNotebookTests(unittest.TestCase):
                     self.assertEqual(response.status, 200)
                     self.assertIn('markdown', response.headers['Content-Type'])
                     self.assertIn('attachment', response.headers['Content-Disposition'])
-                self.assertEqual(body, bn.render_markdown(job['book_notebook']))
+                self.assertEqual(body, bn.render_markdown(job['book_notebook']).rstrip('\n') + '\n\n'
+                                 + nt.render_markdown(stored['name_table']))
+                self.assertIn('| Ahab |  | אחאב | character |  |', body)
                 self.assertIn('Captain Ahab', body)
                 for payload, token, code in (({'job_id': job_id}, 'bad', 403), ({'job_id': 'c' * 32}, 'tok', 404),
                                              ({'job_id': plain}, 'tok', 404), ({'job_id': '../x'}, 'tok', 404)):

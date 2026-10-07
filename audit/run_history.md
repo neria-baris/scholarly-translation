@@ -1099,3 +1099,19 @@ Existing journals keep their sorted rows. New tests
 test_document_draft::JobFileDurabilityTests and
 test_work_journal::test_validated_result_replays_in_its_original_key_order fail before, pass after.
 Full offline suite 1257 OK (506 s); after rebase on REMEMBER-KEYS c1371cb 1267 OK (509 s); after rebase on PROMPT-FIXES 8f0e654 1280 OK (492 s). Recovered job resume checked offline under this code: first call is chapter 31 chapter-translate (after the unknown-outcome retry decision), no earlier step repeated. Paid/provider calls 0. Not pushed.
+
+## 2026-10-07 — NAMES-CJK (Claude continuity, user-directed check, no contract)
+User asked whether the name table shown for an article run is real and relevant and whether its text
+fits an academic article. Evidence (offline): article job 18da9456 (ja, scholarly, 1 part): name-table
+step completed, 107 entries (30 person, 11 work, 4 organization, 62 term), relevant to the article.
+Its chapter context carried only 60 of the 104 entries present: `_occurs` used (?<!\w)/(?!\w), and
+in Japanese a particle or the next word follows the name (ヒルベルトの), so Hilbert, Kant,
+Brouwer, Tarski, formalism, phenomenology, intentionality and others were dropped; unit-review
+blocks 131 of 418 matches. Fix 44a3e4c on main: CJK forms match as substrings, a CJK neighbour never
+blocks a Latin form (same idea as book_notebook._compile_terms). Article now 104/107 per part,
+418 per unit; Jade City 75ec5d08 has no CJK in entries or text, so its matching is unchanged.
+Also: `name_table.render_markdown` and the notebook download include the table; stage label
+"בניית טבלת השמות והמונחים", skipped note without "chapter by chapter", help (he/en) describes
+articles. New tests test_name_table::RenderTests::test_text_filter_cjk / test_markdown fail before,
+pass after; the download test checks the table. Full offline suite 1282 OK. Paid/provider calls 0.
+Not pushed. The running 18da9456 translation call (dispatched 12:50, before the fix) was not touched.

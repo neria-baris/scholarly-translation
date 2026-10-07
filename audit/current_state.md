@@ -1,4 +1,21 @@
-# Current state — DURABLE-JOB-STATE fix on main (after PROMPT-FIXES)
+# Current state — NAMES-CJK fix on main (after DURABLE-JOB-STATE)
+Updated: 2026-10-07. Claude continuity, user-directed check (no contract): is the name table real and
+relevant for an academic article, and does its text fit one. Evidence: article job 18da9456 (ja,
+scholarly, 1 part): table ready, 107 prepass entries (30 persons, 11 works, 4 organizations, 62 terms),
+relevant and with useful notes; it reaches the chapter context. Defect: `name_table._occurs` matched
+whole words, and Japanese has no spaces, so only 60 of the 104 entries present reached the
+translator (unit review 131 of 418 matches). Fix 44a3e4c: CJK forms match as substrings and a CJK
+neighbour never blocks a Latin form; texts without CJK are unchanged (Jade City: 0 CJK entries or
+chars, so its prompts/identities are unchanged). The notebook Markdown download now includes the table;
+stage label/skipped note/help say "names and terms" and cover articles. 2 new tests fail before, pass
+after; full offline suite 1282 OK. Paid/provider calls 0. Not pushed.
+Open: job 18da9456 was translating at 12:50 (call dispatched before the fix, its chapter-0 context is
+snapshotted without the 44 names); runtime prompts still say "book" (scholarly guidance explains it
+covers an article); "מחברת הספר" naming in the UI is unchanged.
+Next: the user decides whether to restart the 18da9456 translation with the fix (paid) or let it
+finish; any server restart loads the fix for new chapters and unit reviews.
+
+## Previous: DURABLE-JOB-STATE fix on main (after PROMPT-FIXES)
 Updated: 2026-10-07. Claude continuity, user-directed bug fix (no contract; storage durability).
 Symptom: after a computer crash the Jade City job 75ec5d08 vanished from the UI. Evidence: its
 job.json was 18,651,293 zero bytes (11:05); journal/controls intact (356 completed steps, $0.649).
