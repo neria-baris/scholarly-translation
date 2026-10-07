@@ -805,7 +805,10 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                         self._json(404, {"error": "notebook not found"})
                         return
                     from .book_notebook import render_markdown
-                    body = render_markdown(notebook).encode("utf-8")
+                    from .name_table import render_markdown as render_names_markdown
+                    names = render_names_markdown(job.get("name_table"))
+                    body = (render_markdown(notebook).rstrip("\n") + "\n\n" + names if names
+                            else render_markdown(notebook)).encode("utf-8")
                     self.send_response(200)
                     self.send_header("Content-Type", "text/markdown; charset=utf-8")
                     self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(Path(job["filename"]).stem + ".notebook.md"))

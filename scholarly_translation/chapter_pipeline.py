@@ -566,8 +566,8 @@ KEEPER_ROLES = ('context_state_builder', 'chapter_qa', 'translator')
 _KEEPER_STAGE = 'notebook'
 _NAME_TABLE_STAGE = 'name-table'
 _CROSS_QA_STAGE = 'cross-chapter-qa'
-NAME_TABLE_SKIPPED_NOTE = ('טבלת השמות לא נבנתה לפני התרגום (תקציב, כשל בקריאה או תשובה לא תקינה); '
-                           'השמות יירשמו פרק אחר פרק.')
+NAME_TABLE_SKIPPED_NOTE = ('טבלת השמות והמונחים לא נבנתה לפני התרגום (תקציב, כשל בקריאה או תשובה לא תקינה); '
+                           'שמות ומונחים יירשמו במהלך התרגום.')
 NAME_CONFLICT_NOTE = 'טבלת השמות: אותה צורה עברית לשמות שונים (%s); הבדיקה הרוחבית תבדוק זאת.'
 CROSS_QA_SKIPPED_NOTE = ('הבדיקה הרוחבית של פרקים %d–%d לא בוצעה (%s); '
                          'אפשר להפעיל אותה שוב מכפתור הבדיקה הרוחבית.')
@@ -1860,7 +1860,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         persist(job)
     with WorkJournal(folder / 'journal.sqlite3') as journal:
         if notebook_mode and job.get('name_table', {}).get('status') == 'pending':
-            job['status'], job['stage_label'] = 'reading', 'בניית טבלת השמות של הספר'
+            job['status'], job['stage_label'] = 'reading', 'בניית טבלת השמות והמונחים'
             persist(job)
             _run_name_table(job, groups, configuration, profile, store, journal, hard, max_calls, shared_cap,
                             adapter_factory)

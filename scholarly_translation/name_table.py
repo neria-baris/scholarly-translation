@@ -38,6 +38,9 @@ CASED_LANGUAGES = frozenset(
 
 _PROMPT_PATH = Path(__file__).resolve().parent / "runtime_prompts" / "09_name_table.md"
 _HEBREW_RE = re.compile("[א-ת]")
+_CJK = "぀-ヿ㐀-䶿一-鿿가-힯豈-﫿ｦ-ﾟ"
+_CJK_RE = re.compile("[" + _CJK + "]")
+_SPACED_WORD = "[^\\W" + _CJK + "]"   # a word character of a script written with spaces
 _NIQQUD_RE = re.compile("[֑-ׇֽֿׁׂׅׄ]")
 _WORD_RE = re.compile(r"(?<!\w)[^\W\d_](?:\w|['’\-](?=\w))*")
 _OPENERS = "\"'“„‘‚«‹([{¿¡—"
@@ -435,7 +438,11 @@ def _default_count(text):
 
 
 def _occurs(form, text):
-    return re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text) is not None
+    """``form`` in ``text`` as a whole word. CJK text has no spaces (ゲーデルの, 形式主義を), so a
+    CJK form is found as a substring and a CJK neighbour is never part of the word."""
+    if _CJK_RE.search(form):
+        return form in text
+    return re.search("(?<!" + _SPACED_WORD + ")" + re.escape(form) + "(?!" + _SPACED_WORD + ")", text) is not None
 
 
 def _line(e, hebrew):
@@ -480,3 +487,20 @@ def render_names(table, text=None, token_budget=None, count_tokens=None):
             used += cost
         lines.append(line)
     return "\n".join(lines)
+
+
+def _cell(value):
+    return str(value).replace("\\", "\\\\").replace("|", "\\|")
+
+
+def render_markdown(table):
+    """The table as a Markdown section for the notebook download; "" when it has no entries."""
+    if not isinstance(table, dict) or not table.get("entries"):
+        return ""
+    out = ["## Names and terms (binding Hebrew forms)", "",
+           "| Source | Also | Hebrew | Kind | Note |", "| --- | --- | --- | --- | --- |"]
+    for e in table["entries"]:
+        out.append("| %s |" % " | ".join(_cell(v) for v in (
+            e.get("source", ""), ", ".join(e.get("aliases") or []), e.get("hebrew", ""),
+            e.get("kind", ""), e.get("note", ""))))
+    return "\n".join(out) + "\n"
