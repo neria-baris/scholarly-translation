@@ -1,4 +1,21 @@
-# Current state — ARTICLE-NOTES delivered to main (after BOOK-VOICE)
+# Current state — LEARN-GRAMMAR delivered to main (after ARTICLE-NOTES)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/learning_grammar_lesson.md`.
+Learning preparations started from now on get (a) one Luna call per chapter after its chunks: a
+3-5 paragraph Hebrew grammar lesson (gender, inflection, voice...) with examples grounded in the
+chapter (woven insertions from accepted edits; exact chapter quotes rendered in the target
+language); invalid answers -> "unavailable", book still ready; shown in reader, HTML/EPUB export
+(chapter text once, lesson after it) and personal grammar files; (b) learner's-dictionary entries
+(part of speech, gender, senses, labeled forms, note) inside the existing chunk call, once per
+lexical item when first woven (catalog words too); progress rows open into the entry plus woven
+book sentences; dictionary.json/md include them; (c) a grammar notebook view of all lessons with
+search (`/learning/grammar-notebook`). User decisions: extra call per chapter, insertions + full
+sentences, new preparations only, entries in the existing call, no backfill. Full offline suite
+1212 OK. Paid/provider calls 0. Restart the UI to use it; jobs paused under old code continue
+without lessons/entries.
+Open: lesson/entry quality untested on a real book (model-written, no linguistic review);
+browser rendering of the new progress/notebook views not visually checked.
+
+## Previous: ARTICLE-NOTES delivered to main (after BOOK-VOICE)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/article_notes.md`.
 PDF articles (digital or scanned): line geometry marks bottom-of-page footnotes (also continued
 on the next page), running headers (wide gap, >= 3 pages), display-size headings and the reference

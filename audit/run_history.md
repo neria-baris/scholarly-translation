@@ -1002,3 +1002,17 @@ section. Older tests: limitation renamed note_without_mark, HTML block parser ac
 17 new tests incl. an end-to-end job and page placement read back with pdfplumber. Full offline
 suite 1192 OK (483s). Paid/provider calls 0; no restart.
 
+
+
+## 2026-10-07T12:00+03:00 | LEARN-GRAMMAR | Claude continuity, user-directed
+User asked for study paragraphs on grammar after each chapter of the learning edition (gender,
+inflection, active/passive) with chapter examples, then for a consolidated view of all lessons and
+words, and real dictionary entries with inflections. Decisions: one extra Luna call per chapter;
+woven insertions + full chapter sentences in the target language; new preparations only; entries
+inside the existing chunk call for every word when first woven; no backfill. Contract
+learning_grammar_lesson.md, branch feat/grammar-lesson (worktree). New learning_lesson.py and
+learning_dictionary.py, prompts 11/12; service lesson step (max_calls = chunks + chapters for new
+jobs only), DICTIONARY_NEEDED per chunk, progress entries/examples, grammar_notebook route; reader,
+export, archive and help updated. Verified that every output holds one woven chapter followed by
+its lesson. Fake test adapters answer lesson prompts; call-count expectations updated. 19 new
+tests; full offline suite 1212 OK (499s). Paid/provider calls 0; no restart.
