@@ -1,4 +1,19 @@
-# Current state — PREVIEW-SPEED fix delivered to main (after LEARN-GRAMMAR)
+# Current state — AUTO-CONTINUE-WRITABLE fix on main (after PREVIEW-SPEED)
+Updated: 2026-10-07. Claude continuity, user-directed bug fix (contract user_decided_blocks addendum).
+Symptom: the user again had to approve an unknown-outcome retry of $0.0084 although the standing
+rule auto-accepts below $1. Evidence: Jade City job 75ec5d08, local-correction event 309 ended
+failed_transport (not metered) at 09:38; the user settled it by hand at 09:45 (decision without
+`auto`). Cause: `document_draft._auto_continue` opened controls.sqlite3 with `create=False`
+(read-only); `user_settle` failed with StoreCorruptionError, caught silently, so no auto decision
+and no resume. Earlier tests exercised only job_blocks with a writable store. Fix: open writable
+(create=True; existence already checked). New test
+test_document_draft::test_automation_disconnect_below_one_dollar_resumes_without_asking fails on the
+old code and passes now. Full offline suite 1216 OK. Paid/provider calls 0. main not pushed (also
+PREVIEW-SPEED). Jade City is running under the old server code.
+Next: user restarts the UI at a safe moment (pause Jade City first or wait for its next stop); from
+then on under-$1 unknown outcomes retry automatically (max 3 in a row).
+
+## Previous: PREVIEW-SPEED fix delivered to main (after LEARN-GRAMMAR)
 Updated: 2026-10-07. Claude continuity, user-directed bug fix (no contract; planner-internal).
 Symptom: the UI showed no cost estimate and could not start a translation. Cause: planning
 placeholders (notebook/bridge reserve, synthetic Hebrew targets, correction issue) were single

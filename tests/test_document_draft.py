@@ -474,6 +474,53 @@ class DocumentDraftTests(unittest.TestCase):
         body = render_download(job, "pdf")
         self.assertTrue(body.startswith(b"%PDF"))
 
+    def test_automation_disconnect_below_one_dollar_resumes_without_asking(self):
+        """A dropped call (unknown usage, held < $1) is settled at its held amount and
+        the job resumes by itself through the real manager path."""
+        import json as _json
+
+        class FlakyTranslator:
+            def __init__(self):
+                self.calls = 0
+
+            def generate(self, prompt_text, model):
+                self.calls += 1
+                if self.calls == 1:
+                    raise RuntimeError("connection lost")
+                suffix = prompt_text.suffix if hasattr(prompt_text, "suffix") else prompt_text
+                marker = "TARGET_UNIT_IDS (translate exactly these ids, in exactly this order, each exactly once): "
+                start = suffix.index(marker) + len(marker)
+                unit_ids = _json.loads(suffix[start:suffix.index("\n", start)])
+                payload = [{"unit_id": uid, "translation": f"תרגום של {uid}", "translation_note": None} for uid in unit_ids]
+                return TextGenerationResult(status="completed", text=_json.dumps(payload, ensure_ascii=False),
+                                            token_usage={"input": 10, "output": 10}, observed_model=model,
+                                            duration_seconds=0.0, observed_provider="fake")
+
+        class Keeper:
+            def generate(self, prompt_text, model):
+                text = '{"names": []}' if "NAME TABLE of a book" in str(prompt_text) else '{"ops": []}'
+                return TextGenerationResult(status="completed", text=text, token_usage={"input": 10, "output": 5},
+                                            observed_model=model, duration_seconds=0.0, observed_provider="fake")
+
+        translator = FlakyTranslator()
+        config = _json.loads(_json.dumps(MOCK_MODEL_CONFIG))
+        config["models"]["chapter_qa"]["capabilities"] = {"context_window": 16000, "usable_context_tokens": 14000}
+        config["models"]["translator"]["capabilities"] = {"context_window": 10000, "usable_context_tokens": 8000}
+        jobs, job = self.run_job(
+            {"model": "configured", "budget_usd": 2.0, "model_config": config, "quality": "fast", "automation": True},
+            adapter_factory=self.make_adapter_factory(translator=translator, chapter_qa=Keeper()),
+        )
+        deadline = time.monotonic() + 10
+        while (job["status"] != "completed" or jobs.active) and time.monotonic() < deadline:
+            time.sleep(0.01)
+            job = jobs.get(job["job_id"])
+        self.assertEqual(job["status"], "completed", job.get("error"))
+        [decision] = job["decisions"]
+        self.assertEqual((decision["kind"], decision["option"], decision["auto"]),
+                         ("unknown_outcome", "accept_worst_case_and_retry", True))
+        self.assertEqual(len(decision["accepted_charges"]), 1)
+        self.assertGreater(translator.calls, 1)
+
     def test_automation_false_keeps_the_legacy_per_unit_path(self):
         translator = FakeTranslationAdapter()
         factory = self.make_adapter_factory(translator=translator)

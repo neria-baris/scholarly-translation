@@ -1239,7 +1239,8 @@ class DocumentJobs:
             if self.active is not None:
                 return
             try:
-                with ControlStore(controls, create=False) as store, WorkJournal(journal_path, create=False) as journal:
+                # Writable (create=True; the file exists): settling the held charge writes.
+                with ControlStore(controls, create=True) as store, WorkJournal(journal_path, create=False) as journal:
                     option = job_blocks.auto_decision(job, store, journal)
                     if option is None:
                         return

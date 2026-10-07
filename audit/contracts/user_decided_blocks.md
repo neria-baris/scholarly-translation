@@ -62,3 +62,10 @@ after a run stops, then the normal resume sends). At most 3 automatic retries in
 a row (a row breaks once another call is reserved); $1 or more, a 4th repeat, and
 every other block kind still wait for the user. Auto decisions are recorded in
 job `decisions` with `auto: true`; store events remain `user_settled`.
+
+### Fix AUTO-CONTINUE-WRITABLE (2026-10-07, user report)
+`_auto_continue` opened the control store read-only (`create=False` means `mode=ro`), so
+settling the held charge failed with `StoreCorruptionError`, which was swallowed: the rule
+never applied and every under-$1 unknown outcome still asked the user (Jade City, event 309,
+$0.0084, 2026-10-07 09:38). It now opens the existing store writable, like `decide`. New
+manager-level test drives a real disconnect through `_auto_continue` to completion.

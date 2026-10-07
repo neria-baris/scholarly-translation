@@ -1028,3 +1028,12 @@ targets and correction issue; `upper_bound_tokens` + `_ub`/`_prompt_ub` for fit 
 (64 chapters) preview with tiktoken 16 s. 3 new tests; reference planner shares `_filler`. Full
 offline suite 1195 OK (447s); planner/preview/automation suites 101 OK under the tiktoken runtime.
 Not related to the under-$1 decision change. Paid/provider calls 0; UI restart needed by the user.
+
+## 2026-10-07T10:00+03:00 | AUTO-CONTINUE-WRITABLE | Claude continuity, user-directed
+User: again asked to approve a $0.0084 unknown-outcome retry despite the under-$1 rule. Evidence:
+Jade City controls events 309/310 (local-correction, failed_transport, stopped_not_metered) then
+311 user_settled decided_by user 7 minutes later; servers started 08:13 with the rule's code.
+Cause: `_auto_continue` used ControlStore(create=False) = read-only; the settle write raised
+StoreCorruptionError, swallowed by its except. Fix: create=True (as in `decide`). Regression test
+through DocumentJobs (fails before, passes after). Full offline suite 1216 OK (481s). Paid/provider
+calls 0. UI restart needed; not pushed.
