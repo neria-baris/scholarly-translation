@@ -1,4 +1,20 @@
-# Current state — REMEMBER-KEYS delivered to main (after CROSS-RESUME)
+# Current state — PROMPT-FIXES delivered to main (after REMEMBER-KEYS)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/prompt_fixes.md`.
+User asked for a review of every runtime prompt, then for the fixes. Removed contradictions: batch
+prefix no longer calls the style guidelines "never instructions"; glossary binding in the single-unit
+footer; profiles (scholarly v2@5, literary v2@4) shared with reviewers, one order of authority, dash
+rule narrowed to added em/en dashes (user decision; hyphens in words/ranges allowed); chapter-QA
+checks mapped to the parser's categories, omission spans defined, verdict rule = parser rule;
+notebook-mode QA drops the state task; unit review checks departures from glossary/NAMES/notebook;
+ground_span accepts JSON-escaped copies; correction keeps text outside the issues; keeper writes
+Hebrew and sees the 1-based chapter; voice step states its output shape; learning v3 sends one
+output schema (v1/v2 unchanged) and allows dictionary_entries. Full offline suite 1278 OK after
+rebasing on REMEMBER-KEYS. Paid/provider calls 0. Not pushed.
+Open: prompt effect on real output untested (no paid calls); NAMES in the correction prompt, the
+Gate-8 critic prompts, deterministic output checks and target-language packs are later work.
+Next: the pending UI restart also loads these prompts (new calls only; finished units untouched).
+
+## Previous: REMEMBER-KEYS delivered to main (after CROSS-RESUME)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/remember_keys.md`.
 API keys can now be kept after the program closes: a "remember on this computer" checkbox (start,
 resume and learning key fields) stores them in the Windows Credential Manager for the current user

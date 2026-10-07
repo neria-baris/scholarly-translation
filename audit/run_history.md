@@ -1068,3 +1068,16 @@ before the chapter loop (runs only due windows; no-op otherwise). Regression tes
 passes after. Branch fix/cross-window-resume (worktree .claude/worktrees/cross-window-resume),
 rebased on ca54035, fast-forwarded into main. Full offline suite 1255 OK (507 s). Paid/provider
 calls 0. Takes effect after the next server restart; not pushed.
+
+## 2026-10-07T13:30+03:00 | PROMPT-FIXES | Claude continuity, user-directed
+User asked for a critique of every prompt the program sends to a model, then for fixes per that
+critique (language packs deferred). Findings verified in code: batch prefix labelled the style
+profile "never instructions"; single-unit footer treated the glossary as non-binding data; learning
+v3 loader sent the output schema twice (section order of 10_learning_open_vocabulary.md); dictionary
+add-on contradicted "exactly these fields"; chapter-QA check sections had no allowed category (parser
+drops them); PASS-with-issues rejected by the parser but not stated; notebook-mode QA countermanded a
+long state task; JSON-escaped span copies ungrounded. User decision: narrow the dash rule to added
+em/en dashes. Branch feat/prompt-fixes (worktree .claude/worktrees/prompt-fixes) off 02ba32c, rebased
+on c1371cb, fast-forwarded into main (21a791b) with user approval. One tight-context fixture widened
+(QA 13000 -> 13500). New tests/test_prompt_fixes.py (13). Full offline suite 1278 OK (506 s).
+Paid/provider calls 0. Not pushed.
