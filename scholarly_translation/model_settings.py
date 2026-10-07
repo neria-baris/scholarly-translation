@@ -49,6 +49,8 @@ def catalogue() -> list[dict]:
             "context_window": pricing.context_window,
             "max_output_tokens": pricing.max_output_tokens,
             "rates_per_million": dict(pricing.rates_per_million),
+            "reasoning_values": list(pricing.reasoning_values),
+            "default_reasoning": pricing.reasoning_values[0] if pricing.reasoning_values else None,
             "catalog_version": model_catalog.CATALOG_VERSION,
         })
     return entries
@@ -130,7 +132,7 @@ def _resolve_role_selection(selection):
         raise ModelSettingsError("בחירת מודל לתפקיד אינה תקינה.")
     _reject_credential_fields(selection)
     source = selection.get("source")
-    allowed = {"source", "provider", "model"} if source == "catalog" else {
+    allowed = {"source", "provider", "model", "reasoning"} if source == "catalog" else {
         "source", "provider_type", "model", "base_url", "context_window",
         "usable_context_tokens", "max_output_tokens", "rates"}
     if set(selection) - allowed:
@@ -148,6 +150,13 @@ def _resolve_role_selection(selection):
             "usable_context_tokens": entry.context_window,
             "max_output_tokens": entry.max_output_tokens,
         }
+        reasoning = selection.get("reasoning")
+        if reasoning is not None:
+            if not entry.reasoning_values:
+                raise ModelSettingsError("למודל שנבחר אין רמות חשיבה לבחירה.")
+            if reasoning not in entry.reasoning_values:
+                raise ModelSettingsError("רמת החשיבה שנבחרה אינה נתמכת במודל זה.")
+            capabilities["reasoning"] = reasoning
         return provider_type, provider_dict, {"model": model, "capabilities": capabilities}
     if source == "other":
         other = _validate_other(selection)

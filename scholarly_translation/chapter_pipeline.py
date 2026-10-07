@@ -1751,7 +1751,8 @@ def _controlled(job_id, role, stage, prompt, configuration, cap, store, journal,
                                  replace(selection.capabilities, max_output_tokens=cap), cap)
         def generate(text, model):
             adapter = adapter_factory(role, descriptor) if adapter_factory else build_translation_adapter(
-                selection.provider, model, provider_definition=definition, max_output_tokens=cap)
+                selection.provider, model, provider_definition=definition, max_output_tokens=cap,
+                reasoning=selection.capabilities.reasoning)
             return adapter.generate(text, model)
         try:
             result, hit, _ = RuntimeCache(store, stage=stage, provider=selection.provider, model=selection.model).execute(

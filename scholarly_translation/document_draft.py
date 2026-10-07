@@ -643,6 +643,7 @@ class DocumentJobs:
             raw = build_translation_adapter(
                 provider, model, provider_definition=provider_definition,
                 max_output_tokens=(capabilities.max_output_tokens if capabilities else None),
+                reasoning=(capabilities.reasoning if capabilities else None),
             ).generate
         else:
             raw = _mock_review_generate if role == "semantic_reviewer" else _mock_chapter_qa_generate

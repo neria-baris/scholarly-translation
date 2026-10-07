@@ -425,6 +425,7 @@ def run_unit_review(request: UnitReviewRequest, generate=None) -> dict:
         generate = build_translation_adapter(
             request.provider, request.model, provider_definition=request.provider_definition,
             max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+            reasoning=(request.capabilities.reasoning if request.capabilities else None),
         ).generate
     _require(callable(generate), "a generate callable is required when the adapter is invoked")
     prompt_text = _render(UNIT_REVIEW_PROMPT_ID, {
@@ -638,6 +639,7 @@ def run_candidate_comparison(request: CandidateComparisonRequest, generate=None)
         generate = build_translation_adapter(
             request.provider, request.model, provider_definition=request.provider_definition,
             max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+            reasoning=(request.capabilities.reasoning if request.capabilities else None),
         ).generate
     _require(callable(generate), "a generate callable is required")
 
@@ -841,6 +843,7 @@ def run_chapter_qa(request: ChapterQARequest, generate=None) -> dict:
         generate = build_translation_adapter(
             request.provider, request.model, provider_definition=request.provider_definition,
             max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+            reasoning=(request.capabilities.reasoning if request.capabilities else None),
         ).generate
     _require(callable(generate), "a generate callable is required when the adapter is invoked")
     prompt_text = _render(CHAPTER_QA_PROMPT_ID, {

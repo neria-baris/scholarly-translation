@@ -23,6 +23,7 @@ ROLES = (
 )
 PROVIDER_TYPES = {"mock", "openai", "anthropic", "deepseek", "openai_compatible"}
 _ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{1,127}$")
+_REASONING = re.compile(r"^[a-z]{1,32}$")
 
 
 class ModelConfigError(ValueError):
@@ -62,12 +63,16 @@ class ModelCapabilities:
     # own known-model rate or its labelled conservative unknown-model
     # assumption (see model_catalog.py).
     custom_pricing: dict | None = None
+    # Optional reasoning effort for this role (e.g. "medium"); ``None`` keeps
+    # the adapter's catalogue default. Serialized only when set, so existing
+    # configurations and every identity built from them are unchanged.
+    reasoning: str | None = None
 
     @staticmethod
     def from_dict(data):
         data = _object(data, "capabilities")
         _keys(data, {"context_window", "usable_context_tokens", "max_output_tokens",
-                     "structured_output", "custom_pricing"}, "capability")
+                     "structured_output", "custom_pricing", "reasoning"}, "capability")
         context = _positive_int(data.get("context_window"), "context_window")
         usable = _positive_int(data.get("usable_context_tokens"), "usable_context_tokens")
         if usable > context:
@@ -81,22 +86,29 @@ class ModelCapabilities:
                 custom_pricing = validate_custom_pricing(custom_pricing)
             except ModelCatalogError as exc:
                 raise ModelConfigError(str(exc)) from None
+        reasoning = data.get("reasoning")
+        if reasoning is not None and (not isinstance(reasoning, str) or not _REASONING.fullmatch(reasoning)):
+            raise ModelConfigError("reasoning must be a lowercase effort name")
         return ModelCapabilities(
             context_window=context,
             usable_context_tokens=usable,
             max_output_tokens=_positive_int(data.get("max_output_tokens"), "max_output_tokens", optional=True),
             structured_output=structured,
             custom_pricing=custom_pricing,
+            reasoning=reasoning,
         )
 
     def to_dict(self):
-        return {
+        result = {
             "context_window": self.context_window,
             "usable_context_tokens": self.usable_context_tokens,
             "max_output_tokens": self.max_output_tokens,
             "structured_output": self.structured_output,
             "custom_pricing": self.custom_pricing,
         }
+        if self.reasoning is not None:
+            result["reasoning"] = self.reasoning
+        return result
 
 
 @dataclass(frozen=True)

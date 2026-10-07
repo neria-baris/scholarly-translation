@@ -981,6 +981,8 @@ def build_translation_adapter(provider: str, model: str, client=None,
         return MockTextGenerationAdapter()
     if definition is None or definition.provider_id != provider:
         raise RequestValidationError("provider is not configured; no fallback is available")
+    if reasoning is not None and definition.provider_type != "openai":
+        raise RequestValidationError("a reasoning effort is supported only for OpenAI models")
     if definition.provider_type == "openai":
         return OpenAITextGenerationAdapter(client, definition, max_output_tokens,
                                            reasoning=reasoning, timeout=timeout, api_key=api_key)

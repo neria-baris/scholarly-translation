@@ -1148,3 +1148,18 @@ three times over concurrent main work (NAMES-CJK, SERVER-TEXT-EN, REMEMBER-KEYS;
 conflicts resolved by re-applying the two key edits), fast-forwarded into main with user approval.
 New tests/test_target_languages.py (24, incl. a full French->English mock EPUB run). Full offline
 suite 1316 OK (529 s). Paid/provider calls 0. Not pushed.
+
+## 2026-10-07T19:30+03:00 | REASONING-CHOICE | Claude continuity, user-directed
+User: the models run at low reasoning and there is no way to choose the level. Evidence: no caller
+passed a level, so the OpenAI adapter always sent the catalogue default (gpt-6-luna `none`,
+gpt-6.1-sol `low`); Anthropic models have no level in the catalogue. Contract
+audit/contracts/reasoning_choice.md. Delivered: optional `reasoning` on ModelCapabilities (serialized
+only when set: existing configs, fingerprints and step/cache identities unchanged), catalogue
+selection validation against the model's levels, the level passed at every adapter build site
+(per-job web factory, chapter pipeline, review controls, unit translation/review, semantic
+critic/corrector), builder refuses a level for a non-OpenAI provider, UI select per role ("default
+(<level>)" + levels; reset on model change; mirrored to QA; Hebrew/English). Defaults unchanged.
+Branch feat/reasoning-choice (worktree .claude/worktrees/reasoning-choice) off 6f70896. New
+tests/test_reasoning_choice.py (10; 6 fail on the old code). Headless Chrome: Luna/Sol options,
+selection payload, QA mirror, hidden for Sonnet, English labels. Full offline suite 1326 OK
+(1 skipped; one Hebrew-literal lint fixed and its file rerun). Paid/provider calls 0. Not pushed.

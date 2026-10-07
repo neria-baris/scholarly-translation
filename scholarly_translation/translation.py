@@ -798,6 +798,7 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
         adapter = adapter or build_translation_adapter(
             request.provider, request.model, provider_definition=request.provider_definition,
             max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+            reasoning=(request.capabilities.reasoning if request.capabilities else None),
         )
         result, cache_hit, control_notices = cache.execute(
             request.cache_key, request.prompt_text, request.model, adapter.generate,
@@ -810,6 +811,7 @@ def run_translation(request: TranslationRequest, adapter=None, budget=None, cach
             adapter = build_translation_adapter(
                 request.provider, request.model, provider_definition=request.provider_definition,
                 max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+                reasoning=(request.capabilities.reasoning if request.capabilities else None),
             )
         if live_provider:
             budget = budget or TranslationBudget(

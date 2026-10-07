@@ -497,6 +497,7 @@ def _build_critic_adapter(request: SemanticReviewRequest):
     return build_translation_adapter(
         request.provider, request.model, provider_definition=request.provider_definition,
         max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+        reasoning=(request.capabilities.reasoning if request.capabilities else None),
     )
 
 
@@ -506,6 +507,7 @@ def _build_corrector_adapter(request: SemanticReviewRequest, claim: dict):
     return build_translation_adapter(
         request.provider, request.model, provider_definition=request.provider_definition,
         max_output_tokens=(request.capabilities.max_output_tokens if request.capabilities else None),
+        reasoning=(request.capabilities.reasoning if request.capabilities else None),
     )
 
 

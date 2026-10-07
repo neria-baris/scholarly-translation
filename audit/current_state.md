@@ -1,4 +1,15 @@
-# Current state — TARGET-LANGUAGES delivered to main (after REMEMBER-KEYS key dialog)
+# Current state — REASONING-CHOICE on main (after TARGET-LANGUAGES)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/reasoning_choice.md`.
+The UI now offers a reasoning level next to each catalogue model that has levels (gpt-6-luna:
+none..max, default none; gpt-6.1-sol: low..max, default low); "default" sends exactly what was sent
+before. The level is stored in the role's capabilities (only when set), reaches every adapter build
+and is part of the configuration fingerprint/unit cache key. Anthropic models show no select.
+Full offline suite 1326 OK. Paid/provider calls 0. Not pushed.
+Open: the cost preview does not model the extra reasoning tokens of a higher level (same output
+caps); learning keeps fixed Luna default; a running job keeps the level it started with.
+Next: restart the UI (server code changed); choose a level when starting a new document.
+
+## Previous: TARGET-LANGUAGES delivered to main (after REMEMBER-KEYS key dialog)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/target_languages.md`.
 Target-language packs (`scholarly_translation/target_languages/{he,en}.md`): prompt templates and
 prompt strings use {{T:KEY}} tokens localized before data substitution; validators, name table,

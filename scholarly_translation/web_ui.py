@@ -381,6 +381,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
             return build_translation_adapter(
                 selection.provider, selection.model, provider_definition=definition,
                 max_output_tokens=max_output_tokens, api_key=keys_snapshot.get(definition.provider_id),
+                reasoning=selection.capabilities.reasoning if selection.capabilities else None,
             )
         return adapter_factory
 

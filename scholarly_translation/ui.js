@@ -203,6 +203,8 @@ const SERVER_EN={
 "אין לשלוח מפתחות/אישורים בתוך הגדרת המודל.": "Do not send keys/credentials inside the model setting.",
 "בחרו מודל קיים מהקטלוג.": "Choose an existing model from the catalog.",
 "המודל שנבחר אינו בקטלוג.": "The selected model is not in the catalog.",
+"למודל שנבחר אין רמות חשיבה לבחירה.": "The selected model has no reasoning levels to choose from.",
+"רמת החשיבה שנבחרה אינה נתמכת במודל זה.": "The selected reasoning level is not supported by this model.",
 "הגדרת המודל שהוזנה אינה תקינה.": "The model setting entered is invalid.",
 };
 /*I18N-END*/
@@ -259,6 +261,7 @@ function catalogOptionsHtml(provider){
 }
 function roleFieldsHtml(role){
   return `<select class="role-select" data-role="${role}"><option value="" data-i18n="roleChoose">בחרו מודל…</option>${catalogOptionsHtml()}<option value="other" data-i18n="roleOther">אחר (מודל/ספק מותאם)…</option></select>
+  <select class="role-reasoning" data-role="${role}" hidden></select>
   <div class="other-fields" data-role="${role}">
     <select class="other-provider-type" data-role="${role}"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="openai_compatible" data-i18n="roleCompat">תואם-OpenAI (כתובת מותאמת)</option></select>
     <input class="other-model" data-role="${role}" placeholder="מזהה מודל" data-i18n-ph="phModelId" dir="ltr">
@@ -282,6 +285,9 @@ function initRoleUI(){
   document.querySelectorAll('.role-select').forEach(select=>{
     select.addEventListener('change',()=>onRoleSelectChange(select.dataset.role,select.value));
   });
+  document.querySelectorAll('.role-reasoning').forEach(select=>{
+    select.addEventListener('change',()=>onReasoningChange(select.dataset.role,select.value));
+  });
   document.querySelectorAll('.other-fields input,.other-provider-type')
     .forEach(input=>input.addEventListener('input',()=>onOtherFieldChange(input.dataset.role)));
   if(LANG==='en')applyStatic();
@@ -296,6 +302,33 @@ function onRoleSelectChange(role,value){
     const [provider,model]=value.split(':');
     roleSelections[role]={source:'catalog',provider,model};
   } else {roleSelections[role]=null}
+  renderReasoning(role);cascadeQaMirror(role);
+  renderKeyFields();schedulePreview();
+}
+function reasoningLabel(value){
+  const labels={none:t('ללא','None'),minimal:t('מזערית','Minimal'),low:t('נמוכה','Low'),medium:t('בינונית','Medium'),
+    high:t('גבוהה','High'),xhigh:t('גבוהה מאוד','Extra high'),max:t('מרבית','Max')};
+  return labels[value]||value;
+}
+function renderReasoning(role){
+  const select=document.querySelector(`.role-reasoning[data-role="${role}"]`);if(!select)return;
+  const selection=roleSelections[role];
+  const model=selection&&selection.source==='catalog'?modelCatalog.find(m=>m.provider===selection.provider&&m.model===selection.model):null;
+  const values=(model&&model.reasoning_values)||[];
+  select.hidden=!values.length;
+  select.setAttribute('aria-label',t('רמת חשיבה','Reasoning level'));
+  select.innerHTML=values.length?`<option value="">${t('רמת חשיבה: ברירת מחדל','Reasoning: default')} (${reasoningLabel(model.default_reasoning)})</option>`+
+    values.map(v=>`<option value="${v}">${t('רמת חשיבה: ','Reasoning: ')}${reasoningLabel(v)}</option>`).join(''):'';
+  select.value=(selection&&selection.reasoning)||'';
+}
+function onReasoningChange(role,value){
+  if(role==='semantic_reviewer')qaTouched=true;
+  if(role==='chapter_qa')chapterQaTouched=true;
+  const selection=roleSelections[role];if(!selection||selection.source!=='catalog')return;
+  // A new object: an untouched QA role may share the translator's selection object.
+  const next={source:'catalog',provider:selection.provider,model:selection.model};
+  if(value)next.reasoning=value;
+  roleSelections[role]=next;
   cascadeQaMirror(role);
   renderKeyFields();schedulePreview();
 }
@@ -318,7 +351,7 @@ function onOtherFieldChange(role){
     }
   }
   roleSelections[role]=(model&&Number.isInteger(contextWindow)&&Number.isInteger(maxOutput))?selection:null;
-  cascadeQaMirror(role);
+  renderReasoning(role);cascadeQaMirror(role);
   renderKeyFields();schedulePreview();
 }
 function mirrorTranslatorToQa(){
@@ -349,6 +382,7 @@ function syncRoleUI(role){
     q('other-rate-write').value=selection.rates?.cache_write??'';
     q('other-rate-write1h').value=selection.rates?.cache_write_1h??'';}
   else select.value='';
+  renderReasoning(role);
 }
 function requiredProviderIdsFromSelections(selections,quality){
   const roles=quality==='fast'?['translator']:['translator','semantic_reviewer','chapter_qa'];
@@ -1165,6 +1199,7 @@ function setLanguage(next){
   applyBase();
   document.querySelectorAll('.role-select option[data-cat]').forEach(option=>{
     const model=modelCatalog.find(m=>m.provider+':'+m.model===option.value);if(model)option.textContent=catalogLabel(model)});
+  ['translator','semantic_reviewer','chapter_qa'].forEach(renderReasoning);
   const serverOption=$('model').querySelector('option[value="server"]');
   if(serverOption)serverOption.textContent=t('תצורת המודלים שהוגדרה בשרת','Model configuration set on the server');
   if(pdfFonts.length){populateFontSelects();$('font-before').value=beforeFont;$('font-after').value=afterFont}
