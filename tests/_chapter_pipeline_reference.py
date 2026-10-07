@@ -95,8 +95,11 @@ def _resolve_required_roles(configuration, quality):
     except ModelConfigError:
         raise ChapterPipelineError('all required translator and QA roles must be configured') from None
 
+# Planning placeholders share the planner's byte-identical, tokenizer-linear shape.
+from scholarly_translation.chapter_pipeline import _filler
+
 def _synthetic_target(source):
-    return 'א' * max(math.ceil(len(source) * HEBREW_EXPANSION_HYPOTHESIS), 1)
+    return _filler('א', max(math.ceil(len(source) * HEBREW_EXPANSION_HYPOTHESIS), 1))
 
 def _review_request(role, records, configuration, profile, cap, policy='all'):
     selection, _ = configuration.resolve(role)
@@ -231,7 +234,7 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
             # Reserve its full worst UTF-8/escaping envelope, not a tiny dummy issue.
             correction_cap = _translation_cap([source[record['unit_id']]])
             issue_limit = _correction_issue_limit(record, translator, correction_cap)
-            correction = _correction_prompt(record, []) + '𐀀' * issue_limit
+            correction = _correction_prompt(record, []) + _filler('𐀀', issue_limit)
             _require(_fits(correction, translator, correction_cap), 'bounded correction does not fit translator')
             add('translator', correction, correction_cap, expected_factor=0)
     qa_tail = sum(row['conservative_cost_usd'] for name, row in role_usage.items() if name != 'translator')
@@ -611,7 +614,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         pending['recheck:'+uid] = review_cost
                     if not record.get('correction_done'):
                         correction_cap = _translation_cap([_units_by_id(structure)[uid]])
-                        correction_prompt = _correction_prompt(record, []) + '𐀀' * _correction_issue_limit(record, translator, correction_cap)
+                        correction_prompt = _correction_prompt(record, []) + _filler('𐀀', _correction_issue_limit(record, translator, correction_cap))
                         pending['correct:'+uid] = _quote(translator, translator_def, correction_prompt, correction_cap)['ceiling']
                 for qa_index in range(len(qa_groups)):
                     if key+':'+str(qa_index) in job.get('automation_qa', {}):

@@ -1016,3 +1016,15 @@ jobs only), DICTIONARY_NEEDED per chunk, progress entries/examples, grammar_note
 export, archive and help updated. Verified that every output holds one woven chapter followed by
 its lesson. Fake test adapters answer lesson prompts; call-count expectations updated. 19 new
 tests; full offline suite 1212 OK (499s). Paid/provider calls 0; no restart.
+
+
+## 2026-10-07T12:30+03:00 | PREVIEW-SPEED | Claude continuity, user-directed
+User: no cost estimate is shown and a new translation cannot start. Evidence (py-spy on the live
+server): one /document-preview request in tiktoken encode for >10 minutes; solid placeholder runs
+are quadratic for BPE (66k 'x' 1.7 s, 66k 'א' 6.4 s per count). Earlier in-shell reproductions
+were fast only because that interpreter lacks tiktoken. Branch fix/preview-tokenizer-filler:
+`_filler` (byte-identical, whitespace every 64 chars) for notebook/bridge reserve, synthetic
+targets and correction issue; `upper_bound_tokens` + `_ub`/`_prompt_ub` for fit checks. Jade City
+(64 chapters) preview with tiktoken 16 s. 3 new tests; reference planner shares `_filler`. Full
+offline suite 1195 OK (447s); planner/preview/automation suites 101 OK under the tiktoken runtime.
+Not related to the under-$1 decision change. Paid/provider calls 0; UI restart needed by the user.

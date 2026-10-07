@@ -160,6 +160,18 @@ def count_tokens(text, model=None):
             "exact": False, "upper_bound": bound}
 
 
+def upper_bound_tokens(text, model=None):
+    """``count_tokens(text, model)["upper_bound"]`` without the fallback-encoding
+    count that an inexact result discards (the fit/reservation value is the same)."""
+    if not isinstance(text, str):
+        raise TokenCountingError("text must be a string")
+    if model and model not in _NO_TIKTOKEN_MAPPING:
+        encoding = _load_encoding_for_model(model)
+        if encoding is not None:
+            return len(encoding.encode(text, disallowed_special=()))
+    return byte_upper_bound(text)
+
+
 def fits_within(text, limit_tokens, model=None):
     """``True`` iff ``text``'s conservative ``upper_bound`` fits ``limit_tokens``.
 

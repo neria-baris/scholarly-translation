@@ -1,4 +1,18 @@
-# Current state — LEARN-GRAMMAR delivered to main (after ARTICLE-NOTES)
+# Current state — PREVIEW-SPEED fix delivered to main (after LEARN-GRAMMAR)
+Updated: 2026-10-07. Claude continuity, user-directed bug fix (no contract; planner-internal).
+Symptom: the UI showed no cost estimate and could not start a translation. Cause: planning
+placeholders (notebook/bridge reserve, synthetic Hebrew targets, correction issue) were single
+unbroken runs ('x' * ~66k, 'א' * n, '𐀀' * n); tiktoken's BPE is quadratic in such runs (66k Hebrew
+6.4 s per count) and planning counts them hundreds of times per book, so the preview request ran
+for >10 minutes with tiktoken installed (the UI runtime). The offline suite runs without tiktoken
+(byte bound), which hid it. Fix: `_filler` breaks runs every 64 chars with same-UTF-8-width
+whitespace (bytes, byte bounds and plans unchanged); fit checks use `upper_bound_tokens` (no
+discarded fallback-encoding count). Jade City preview with tiktoken: >10 min -> 16 s. New
+tests/test_planner_fillers.py; the reference planner shares the placeholder shape. Full offline
+suite 1215 OK after rebasing on LEARN-GRAMMAR; planner/preview suites also OK under the tiktoken runtime. Paid/provider calls 0.
+Next: restart the UI (the running server holds the old code), then the estimate appears.
+
+## Previous: LEARN-GRAMMAR delivered to main (after ARTICLE-NOTES)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/learning_grammar_lesson.md`.
 Learning preparations started from now on get (a) one Luna call per chapter after its chunks: a
 3-5 paragraph Hebrew grammar lesson (gender, inflection, voice...) with examples grounded in the

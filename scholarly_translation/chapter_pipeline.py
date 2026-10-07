@@ -20,7 +20,7 @@ from .model_config import ModelConfiguration, ModelConfigError
 from .translation import TranslationBudgetError
 from .runtime_controls import PersistentBudget, RuntimeCache, RuntimeControlsError
 from .source_reading import fingerprint
-from .token_counting import count_tokens
+from .token_counting import count_tokens, upper_bound_tokens
 from .model_catalog import estimate_cost, CATALOG_VERSION
 from .translation_profiles import style_profile_text, SUPPORTED_PROFILE_IDS, PROMPT_VERSIONS, CONFIG_VERSIONS
 from .work_journal import WorkJournal, step_identity
@@ -108,7 +108,20 @@ def _tok(text, model=None):
 
 
 def _ub(text, model=None):
-    return _tok(text, model)['upper_bound']
+    """``_tok(text, model)['upper_bound']`` without encoding text whose bound is the byte bound."""
+    hit = _TOKEN_CACHE.get((model, text))
+    if hit is not None:
+        return hit['upper_bound']
+    key = ('upper_bound', model, text)
+    bound = _TOKEN_CACHE.get(key)
+    if bound is None:
+        bound = upper_bound_tokens(text, model)
+        if _TOKEN_CACHE_CHARS[0] + len(text) > _TOKEN_CACHE_LIMIT_CHARS:
+            _TOKEN_CACHE.clear()
+            _TOKEN_CACHE_CHARS[0] = 0
+        _TOKEN_CACHE[key] = bound
+        _TOKEN_CACHE_CHARS[0] += len(text)
+    return bound
 
 
 def _count_prompt(prompt, model=None):
@@ -120,6 +133,13 @@ def _count_prompt(prompt, model=None):
         return {'count': a['count'] + b['count'], 'method': a['method'], 'exact': a['exact'] and b['exact'],
                 'upper_bound': a['upper_bound'] + b['upper_bound'] + _PIECE_JOIN_SLACK}
     return dict(_tok(str(prompt) if not type(prompt) is str else prompt, model))
+
+
+def _prompt_ub(prompt, model=None):
+    """``_count_prompt(prompt, model)['upper_bound']``, counted the same way through ``_ub``."""
+    if isinstance(prompt, CacheablePrompt) and len(prompt) > _SPLIT_COUNT_CHARS and prompt.stable_prefix and prompt.suffix:
+        return _ub(prompt.stable_prefix, model) + _ub(prompt.suffix, model) + _PIECE_JOIN_SLACK
+    return _ub(str(prompt) if not type(prompt) is str else prompt, model)
 
 
 class _TermResolver:
@@ -270,7 +290,7 @@ NOTEBOOK_QA_STATE_RULE = ('\n\nIn this job the BOOK_NOTEBOOK is the persistent s
 def _fits(prompt, selection, cap):
     return (cap <= (selection.capabilities.max_output_tokens or 128000)
             and len(prompt.encode('utf-8')) <= 2_000_000
-            and _count_prompt(prompt, selection.model)['upper_bound'] + getattr(prompt, 'image_tokens', 0)
+            and _prompt_ub(prompt, selection.model) + getattr(prompt, 'image_tokens', 0)
             + cap + ENVELOPE_TOKENS <= selection.capabilities.usable_context_tokens)
 
 def _resolve_required_roles(configuration, quality):
@@ -290,7 +310,7 @@ def _resolve_required_roles(configuration, quality):
         raise ChapterPipelineError('all required translator and QA roles must be configured') from None
 
 def _synthetic_target(source):
-    return 'א' * max(math.ceil(len(source) * HEBREW_EXPANSION_HYPOTHESIS), 1)
+    return _filler('א', max(math.ceil(len(source) * HEBREW_EXPANSION_HYPOTHESIS), 1))
 
 def _review_request(role, records, configuration, profile, cap, policy='all', book_notebook=''):
     selection, _ = configuration.resolve(role)
@@ -620,11 +640,21 @@ def bridge_chars(selection):
     """Per-side bridge size: 4000 chars, less for small-context models."""
     return max(100, min(BRIDGE_CHARS, selection.capabilities.usable_context_tokens // 30))
 
+def _filler(char, length):
+    """``char * length`` with every 64th char replaced by whitespace of the same UTF-8
+    width: the bytes (and so every byte bound and plan) are unchanged, but tiktoken's BPE
+    is quadratic in one unbroken run (a 66k-char run took ~1.7 s per count, and planning
+    counts such text hundreds of times per book) and linear in short runs."""
+    separator = {1: '\n', 2: '\u0085', 3: ' ', 4: '\u0085\u0085'}[len(char.encode('utf-8'))]
+    line = char * 63 + separator
+    return line * (length // 64) + char * (length % 64)
+
 def _synthetic_notebook_excerpt(budget=BOOK_NOTEBOOK_TOKEN_BUDGET):
-    return 'BOOK_NOTEBOOK:\n' + 'x' * max(int(budget / 1.15 - 100), 0)
+    return 'BOOK_NOTEBOOK:\n' + _filler('x', max(int(budget / 1.15 - 100), 0))
 
 def _synthetic_book_context(budget=BOOK_NOTEBOOK_TOKEN_BUDGET, bridge=BRIDGE_CHARS, names=NAMES_TOKEN_BUDGET):
-    return _synthetic_notebook_excerpt(budget + names) +'\nPREVIOUS_PASSAGE:\n' + 'x' * bridge + '\n' + '\u05d0' * bridge
+    return (_synthetic_notebook_excerpt(budget + names) + '\nPREVIOUS_PASSAGE:\n' + _filler('x', bridge) + '\n'
+            + _filler('\u05d0', bridge))
 
 def _tail_at_boundary(text, limit=BRIDGE_CHARS):
     """Last <= ``limit`` chars of ``text`` starting at a paragraph or sentence boundary when one exists."""
@@ -1166,7 +1196,7 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
             # Reserve its full worst UTF-8/escaping envelope, not a tiny dummy issue.
             correction_cap = _translation_cap([source[record['unit_id']]])
             issue_limit = _correction_issue_limit(record, translator, correction_cap)
-            correction = _correction_prompt(record, []) + '𐀀' * issue_limit
+            correction = _correction_prompt(record, []) + _filler('𐀀', issue_limit)
             _require(_fits(correction, translator, correction_cap), 'bounded correction does not fit translator')
             add('translator', correction, correction_cap, expected_factor=0)
     keeper_plan = None
@@ -1940,7 +1970,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         pending['recheck:'+uid] = review_cost
                     if not record.get('correction_done'):
                         correction_cap = _translation_cap([_units_by_id(structure)[uid]])
-                        correction_prompt = _correction_prompt(record, []) + '𐀀' * _correction_issue_limit(record, translator, correction_cap)
+                        correction_prompt = _correction_prompt(record, []) + _filler('𐀀', _correction_issue_limit(record, translator, correction_cap))
                         pending['correct:'+uid] = _quote(translator, translator_def, correction_prompt, correction_cap)['ceiling']
                 for qa_index in range(len(qa_groups)):
                     if key+':'+str(qa_index) in job.get('automation_qa', {}):
