@@ -23,6 +23,7 @@ from .runtime_controls import PersistentBudget, RuntimeCache, RuntimeControlsErr
 from .source_reading import fingerprint
 from .token_counting import count_tokens, upper_bound_tokens
 from .model_catalog import estimate_cost, CATALOG_VERSION
+from .reasoning_budget import review_output_cap, review_reasoning_headroom, REVIEW_CAP_VERSION
 from .translation_profiles import style_profile_text, SUPPORTED_PROFILE_IDS, PROMPT_VERSIONS, CONFIG_VERSIONS
 from .work_journal import WorkJournal, step_identity
 from . import target_languages
@@ -294,11 +295,11 @@ def _translation_cap(units):
 
 def _review_cap(selection, count=1):
     # Bounded structured findings, not a translation-length output allowance.
-    return min(selection.capabilities.max_output_tokens or 4096, 2048 + min(count, 16) * 128)
+    return review_output_cap(selection, 2048 + min(count, 16) * 128)
 
 def _unit_review_cap(selection, record):
     # A long unit can carry more findings: one extra token per 6 source characters.
-    return min(selection.capabilities.max_output_tokens or 4096, 2048 + 128 + len(record['source_text']) // 6)
+    return review_output_cap(selection, 2048 + 128 + len(record['source_text']) // 6)
 
 SHORT_UNIT_WORDS = 3
 
@@ -1278,6 +1279,9 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
             'cache_reads': 0, 'automatic_corrections': 0,
             'notice': 'Planning hypothesis, not a provider quote or measured chapter usage'},
         'catalog_version': CATALOG_VERSION, 'quality_validation': 'experimental_unvalidated'}
+    if quality != 'fast' and any(review_reasoning_headroom(roles[role][0])
+                                      for role in ('chapter_qa', 'semantic_reviewer')):
+        plan['review_cap_version'] = REVIEW_CAP_VERSION
     if keeper:
         plan.update(book_notebook=True, notebook_keeper=keeper_plan)
     return plan
@@ -1440,15 +1444,18 @@ def units_fit_translator(structure, configuration):
     envelope = _envelope_tokens('u' * 32) + 64 + 1
     return all(estimate_output_token_cap(len(u['text'])) + envelope <= limit for u in structure['units'])
 
-def repartition_qa_groups(unit_records, capabilities, headroom_fraction=None):
+def repartition_qa_groups(unit_records, capabilities, headroom_fraction=None, *, selection=None):
     # Compatibility API uses the actual complete existing QA prompt. Execution
     # additionally checks its stable-prefix transport with the resolved role.
     def render(group):
         request = rq.build_chapter_qa_request('\n\n'.join(r['source_text'] for r in group),
             '\n\n'.join(r['target_text'] for r in group), profile='scholarly', policy='on', capabilities=capabilities)
         return _render_review(request, 'chapter_qa')
+    if selection is None:
+        from types import SimpleNamespace
+        selection = SimpleNamespace(capabilities=capabilities)
     def cap_for(size):
-        return min(capabilities.max_output_tokens or 4096, 2048 + min(size, 16)*128)
+        return _review_cap(selection, size)
     def fits(group):
         return _ub(render(group)) + cap_for(len(group)) + ENVELOPE_TOKENS <= capabilities.usable_context_tokens
     records = list(unit_records)
@@ -1884,6 +1891,15 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         job['glossary'] = glossary
         persist(job)
     notebook_mode = is_notebook_job(job)
+    # Refresh estimates for pending work in jobs planned before reasoning headroom.
+    # Source groups, completed units, contexts and journal identities stay intact.
+    if quality != 'fast' and any(review_reasoning_headroom(configuration.resolve(role)[0])
+                                 for role in ('chapter_qa', 'semantic_reviewer')):
+        if any(p.get('review_cap_version') != REVIEW_CAP_VERSION for p in job['chapter_plans']):
+            job['chapter_plans'] = [plan_chapter(
+                structure, glossary, [u['unit_id'] for u in group], configuration,
+                quality, profile, keeper=notebook_mode) for group in groups]
+            persist(job)
     def format_repaired():
         # An accepted answer whose JSON punctuation needed tolerance (counted once,
         # when first validated; replays read the stored validated result).
@@ -2012,7 +2028,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 records = [r for r in records if not _untranslatable_passthrough(r)]
                 prefix = _prefix(structure, glossary, prefix_ids, profile)
                 qa_selection, qa_definition = configuration.resolve('chapter_qa')
-                qa_groups = repartition_qa_groups(records, qa_selection.capabilities)
+                qa_groups = repartition_qa_groups(records, qa_selection.capabilities, selection=qa_selection)
                 # Recheck total actual QA input/call envelopes before any reviews.
                 pending = {}
                 for qa_index, qa_group in enumerate(qa_groups):

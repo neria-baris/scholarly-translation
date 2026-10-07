@@ -1,0 +1,19 @@
+# REASONING-CAPS — user-directed fix, 2026-10-07
+
+Authority: user explicitly requires review output allowance to match selected reasoning effort. Supersedes REASONING-CHOICE's same-output-cap limitation. Base ad35a80898c4059de2eaa8bde945369c848c3b24.
+
+Owner: Sol conductor; Claude Code Sonnet scoped builder in isolated outputs snapshot. No recursive delegation. Scope: review token allowance only and directly dependent planning/estimate/reservation tests. Runtime provider calls 0. Builder calls 1 plus at most 1 evidence-backed fix; CLI list estimate cap $3 per invocation, actual subscription charge not_metered; 15 minute soft checkpoint. Tools Read/Write/Edit only; conductor tests and Git.
+
+Input: secret-free ModelSelection/ModelCapabilities reasoning and existing text-output bounds. Output: deterministic total output cap including separately documented experimental reasoning headroom. Owns unit review, chapter QA, focused review recheck and cross-chapter review caps in the simple document pipeline, plus their cost/context/reservation consumers.
+
+Policy: preserve requested effort; add explicit conservative headroom to existing visible-output allowance: none=0, low=8192, medium=16384, high=32768, xhigh=49152, max=65536 tokens. These are local initial planning assumptions, NOT provider guarantees or measured maxima. Use model catalogue default when reasoning is unset (Luna none, Sol low); no added headroom for providers/models with no supported reasoning effort. Avoid double addition when capabilities already contain the resolved total cap. Respect model max output and context/budget guards; do not silently consume all answer allowance with reasoning or exceed a declared limit. Unsupported effort remains a configuration error. Keep total caps in the same planner, preview, pending funds and dispatch; preserve no-reasoning legacy behavior and cached completed results.
+
+Errors: explicit inability to fit the requested allowance in declared/context/budget capacity, never reduce effort or silently raise user budget. Provider truncation remains inspectable; no automatic paid run, retries or saved-job mutation in this task.
+
+Acceptance: offline regression reproduces the observed high-effort 2304-total-token truncation with synthetic responses, verifies meaningful answer headroom and transmitted cap; none unchanged; increasing levels increase allowance; cap respects model ceiling; context-fit and cost/reservation use the same total as dispatch; relevant chapter, review and cross-QA tests + full offline unittest suite. No tests on real book text, secrets or live providers.
+
+Scope exclusions: translation/keeper/name-prepass caps, generic adaptive retry framework, changing model or effort, learning, UI redesign, paid verification, migrations or dispatching existing jobs. Existing failed job should use the new review cap when resumed under its saved high effort after server restart; inspect stored plan consumption and handle stale review caps without rewriting completed work, journal or accepted charges. Report any inability to safely satisfy this before claiming completion.
+
+Allowed source modifications: scholarly_translation/chapter_pipeline.py, cross_chapter_qa.py, review_qa.py, new scholarly_translation/reasoning_budget.py if useful, model_catalog.py only if required for shared default resolution. Relevant tests under tests/. No audit/Git writes by builder. Follow existing architecture and test patterns. Builder must provide changed files, limitations and no claimed executed tests.
+
+Execution addendum: CLI installed/authenticated, sandbox builder could not connect (no edits); automatic approval review rejected network invocation due to exporting repository source to Anthropic. Sol performs the focused local fix under DEVELOPMENT_WORKFLOW direct-small-fix permission. No further external model invocation. Standalone review_qa already receives full declared caps; no double addition there.

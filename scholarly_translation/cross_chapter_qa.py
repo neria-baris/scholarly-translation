@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from .name_table import plain_form
+from .reasoning_budget import review_output_cap
 from .target_languages import localize
 from .review_qa import (
     SEVERITIES, VERDICTS, _CHAPTER_ISSUE_RE, _issue_slices, _unwrap, ground_span,
@@ -183,6 +184,4 @@ def locate_issue_units(issue, records, max_units=80):
 
 
 def cross_qa_output_cap(selection):
-    capabilities = getattr(selection, "capabilities", None)
-    declared = getattr(capabilities, "max_output_tokens", None)
-    return min(declared or MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS)
+    return review_output_cap(selection, MAX_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS)

@@ -672,3 +672,7 @@ review-effect and format-tolerance code retained. No live restart/job modificati
 This receipt records delivery hash (not its own hash). No cleanup of other work.
 Limitations remain: linguistic quality and IAB saved-file event not verified.
 Next: user can load updated UI at a safe future restart after active translation.
+
+
+## 2026-10-07T16:08:21.329Z | REASONING-CAPS | post-G12 software acceptance PASS
+Contract audit/contracts/reasoning_caps.md. User-directed review headroom per selected reasoning level, added to answer allowance, shared by planning/context/cost/reservation/live dispatch and unit/chapter/recheck/cross review. Preserve effort and saved results; no user budget increase. 8 new regressions; 67 focused tests PASS; full offline suite 1334 PASS (539.952s); old-cap regression oracle fails as expected; diff check PASS. Sol focused local implementation; Sonnet 1 failed connection attempt, requested network launch rejected; Opus/Astra 0, runtime providers 0; usage/actual development charge unknown. No live restart/job mutation. Experimental headroom and actual provider behavior remain unverified. Gate Git receipt pending reviewed explicit-path staging, commit and authorized fast-forward push.
