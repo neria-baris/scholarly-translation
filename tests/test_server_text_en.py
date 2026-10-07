@@ -28,6 +28,12 @@ COMPOSITE = "יש לשמור מפתח API עבור: {1} לפני התחלת עב
 SHORT_OK_MODULES = {"key_store.py"}
 # Keys the client composes from stage labels; the AST sees them only as a plain label.
 STAGE_EXTRA = {"בדיקה רוחבית של פרקים {1}–{2}"}
+# Texts the server no longer writes but older job.json files still contain (NAMES-CJK renamed the
+# name table to "names and terms"); they keep their English entries.
+LEGACY = {
+    "בניית טבלת השמות של הספר",
+    "טבלת השמות לא נבנתה לפני התרגום (תקציב, כשל בקריאה או תשובה לא תקינה); השמות יירשמו פרק אחר פרק.",
+}
 
 
 def _numbered(parts):
@@ -143,7 +149,7 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(missing, [], "%d Hebrew server templates have no SERVER_EN entry" % len(missing))
 
     def test_no_dead_entries(self):
-        dead = sorted(he for he in self.table if he not in self.sources and he not in STAGE_EXTRA)
+        dead = sorted(he for he in self.table if he not in self.sources and he not in STAGE_EXTRA and he not in LEGACY)
         self.assertEqual(dead, [], "SERVER_EN keys with no source template")
 
 

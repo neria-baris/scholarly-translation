@@ -43,6 +43,8 @@ const SERVER_EN={
 "מחברת הספר: עדכון פרק {1} חלקי או לא תקין; ההמשך לא הושפע.": "Book notebook: the update for chapter {1} was partial or invalid; later work was not affected.",
 "הפרקים גדולים מדי עבור מודל הבדיקה": "The chapters are too large for the review model",
 "בניית טבלת השמות של הספר": "Building the book's name table",
+"בניית טבלת השמות והמונחים": "Building the table of names and terms",
+"טבלת השמות והמונחים לא נבנתה לפני התרגום (תקציב, כשל בקריאה או תשובה לא תקינה); שמות ומונחים יירשמו במהלך התרגום.": "The table of names and terms was not built before translation (budget, call failure or invalid response); names and terms will be recorded during translation.",
 "תרגום פרק / קבוצת יחידות": "Translating a chapter / group of units",
 "ביקורת מקטעים ו־QA פרקי": "Segment review and chapter QA",
 "שלב {1} נכשל ({2}). ניסיון חוזר ישלח קריאה חדשה לספק.": "Step {1} failed ({2}). A retry will send a new call to the provider.",

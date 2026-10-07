@@ -15,6 +15,8 @@ covers an article); "מחברת הספר" naming in the UI is unchanged.
 Next: the user decides whether to restart the 18da9456 translation with the fix (paid) or let it
 finish; any server restart loads the fix for new chapters and unit reviews.
 
+SERVER-TEXT-EN (2026-10-07, Claude session 4d): in English mode server-written messages (decision boxes, errors, review notes, stage labels) also show in English via the SERVER_EN table in ui.js; tests/test_server_text_en.py fails when a new Hebrew server message has no English entry — add one line to SERVER_EN in the same change. Browser reload only; suite 1286 OK.
+
 ## Previous: DURABLE-JOB-STATE fix on main (after PROMPT-FIXES)
 Updated: 2026-10-07. Claude continuity, user-directed bug fix (no contract; storage durability).
 Symptom: after a computer crash the Jade City job 75ec5d08 vanished from the UI. Evidence: its

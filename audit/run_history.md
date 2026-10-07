@@ -1115,3 +1115,16 @@ Also: `name_table.render_markdown` and the notebook download include the table; 
 articles. New tests test_name_table::RenderTests::test_text_filter_cjk / test_markdown fail before,
 pass after; the download test checks the table. Full offline suite 1282 OK. Paid/provider calls 0.
 Not pushed. The running 18da9456 translation call (dispatched 12:50, before the fix) was not touched.
+
+## 2026-10-07T16:05+03:00 | SERVER-TEXT-EN (UI-POLISH addendum) | Claude continuity, user-directed
+User: "continue" with the offered follow-up — server-written Hebrew messages in English mode. Client
+side only (contract addendum in ui_polish.md): SERVER_EN in ui.js, 164 Hebrew templates -> English
+(one per line), serverText() exact/{n}-pattern match with recursive captures, applied to blocker
+messages/options, job errors, review notes, HTTP errors, stage labels. Templates extracted with ast
+(162 after documented exclusions); two Sonnet translators in parallel + one Sonnet builder; conductor
+inserted the table and fixed one term (register). Guard: tests/test_server_text_en.py fails on an
+untranslated or dead template; after merging NAMES-CJK it caught the two renamed name-table texts
+(added; the old texts kept as LEGACY for older job.json, at session 51's request). Checked: real
+Jade City notes render in English; a $0.0084 unknown-outcome blocker and its button translate. Full
+offline suite 1286 OK (1 skipped). Paid/provider calls 0. Static file only: browser reload, no restart.
+Coordination: main 1b20743 (other sessions' commits) pushed first with session 51's agreement.
