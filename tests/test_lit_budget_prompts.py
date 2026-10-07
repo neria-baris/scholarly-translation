@@ -118,26 +118,33 @@ class PromptRenderTests(unittest.TestCase):
     def test_prompt_texts_mention_new_checks(self):
         root = Path(__file__).resolve().parent.parent / "scholarly_translation" / "runtime_prompts"
         qa = (root / "06_chapter_level_qa.md").read_text(encoding="utf-8")
-        for needle in ("{{book_notebook}}", "BOOK_NOTEBOOK", "translationese", "dialogue punctuation", "contradicts"):
+        for needle in ("{{book_notebook}}", "BOOK_NOTEBOOK", "translationese", "dialogue marking", "contradicts"):
             self.assertIn(needle, qa)
         review = (root / "04_independent_semantic_review.md").read_text(encoding="utf-8")
         self.assertIn("wordplay", review)
         self.assertIn("voice", review)
 
     def test_literary_style_guidance_and_version_bump(self):
-        self.assertEqual(PROMPT_VERSIONS["literary"], "literary-prompts-v2@3")
-        self.assertEqual(PROMPT_VERSIONS["scholarly"], "scholarly-prompts-v2@4")
+        self.assertEqual(PROMPT_VERSIONS["literary"], "literary-prompts-v2@4")
+        self.assertEqual(PROMPT_VERSIONS["scholarly"], "scholarly-prompts-v2@5")
         literary = style_profile_text("literary")
-        self.assertIn("literary-prompts-v2@3", literary)
-        for needle in ("BOOK_NOTEBOOK", "translation_note", "translationese", "dialogue punctuation"):
+        self.assertIn("literary-prompts-v2@4", literary)
+        for needle in ("BOOK_NOTEBOOK", "translation_note", "translationese", "Mark dialogue"):
             self.assertIn(needle, literary)
         scholarly = style_profile_text("scholarly")
-        self.assertIn("scholarly-prompts-v2@4", scholarly)
-        for needle in ("BOOK_NOTEBOOK", "translation_note", "(terms, names, notation)"):
+        self.assertIn("scholarly-prompts-v2@5", scholarly)
+        for needle in ("BOOK_NOTEBOOK", "translation_note", "(terms, names, notation, voice)"):
             self.assertIn(needle, scholarly)
-        self.assertNotIn("dialogue punctuation", scholarly)
+        self.assertNotIn("Mark dialogue", scholarly)
         for text in (literary, scholarly):
-            self.assertIn("Do not add dashes", text)
+            # PROMPT-FIXES: guidelines shared with reviewers, one order of authority, and the dash
+            # rule narrowed to the em/en dash as punctuation (user decision 2026-10-07).
+            self.assertIn("(reviewers judge\nthe translation by them)", text)
+            self.assertNotIn("You are translating", text)
+            self.assertIn("Order of authority: approved terminology and NAMES are binding", text)
+            self.assertIn("Do not add a dash (— or –) as\npunctuation", text)
+            self.assertIn("a hyphen in a word or range is fine", text)
+            self.assertNotIn("(—, –, -)", text)
             self.assertIn("punctuation and rhythm", text)
 
 

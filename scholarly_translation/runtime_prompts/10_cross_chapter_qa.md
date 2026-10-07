@@ -17,7 +17,7 @@ Check for:
 {{PROFILE_CHECKS}}
 
 ## Reporting
-For a wrong name or term form: Span = exactly that Hebrew form as it is written in the text (the shortest span, without prefix letters when possible), Correction = the right form, Severity MAJOR. For other issues give the smallest affected span and a local correction. The Span must be copied verbatim from a chapter text. A correction keeps the source's punctuation and adds no dash (—, –, -) the source lacks.
+For a wrong name or term form: Span = exactly that Hebrew form as it is written in the text (the shortest span, without prefix letters when possible), Correction = the right form, Severity MAJOR. For other issues give the smallest affected span and a local correction. The Span must be copied verbatim from a chapter text. A correction keeps the source's punctuation and adds no dash (— or –) as punctuation the source lacks.
 
 ## Reference chapter
 {{REFERENCE}}
@@ -36,7 +36,7 @@ PROFILE:
 CHAPTERS:
 {{CHAPTERS}}
 
-Output:
+Output (VERDICT is REVISE when ISSUES lists at least one issue and PASS when ISSUES is none):
 
 VERDICT: PASS | REVISE
 

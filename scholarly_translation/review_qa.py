@@ -70,6 +70,10 @@ In ISSUES, write `none` or number every issue using exactly these fields:
    Span: one line copied verbatim from HEBREW_CHAPTER or SOURCE_CHAPTER, without added quotes or backticks
    Correction: a nonempty local correction that changes the text, never a wholesale retranslation
 Each field on one line. List only issues you stand behind: no comments or retractions inside ISSUES.
+Category per check: Completeness -> completeness; Consistency and Book notebook -> consistency;
+Continuity -> continuity; Literary effect, Hebrew quality and Punctuation and rhythm -> hebrew_quality.
+For omitted source material, Span is the omitted SOURCE_CHAPTER text and Correction its Hebrew.
+VERDICT is REVISE when ISSUES lists at least one issue and PASS when ISSUES is none.
 In STATE_UPDATES, write `none` or one proposed persistent-state item per
 line, in exactly this form (double-colon separated, no extra `::`):
 - [category] label :: value :: certainty :: span
@@ -314,16 +318,23 @@ def _unwrap(text):
         text = inner
 
 
+def _json_unescaped(text):
+    """``text`` with the JSON string escapes a model copies from a JSON-quoted source."""
+    return text.replace('\\"', '"').replace("\\n", "\n").replace("\\t", "\t").replace("\\\\", "\\")
+
+
 def ground_span(span, *texts):
     """The span as it literally occurs in one of ``texts``: exact first, else after
     removing matching quote/backtick wrappers and a final period (repeatedly). Models
     often quote the span they cite; the stored span is always a real substring.
-    Returns None when the span is not grounded."""
-    candidate = (span or "").strip()
-    while candidate:
-        if any(candidate in text for text in texts):
-            return candidate
-        candidate = _unwrap_once(candidate)
+    A span copied with JSON escapes (the source is shown as JSON lines) is also
+    tried decoded. Returns None when the span is not grounded."""
+    raw = (span or "").strip()
+    for candidate in dict.fromkeys((raw, _json_unescaped(raw))):
+        while candidate:
+            if any(candidate in text for text in texts):
+                return candidate
+            candidate = _unwrap_once(candidate)
     return None
 
 

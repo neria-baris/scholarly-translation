@@ -5,7 +5,8 @@ dictionary entries. No extra call: entries arrive in the same chunk response.
 
 ## Instructions (appended after the generation instructions)
 
-Also return "dictionary_entries": a real learner's-dictionary entry for every
+Add the field "dictionary_entries" to the same response object: an array with a
+real learner's-dictionary entry for every
 lexical item (word or phrase) that one of your accepted edits uses and that is
 listed in DICTIONARY_NEEDED or newly defined in introduced_items. Never write
 entries for grammar items, for unused items, or for items not in those lists.

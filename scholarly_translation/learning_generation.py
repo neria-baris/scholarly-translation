@@ -42,9 +42,15 @@ def _load_instructions(plan):
                   'learning-generation@3': '10_learning_open_vocabulary.md'}[_prompt_version(plan)]
     asset = _PROMPT_ASSET_PATH.with_name(asset_name)
     text = asset.read_text(encoding="utf-8")
-    start = text.index(_INSTRUCTIONS_MARKER) + len(_INSTRUCTIONS_MARKER)
-    end = text.index(_DATA_SECTIONS_MARKER)
-    return text[start:end].strip() + '\n\n' + text[text.index('## Output JSON only'):].strip()
+    return _section_text(text, _INSTRUCTIONS_MARKER, False) + '\n\n' + _section_text(text, '## Output JSON only', True)
+
+
+def _section_text(text, heading, keep_heading):
+    """One ``## `` section of a prompt asset: from ``heading`` up to the next ``## `` heading."""
+    start = text.index(heading)
+    body = start + len(heading)
+    nxt = text.find('\n## ', body)
+    return text[start if keep_heading else body:len(text) if nxt < 0 else nxt].strip()
 
 
 def _section(label, value):

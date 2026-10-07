@@ -17,7 +17,7 @@ Check for:
 - altered conditions or causal relations;
 - altered argumentative relations;
 - incorrect referents, subjects, or speakers;
-- terminology inconsistency;
+- departures from GLOSSARY_AND_APPROVED_DECISIONS, NAMES or BOOK_NOTEBOOK renderings;
 - unjustified disambiguation;
 - loss of meaningful ambiguity;
 - errors in names, citations, numbers, formulas, or quotations.
@@ -35,7 +35,7 @@ Classify each real issue as:
 
 For each issue, cite only the smallest relevant source and translation spans.
 
-BOOK_NOTEBOOK (when not "(none)") lists earlier decisions for this book: names, chosen Hebrew renderings of names and terms, definitions, forms of address, voice. A translation that follows them is correct on those points: do not propose a different rendering for them unless this source requires it; do flag a departure from them.
+BOOK_NOTEBOOK (when not "(none)") lists earlier decisions for this book and may begin with NAMES, the binding Hebrew forms of names: names, chosen Hebrew renderings of names and terms, definitions, forms of address, voice. A translation that follows them is correct on those points: do not propose a different rendering for them unless this source requires it; do flag a departure from them.
 
 If there is no substantive issue, return PASS. Do not invent criticism merely because review was requested.
 
@@ -44,7 +44,7 @@ Output rules:
 - Write each field on a single line.
 - Decide before writing. List only issues you stand behind; never add comments, second thoughts or retractions inside ISSUES. An issue you doubt is simply not listed.
 - The suggested correction is the replacement Hebrew for the translation span and must differ from it.
-- A suggested correction keeps the source's punctuation and rhythm and adds no dash (—, –, -) the source lacks.
+- A suggested correction keeps the source's punctuation and rhythm and adds no dash (— or –) as punctuation the source lacks; a hyphen inside a word or a range is fine.
 
 SOURCE_CONTEXT:
 {{source_context}}
@@ -75,3 +75,5 @@ ISSUES:
    Suggested correction:
 
 If none: `ISSUES: none`
+
+VERDICT is REVISE when ISSUES lists at least one issue and PASS when ISSUES is none.

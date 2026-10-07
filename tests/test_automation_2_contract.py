@@ -67,7 +67,7 @@ class ChapterAutomationContractTests(unittest.TestCase):
 
     def test_heavier_qa_model_has_preflight_groups_and_role_token_counts(self):
         manifest = pipeline.plan_chapter(self.structure, new_store(), self.ids,
-                                        configuration(qa_context=13000), 'thorough', 'scholarly')
+                                        configuration(qa_context=13500), 'thorough', 'scholarly')  # PROMPT-FIXES: longer QA contract
         self.assertIn('qa_groups', manifest)
         self.assertIn('role_usage', manifest)
         self.assertGreater(len(manifest['qa_groups']), 1)

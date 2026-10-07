@@ -45,14 +45,14 @@ BOOK_NOTEBOOK holds earlier decisions for this book (names and renderings, voice
 
 ## Literary effect (literary text only)
 - humor, irony, wordplay and allusions that do not land in Hebrew;
-- translationese/calques; inconsistent Hebrew dialogue punctuation; voice inconsistency.
+- translationese/calques; dialogue marking that is inconsistent or differs from the source's; voice inconsistency.
 Report only real problems; no stylistic rewrite.
 
 ## Hebrew quality
 Flag genuinely awkward or unclear Hebrew when it impairs readability or meaning, but do not turn this into a general stylistic rewrite.
 
 ## Punctuation and rhythm
-The Hebrew keeps the source's punctuation and rhythm. A dash (—, –, -) the source lacks is a MINOR issue; never add one in a correction.
+The Hebrew keeps the source's punctuation and rhythm. A dash (— or –) used as punctuation the source lacks is a MINOR issue; never add one in a correction. A hyphen inside a word or a range is not a dash issue.
 
 For every issue, identify the smallest affected span(s) and propose a local correction. Headings and chapter numbers on their own line are not omissions.
 

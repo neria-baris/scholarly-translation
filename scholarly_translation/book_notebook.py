@@ -187,6 +187,7 @@ def build_keeper_prompt(notebook_excerpt_text, source_chapter, hebrew_chapter, c
     guidance, story_description = _PROFILE_GUIDANCE["scholarly" if scholarly else "literary"]
     subs = {
         "PROFILE_ID": str(profile_id), "CHAPTER_INDEX": str(chapter_index),
+        "CHAPTER_NUMBER": str(int(chapter_index) + 1),
         "SUGGESTED_TAGS": ", ".join(SCHOLARLY_SUGGESTED_TAGS if scholarly else SUGGESTED_TAGS),
         "PROFILE_GUIDANCE": guidance, "STORY_DESCRIPTION": story_description,
         "NOTEBOOK_EXCERPT": notebook_excerpt_text or "(empty)",

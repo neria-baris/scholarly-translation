@@ -12,7 +12,7 @@ Evaluate:
 4. terminology;
 5. preservation of ambiguity and qualification;
 6. reference/speaker handling;
-7. Hebrew quality, including keeping the source's punctuation and rhythm (a dash the source lacks is a defect).
+7. Hebrew quality, including keeping the source's punctuation and rhythm (a dash — or – used as punctuation the source lacks is a defect; a hyphen inside a word or a range is not).
 
 First identify material differences. Then classify each difference as:
 - stylistic only;
@@ -44,7 +44,7 @@ CANDIDATE_ASSESSMENTS:
 ...
 
 BEST_SUPPORTED_TRANSLATION:
-{{candidate id | NO_CLEAR_WINNER}}
+<one supplied candidate id, or NO_CLEAR_WINNER>
 
 REASON:
 ...

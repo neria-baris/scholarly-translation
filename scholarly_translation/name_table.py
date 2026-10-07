@@ -223,7 +223,8 @@ _VOICE_TASK = (
     "- \"key_words\" (at most 20): {key_words} Not names: names go in \"names\". \"source\" is the base "
     "word, \"forms\" the other source forms that occur (ascends, ascent), \"hebrew\" the chosen Hebrew base "
     "form without niqqud (it inflects as Hebrew grammar requires), \"note\" why it fits the register "
-    "(<= 300 characters).\n")
+    "(<= 300 characters).\n"
+    "- In this step the output object is {{\"names\":[...],\"voice\":{{...}}}}.\n")
 _VOICE_GUIDANCE = {
     "literary": {
         "register": ("the book's voice and the matching Hebrew register: the narrator (person, distance, irony "
