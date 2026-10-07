@@ -51,7 +51,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 
 <h2 id="models">מודלים, QA ומפתחות API</h2>
 <p>ה-Auto מדומה: אינו שולח טקסט לאף ספק, אינו מצריך מפתח, ומחזיר טקסט מקום-שמור בלבד — לעולם לא תרגום אמיתי.</p>
-<p>במודל משלכם בוחרים מודל מתרגם מהקטלוג (למטה) או מגדירים מודל "אחר" (מזהה, ספק, ולכתובת תואמת-OpenAI גם endpoint). בדיקת האיכות (QA — "semantic_reviewer" ו-"chapter_qa") מוגדרת כברירת מחדל זהה למודל המתרגם, וניתן לשנות אותה בנפרד. המפתחות נשמרים רק בזיכרון השרת המקומי להרצה הנוכחית: לא בדיסק, לא בקובץ ההגדרות, לא ב-log, לא ב-localStorage של הדפדפן ולא במשתני סביבה. הפעלה חדשה של השרת מאפסת אותם; חידוש עבודה שהושהתה מבקש את המפתחות מחדש ומשתמש בעבודה שנשמרה.</p>
+<p>במודל משלכם בוחרים מודל מתרגם מהקטלוג (למטה) או מגדירים מודל "אחר" (מזהה, ספק, ולכתובת תואמת-OpenAI גם endpoint). בדיקת האיכות (QA — "semantic_reviewer" ו-"chapter_qa") מוגדרת כברירת מחדל זהה למודל המתרגם, וניתן לשנות אותה בנפרד. המפתחות נשמרים בזיכרון השרת המקומי להרצה הנוכחית: לא בקובץ ההגדרות, לא ב-log, לא ב-localStorage של הדפדפן ולא במשתני סביבה. אם מסמנים "לזכור במחשב הזה", המפתח נשמר גם מוצפן במנהל האישורים של Windows בחשבון המשתמש שלכם ונטען מחדש כשהתוכנית נפתחת; הכפתור "מחיקת המפתחות השמורים מהמחשב" מוחק אותו משם. סמל המפתח בכותרת זהוב כשיש מפתח, ועם נקודה ירוקה כשהוא שמור במחשב. הפעלה חדשה של השרת מאפסת אותם; חידוש עבודה שהושהתה מבקש את המפתחות מחדש ומשתמש בעבודה שנשמרה.</p>
 
 <h2 id="pricing">תעריפים (רשימת מחיר רשמית, קטלוג __CATALOG_VERSION__)</h2>
 <div class="table-scroll"><table>
@@ -154,7 +154,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>אם PowerShell חוסם סקריפטים, השתמשו בקובץ ה־VBS או ב־<code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1</code>. ההגדרה חלה על התהליך הזה בלבד ואינה משנה את מדיניות המחשב.</p>
 <p>הקלט מוגבל ל־2,000 עמודים/פרקים ול־3,000,000 תווים. ספרים סרוקים נתמכים: ראו <a href="#scanned">ספרים סרוקים</a>. PDF מתורגם נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את הארכיון והעיצוב, עם מגבלות במקטעים שאוחדו. עימוד מורכב ואיכות תרגום דורשים בדיקה על מסמכים אמיתיים.</p>
 <p><strong>מתמטיקה.</strong> ב־PDF המתורגם, סמלים שחסרים בגופן העברי (∑, √, ≤, אותיות יווניות, מעריכים ואינדקסים) מצוירים אוטומטית בגופן מתמטי (Noto Sans Math, ואחריו Noto Sans), ונוסחה בשורה נפרדת מוצגת משמאל לימין. ב־EPUB, נוסחאות MathML עוברות את התרגום מוגנות ומוחזרות למקומן כפי שהן; ב־PDF/HTML מוצגת גרסה טקסטואלית שלהן. קטע שכולו נוסחה אינו נשלח לבדיקת איכות. ב־PDF דיגיטלי הנוסחאות נקראות מהטקסט המוטמע; בספר סרוק הן מזוהות בבדיקת המודל (ראו <a href="#scanned">ספרים סרוקים</a>).</p>
-<p>השרת מאזין רק במחשב המקומי. המקור, הטיוטות ויומני העבודה נשמרים ב־<code>outputs/ui/</code>; מפתחות שמוזנים בממשק נשמרים בזיכרון בלבד ושדות הסיסמה מתרוקנים אחרי שמירה.</p>
+<p>השרת מאזין רק במחשב המקומי. המקור, הטיוטות ויומני העבודה נשמרים ב־<code>outputs/ui/</code>; מפתחות שמוזנים בממשק נשמרים בזיכרון, ובמנהל האישורים של Windows רק אם סימנתם "לזכור", ושדות הסיסמה מתרוקנים אחרי שמירה.</p>
 </div>
 <div class="lang-en" id="help-en" lang="en" dir="ltr">
 <div class="help-hero"><span class="eyebrow">Guide to the local tool</span><h1>Help and transparency</h1>
@@ -177,7 +177,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 
 <h2 id="en-models">Models, QA and API keys</h2>
 <p>Auto is simulated: it sends no text to any provider, requires no key, and returns placeholder text only — never a real translation.</p>
-<p>With your own model, you choose a translator model from the catalog (below) or define an "Other" model (an ID, a provider, and for an OpenAI-compatible address, also an endpoint). Quality review (QA — "semantic_reviewer" and "chapter_qa") defaults to the same model as the translator, and can be changed separately. Keys are kept only in the memory of the local server for the current run: not on disk, not in the settings file, not in a log, not in the browser's localStorage and not in environment variables. Starting the server again resets them; resuming a paused job asks for the keys again and uses the saved job.</p>
+<p>With your own model, you choose a translator model from the catalog (below) or define an "Other" model (an ID, a provider, and for an OpenAI-compatible address, also an endpoint). Quality review (QA — "semantic_reviewer" and "chapter_qa") defaults to the same model as the translator, and can be changed separately. Keys are kept in the memory of the local server for the current run: not in the settings file, not in a log, not in the browser's localStorage and not in environment variables. If you tick "Remember on this computer", the key is also stored encrypted in the Windows Credential Manager under your user account and reloaded when the program starts; "Delete the saved keys from this computer" removes it from there. The key icon in the header turns gold when a key is present, with a green dot when it is saved on this computer. Starting the server again resets them; resuming a paused job asks for the keys again and uses the saved job.</p>
 
 <h2 id="en-pricing">Pricing (official list price, catalog __CATALOG_VERSION__)</h2>
 <div class="table-scroll"><table>
@@ -280,7 +280,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>If PowerShell blocks scripts, use the VBS file or <code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1</code>. The setting applies to this process only and does not change the computer's policy.</p>
 <p>Input is limited to 2,000 pages/chapters and 3,000,000 characters. Scanned books are supported: see <a href="#en-scanned">Scanned books</a>. A translated PDF is rebuilt and does not reproduce the original layout; EPUB preserves the archive and styling, with limitations in segments that were merged. Complex layout and translation quality require checking on real documents.</p>
 <p><strong>Mathematics.</strong> In the translated PDF, symbols missing from the Hebrew font (∑, √, ≤, Greek letters, exponents and subscripts) are drawn automatically in a math font (Noto Sans Math, then Noto Sans), and a formula on its own line is displayed left to right. In EPUB, MathML formulas pass through translation protected and are restored in place as they were; in PDF/HTML a textual version of them is shown. A segment that is entirely a formula is not sent to quality review. In a digital PDF the formulas are read from the embedded text; in a scanned book they are detected in the model check (see <a href="#en-scanned">Scanned books</a>).</p>
-<p>The server listens only on the local computer. The source, drafts and job logs are stored in <code>outputs/ui/</code>; keys entered in the interface are kept in memory only, and password fields are cleared after saving.</p>
+<p>The server listens only on the local computer. The source, drafts and job logs are stored in <code>outputs/ui/</code>; keys entered in the interface are kept in memory, and in the Windows Credential Manager only if you ticked "Remember"; password fields are cleared after saving.</p>
 </div>
 </main>
 <script>

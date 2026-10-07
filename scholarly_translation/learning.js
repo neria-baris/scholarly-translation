@@ -486,7 +486,9 @@ $('epub-file').onchange=async()=>{
 $('save-key').onclick=async()=>{
   const value=$('learning-key').value;
   $('learning-key').value='';
-  try{await request('/model-keys',{keys:{openai:value}});$('key-message').textContent='המפתח נשמר בזיכרון עד לכיבוי השרת.'}
+  const remember=!$('learning-remember').hidden&&$('learning-remember-key').checked;
+  try{await request('/model-keys',{keys:{openai:value},...($('learning-remember').hidden?{}:{remember})});
+    $('key-message').textContent=remember?'המפתח נשמר במחשב (מנהל האישורים של Windows) ויישאר גם אחרי סגירת התוכנית.':'המפתח נשמר בזיכרון עד לכיבוי השרת.'}
   catch(error){$('key-message').textContent=error.message}
 };
 
@@ -642,6 +644,11 @@ $('complete-button').onclick=async()=>{
   finally{button.disabled=!!activeReader?.completed}
 };
 
+request('/model-keys',{}).then(result=>{
+  $('learning-remember').hidden=!result.remember_supported;
+  $('learning-remember-key').checked=!!(result.saved&&result.saved.openai);
+  if(result.saved&&result.saved.openai)$('key-message').textContent='מפתח OpenAI שמור במחשב.';
+}).catch(()=>{});
 (async function initialize(){
   try{await importFromQuery();await loadState()}
   catch(error){$('import-error').textContent=error.message;$('import-error').hidden=false}

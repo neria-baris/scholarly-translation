@@ -8,7 +8,7 @@
 <body>
 <header class="app-header">
 <a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית" data-i18n-aria="brandAria"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span data-i18n="brand">תרגום מסמכים</span></a>
-<div class="header-actions"><a id="help-header-link" class="quiet-button help-header-link" href="/help" target="_blank" rel="noopener" data-i18n="help">עזרה</a><a id="learning-header-link" class="quiet-button library-header-button" href="/learning" target="scholarly-learning" rel="noopener" data-i18n="learning">למידת שפה</a><button id="library-button" type="button" class="quiet-button library-header-button" data-i18n="library">הספרייה</button><button id="language-button" type="button" class="quiet-button" lang="en">English</button><button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">מודל: Auto</span></button></div>
+<div class="header-actions"><a id="help-header-link" class="quiet-button help-header-link" href="/help" target="_blank" rel="noopener" data-i18n="help">עזרה</a><a id="learning-header-link" class="quiet-button library-header-button" href="/learning" target="scholarly-learning" rel="noopener" data-i18n="learning">למידת שפה</a><button id="library-button" type="button" class="quiet-button library-header-button" data-i18n="library">הספרייה</button><button id="language-button" type="button" class="quiet-button" lang="en">English</button><button id="key-indicator" type="button" class="quiet-button key-indicator"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="7.5" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11.5 12H21M17 12v3.5M20 12v2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="key-badge" aria-hidden="true"></span></button><button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">מודל: Auto</span></button></div>
 </header>
 <main class="workspace">
 <section id="start-panel" aria-labelledby="main-title">
@@ -31,12 +31,13 @@
 <div class="field"><label for="font-before" data-i18n="lblFontBefore">גופן PDF (לפני תרגום)</label><select id="font-before"></select><small data-i18n="noteFontBefore">רלוונטי לקובצי PDF בלבד; EPUB שומר את העיצוב המקורי שלו.</small></div>
 </div>
 <div id="model-settings" class="model-settings" hidden>
-<p class="advanced-note" data-i18n="noteKeys">מודל משלי: המפתחות נשמרים בזיכרון השרת המקומי בלבד לאורך ההרצה, ולא בדיסק, בקובץ ההגדרות או בדפדפן. הפעלה חדשה של השרת מאפסת אותם.</p>
+<p class="advanced-note" data-i18n="noteKeys">מודל משלי: המפתחות נשמרים בזיכרון השרת המקומי לאורך ההרצה. כדי שיישארו גם אחרי סגירת התוכנית, סמנו "לזכור במחשב הזה": הם יישמרו מוצפנים במנהל האישורים של Windows בחשבון המשתמש שלכם, ולא בקובצי הפרויקט, בקובץ ההגדרות או בדפדפן.</p>
 <div class="role-block" data-role="translator"><h3 data-i18n="roleTranslator">מתרגם</h3><div class="role-fields"></div></div>
 <div class="role-block" data-role="semantic_reviewer"><h3 data-i18n="roleQa">בדיקת איכות (QA) <small>— כברירת מחדל כמו המתרגם</small></h3><div class="role-fields"></div></div>
 <details id="advanced-roles"><summary data-i18n="advRoles">בחירת מבקר פרקים מתקדמת (chapter_qa)</summary><div class="role-block" data-role="chapter_qa"><div class="role-fields"></div></div></details>
 <div class="key-fields"></div>
-<div class="field"><button id="save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="key-message" class="key-message" role="status"></span></div>
+<label class="remember-keys" hidden><input id="remember-keys" type="checkbox"> <span data-i18n="rememberKeys">לזכור במחשב הזה (מנהל האישורים של Windows)</span></label>
+<div class="field"><button id="save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="key-message" class="key-message" role="status"></span><button id="forget-keys" type="button" class="text-button forget-keys" hidden data-i18n="forgetKeys">מחיקת המפתחות השמורים מהמחשב</button></div>
 <div id="preview-card" class="preview-card" hidden><h3 data-i18n="previewTitle">אומדן עלות (לפני שליחה בפועל)</h3><div id="preview-body"></div></div>
 </div>
 </details>
@@ -57,8 +58,9 @@
 <div id="processing-budget" class="processing-budget" hidden></div>
 <div id="processing-usage" class="usage-summary" hidden></div>
 <div id="resume-keys" class="model-settings" hidden>
-<p class="advanced-note" data-i18n="noteResumeKeys">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. יש להזין אותם שוב כדי להמשיך.</p>
+<p class="advanced-note" data-i18n="noteResumeKeys">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. יש להזין אותם שוב כדי להמשיך (סמנו "לזכור" כדי שלא תצטרכו בפעם הבאה).</p>
 <div class="key-fields" id="resume-key-fields"></div>
+<label class="remember-keys" hidden><input id="resume-remember-keys" type="checkbox"> <span data-i18n="rememberKeys">לזכור במחשב הזה (מנהל האישורים של Windows)</span></label>
 <div class="field"><button id="resume-save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="resume-key-message" class="key-message" role="status"></span></div>
 </div>
 <div id="decision-box" class="decision-box" role="region" aria-labelledby="decision-title" hidden>

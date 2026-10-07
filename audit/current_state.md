@@ -1,4 +1,20 @@
-# Current state — CROSS-RESUME fix on main (after UI-POLISH)
+# Current state — REMEMBER-KEYS delivered to main (after CROSS-RESUME)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/remember_keys.md`.
+API keys can now be kept after the program closes: a "remember on this computer" checkbox (start,
+resume and learning key fields) stores them in the Windows Credential Manager for the current user
+(`key_store.py`, ctypes, no new dependency; target `ScholarlyTranslation/provider/<id>`); the server
+loads them at start. A key saved without the box, or cleared, also removes the stored copy; "delete
+saved keys" removes all stored copies but keeps them for the run. Header key icon: grey = no key,
+gold = key available, green dot = saved on this computer (tooltip lists providers). Keys still never
+reach HTTP responses, job/project files, logs, browser storage or os.environ. New
+tests/test_key_store.py (HTTP with an in-memory store + a real Credential Manager round trip under
+a test-only prefix, cleaned up). Help/UI README/ARCHITECTURE updated. Full offline suite 1265 OK
+(1 skipped). Paid/provider calls 0. Not pushed. Header and settings panel checked in headless
+Chrome (Hebrew + English) against a demo server with a fake store.
+Next: restart the UI at a safe moment (the AUTO-CONTINUE-WRITABLE note below still applies), enter
+the key once with the box ticked; later restarts need no key entry.
+
+## Previous: CROSS-RESUME fix on main (after UI-POLISH)
 Updated: 2026-10-07. Claude continuity, user-directed bug fix (no contract; pipeline ordering).
 Symptom: the UI showed "פרק 23 מתוך 64 הושלם. בדיקה רוחבית של פרקים 15–22". Evidence: Jade City
 75ec5d08 journal: window 14-21 started 07:24:57 right after chapter 22; a cross-correction answer

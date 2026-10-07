@@ -232,8 +232,11 @@ result before accounting/parsing, validation and completion. Received raw can
 reconcile its original ledger event exactly once and then replay locally;
 unknown dispatch blocks new automatic requests. Pause/resume uses saved source,
 configuration, units and state. UI credentials are per-session memory snapshots,
-injected per-job into resolved adapters; restart requires renewed credentials.
-Keys never enter persisted settings, job, journal, response or browser storage.
+injected per-job into resolved adapters; restart requires renewed credentials
+unless the user opted in to "remember on this computer", which keeps the key in
+the Windows Credential Manager (`key_store.py`, current user) and reloads it at
+server start. Keys never enter persisted settings, job, journal, response,
+project files or browser storage.
 
 Model catalogue and deterministic offline token sizing are dated and explicit
 about custom-price/mapping uncertainty. Observed estimated spend, held funds,

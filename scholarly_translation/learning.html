@@ -35,9 +35,10 @@
 
 <section id="key-section" class="card" aria-labelledby="key-title">
 <details><summary id="key-title">מפתח להכנת ספר</summary>
-<p class="muted">המפתח נשמר בזיכרון השרת המקומי בלבד לאורך הפעלה זו; אינו נשמר בדפדפן, בדיסק או בכתובת. אפשר גם להגדיר אותו <a href="/" target="_blank" rel="noopener">במסך התרגום הראשי</a>.</p>
+<p class="muted">המפתח נשמר בזיכרון השרת המקומי לאורך הפעלה זו; אינו נשמר בדפדפן או בכתובת. סימון "לזכור" שומר אותו מוצפן במנהל האישורים של Windows, כך שיישאר גם אחרי סגירת התוכנית. אפשר גם להגדיר אותו <a href="/" target="_blank" rel="noopener">במסך התרגום הראשי</a>.</p>
 <label for="learning-key">מפתח OpenAI</label>
 <input id="learning-key" type="password" autocomplete="off" dir="ltr">
+<label id="learning-remember" hidden><input id="learning-remember-key" type="checkbox"> לזכור במחשב הזה (מנהל האישורים של Windows)</label>
 <button id="save-key" type="button" class="secondary-button">שמירת מפתח</button>
 <span id="key-message" class="key-message" role="status"></span>
 </details>

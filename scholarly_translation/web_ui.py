@@ -215,7 +215,7 @@ def _document_in_progress(document_jobs) -> list[dict]:
     return documents
 
 
-def make_handler(token: str, model_config_path: str | None = None, *, learning_service=None):
+def make_handler(token: str, model_config_path: str | None = None, *, learning_service=None, key_store=None):
     from .document_draft import (
         DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download, validate_settings,
     )
@@ -231,10 +231,20 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         ModelConfiguration.from_dict(server_model_config)  # fail fast on an invalid deployment file
 
     session_settings = {"api_key": None}
-    # Memory-only provider API keys for the new multi-provider UI flow, keyed
-    # by provider_id. Never written to os.environ, disk, logs or any HTTP
-    # response; lost on server restart by design (resume re-supplies them).
+    # Provider API keys for the multi-provider UI flow, keyed by provider_id.
+    # Never written to os.environ, project/job files, logs or any HTTP
+    # response. Memory-only unless the user ticks "remember": then key_store
+    # (Windows Credential Manager) keeps them for later server runs.
     session_keys: dict[str, str] = {}
+    saved_key_ids: set[str] = set()
+    if key_store is not None:
+        try:
+            stored = {pid: key for pid, key in key_store.load_all().items()
+                      if _PROVIDER_ID_RE.fullmatch(pid) and key.strip() and "\n" not in key and "\r" not in key}
+        except OSError:
+            stored = {}
+        session_keys.update({pid: key.strip() for pid, key in stored.items()})
+        saved_key_ids.update(stored)
     session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
     document_jobs = DocumentJobs(OUTPUT_ROOT)
@@ -613,6 +623,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                         "pdf_fonts": list_pdf_fonts(),
                         "qa_roles": ["semantic_reviewer", "chapter_qa"],
                         "key_providers_available": available_keys,
+                        "key_providers_saved": {pid: True for pid in sorted(saved_key_ids)},
+                        "key_remember_supported": key_store is not None,
                         "configured_requirements": configured_requirements,
                     })
                 elif route.path == "/document-translate":
@@ -665,6 +677,14 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     self._json(200, document_jobs.resume(data.get("job_id"), adapter_factory=adapter_factory))
                 elif route.path == "/model-keys":
                     keys = data.get("keys")
+                    remember = data.get("remember")
+                    if remember is not None and not isinstance(remember, bool):
+                        raise ValueError("בקשת מפתחות אינה תקינה.")
+                    if data.get("forget_saved") is True and key_store is not None:
+                        with settings_lock:
+                            for provider_id in sorted(saved_key_ids):
+                                key_store.delete(provider_id)
+                                saved_key_ids.discard(provider_id)
                     if keys is not None:
                         if not isinstance(keys, dict):
                             raise ValueError("בקשת מפתחות אינה תקינה.")
@@ -683,17 +703,29 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                                 raise ValueError("מפתח API אינו תקין.")
                             updates[provider_id] = stripped
                         with settings_lock:
+                            if key_store is not None:
+                                # A replaced or cleared key never lingers in the
+                                # store; it is saved only when asked to remember.
+                                for provider_id in removals + list(updates):
+                                    if remember is True and provider_id in updates:
+                                        key_store.save(provider_id, updates[provider_id])
+                                        saved_key_ids.add(provider_id)
+                                    elif provider_id in saved_key_ids:
+                                        key_store.delete(provider_id)
+                                        saved_key_ids.discard(provider_id)
                             for provider_id in removals:
                                 session_keys.pop(provider_id, None)
                             session_keys.update(updates)
                     with settings_lock:
                         available = {pid: True for pid in session_keys}
+                        saved = {pid: True for pid in sorted(saved_key_ids)}
                     for pid, env in (("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")):
                         if os.environ.get(env):
                             available[pid] = True
                     if server_model_config:
                         available.update({pid: True for pid, key in _key_snapshot(ModelConfiguration.from_dict(server_model_config)).items() if key})
-                    self._json(200, {"available": available})
+                    self._json(200, {"available": available, "saved": saved,
+                                     "remember_supported": key_store is not None})
                 elif route.path == "/document-preview":
                     source = Path(data.get("path", "")).resolve()
                     if not source.is_relative_to((OUTPUT_ROOT / "uploads").resolve()) or not source.is_file():
@@ -907,7 +939,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
 def main() -> int:
     token = secrets.token_urlsafe(24)
     model_config_path = os.environ.get("SCHOLARLY_TRANSLATION_MODEL_CONFIG")
-    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(token, model_config_path))
+    from .key_store import default_key_store
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(token, model_config_path, key_store=default_key_store()))
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"Local UI: {url}", flush=True)
     webbrowser.open(url)
