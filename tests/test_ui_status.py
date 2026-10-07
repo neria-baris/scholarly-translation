@@ -50,7 +50,7 @@ class ResultCardTests(unittest.TestCase):
         self.assertNotIn("review_notes||[]).forEach(n=>notices", self.js)
 
     def test_notice_keeps_error_and_demo(self):
-        body = _function(self.js, "renderResult")
+        body = _function(self.js, "renderResultSummary")  # UI-EN split renderResult into summary + review reset
         self.assertIn("currentJob.error", body)
         self.assertIn("תצוגת ניסיון", body)
         self.assertIn("הקובץ מוכן. נרשמו הערות בדיקה ובנייה", body)

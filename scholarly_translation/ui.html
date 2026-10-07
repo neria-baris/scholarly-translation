@@ -7,129 +7,129 @@
 </head>
 <body>
 <header class="app-header">
-<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span>תרגום מסמכים</span></a>
-<div class="header-actions"><a id="help-header-link" class="quiet-button help-header-link" href="/help" target="_blank" rel="noopener">עזרה</a><a id="learning-header-link" class="quiet-button library-header-button" href="/learning" target="scholarly-learning" rel="noopener">למידת שפה</a><button id="library-button" type="button" class="quiet-button library-header-button">הספרייה</button><button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">מודל: Auto</span></button></div>
+<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית" data-i18n-aria="brandAria"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span data-i18n="brand">תרגום מסמכים</span></a>
+<div class="header-actions"><a id="help-header-link" class="quiet-button help-header-link" href="/help" target="_blank" rel="noopener" data-i18n="help">עזרה</a><a id="learning-header-link" class="quiet-button library-header-button" href="/learning" target="scholarly-learning" rel="noopener" data-i18n="learning">למידת שפה</a><button id="library-button" type="button" class="quiet-button library-header-button" data-i18n="library">הספרייה</button><button id="language-button" type="button" class="quiet-button" lang="en">English</button><button id="connection-button" class="quiet-button"><span class="connection-dot" id="connection-dot"></span><span id="connection-label">מודל: Auto</span></button></div>
 </header>
 <main class="workspace">
 <section id="start-panel" aria-labelledby="main-title">
-<div class="hero"><span class="eyebrow">PDF / EPUB · לעברית</span><h1 id="main-title">המסמך שלכם, <span>בעברית.</span></h1><p>מעלים קובץ PDF או EPUB, בוחרים איך לתרגם, ומורידים אותו מתורגם באותו פורמט.<br class="desktop-break"> אפשר לעבור עליו ולערוך — אם רוצים.</p></div>
+<div class="hero"><span class="eyebrow" data-i18n="heroEyebrow">PDF / EPUB · לעברית</span><h1 id="main-title" data-i18n="heroTitle">המסמך שלכם, <span>בעברית.</span></h1><p data-i18n="heroText">מעלים קובץ PDF או EPUB, בוחרים איך לתרגם, ומורידים אותו מתורגם באותו פורמט.<br class="desktop-break"> אפשר לעבור עליו ולערוך — אם רוצים.</p></div>
 <form id="translation-form" class="translate-card">
-<input id="document-file" class="visually-hidden" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" aria-label="בחרו PDF או EPUB">
-<div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="בחירת קובץ PDF או EPUB, או גרירתו לכאן">
-<div id="upload-empty"><span class="file-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M13 5h15l9 9v28H13zM28 5v10h9M20 24h10M20 30h10M20 36h6"/></svg></span><h2>בחרו קובץ או גררו אותו לכאן</h2><span class="choose-file">בחירת קובץ <span aria-hidden="true">←</span></span><p class="upload-note">PDF עם טקסט מוטמע, או EPUB · עד 25 MB</p></div>
-<div id="upload-selected" class="selected-file" hidden><span class="selected-file-icon" aria-hidden="true">↥</span><div><strong id="filename" dir="auto"></strong><span id="file-size"></span></div><span class="change-file">החלפה</span></div>
+<input id="document-file" class="visually-hidden" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" aria-label="בחרו PDF או EPUB" data-i18n-aria="fileAria">
+<div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="בחירת קובץ PDF או EPUB, או גרירתו לכאן" data-i18n-aria="dropAria">
+<div id="upload-empty"><span class="file-illustration" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M13 5h15l9 9v28H13zM28 5v10h9M20 24h10M20 30h10M20 36h6"/></svg></span><h2 data-i18n="dropTitle">בחרו קובץ או גררו אותו לכאן</h2><span class="choose-file" data-i18n="chooseFile">בחירת קובץ <span aria-hidden="true">←</span></span><p class="upload-note" data-i18n="uploadNote">PDF עם טקסט מוטמע, או EPUB · עד 25 MB</p></div>
+<div id="upload-selected" class="selected-file" hidden><span class="selected-file-icon" aria-hidden="true">↥</span><div><strong id="filename" dir="auto"></strong><span id="file-size"></span></div><span class="change-file" data-i18n="changeFile">החלפה</span></div>
 </div>
 <details id="translation-options" class="options">
-<summary><div class="option-summary"><span id="profile-summary">אקדמי</span><span class="separator">·</span><span id="quality-summary">מהיר</span><span class="separator">·</span><span id="model-summary">Auto</span></div><span class="options-label">אפשרויות <span class="chevron" aria-hidden="true">⌄</span></span></summary>
+<summary><div class="option-summary"><span id="profile-summary">אקדמי</span><span class="separator">·</span><span id="quality-summary">מהיר</span><span class="separator">·</span><span id="model-summary">Auto</span></div><span class="options-label" data-i18n="optionsLabel">אפשרויות <span class="chevron" aria-hidden="true">⌄</span></span></summary>
 <div class="settings-fields">
-<div class="field"><label for="profile">פרופיל תרגום</label><select id="profile"><option value="scholarly">אקדמי (מדויק, הערות ומינוח נשמרים)</option><option value="literary">ספרותי (זורם, נאמן לסגנון)</option></select></div>
-<div class="field"><label for="quality">רמת בדיקה</label><select id="quality"><option value="fast">מהיר — ללא בדיקה נוספת</option><option value="checked">נבדק — בדיקת מקטעים מסוכנים + בדיקת פרקים</option><option value="thorough">מעמיק — בדיקת כל מקטע + בדיקת פרקים</option></select><small id="quality-help">מהיר אינו שולח קריאות בדיקה נוספות; נבדק ומעמיק דורשים מודל מוגדר.</small></div>
-<div class="field"><label for="model">מודל</label><select id="model"><option value="auto">Auto — תצוגת ניסיון (מדומה), ללא עלות וללא תרגום אמיתי</option><option value="configured">מודל משלי (מפתח API)</option></select><small id="model-help">Auto אינו מבצע תרגום אמיתי ואינו מצריך מפתח API.</small></div>
-<div class="field"><label for="language">שפת המקור</label><select id="language"><option value="auto">זיהוי אוטומטי</option><option value="en">אנגלית</option><option value="fr">צרפתית</option><option value="ja">יפנית</option></select></div>
-<div class="field"><label for="budget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" required min="0.01" step="0.01" placeholder="לדוגמה 5" inputmode="decimal" dir="ltr"><small>חובה במודל משלי: אין תקרה מובנית; המגבלה שלכם נאכפת כעצירה קשיחה.</small></div>
-<div class="field"><label for="ocr-review">ספרים סרוקים (OCR)</label><select id="ocr-review"><option value="vision">זיהוי מקומי + בדיקת המודל מול תמונת העמוד</option><option value="off">זיהוי מקומי בלבד (ללא עלות)</option></select><small>עמודים בלי טקסט מוטמע מזוהים ב־Tesseract במחשב שלכם. בדיקת המודל משווה כל עמוד לתמונה שלו ומתקנת טעויות ונוסחאות; דורשת מודל שקורא תמונות.</small></div>
-<div class="field"><label for="font-before">גופן PDF (לפני תרגום)</label><select id="font-before"></select><small>רלוונטי לקובצי PDF בלבד; EPUB שומר את העיצוב המקורי שלו.</small></div>
+<div class="field"><label for="profile" data-i18n="lblProfile">פרופיל תרגום</label><select id="profile"><option value="scholarly" data-i18n="optScholarly">אקדמי (מדויק, הערות ומינוח נשמרים)</option><option value="literary" data-i18n="optLiterary">ספרותי (זורם, נאמן לסגנון)</option></select></div>
+<div class="field"><label for="quality" data-i18n="lblQuality">רמת בדיקה</label><select id="quality"><option value="fast" data-i18n="optFast">מהיר — ללא בדיקה נוספת</option><option value="checked" data-i18n="optChecked">נבדק — בדיקת מקטעים מסוכנים + בדיקת פרקים</option><option value="thorough" data-i18n="optThorough">מעמיק — בדיקת כל מקטע + בדיקת פרקים</option></select><small id="quality-help">מהיר אינו שולח קריאות בדיקה נוספות; נבדק ומעמיק דורשים מודל מוגדר.</small></div>
+<div class="field"><label for="model" data-i18n="lblModel">מודל</label><select id="model"><option value="auto" data-i18n="optAuto">Auto — תצוגת ניסיון (מדומה), ללא עלות וללא תרגום אמיתי</option><option value="configured" data-i18n="optConfigured">מודל משלי (מפתח API)</option></select><small id="model-help">Auto אינו מבצע תרגום אמיתי ואינו מצריך מפתח API.</small></div>
+<div class="field"><label for="language" data-i18n="lblLanguage">שפת המקור</label><select id="language"><option value="auto" data-i18n="optLangAuto">זיהוי אוטומטי</option><option value="en" data-i18n="optEn">אנגלית</option><option value="fr" data-i18n="optFr">צרפתית</option><option value="ja" data-i18n="optJa">יפנית</option></select></div>
+<div class="field"><label for="budget" data-i18n="lblBudget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" required min="0.01" step="0.01" placeholder="לדוגמה 5" inputmode="decimal" dir="ltr" data-i18n-ph="phBudget"><small data-i18n="noteBudget">חובה במודל משלי: אין תקרה מובנית; המגבלה שלכם נאכפת כעצירה קשיחה.</small></div>
+<div class="field"><label for="ocr-review" data-i18n="lblOcr">ספרים סרוקים (OCR)</label><select id="ocr-review"><option value="vision" data-i18n="optOcrVision">זיהוי מקומי + בדיקת המודל מול תמונת העמוד</option><option value="off" data-i18n="optOcrOff">זיהוי מקומי בלבד (ללא עלות)</option></select><small data-i18n="noteOcr">עמודים בלי טקסט מוטמע מזוהים ב־Tesseract במחשב שלכם. בדיקת המודל משווה כל עמוד לתמונה שלו ומתקנת טעויות ונוסחאות; דורשת מודל שקורא תמונות.</small></div>
+<div class="field"><label for="font-before" data-i18n="lblFontBefore">גופן PDF (לפני תרגום)</label><select id="font-before"></select><small data-i18n="noteFontBefore">רלוונטי לקובצי PDF בלבד; EPUB שומר את העיצוב המקורי שלו.</small></div>
 </div>
 <div id="model-settings" class="model-settings" hidden>
-<p class="advanced-note">מודל משלי: המפתחות נשמרים בזיכרון השרת המקומי בלבד לאורך ההרצה, ולא בדיסק, בקובץ ההגדרות או בדפדפן. הפעלה חדשה של השרת מאפסת אותם.</p>
-<div class="role-block" data-role="translator"><h3>מתרגם</h3><div class="role-fields"></div></div>
-<div class="role-block" data-role="semantic_reviewer"><h3>בדיקת איכות (QA) <small>— כברירת מחדל כמו המתרגם</small></h3><div class="role-fields"></div></div>
-<details id="advanced-roles"><summary>בחירת מבקר פרקים מתקדמת (chapter_qa)</summary><div class="role-block" data-role="chapter_qa"><div class="role-fields"></div></div></details>
+<p class="advanced-note" data-i18n="noteKeys">מודל משלי: המפתחות נשמרים בזיכרון השרת המקומי בלבד לאורך ההרצה, ולא בדיסק, בקובץ ההגדרות או בדפדפן. הפעלה חדשה של השרת מאפסת אותם.</p>
+<div class="role-block" data-role="translator"><h3 data-i18n="roleTranslator">מתרגם</h3><div class="role-fields"></div></div>
+<div class="role-block" data-role="semantic_reviewer"><h3 data-i18n="roleQa">בדיקת איכות (QA) <small>— כברירת מחדל כמו המתרגם</small></h3><div class="role-fields"></div></div>
+<details id="advanced-roles"><summary data-i18n="advRoles">בחירת מבקר פרקים מתקדמת (chapter_qa)</summary><div class="role-block" data-role="chapter_qa"><div class="role-fields"></div></div></details>
 <div class="key-fields"></div>
-<div class="field"><button id="save-keys" type="button" class="secondary-button">שמירת מפתחות API</button><span id="key-message" class="key-message" role="status"></span></div>
-<div id="preview-card" class="preview-card" hidden><h3>אומדן עלות (לפני שליחה בפועל)</h3><div id="preview-body"></div></div>
+<div class="field"><button id="save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="key-message" class="key-message" role="status"></span></div>
+<div id="preview-card" class="preview-card" hidden><h3 data-i18n="previewTitle">אומדן עלות (לפני שליחה בפועל)</h3><div id="preview-body"></div></div>
 </div>
 </details>
 <p id="form-message" class="message" role="alert" hidden></p>
 <button id="translate-button" type="submit" class="primary-button translate-button" disabled><span id="translate-label">תרגום לעברית</span><span aria-hidden="true">←</span></button>
 <p id="send-note" class="send-note">Auto: ללא עלות, ללא תרגום אמיתי. מודל מוגדר: לחיצה על תרגום תבקש אישור לשליחה לספק המודל.</p>
 </form>
-<div class="below-card"><button id="sample-button" class="text-button">נסו עם PDF דוגמה, ללא עלות</button><button id="recent-button" class="text-button" hidden></button><button id="library-start-button" type="button" class="text-button">הספרייה: כל התרגומים המוכנים <span aria-hidden="true">←</span></button></div>
-<p class="format-note">מתרגמים את מבנה המסמך (פסקאות, כותרות). קובץ PDF נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את מבנה הפרקים והעיצוב המקורי שלו.</p>
+<div class="below-card"><button id="sample-button" class="text-button" data-i18n="sampleBtn">נסו עם PDF דוגמה, ללא עלות</button><button id="recent-button" class="text-button" hidden></button><button id="library-start-button" type="button" class="text-button" data-i18n="libraryStart">הספרייה: כל התרגומים המוכנים <span aria-hidden="true">←</span></button></div>
+<p class="format-note" data-i18n="formatNote">מתרגמים את מבנה המסמך (פסקאות, כותרות). קובץ PDF נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את מבנה הפרקים והעיצוב המקורי שלו.</p>
 </section>
 <section id="processing-panel" class="processing-panel" aria-live="polite" hidden>
 <div id="processing-book-host"><div id="pixel-book" class="pixel-book" data-phase="start" aria-hidden="true">
 <div class="book-sprite"></div>
 </div><p id="processing-percentage" class="processing-percentage">0%</p></div>
-<span class="eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p>
-<progress id="translation-progress" max="100" aria-label="התקדמות התרגום"></progress>
+<span class="eyebrow" data-i18n="procEyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p>
+<progress id="translation-progress" max="100" aria-label="התקדמות התרגום" data-i18n-aria="progressAria"></progress>
 <p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
 <div id="processing-budget" class="processing-budget" hidden></div>
 <div id="processing-usage" class="usage-summary" hidden></div>
 <div id="resume-keys" class="model-settings" hidden>
-<p class="advanced-note">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. יש להזין אותם שוב כדי להמשיך.</p>
+<p class="advanced-note" data-i18n="noteResumeKeys">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. יש להזין אותם שוב כדי להמשיך.</p>
 <div class="key-fields" id="resume-key-fields"></div>
-<div class="field"><button id="resume-save-keys" type="button" class="secondary-button">שמירת מפתחות API</button><span id="resume-key-message" class="key-message" role="status"></span></div>
+<div class="field"><button id="resume-save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="resume-key-message" class="key-message" role="status"></span></div>
 </div>
 <div id="decision-box" class="decision-box" role="region" aria-labelledby="decision-title" hidden>
-<h2 id="decision-title">נדרשת החלטה שלכם כדי להמשיך</h2>
+<h2 id="decision-title" data-i18n="decisionTitle">נדרשת החלטה שלכם כדי להמשיך</h2>
 <p id="decision-message"></p>
 <div id="decision-options" class="decision-options"></div>
-<p class="decision-note">ההחלטה נרשמת ביומן העלויות. שום קריאה לספק לא נשלחת עד שהעבודה ממשיכה.</p>
+<p class="decision-note" data-i18n="decisionNote">ההחלטה נרשמת ביומן העלויות. שום קריאה לספק לא נשלחת עד שהעבודה ממשיכה.</p>
 <p id="decision-error" class="message" role="alert" hidden></p>
 </div>
 <div id="recheck-box" class="decision-box" role="region" aria-labelledby="recheck-title" hidden>
-<h2 id="recheck-title">תשובות בקורת שמורות שלא נוצלו</h2>
+<h2 id="recheck-title" data-i18n="recheckTitle">תשובות בקורת שמורות שלא נוצלו</h2>
 <p id="recheck-message"></p>
-<div class="decision-options"><div class="decision-option"><button id="recheck-button" type="button" class="secondary-button">לבדוק אותן מחדש (בלי קריאה לספק)</button></div></div>
-<p class="decision-note">הבדיקה קוראת שוב את התשובות השמורות. פרקים שנמצאו בהם ממצאים מהותיים נפתחים מחדש, והתיקונים עצמם נשלחים לספק רק כשהעבודה ממשיכה.</p>
+<div class="decision-options"><div class="decision-option"><button id="recheck-button" type="button" class="secondary-button" data-i18n="recheckBtn">לבדוק אותן מחדש (בלי קריאה לספק)</button></div></div>
+<p class="decision-note" data-i18n="recheckNote">הבדיקה קוראת שוב את התשובות השמורות. פרקים שנמצאו בהם ממצאים מהותיים נפתחים מחדש, והתיקונים עצמם נשלחים לספק רק כשהעבודה ממשיכה.</p>
 <p id="recheck-error" class="message" role="alert" hidden></p>
 </div>
 <div id="cross-review-box" class="decision-box" role="region" aria-labelledby="cross-review-title" hidden>
-<h2 id="cross-review-title">בדיקה רוחבית של הספר</h2>
-<p id="cross-review-message">קודם נבנית טבלת שמות: המודל קורא את הספר המקורי, קטע אחר קטע, ומרכז שמות, תארים ומונחים מומצאים; בספר עיוני גם הוגים ומחברים, חיבורים מצוטטים ומונחי מפתח (מותר ניקוד); הטבלה ננעלת. אחר כך הבדיקה משווה את המקור עם התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …); הפרק החופף, שכבר נבדק, הוא הקובע. שמות, מונחים, הפניות ורצף לא עקביים מתוקנים אוטומטית ונבדקים שוב, והנוסח העברי הקודם נשמר.</p>
+<h2 id="cross-review-title" data-i18n="crossTitle">בדיקה רוחבית של הספר</h2>
+<p id="cross-review-message" data-i18n="crossText">קודם נבנית טבלת שמות: המודל קורא את הספר המקורי, קטע אחר קטע, ומרכז שמות, תארים ומונחים מומצאים; בספר עיוני גם הוגים ומחברים, חיבורים מצוטטים ומונחי מפתח (מותר ניקוד); הטבלה ננעלת. אחר כך הבדיקה משווה את המקור עם התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …); הפרק החופף, שכבר נבדק, הוא הקובע. שמות, מונחים, הפניות ורצף לא עקביים מתוקנים אוטומטית ונבדקים שוב, והנוסח העברי הקודם נשמר.</p>
 <div class="decision-options"><div class="decision-option"><button id="cross-review-button" type="button" class="secondary-button">להכין בדיקה רוחבית</button></div></div>
-<p class="decision-note">קריאות בתשלום לספק מתחילות רק כשתלחצו ״המשך״. הרצה חוזרת שולחת מחדש רק טקסט שהשתנה.</p>
-<p id="cross-review-done" class="message" role="status" hidden>הבדיקה הוכנה. לחצו ״המשך״ כדי להריץ אותה.</p>
+<p class="decision-note" data-i18n="crossNote">קריאות בתשלום לספק מתחילות רק כשתלחצו ״המשך״. הרצה חוזרת שולחת מחדש רק טקסט שהשתנה.</p>
+<p id="cross-review-done" class="message" role="status" hidden data-i18n="crossDone">הבדיקה הוכנה. לחצו ״המשך״ כדי להריץ אותה.</p>
 <p id="cross-review-error" class="message" role="alert" hidden></p>
 </div>
-<div class="processing-actions"><button id="pause-button" class="secondary-button" hidden>השהיה</button><button id="resume-button" class="secondary-button" hidden>המשך</button></div>
+<div class="processing-actions"><button id="pause-button" class="secondary-button" hidden data-i18n="pauseBtn">השהיה</button><button id="resume-button" class="secondary-button" hidden data-i18n="resumeBtn">המשך</button></div>
 </section>
 <section id="result-panel" hidden aria-labelledby="result-title">
 <div id="result-book-host" class="result-book-host"></div>
 <div class="result-heading"><span id="result-symbol" class="result-symbol" aria-hidden="true">✓</span><span class="eyebrow" id="result-eyebrow">התרגום שלכם</span><h1 id="result-title">התרגום מוכן.</h1><p id="result-filename" dir="auto"></p></div>
-<div class="result-card"><div class="result-file"><span class="result-file-icon" aria-hidden="true">↓</span><div><strong id="download-filename" dir="auto"></strong><span id="result-meta"></span></div><span class="draft-badge">טיוטה</span></div>
+<div class="result-card"><div class="result-file"><span class="result-file-icon" aria-hidden="true">↓</span><div><strong id="download-filename" dir="auto"></strong><span id="result-meta"></span></div><span class="draft-badge" data-i18n="draftBadge">טיוטה</span></div>
 <p id="result-notice" class="result-notice" hidden></p>
 <p id="result-exceptions" class="result-notice" hidden></p>
-<details id="result-details" class="result-details" hidden><summary>פרטים על הבדיקה והקובץ</summary>
+<details id="result-details" class="result-details" hidden><summary data-i18n="detailsSummary">פרטים על הבדיקה והקובץ</summary>
 <div id="result-limitations" class="status-section" hidden></div>
 <div id="result-notes" class="status-section" hidden></div>
 <p id="result-findings" class="status-section" hidden></p>
 <div id="result-usage" class="usage-summary" hidden></div></details>
-<div id="result-cross-review" class="decision-box" role="region" aria-labelledby="result-cross-review-title" hidden><h2 id="result-cross-review-title">בדיקה רוחבית של הספר</h2><p>קודם נבנית טבלת שמות: המודל קורא את הספר המקורי, קטע אחר קטע, ומרכז שמות, תארים ומונחים מומצאים; בספר עיוני גם הוגים ומחברים, חיבורים מצוטטים ומונחי מפתח (מותר ניקוד); הטבלה ננעלת. אחר כך הבדיקה משווה את המקור עם התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …); הפרק החופף, שכבר נבדק, הוא הקובע. שמות, מונחים, הפניות ורצף לא עקביים מתוקנים אוטומטית ונבדקים שוב, והנוסח העברי הקודם נשמר.</p><div class="decision-options"><div class="decision-option"><button id="result-cross-review-button" type="button" class="secondary-button">להכין בדיקה רוחבית</button></div></div><p class="decision-note">קריאות בתשלום לספק מתחילות רק כשתלחצו ״המשך״. הרצה חוזרת שולחת מחדש רק טקסט שהשתנה.</p><p id="result-cross-review-error" class="message" role="alert" hidden></p></div>
-<details id="result-notebook" class="options" hidden><summary><span class="options-label">מחברת הספר (אופציונלי)</span><span class="chevron" aria-hidden="true">⌄</span></summary><p class="usage-summary">המודל מתעד במהלך התרגום שמות, מונחים ובחירות תרגום לשמירה על עקביות. אין צורך לעשות דבר; אפשר להוריד לעיון.</p><button id="download-notebook" class="text-button">הורדת המחברת (Markdown) <span aria-hidden="true">↓</span></button><ol id="notebook-summaries" class="usage-summary"></ol></details>
-<div class="field" id="font-after-field" hidden><label for="font-after">גופן PDF (לאחר תרגום)</label><select id="font-after"></select><small>החלפת גופן בונה מחדש את ה־PDF בלבד; אינה שולחת קריאה למודל.</small></div>
-<div class="result-actions"><button id="download-pdf" class="primary-button">הורדת הקובץ המתורגם <span aria-hidden="true">↓</span></button></div>
-<div class="result-secondary"><button id="review-button" class="text-button">בדיקה ועריכה (לבחירתכם) <span aria-hidden="true">←</span></button><span id="cost-summary"></span></div></div>
+<div id="result-cross-review" class="decision-box" role="region" aria-labelledby="result-cross-review-title" hidden><h2 id="result-cross-review-title" data-i18n="crossTitle">בדיקה רוחבית של הספר</h2><p data-i18n="crossText">קודם נבנית טבלת שמות: המודל קורא את הספר המקורי, קטע אחר קטע, ומרכז שמות, תארים ומונחים מומצאים; בספר עיוני גם הוגים ומחברים, חיבורים מצוטטים ומונחי מפתח (מותר ניקוד); הטבלה ננעלת. אחר כך הבדיקה משווה את המקור עם התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …); הפרק החופף, שכבר נבדק, הוא הקובע. שמות, מונחים, הפניות ורצף לא עקביים מתוקנים אוטומטית ונבדקים שוב, והנוסח העברי הקודם נשמר.</p><div class="decision-options"><div class="decision-option"><button id="result-cross-review-button" type="button" class="secondary-button">להכין בדיקה רוחבית</button></div></div><p class="decision-note" data-i18n="crossNote">קריאות בתשלום לספק מתחילות רק כשתלחצו ״המשך״. הרצה חוזרת שולחת מחדש רק טקסט שהשתנה.</p><p id="result-cross-review-error" class="message" role="alert" hidden></p></div>
+<details id="result-notebook" class="options" hidden><summary><span class="options-label" data-i18n="nbTitle">מחברת הספר (אופציונלי)</span><span class="chevron" aria-hidden="true">⌄</span></summary><p class="usage-summary" data-i18n="nbText">המודל מתעד במהלך התרגום שמות, מונחים ובחירות תרגום לשמירה על עקביות. אין צורך לעשות דבר; אפשר להוריד לעיון.</p><button id="download-notebook" class="text-button" data-i18n="nbDownload">הורדת המחברת (Markdown) <span aria-hidden="true">↓</span></button><ol id="notebook-summaries" class="usage-summary"></ol></details>
+<div class="field" id="font-after-field" hidden><label for="font-after" data-i18n="lblFontAfter">גופן PDF (לאחר תרגום)</label><select id="font-after"></select><small data-i18n="noteFontAfter">החלפת גופן בונה מחדש את ה־PDF בלבד; אינה שולחת קריאה למודל.</small></div>
+<div class="result-actions"><button id="download-pdf" class="primary-button" data-i18n="downloadBtn">הורדת הקובץ המתורגם <span aria-hidden="true">↓</span></button></div>
+<div class="result-secondary"><button id="review-button" class="text-button" data-i18n="reviewBtn">בדיקה ועריכה (לבחירתכם) <span aria-hidden="true">←</span></button><span id="cost-summary"></span></div></div>
 <div id="review-panel" class="review-panel" hidden>
-<div class="review-toolbar"><div><h2>מקור לצד תרגום</h2><p id="review-location"></p></div><select id="unit-select" aria-label="בחירת מקטע לבדיקה"></select><button id="close-review" class="quiet-button" aria-label="סגירת הבדיקה">✕</button></div>
-<div class="review-columns"><section><h3>מקור</h3><div id="review-source" class="source-copy" dir="auto"></div></section><section><h3>תרגום · אפשר לערוך</h3><textarea id="review-target" dir="rtl" aria-label="עריכת התרגום"></textarea></section></div>
-<div id="review-findings" class="review-findings"></div><div class="review-actions"><button id="save-edit" class="primary-button">שמירת שינויים</button><span id="review-message" role="status"></span><span class="review-note">השמירה מעדכנת את הקובץ להורדה.</span></div></div>
-<div class="result-bottom"><button id="new-document" class="text-button">← תרגום מסמך נוסף</button><p>טיוטה אוטומטית; אפשר להוריד מיד, ואפשר לבדוק קודם.</p></div>
+<div class="review-toolbar"><div><h2 data-i18n="reviewTitle">מקור לצד תרגום</h2><p id="review-location"></p></div><select id="unit-select" aria-label="בחירת מקטע לבדיקה" data-i18n-aria="unitAria"></select><button id="close-review" class="quiet-button" aria-label="סגירת הבדיקה" data-i18n-aria="closeReviewAria">✕</button></div>
+<div class="review-columns"><section><h3 data-i18n="srcHead">מקור</h3><div id="review-source" class="source-copy" dir="auto"></div></section><section><h3 data-i18n="tgtHead">תרגום · אפשר לערוך</h3><textarea id="review-target" dir="rtl" aria-label="עריכת התרגום" data-i18n-aria="editAria"></textarea></section></div>
+<div id="review-findings" class="review-findings"></div><div class="review-actions"><button id="save-edit" class="primary-button" data-i18n="saveEditBtn">שמירת שינויים</button><span id="review-message" role="status"></span><span class="review-note" data-i18n="reviewNote">השמירה מעדכנת את הקובץ להורדה.</span></div></div>
+<div class="result-bottom"><button id="new-document" class="text-button" data-i18n="newDoc">← תרגום מסמך נוסף</button><p data-i18n="draftNote">טיוטה אוטומטית; אפשר להוריד מיד, ואפשר לבדוק קודם.</p></div>
 </section>
 <section id="library-panel" class="library-panel" aria-labelledby="library-title" hidden>
-<div class="library-heading"><span class="eyebrow">הספרייה</span><h1 id="library-title" tabindex="-1">התרגומים שלכם</h1><p id="library-intro">כל המסמכים שתרגומם הושלם ונשמר במחשב שלכם. לחצו על מסמך כדי להוריד אותו.</p>
-<div class="library-tabs" role="tablist" aria-label="סוג המסמכים בספרייה"><button type="button" role="tab" id="library-tab-done" class="library-tab" aria-selected="true" aria-controls="library-list">מוכנים</button><button type="button" role="tab" id="library-tab-progress" class="library-tab" aria-selected="false" aria-controls="library-list">בתהליך עבודה</button></div></div>
+<div class="library-heading"><span class="eyebrow" data-i18n="library">הספרייה</span><h1 id="library-title" tabindex="-1" data-i18n="libTitle">התרגומים שלכם</h1><p id="library-intro">כל המסמכים שתרגומם הושלם ונשמר במחשב שלכם. לחצו על מסמך כדי להוריד אותו.</p>
+<div class="library-tabs" role="tablist" aria-label="סוג המסמכים בספרייה" data-i18n-aria="libTabsAria"><button type="button" role="tab" id="library-tab-done" class="library-tab" aria-selected="true" aria-controls="library-list" data-i18n="tabDone">מוכנים</button><button type="button" role="tab" id="library-tab-progress" class="library-tab" aria-selected="false" aria-controls="library-list" data-i18n="tabProgress">בתהליך עבודה</button></div></div>
 <div class="library-card">
 <p id="library-status" class="library-status" role="status"></p>
 <p id="library-message" class="message" role="alert" hidden></p>
 <p id="library-empty" class="library-empty" hidden>עדיין אין בספרייה תרגומים שהושלמו. מסמך שתרגומו יושלם יופיע כאן.</p>
 <ul id="library-list" class="library-list"></ul>
 </div>
-<div class="result-bottom"><button id="library-back" type="button" class="text-button">← חזרה</button></div>
+<div class="result-bottom"><button id="library-back" type="button" class="text-button" data-i18n="back">← חזרה</button></div>
 </section>
 </main>
-<footer class="app-footer"><span>הקובץ והתוצאה נשמרים במחשב שלכם.</span><a href="/help" target="_blank" rel="noopener">עזרה</a></footer>
+<footer class="app-footer"><span data-i18n="footerNote">הקובץ והתוצאה נשמרים במחשב שלכם.</span><a href="/help" target="_blank" rel="noopener" data-i18n="help">עזרה</a></footer>
 <dialog id="provider-consent" aria-labelledby="provider-consent-title">
-<h2 id="provider-consent-title">אישור שליחה לספקים</h2>
+<h2 id="provider-consent-title" data-i18n="consentTitle">אישור שליחה לספקים</h2>
 <p id="provider-consent-detail"></p>
-<p>התרגום והבדיקות משתמשים באותו תקציב למסמך. זו מגבלת אומדן מקומית לפי המחירון, ולא מגבלת חיוב בחשבון הספק.</p>
-<div class="dialog-actions"><button id="confirm-provider-send" type="button" class="primary-button">אישור והתחלת תרגום</button><button id="cancel-provider-send" type="button" class="quiet-button">ביטול</button></div>
+<p data-i18n="consentText">התרגום והבדיקות משתמשים באותו תקציב למסמך. זו מגבלת אומדן מקומית לפי המחירון, ולא מגבלת חיוב בחשבון הספק.</p>
+<div class="dialog-actions"><button id="confirm-provider-send" type="button" class="primary-button" data-i18n="consentOk">אישור והתחלת תרגום</button><button id="cancel-provider-send" type="button" class="quiet-button" data-i18n="cancel">ביטול</button></div>
 </dialog>
 <dialog id="connection-dialog" aria-labelledby="connection-title">
-<div class="dialog-heading"><h2 id="connection-title">מודל תרגום</h2><button id="close-connection" class="quiet-button" aria-label="סגירה">✕</button></div>
+<div class="dialog-heading"><h2 id="connection-title" data-i18n="connTitle">מודל תרגום</h2><button id="close-connection" class="quiet-button" aria-label="סגירה" data-i18n-aria="closeAria">✕</button></div>
 <p id="connection-detail">Auto הוא מצב תצוגת ניסיון בלבד, ללא עלות וללא תרגום אמיתי.</p>
-<div class="dialog-actions"><button id="close-connection-ok" class="primary-button">סגירה</button></div>
+<div class="dialog-actions"><button id="close-connection-ok" class="primary-button" data-i18n="close">סגירה</button></div>
 </dialog>
 <script>window.UI_CONFIG = __CONFIG__;</script><script src="/ui.js"></script>
 </body></html>

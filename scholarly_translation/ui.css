@@ -51,3 +51,9 @@ dialog{border:1px solid var(--line);border-radius:17px;width:min(470px,calc(100%
 .usage-table{border-collapse:collapse;font-size:11px;margin:6px auto;max-width:100%}.usage-table th,.usage-table td{padding:2px 8px;text-align:start;border-bottom:1px solid var(--line)}
 .usage-more{font-size:11px;margin:4px 0}.usage-more summary{cursor:pointer;color:var(--muted)}
 .result-details{margin:10px 0;font-size:12px}.result-details>summary{cursor:pointer;color:var(--teal);font-weight:600}.result-details ul{margin:4px 0 8px;padding-inline-start:18px}.result-details .status-section{margin:8px 0;line-height:1.6}
+/* UI-EN: English interface (html[dir=ltr]); Hebrew content keeps its own direction. */
+#language-button{font-weight:600;color:var(--teal)}
+html[dir=ltr] .review-columns section{direction:ltr}
+html[dir=ltr] .review-columns #review-target{direction:rtl}
+html[dir=ltr] .hero h1{letter-spacing:-1px}
+html[dir=ltr] .option-summary>span:first-child{direction:ltr}
