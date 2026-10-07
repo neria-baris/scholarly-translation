@@ -1,11 +1,20 @@
 """Automatic resend only after an explicit unprocessed provider rejection (HTTP 429/5xx
-before any output). Ambiguous failures (connection, timeout, mid-stream) are never resent."""
+before any output) or a connection that never opened. Ambiguous failures (dropped
+connection, read timeout, mid-stream) are never resent."""
 import unittest
 from types import SimpleNamespace
 
 from scholarly_translation.model_adapter import (
     AnthropicTextGenerationAdapter, OpenAITextGenerationAdapter, REJECTION_RETRY_DELAYS,
 )
+
+
+def not_connected(name="ConnectError"):
+    """An SDK connection error caused by an httpx error that never opened a connection."""
+    cause = type(name, (Exception,), {"__module__": "httpx"})("connect failed")
+    error = type("APIConnectionError", (Exception,), {})("Connection error.")
+    error.__cause__ = cause
+    return error
 
 
 class StatusError(Exception):
@@ -67,6 +76,17 @@ class RejectionRetryTests(unittest.TestCase):
             self.assertEqual(result.status, "failed_transport")
             self.assertEqual(self.create.sent, 1, error)
             self.assertEqual(self.slept, [])
+
+    def test_connection_that_never_opened_is_resent(self):
+        for name in ("ConnectError", "ConnectTimeout"):
+            result = self.adapter(not_connected(name), openai_response()).generate("p", "gpt-6-luna")
+            self.assertEqual(result.status, "completed", name)
+            self.assertEqual((self.create.sent, self.slept), (2, [REJECTION_RETRY_DELAYS[0]]))
+
+    def test_dropped_connection_is_not_resent_and_names_the_error(self):
+        result = self.adapter(not_connected("ReadError"), openai_response()).generate("p", "gpt-6-luna")
+        self.assertEqual((result.status, self.create.sent), ("failed_transport", 1))
+        self.assertIn("transport or timeout: APIConnectionError <- ReadError", result.error)
 
     def test_stream_failure_after_output_started_is_not_resent(self):
         sent = []

@@ -23,12 +23,16 @@ _CROSS_QA_STAGE = "cross-chapter-qa"
 _VISION_STAGE = "ocr-vision"
 _SKIP_VISION_LABEL = "להמשיך בלי בדיקת המודל (טקסט ה־OCR המקומי בלבד)"
 SHORT_STORY_WORDS = 300
-# User rule (2026-10-06): an unknown-outcome call whose whole held charge is below
-# this is accepted and retried without asking; at or above it the user decides.
+# User rule (2026-10-06, sharpened 2026-10-07): unknown-outcome calls are accepted at
+# their held charge and retried without asking while the charges accepted automatically
+# in a row, plus this one, stay below this; at or above it the user decides.
 AUTO_ACCEPT_BELOW_USD = 1.0
-# A call that keeps ending unknown stops for the user after this many automatic
-# retries in a row (a row breaks once any other call is reserved in between).
-AUTO_ACCEPT_MAX_STREAK = 3
+# Backstop for a call that keeps failing although each hold is tiny (a row breaks once
+# any other call is reserved in between).
+AUTO_ACCEPT_MAX_STREAK = 10
+# Seconds to wait before automatic retry n of a row (the last value repeats): an
+# outage usually outlasts an immediate resend.
+AUTO_RETRY_DELAYS = (15, 60, 120, 300)
 
 
 class BlockDecisionError(ValueError):
@@ -169,22 +173,39 @@ def diagnose(job, store, journal):
     return None
 
 
-def auto_decision(job, store, journal):
-    """The option to apply without asking, or None when the user must decide.
-    Only an unknown-outcome block whose total held charge is below
-    ``AUTO_ACCEPT_BELOW_USD`` qualifies, at most ``AUTO_ACCEPT_MAX_STREAK``
-    times in a row."""
-    block = diagnose(job, store, journal)
-    if block is None or block["kind"] != "unknown_outcome":
-        return None
-    if sum(c["held_usd"] for c in store.uncertain_calls(job["job_id"])) >= AUTO_ACCEPT_BELOW_USD:
-        return None
-    calls, streak = store.status(job["job_id"])["attempted_calls"], 0
+def _auto_row(job, calls):
+    """The automatic decisions at the end of ``job["decisions"]`` that form one row
+    ending at ``calls`` attempted calls (no other call reserved in between)."""
+    row = []
     for decision in reversed(job.get("decisions", [])):
         if not decision.get("auto") or calls - decision.get("calls", 0) > 1:
             break
-        streak, calls = streak + 1, decision.get("calls", 0)
-    return None if streak >= AUTO_ACCEPT_MAX_STREAK else "accept_worst_case_and_retry"
+        row.append(decision)
+        calls = decision.get("calls", 0)
+    return row
+
+
+def auto_decision(job, store, journal):
+    """The option to apply without asking, or None when the user must decide.
+    Only an unknown-outcome block qualifies, and only while the charges accepted
+    automatically in the current row plus the held charge now stay below
+    ``AUTO_ACCEPT_BELOW_USD`` (and the row is shorter than ``AUTO_ACCEPT_MAX_STREAK``)."""
+    block = diagnose(job, store, journal)
+    if block is None or block["kind"] != "unknown_outcome":
+        return None
+    row = _auto_row(job, store.status(job["job_id"])["attempted_calls"])
+    accepted = sum(c.get("charged_usd") or 0.0 for d in row for c in d.get("accepted_charges", []))
+    held = sum(c["held_usd"] for c in store.uncertain_calls(job["job_id"]))
+    if accepted + held >= AUTO_ACCEPT_BELOW_USD or len(row) >= AUTO_ACCEPT_MAX_STREAK:
+        return None
+    return "accept_worst_case_and_retry"
+
+
+def auto_retry_delay(job):
+    """Seconds to wait before resending after the automatic decision just recorded."""
+    last = job["decisions"][-1]
+    position = len(_auto_row(job, last.get("calls", 0))) - 1
+    return AUTO_RETRY_DELAYS[min(max(position, 0), len(AUTO_RETRY_DELAYS) - 1)]
 
 
 def _reset_stuck(job, journal, stage=None, store=None, identity=None):

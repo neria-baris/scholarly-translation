@@ -3,6 +3,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
@@ -10,7 +11,9 @@ from reportlab.pdfgen import canvas
 from scholarly_translation.document_draft import (
     DocumentDraftError, DocumentJobs, extract_structure, render_download, validate_settings,
 )
+from scholarly_translation import job_blocks
 from scholarly_translation.model_adapter import TextGenerationResult
+from scholarly_translation.work_journal import WorkJournal
 from scholarly_translation.translation_profiles import style_profile_text
 
 import pdf_fixture
@@ -527,10 +530,19 @@ class DocumentDraftTests(unittest.TestCase):
         config = _json.loads(_json.dumps(MOCK_MODEL_CONFIG))
         config["models"]["chapter_qa"]["capabilities"] = {"context_window": 16000, "usable_context_tokens": 14000}
         config["models"]["translator"]["capabilities"] = {"context_window": 10000, "usable_context_tokens": 8000}
-        jobs, job = self.run_job(
-            {"model": "configured", "budget_usd": 2.0, "model_config": config, "quality": "fast", "automation": True},
-            adapter_factory=self.make_adapter_factory(translator=translator, chapter_qa=Keeper()),
-        )
+        with mock.patch.object(job_blocks, "AUTO_RETRY_DELAYS", (1.0,)):
+            jobs, job = self.run_job(
+                {"model": "configured", "budget_usd": 2.0, "model_config": config, "quality": "fast", "automation": True},
+                adapter_factory=self.make_adapter_factory(translator=translator, chapter_qa=Keeper()),
+            )
+            deadline = time.monotonic() + 5
+            while job["status"] == "failed" and time.monotonic() < deadline:
+                time.sleep(0.01)
+                job = jobs.get(job["job_id"])
+        # Waiting before the automatic resend: paused with a visible note, no decision box.
+        self.assertEqual(job["status"], "paused")
+        self.assertIn("ניסיון חוזר אוטומטי", job["stage_label"])
+        self.assertIsNone(jobs.blocker(job["job_id"], job))
         deadline = time.monotonic() + 10
         while (job["status"] != "completed" or jobs.active) and time.monotonic() < deadline:
             time.sleep(0.01)
@@ -541,6 +553,25 @@ class DocumentDraftTests(unittest.TestCase):
                          ("unknown_outcome", "accept_worst_case_and_retry", True))
         self.assertEqual(len(decision["accepted_charges"]), 1)
         self.assertGreater(translator.calls, 1)
+
+    def test_automatic_resend_waits_for_a_pause_the_user_pressed(self):
+        jobs = DocumentJobs(self.root)
+        job_id = "b" * 32
+        folder = self.root / "documents" / job_id
+        folder.mkdir(parents=True)
+        with WorkJournal(folder / "journal.sqlite3") as journal:
+            journal.pause(job_id)
+        (folder / "job.json").write_text(json.dumps({"job_id": job_id, "status": "paused", "auto_retry": "t",
+                                                     "settings": {"automation": True}}), encoding="utf-8")
+        with mock.patch.object(jobs, "resume") as resume:
+            jobs._auto_resume(job_id, "t")
+            resume.assert_not_called()
+            with WorkJournal(folder / "journal.sqlite3", create=False) as journal:
+                journal.resume(job_id)
+            jobs._auto_resume(job_id, "stale")
+            resume.assert_not_called()
+            jobs._auto_resume(job_id, "t")
+            resume.assert_called_once_with(job_id)
 
     def test_automation_false_keeps_the_legacy_per_unit_path(self):
         translator = FakeTranslationAdapter()

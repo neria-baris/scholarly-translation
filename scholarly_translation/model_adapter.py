@@ -446,16 +446,39 @@ class TextGenerationAdapter:
 
 # An HTTP error status returned before any output means the provider rejected the
 # request without processing it (rate limit, overload, server error), so it is not
-# billed and may be sent again. Connection errors, timeouts and failures after output
-# started are ambiguous and are never retried here.
+# billed and may be sent again. So may a connection that never opened (httpx
+# ConnectError/ConnectTimeout under the SDK error): nothing reached the provider.
+# Other connection errors, read timeouts and failures after output started are
+# ambiguous and are never retried here.
 RETRYABLE_REJECTION_STATUS = frozenset({429, 500, 502, 503, 504, 529})
 REJECTION_RETRY_DELAYS = (2.0, 8.0, 20.0)
 MAX_RETRY_AFTER_SECONDS = 60.0
 
 
+_NOT_CONNECTED = ("ConnectError", "ConnectTimeout")
+
+
+def _never_connected(exc):
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if any(c.__name__ in _NOT_CONNECTED and c.__module__.split(".")[0] in ("httpx", "httpcore")
+               for c in type(exc).__mro__):
+            return True
+        exc = exc.__cause__
+    return False
+
+
 def _rejected_unprocessed(exc):
     status = getattr(exc, "status_code", None)
-    return type(status) is int and status in RETRYABLE_REJECTION_STATUS
+    return type(status) is int and status in RETRYABLE_REJECTION_STATUS or _never_connected(exc)
+
+
+def _failure_kind(exc):
+    """The exception class (and its cause's) for the error text, e.g.
+    "APIConnectionError <- ConnectError"; never the message, which may echo input."""
+    cause = exc.__cause__
+    return type(exc).__name__ + (" <- " + type(cause).__name__ if cause is not None else "")
 
 
 def _retry_delay(exc, default):
@@ -654,12 +677,12 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
                         return stream.get_final_response()
                 return client.responses.create(**payload)
             response = _with_rejection_retry(attempt, start, self._max_wall_seconds, self._sleep)
-        except Exception:
+        except Exception as exc:
             duration = time.monotonic() - start
             return TextGenerationResult(
                 status="failed_transport", text=None, token_usage="not_metered",
                 observed_model=None, duration_seconds=duration,
-                error=f"{self._provider.provider_id} request failed (transport or timeout)",
+                error=f"{self._provider.provider_id} request failed (transport or timeout: {_failure_kind(exc)})",
                 observed_provider=self._provider.provider_id,
             )
         duration = time.monotonic() - start
@@ -812,11 +835,11 @@ class AnthropicTextGenerationAdapter(TextGenerationAdapter):
                         return stream.get_final_message()
                 return client.messages.create(**payload)
             response = _with_rejection_retry(attempt, start, self._max_wall_seconds, self._sleep)
-        except Exception:
+        except Exception as exc:
             return TextGenerationResult(
                 "failed_transport", None, "not_metered", None,
                 time.monotonic() - start,
-                f"{self._provider.provider_id} request failed (transport or timeout)",
+                f"{self._provider.provider_id} request failed (transport or timeout: {_failure_kind(exc)})",
                 self._provider.provider_id,
             )
         duration = time.monotonic() - start
@@ -905,11 +928,11 @@ class OpenAICompatibleTextGenerationAdapter(TextGenerationAdapter):
                 model=model, messages=[{"role": "user", "content": content}],
                 max_tokens=self._max_output_tokens,
             ), start, 3600, self._sleep)
-        except Exception:
+        except Exception as exc:
             return TextGenerationResult(
                 "failed_transport", None, "not_metered", None,
                 time.monotonic() - start,
-                f"{self._provider.provider_id} request failed (transport or timeout)",
+                f"{self._provider.provider_id} request failed (transport or timeout: {_failure_kind(exc)})",
                 self._provider.provider_id,
             )
         duration = time.monotonic() - start

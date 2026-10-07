@@ -1128,3 +1128,10 @@ untranslated or dead template; after merging NAMES-CJK it caught the two renamed
 Jade City notes render in English; a $0.0084 unknown-outcome blocker and its button translate. Full
 offline suite 1286 OK (1 skipped). Paid/provider calls 0. Static file only: browser reload, no restart.
 Coordination: main 1b20743 (other sessions' commits) pushed first with session 51's agreement.
+
+## 2026-10-07T15:40+03:00 | AUTO-RETRY-UNDER-DOLLAR | Claude continuity, user-directed
+User: asked again (academic PDF). Evidence in 18da9456 controls: events 45-60, semantic_reviewer-pass
+gpt-6.1-sol held $0.1876, failed_transport latencies 1.75 s ... 0.03 s, three auto decisions then a
+manual one; journal shows the identical prompt completed afterwards. Cause: fixed 3-in-a-row limit
+plus immediate resends inside a short outage. Fix: dollar row limit, backoff as paused, adapter
+resend for never-opened connections, exception classes in errors. Paid/provider calls 0.

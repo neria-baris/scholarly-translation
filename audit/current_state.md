@@ -1,4 +1,17 @@
-# Current state — NAMES-CJK fix on main (after DURABLE-JOB-STATE)
+# Current state — AUTO-RETRY-UNDER-DOLLAR (after SERVER-TEXT-EN)
+Updated: 2026-10-07. Claude continuity, user-directed (contract user_decided_blocks addendum).
+User: an academic PDF (18da9456) still asked to approve an unknown-outcome retry. Evidence: the
+writable fix worked (3 auto decisions 12:58:07/09/11), but one semantic-reviewer call failed four
+times in 4 s (last after 0.03 s: no connection) and the 3-in-a-row limit asked the user; the same
+prompt succeeded at 13:01. Delivered: row limit = cumulative auto-accepted + held < $1 (backstop
+10); waits 15/60/120/300 s as `paused` with a note (user pause/resume wins); adapters resend a
+never-opened connection (no charge possible); transport errors name exception classes. Tests:
+connection resend, error naming, row total, backstop, wait sequence, pause respected, end-to-end
+disconnect -> paused -> automatic completion; English text for the wait note in SERVER_EN. Paid/provider calls 0. Built in worktree
+fix/auto-retry-under-dollar (another session had uncommitted work in main), rebased on SERVER-TEXT-EN.
+Next: UI restart picks it up.
+
+## Previous: NAMES-CJK fix on main (after DURABLE-JOB-STATE)
 Updated: 2026-10-07. Claude continuity, user-directed check (no contract): is the name table real and
 relevant for an academic article, and does its text fit one. Evidence: article job 18da9456 (ja,
 scholarly, 1 part): table ready, 107 prepass entries (30 persons, 11 works, 4 organizations, 62 terms),

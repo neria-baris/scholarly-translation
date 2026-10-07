@@ -249,18 +249,40 @@ class JobBlocksTests(unittest.TestCase):
         self.fail(raw("failed_truncated", output=4096))
         self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
 
-    def test_repeated_unknown_outcome_stops_after_streak(self):
-        for _ in range(job_blocks.AUTO_ACCEPT_MAX_STREAK):
+    def auto_retry(self):
+        option = job_blocks.auto_decision(self.job, self.store, self.journal)
+        self.assertEqual(option, "accept_worst_case_and_retry")
+        job_blocks.apply_decision(self.job, self.store, self.journal, option, auto=True)
+
+    def test_repeated_unknown_outcome_continues_while_row_total_stays_below_limit(self):
+        self.fail(RuntimeError("connection lost"))
+        held = self.store.uncertain_calls(JOB)[0]["held_usd"]
+        # Room for exactly four holds in a row: the old fixed limit of three no longer stops it.
+        with mock.patch.object(job_blocks, "AUTO_ACCEPT_BELOW_USD", held * 4.5):
+            for _ in range(4):
+                self.auto_retry()
+                self.fail(RuntimeError("connection lost"))
+            self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
+            # A manual decision breaks the row.
+            job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
             self.fail(RuntimeError("connection lost"))
-            option = job_blocks.auto_decision(self.job, self.store, self.journal)
-            self.assertEqual(option, "accept_worst_case_and_retry")
-            job_blocks.apply_decision(self.job, self.store, self.journal, option, auto=True)
-        self.fail(RuntimeError("connection lost"))
-        self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
-        # A manual decision breaks the row.
-        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_worst_case_and_retry")
-        self.fail(RuntimeError("connection lost"))
-        self.assertEqual(job_blocks.auto_decision(self.job, self.store, self.journal), "accept_worst_case_and_retry")
+            self.auto_retry()
+
+    def test_unknown_outcome_row_has_a_count_backstop(self):
+        with mock.patch.object(job_blocks, "AUTO_ACCEPT_MAX_STREAK", 2):
+            for _ in range(2):
+                self.fail(RuntimeError("connection lost"))
+                self.auto_retry()
+            self.fail(RuntimeError("connection lost"))
+            self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
+
+    def test_automatic_retries_wait_longer_each_time_in_a_row(self):
+        delays = []
+        for _ in range(len(job_blocks.AUTO_RETRY_DELAYS) + 1):
+            self.fail(RuntimeError("connection lost"))
+            self.auto_retry()
+            delays.append(job_blocks.auto_retry_delay(self.job))
+        self.assertEqual(delays, list(job_blocks.AUTO_RETRY_DELAYS) + [job_blocks.AUTO_RETRY_DELAYS[-1]])
 
     def keeper_stuck(self, response, chapter, **kwargs):
         self.fail(response, stage="chapter-notebook", role="chapter_qa", deps={"chapter": chapter}, **kwargs)

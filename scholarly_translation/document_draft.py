@@ -1233,7 +1233,8 @@ class DocumentJobs:
 
     def _auto_continue(self, job):
         """Apply the user's standing rule (job_blocks.auto_decision) to a job that
-        just stopped, then resume it; any other block waits for the user."""
+        just stopped, then resume it after a short wait (job_blocks.auto_retry_delay);
+        any other block waits for the user."""
         if job["status"] != "failed" or not job["settings"].get("automation"):
             return
         folder = self._folder(job["job_id"])
@@ -1254,11 +1255,28 @@ class DocumentJobs:
                 return
             for transient in ("budget_status", "remaining_budget_usd", "estimated_cost_usd"):
                 job.pop(transient, None)
+            delay = job_blocks.auto_retry_delay(job)
+            token = secrets.token_hex(8)
+            job["status"], job["auto_retry"] = "paused", token
+            job["stage_label"] = "החיבור לספק נותק; ניסיון חוזר אוטומטי בעוד %d שניות" % delay
             self._persist(job)
+        timer = threading.Timer(delay, self._auto_resume, (job["job_id"], token))
+        timer.daemon = True
+        timer.start()
+
+    def _auto_resume(self, job_id, token):
+        """Resume after the automatic wait, unless the user acted meanwhile (resumed,
+        paused or decided otherwise) or another document holds the slot."""
         try:
-            self.resume(job["job_id"])
-        except DocumentDraftError:
-            pass   # another document took the slot; the user resumes this one
+            job = self.get(job_id)
+            if job.get("auto_retry") != token or job["status"] != "paused":
+                return
+            with WorkJournal(self._folder(job_id) / "journal.sqlite3", create=False) as journal:
+                if journal.is_paused(job_id):
+                    return
+            self.resume(job_id)
+        except (DocumentDraftError, RuntimeControlsError, ValueError):
+            pass   # the user resumes this one
 
     def preview(self, path, settings):
         """Thin cost/plan preview for a prospective automation run: no job

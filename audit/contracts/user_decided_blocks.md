@@ -69,3 +69,15 @@ settling the held charge failed with `StoreCorruptionError`, which was swallowed
 never applied and every under-$1 unknown outcome still asked the user (Jade City, event 309,
 $0.0084, 2026-10-07 09:38). It now opens the existing store writable, like `decide`. New
 manager-level test drives a real disconnect through `_auto_continue` to completion.
+
+### Addendum AUTO-RETRY-UNDER-DOLLAR (2026-10-07, user-directed)
+User report: still asked after the writable fix (academic PDF 18da9456: three automatic retries
+of one semantic-reviewer call within 4 s during a network outage, the 4th failure in 0.03 s hit
+the 3-in-a-row limit; the same prompt succeeded 3 minutes later). The rule now reads the user's
+"under $1" literally: automatic while the charges accepted automatically in the current row plus
+the held charge stay below $1 (backstop: 10 in a row). Each automatic resend waits 15 s, 60 s,
+120 s, then 300 s; meanwhile the job is `paused` with a stage note and no decision box, and the
+user may resume at once or pause (a user pause, manual resume or new decision cancels the timer).
+Adapters also resend, like an explicit rejection, a call whose connection never opened (httpx
+ConnectError/ConnectTimeout under the SDK error): nothing reached the provider. Transport errors
+now name the exception classes in the step error.
