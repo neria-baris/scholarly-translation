@@ -59,7 +59,7 @@ def _json_text(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + '\n'
 
 
-def _rows(rows):
+def _rows(rows, language):
     require(isinstance(rows, list), 'invalid_archive')
     result = []
     for row in rows:
@@ -71,11 +71,32 @@ def _rows(rows):
         require(type(row.get('encounters')) is int and row['encounters'] >= 0, 'invalid_archive')
         title = row.get('last_book_title')
         require(title is None or isinstance(title, str), 'invalid_archive')
-        result.append({'item_id': item_id, 'kind': row['kind'], 'foreign': row['foreign'],
-                       'hebrew': row['hebrew'], 'encounters': row['encounters'],
-                       'last_book_title': title})
+        clean = {'item_id': item_id, 'kind': row['kind'], 'foreign': row['foreign'],
+                 'hebrew': row['hebrew'], 'encounters': row['encounters'], 'last_book_title': title}
+        if row.get('entry') is not None:
+            from .learning_dictionary import dictionary_entry
+            try:
+                clean['entry'] = dictionary_entry({'item_id': item_id, **row['entry']}, language)
+            except (LearningError, TypeError):
+                raise LearningError('invalid_archive') from None
+        examples = row.get('examples', [])
+        require(isinstance(examples, list) and all(
+            isinstance(x, dict) and all(isinstance(x.get(k), str) for k in ('foreign', 'sentence', 'book_title'))
+            for x in examples), 'invalid_archive')
+        if examples:
+            clean['examples'] = [{k: x[k] for k in ('foreign', 'sentence', 'book_title')} for x in examples]
+        if isinstance(row.get('explanation_he'), str) and row['explanation_he']:
+            clean['explanation_he'] = row['explanation_he']
+        result.append(clean)
     require(len({row['item_id'] for row in result}) == len(result), 'invalid_archive')
     return sorted(result, key=lambda row: row['item_id'])
+
+
+PART_OF_SPEECH_HE = {'noun': 'שם עצם', 'verb': 'פועל', 'adjective': 'שם תואר', 'adverb': 'תואר הפועל',
+                     'pronoun': 'כינוי', 'preposition': 'מילת יחס', 'conjunction': 'מילת חיבור',
+                     'determiner': 'מגדיר (יידוע או כמות)', 'numeral': 'שם מספר', 'interjection': 'מילת קריאה',
+                     'phrase': 'ביטוי', 'other': 'אחר'}
+GENDER_HE = {'masculine': 'זכר', 'feminine': 'נקבה', 'neuter': 'סתמי', 'common': 'זכר ונקבה'}
 
 
 def _dictionary(language, progress):
@@ -83,8 +104,8 @@ def _dictionary(language, progress):
     active = progress.get('active_book')
     require(active is None or isinstance(active, dict), 'invalid_archive')
     return {'schema_version': 1, 'language': language,
-            'saved_items': _rows(progress.get('completed_items', [])),
-            'current_items': _rows(active.get('read_items', []) if active else []),
+            'saved_items': _rows(progress.get('completed_items', []), language),
+            'current_items': _rows(active.get('read_items', []) if active else [], language),
             'current_book_title': active.get('title') if active else None,
             'status_note_he': 'היתקלויות שנשמרו לאחר סימון קראתי, לצד היתקלויות בספר הנוכחי שטרם נשמרו. אין כאן קביעה של שליטה במילים.'}
 
@@ -98,7 +119,22 @@ def _dictionary_md(record):
         for row in record[key]:
             lines.extend([f"- {row['foreign']} — {row['hebrew']}",
                           f"  מזהה: {row['item_id']}; סוג: {row['kind']}; היתקלויות: {row['encounters']}",
-                          f"  ספר: {row['last_book_title'] or record['current_book_title'] or 'לא צוין'}", ''])
+                          f"  ספר: {row['last_book_title'] or record['current_book_title'] or 'לא צוין'}"])
+            entry = row.get('entry')
+            if entry:
+                kind = PART_OF_SPEECH_HE[entry['part_of_speech']]
+                if entry['gender']:
+                    kind += ', ' + GENDER_HE[entry['gender']]
+                lines.append(f"  {kind}. משמעויות: {'; '.join(entry['senses_he'])}")
+                if entry['forms']:
+                    lines.append('  צורות: ' + '; '.join(f"{f['label_he']}: {f['form']}" for f in entry['forms']))
+                if entry['notes_he']:
+                    lines.append(f"  הערה: {entry['notes_he']}")
+            if row.get('explanation_he'):
+                lines.append(f"  הסבר: {row['explanation_he']}")
+            for example in row.get('examples', []):
+                lines.append(f"  דוגמה ({example['book_title']}): {example['sentence']}")
+            lines.append('')
     return '\n'.join(lines) + '\n'
 
 
@@ -110,6 +146,12 @@ def _chapter_record(language, chapter):
     require(isinstance(recap, dict), 'invalid_archive')
     require(recap.get('chapter_id', identity['chapter_id']) == identity['chapter_id'], 'invalid_archive')
     require(isinstance(recap.get('grammar', []), list) and isinstance(recap.get('vocabulary', []), list), 'invalid_archive')
+    if 'lesson' in recap:
+        from .learning_lesson import validate_lesson
+        try:
+            validate_lesson(recap['lesson'])
+        except LearningError:
+            raise LearningError('invalid_archive') from None
     items = chapter.get('items', {})
     require(isinstance(items, dict), 'invalid_archive')
     for row in recap.get('grammar', []):
@@ -133,7 +175,8 @@ def _chapter_record(language, chapter):
     return {'schema_version': 1, 'language': language, **identity,
             'chapter_title': chapter['chapter_title'], 'items': definitions,
             'recap': copy.deepcopy({key: recap[key] for key in
-                                   ('schema_version', 'chapter_id', 'chunk_hashes', 'grammar', 'vocabulary', 'warnings')
+                                   ('schema_version', 'chapter_id', 'chunk_hashes', 'grammar', 'vocabulary', 'warnings',
+                                    'lesson')
                                    if key in recap}),
             'status_note_he': 'הסברים שהתקבלו בעת קריאת הפרק. שמירתם אינה סימון הספר כנקרא ואינה אישור לשוני.'}
 
@@ -154,6 +197,17 @@ def _chapter_md(record):
             lines.extend(['  פרטי הדוגמה: ' + json.dumps(example, ensure_ascii=False, sort_keys=True), ''])
     if not record['recap'].get('grammar'):
         lines.extend(['לא התקבל הסבר דקדוק חדש בפרק זה.', ''])
+    lesson = record['recap'].get('lesson')
+    if lesson and lesson.get('status') == 'ready':
+        lines.extend(['## שיעור דקדוק לפרק', ''])
+        for paragraph in lesson['paragraphs']:
+            lines.extend([f"### {paragraph['heading_he']}", '', paragraph['text_he'], ''])
+            for example in paragraph['examples']:
+                lines.append(f"- בשפה הנלמדת: {example['foreign']}")
+                lines.append(f"  בעברית: {example['hebrew']}")
+                if example['note_he']:
+                    lines.append(f"  לשים לב: {example['note_he']}")
+            lines.append('')
     lines.extend(['## מילים בסיכום הפרק', ''])
     for row in record['recap'].get('vocabulary', []):
         definition = record['items'].get(row['item_id'], {})

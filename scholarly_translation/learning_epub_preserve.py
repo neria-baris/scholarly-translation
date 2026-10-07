@@ -292,7 +292,7 @@ def _recap_elements(recap, pairs, items, language, notes):
     section.set('dir', 'rtl')
     section.set('style', 'direction:rtl;margin-top:2em;border-top:1px solid #aaa')
     for element in section.iter():
-        if _tag(element) in ('p', 'li', 'h2', 'h3'):
+        if _tag(element) in ('p', 'li', 'h2', 'h3', 'h4'):
             element.set('style', 'white-space:pre-wrap;overflow-wrap:anywhere')
         elif _tag(element) == 'bdi':
             element.set('style', _FOREIGN_STYLE + 'direction:' + element.get('dir', 'ltr'))

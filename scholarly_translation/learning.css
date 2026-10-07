@@ -60,6 +60,13 @@ input[type=number],input[type=password],input[type=text]{min-height:40px;border:
 .gloss-popup:not([hidden]){display:flex}.gloss-popup p{margin:0}
 .recap-list{list-style:disc;margin:6px 0 10px;padding-inline-start:22px;font-size:13px;color:var(--ink)}
 .recap-list.warnings{color:#8a453c}
+.recap-lesson{margin:12px 0;font-size:14px;line-height:1.7;color:var(--ink)}
+.recap-lesson h4{margin:10px 0 4px;font-size:15px}
+.recap-lesson h5{margin:10px 0 2px;font-size:14px}
+.recap-lesson p{margin:2px 0 6px}
+.lesson-examples{margin:2px 0 8px;padding-inline-start:22px;font-size:13px}
+.lesson-foreign{font-weight:600}
+.lesson-note{display:block;color:var(--muted);font-size:12px}
 .completion-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
 
 #progress-detail{margin-top:14px;display:grid;gap:14px}
@@ -68,7 +75,25 @@ input[type=number],input[type=password],input[type=text]{min-height:40px;border:
 .progress-search{display:grid;gap:6px;max-width:360px}
 .vocab-columns{display:grid;gap:18px;grid-template-columns:1fr 1fr}
 .vocab-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.vocab-item{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.vocab-item{font-size:13px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.vocab-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer}
+.vocab-entry{margin:6px 0 2px;padding-inline-start:14px;line-height:1.7}
+.vocab-entry p{margin:2px 0}
+.entry-kind{font-weight:600}
+.entry-senses{margin:2px 0 6px;padding-inline-start:20px}
+.entry-forms{border-collapse:collapse;margin:4px 0 6px}
+.entry-forms th,.entry-forms td{border:1px solid var(--line);padding:2px 8px;text-align:start;font-weight:normal}
+.entry-forms th{color:var(--muted)}
+.entry-subtitle{margin-top:6px;font-weight:600}
+.entry-examples{margin:2px 0;padding-inline-start:20px}
+.notebook-row{margin:10px 0}
+.grammar-notebook{border:1px solid var(--line);border-radius:8px;padding:12px;margin:10px 0 16px;background:var(--surface)}
+.grammar-notebook label{display:block;font-size:13px;margin:6px 0 4px}
+.notebook-book h3{font-size:15px;margin:12px 0 4px}
+.notebook-chapter{margin:4px 0;font-size:14px;line-height:1.7}
+.notebook-chapter summary{cursor:pointer;font-weight:600}
+.notebook-chapter h4{margin:8px 0 2px;font-size:14px}
+.notebook-chapter p{margin:2px 0 6px}
 .vocab-tags{display:flex;gap:6px;flex-wrap:wrap}
 
 @media(max-width:650px){.workspace{padding:0 14px 40px}.card{padding:14px}.app-header{padding:16px}.vocab-columns{grid-template-columns:1fr}}

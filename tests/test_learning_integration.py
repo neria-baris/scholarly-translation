@@ -25,16 +25,43 @@ def source(book_id='book-one', chapters=1):
     return result
 
 
+def _prompt_block(prompt, label):
+    start = prompt.index(label + ':\n```json\n') + len(label) + 9
+    return json.loads(prompt[start:prompt.index('\n```', start)])
+
+
+def is_lesson(prompt):
+    return '\nLESSON:\n```json' in prompt
+
+
+def lesson_reply(prompt, model):
+    """A valid grammar lesson grounded in the supplied chapter (fake provider)."""
+    lesson, insertions = _prompt_block(prompt, 'LESSON'), _prompt_block(prompt, 'INSERTIONS')
+    unit = next(u for u in _prompt_block(prompt, 'CHAPTER_UNITS') if u['kind'] == 'paragraph')
+    examples = [{'edit_ref': insertions[0]['ref'], 'note_he': 'צורה'}] if insertions else []
+    examples.append({'unit_id': unit['unit_id'], 'hebrew': unit['text'][:12], 'foreign': 'phrase', 'note_he': ''})
+    raw = {'response_version': 1, 'chapter_id': lesson['chapter_id'], 'topics': ['מין'],
+           'paragraphs': [{'heading_he': 'מין', 'text_he': 'פסקה',
+                           'examples': examples}]}
+    return TextGenerationResult(status='completed', text=json.dumps(raw, ensure_ascii=False),
+        token_usage={'input': 100, 'output': 100, 'cached': 0, 'reasoning': 0},
+        observed_model=model, duration_seconds=0)
+
+
 class Adapter:
     def __init__(self, service, fail=False, pause=False):
         self.service, self.calls, self.fail, self.pause_after = service, 0, fail, pause
         self.roles = []
+        self.lesson_calls = 0
 
     def factory(self, role, request):
         self.roles.append(role)
         return self
 
     def generate(self, prompt, model):
+        if is_lesson(prompt):
+            self.lesson_calls += 1
+            return lesson_reply(prompt, model)
         self.calls += 1
         job = next(j for j in self.service._data['jobs'].values() if j['status'] == 'preparing')
         plan = job['current_plan']
@@ -69,9 +96,14 @@ class LearningIntegrationTests(unittest.TestCase):
     def test_read_completion_continuity_and_idempotency(self):
         ready = self.prepare()
         self.assertEqual(ready['status'], 'ready')
-        self.assertEqual(self.adapter.roles, ['translator'])
+        self.assertEqual(self.adapter.roles, ['translator', 'translator'])  # chunk + chapter lesson
+        self.assertEqual(self.adapter.lesson_calls, 1)
         reader = self.service.reader(ready['session_id'])
         self.assertIn('bonjour', reader['html'])
+        lesson = reader['recap']['lesson']
+        self.assertEqual(lesson['status'], 'ready')
+        self.assertEqual([x['kind'] for x in lesson['paragraphs'][0]['examples']], ['insertion', 'sentence'])
+        self.assertEqual(lesson['paragraphs'][0]['examples'][0]['foreign'], 'bonjour')
         self.assertEqual(self.service.store.get_learner()['items'], [])
         self.service.cursor(ready['session_id'], 0)
         self.assertEqual(self.service.store.get_learner()['revision'], 0)

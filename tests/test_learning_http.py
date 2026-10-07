@@ -47,6 +47,13 @@ class LearningHttpTests(unittest.TestCase):
             self.assertEqual(self.post(path, body, origin='https://example.org')[0], 403)
         self.assertEqual(self.service.summary()['books'], [])
 
+    def test_grammar_notebook_route_is_guarded_and_makes_no_call(self):
+        self.assertEqual(self.post('/learning/grammar-notebook', {}, token='wrong')[0], 403)
+        with patch('scholarly_translation.model_adapter.build_translation_adapter', side_effect=AssertionError('unexpected provider')):
+            status, notebook = self.post('/learning/grammar-notebook', {})
+        self.assertEqual(status, 200)
+        self.assertEqual(notebook['books'], [])
+
     def test_import_upload_and_state_never_send_provider_calls(self):
         with patch('scholarly_translation.model_adapter.build_translation_adapter', side_effect=AssertionError('unexpected provider')):
             status, book = self.post('/learning/upload-epub?name=book.epub', _hebrew_epub_bytes(), raw=True)

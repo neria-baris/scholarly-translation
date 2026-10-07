@@ -140,6 +140,12 @@ def _validate(source, plans, prepared, session, catalog):
                                   'grammar_example_occurrence')
         for warning in recap['warnings']:
             _coverage(isinstance(warning, dict) and isinstance(warning.get('code'), str), 'warning')
+        if 'lesson' in recap:
+            from .learning_lesson import validate_lesson
+            try:
+                validate_lesson(recap['lesson'])
+            except LearningError:
+                _coverage(False, 'lesson')
     return grouped, items
 
 
@@ -168,7 +174,20 @@ def _recap(recap, pairs, items, language):
                 parts.append(f'<li>{_foreign(edit["replacement"], language)} — '
                              f'<span lang="he" dir="rtl">{_e(edit["original"])}</span></li>')
             parts.append('</ul></section>')
-    if not recap['vocabulary'] and not recap['grammar']:
+    lesson = recap.get('lesson')
+    if lesson and lesson['status'] == 'ready':
+        parts.append('<section class="learning-lesson"><h3>שיעור דקדוק לפרק</h3>')
+        for paragraph in lesson['paragraphs']:
+            parts.append(f'<h4>{_e(paragraph["heading_he"])}</h4><p>{_e(paragraph["text_he"])}</p>')
+            if paragraph['examples']:
+                parts.append('<ul>')
+                for example in paragraph['examples']:
+                    note = f' <small>{_e(example["note_he"])}</small>' if example['note_he'] else ''
+                    parts.append(f'<li>{_foreign(example["foreign"], language)} — '
+                                 f'<span lang="he" dir="rtl">{_e(example["hebrew"])}</span>{note}</li>')
+                parts.append('</ul>')
+        parts.append('<p><small>השיעור נכתב בעזרת המודל ולא עבר ביקורת לשונית נפרדת.</small></p></section>')
+    if not recap['vocabulary'] and not recap['grammar'] and not (lesson and lesson['status'] == 'ready'):
         parts.append('<p>לא נוספו פריטי לימוד חדשים בפרק זה.</p>')
     if recap['warnings']:
         parts.append('<h3>הערות הכנה</h3><ul>')

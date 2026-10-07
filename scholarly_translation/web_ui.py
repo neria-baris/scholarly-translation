@@ -300,6 +300,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
             return service.cursor(data.get("session_id"), data.get("chapter_index"))
         if path == "/learning/complete":
             return service.complete(data.get("session_id"), data.get("prepared_hash"), data.get("completion_id"))
+        if path == "/learning/grammar-notebook":
+            return service.grammar_notebook()
         require(False, "unknown_action")
 
     def _environment_key(definition):

@@ -188,7 +188,8 @@ function renderBooks(){
       body.append(resumeForm(session,job));
       if(['imported','paused','failed'].includes(session.status))body.append(abandonButton(session));
     }else if(session.status==='preparing'){
-      body.append(noteParagraph(`הכנה: ${job?job.accepted_chunks:0}/${job?job.total_chunks:0} קטעים.`));
+      body.append(noteParagraph(`הכנה: ${job?job.accepted_chunks:0}/${job?job.total_chunks:0} קטעים.`+
+        (job&&job.lessons_total&&job.accepted_chunks===job.total_chunks?` שיעורי דקדוק: ${job.lessons_done}/${job.lessons_total} פרקים.`:'')));
       if(job&&job.usage)body.append(noteParagraph(usageLine(job.usage)));
       const pause=document.createElement('button');pause.type='button';pause.className='secondary-button';
       pause.textContent='השהיית הכנה';pause.onclick=async()=>{try{await request('/learning/pause',{session_id:session.session_id});await loadState()}catch(error){body.append(errorParagraph(error.message))}};
@@ -361,9 +362,105 @@ function renderVocabColumn(host,rows,query){
       tag.textContent=`בספר הנוכחי — טרם נשמר (${row.current.encounters})`;
       tags.append(tag);
     }
-    li.append(foreign,hebrew,tags);
-    host.append(li);
+    const details=document.createElement('details'),summary=document.createElement('summary');
+    summary.className='vocab-summary';summary.append(foreign,hebrew,tags);
+    details.append(summary,entryBody(row.base));
+    li.append(details);host.append(li);
   }
+}
+const PART_OF_SPEECH_HE={noun:'שם עצם',verb:'פועל',adjective:'שם תואר',adverb:'תואר הפועל',pronoun:'כינוי',
+  preposition:'מילת יחס',conjunction:'מילת חיבור',determiner:'מגדיר (יידוע או כמות)',numeral:'שם מספר',
+  interjection:'מילת קריאה',phrase:'ביטוי',other:'אחר'};
+const GENDER_HE={masculine:'זכר',feminine:'נקבה',neuter:'סתמי',common:'זכר ונקבה'};
+function foreignText(text){
+  const node=document.createElement('bdi');node.dir=state.learner.language==='yi'?'rtl':'ltr';
+  node.lang=state.learner.language;node.textContent=text;return node;
+}
+function entryBody(base){
+  const body=document.createElement('div');body.className='vocab-entry';
+  const line=(text,cls)=>{const p=document.createElement('p');p.textContent=text;if(cls)p.className=cls;body.append(p);return p};
+  if(base.kind==='grammar'){
+    line(base.explanation_he||'אין הסבר שמור למבנה זה.');
+  }else if(base.entry){
+    const entry=base.entry;
+    line(PART_OF_SPEECH_HE[entry.part_of_speech]+(entry.gender?' · '+GENDER_HE[entry.gender]:''),'entry-kind');
+    const senses=document.createElement('ol');senses.className='entry-senses';
+    for(const sense of entry.senses_he){const li=document.createElement('li');li.textContent=sense;senses.append(li)}
+    body.append(senses);
+    if(entry.forms.length){
+      const table=document.createElement('table');table.className='entry-forms';
+      for(const form of entry.forms){
+        const tr=document.createElement('tr'),label=document.createElement('th'),value=document.createElement('td');
+        label.textContent=form.label_he;value.append(foreignText(form.form));tr.append(label,value);table.append(tr);
+      }
+      body.append(table);
+    }
+    if(entry.notes_he)line(entry.notes_he,'muted');
+  }else{
+    line('אין עדיין ערך מילוני לפריט זה. ערכים נוצרים בספרים שמוכנים מעכשיו, בפעם הראשונה שהמילה משולבת.','muted');
+  }
+  if((base.examples||[]).length){
+    const title=document.createElement('p');title.className='entry-subtitle';title.textContent='מהספרים שקראתם';body.append(title);
+    const list=document.createElement('ul');list.className='entry-examples';
+    for(const example of base.examples){
+      const li=document.createElement('li');li.textContent=example.sentence;
+      if(example.book_title){const book=document.createElement('span');book.className='muted';book.textContent=' — '+example.book_title;li.append(book)}
+      list.append(li);
+    }
+    body.append(list);
+  }
+  return body;
+}
+
+// ---- grammar notebook ----
+let notebook=null;
+$('notebook-open').onclick=async()=>{
+  const section=$('grammar-notebook');
+  if(!section.hidden){section.hidden=true;$('notebook-open').setAttribute('aria-expanded','false');return}
+  section.hidden=false;$('notebook-open').setAttribute('aria-expanded','true');
+  $('notebook-content').replaceChildren();$('notebook-status').textContent='טוען…';
+  try{notebook=await request('/learning/grammar-notebook',{});renderNotebook()}
+  catch(error){$('notebook-status').textContent=error.message}
+};
+$('notebook-search').oninput=()=>{if(notebook)renderNotebook()};
+function renderNotebook(){
+  const host=$('notebook-content');host.replaceChildren();
+  const query=($('notebook-search').value||'').trim().toLocaleLowerCase();
+  const matches=paragraph=>!query||[paragraph.heading_he,paragraph.text_he,
+    ...paragraph.examples.flatMap(x=>[x.foreign,x.hebrew,x.note_he])].join(' ').toLocaleLowerCase().includes(query);
+  let shown=0;
+  for(const book of notebook.books){
+    const bookSection=document.createElement('section');bookSection.className='notebook-book';
+    const title=document.createElement('h3');title.dir='auto';title.textContent=book.title;bookSection.append(title);
+    let bookShown=0;
+    for(const chapter of book.chapters){
+      const topicHit=query&&chapter.topics.some(t=>t.toLocaleLowerCase().includes(query));
+      const paragraphs=chapter.paragraphs.filter(p=>topicHit||matches(p));
+      if(!paragraphs.length)continue;
+      const details=document.createElement('details');details.className='notebook-chapter';details.open=!!query;
+      const summary=document.createElement('summary');
+      summary.textContent=`פרק ${chapter.chapter_index+1}: ${chapter.chapter_title}`+(chapter.topics.length?` — ${chapter.topics.join(' · ')}`:'');
+      details.append(summary);
+      for(const paragraph of paragraphs){
+        const heading=document.createElement('h4'),text=document.createElement('p');
+        heading.textContent=paragraph.heading_he;text.textContent=paragraph.text_he;details.append(heading,text);
+        if(paragraph.examples.length){
+          const list=document.createElement('ul');list.className='lesson-examples';
+          for(const example of paragraph.examples){
+            const li=document.createElement('li'),foreign=foreignText(example.foreign);foreign.className='lesson-foreign';
+            li.append(foreign,document.createTextNode(' — '+example.hebrew));
+            if(example.note_he){const note=document.createElement('span');note.className='lesson-note';note.textContent=example.note_he;li.append(note)}
+            list.append(li);
+          }
+          details.append(list);
+        }
+      }
+      bookSection.append(details);bookShown++;shown++;
+    }
+    if(bookShown)host.append(bookSection);
+  }
+  $('notebook-status').textContent=notebook.books.length?(shown?'':'לא נמצאו שיעורים מתאימים.'):
+    'עדיין אין שיעורי דקדוק. שיעורים נוצרים בספרים שמוכנים מעכשיו, פרק אחר פרק.';
 }
 $('vocab-search').oninput=()=>{
   const progress=state&&(state.progress||(state.summary&&state.summary.progress));
@@ -475,7 +572,7 @@ function renderRecap(recap,items={}){
   const vocabHost=$('recap-vocabulary'),grammarHost=$('recap-grammar'),warningsHost=$('recap-warnings');
   vocabHost.replaceChildren();grammarHost.replaceChildren();warningsHost.replaceChildren();
   const vocabulary=recap.vocabulary||[],grammar=recap.grammar||[],warnings=recap.warnings||[];
-  $('recap-empty').hidden=vocabulary.length>0||grammar.length>0;
+  $('recap-empty').hidden=vocabulary.length>0||grammar.length>0||recap.lesson?.status==='ready';
   if($('recap-empty').hidden===false)$('recap-empty').textContent='לא נוספו פריטי לימוד חדשים בפרק זה.';
   for(const entry of vocabulary){
     const li=document.createElement('li'),foreign=document.createElement('bdi');
@@ -492,11 +589,38 @@ function renderRecap(recap,items={}){
     }
   }
   if(!grammar.length){const li=document.createElement('li');li.textContent='בפרק זה לא הודגם מבנה דקדוקי חדש.';grammarHost.append(li)}
+  renderLesson(recap.lesson,language);
   for(const warning of warnings){
     const li=document.createElement('li');li.textContent=warning.code==='coverage_shortfall'?
       'חלק מהמילים המתוכננות לא התאימו לקטע, ולכן לא שולבו.':'חלק מההחלפות הושמטו בגלל משמעות לא ברורה.';
     if(![...warningsHost.children].some(x=>x.textContent===li.textContent))warningsHost.append(li);
   }
+}
+
+function renderLesson(lesson,language){
+  const host=$('recap-lesson');host.replaceChildren();host.hidden=!lesson;
+  if(!lesson)return;
+  const title=document.createElement('h4');title.textContent='שיעור דקדוק לפרק';host.append(title);
+  if(lesson.status!=='ready'){
+    const note=document.createElement('p');note.className='muted';
+    note.textContent='שיעור הדקדוק לפרק זה לא התקבל בצורה תקינה ולכן אינו מוצג.';host.append(note);return;
+  }
+  for(const paragraph of lesson.paragraphs||[]){
+    const heading=document.createElement('h5'),text=document.createElement('p');
+    heading.textContent=paragraph.heading_he;text.textContent=paragraph.text_he;host.append(heading,text);
+    if(!(paragraph.examples||[]).length)continue;
+    const list=document.createElement('ul');list.className='lesson-examples';
+    for(const example of paragraph.examples){
+      const li=document.createElement('li'),foreign=document.createElement('bdi');
+      foreign.dir=language==='yi'?'rtl':'ltr';foreign.lang=language;foreign.className='lesson-foreign';foreign.textContent=example.foreign;
+      li.append(foreign,document.createTextNode(' — '+example.hebrew));
+      if(example.note_he){const note=document.createElement('span');note.className='lesson-note';note.textContent=example.note_he;li.append(note)}
+      list.append(li);
+    }
+    host.append(list);
+  }
+  const disclaimer=document.createElement('p');disclaimer.className='muted';
+  disclaimer.textContent='השיעור נכתב בעזרת המודל ולא עבר ביקורת לשונית נפרדת.';host.append(disclaimer);
 }
 
 $('complete-button').onclick=async()=>{

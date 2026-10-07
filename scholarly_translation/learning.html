@@ -81,6 +81,7 @@
 <p id="recap-empty" class="muted" hidden></p>
 <ul id="recap-vocabulary" class="recap-list"></ul>
 <ul id="recap-grammar" class="recap-list"></ul>
+<section id="recap-lesson" class="recap-lesson" aria-label="שיעור דקדוק לפרק" hidden></section>
 <ul id="recap-warnings" class="recap-list warnings"></ul>
 </section>
 <div class="completion-row">
@@ -103,6 +104,17 @@
 <p id="progress-current-title" class="muted" dir="auto"></p>
 <p id="progress-current-counts" class="muted"></p>
 </div>
+<div class="notebook-row">
+<button id="notebook-open" type="button" class="secondary-button" aria-controls="grammar-notebook" aria-expanded="false">מחברת דקדוק — כל השיעורים</button>
+</div>
+<section id="grammar-notebook" class="grammar-notebook" aria-labelledby="notebook-title" hidden>
+<h3 id="notebook-title" class="progress-subtitle">מחברת דקדוק</h3>
+<label for="notebook-search">חיפוש בשיעורים (נושא, מילה או ביטוי)</label>
+<input id="notebook-search" type="text" dir="auto" autocomplete="off">
+<p id="notebook-status" class="muted" role="status"></p>
+<div id="notebook-content"></div>
+<p class="muted">השיעורים נכתבו בעזרת המודל ולא עברו ביקורת לשונית נפרדת.</p>
+</section>
 <div class="progress-search">
 <label for="vocab-search">חיפוש באוצר המילים (זר או עברית)</label>
 <input id="vocab-search" type="text" dir="auto" autocomplete="off">

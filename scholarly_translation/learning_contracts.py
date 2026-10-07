@@ -261,7 +261,8 @@ def validate_plan(plan):
 
 def validate_generated(chunk):
     require_fields(chunk, ("schema_version", "plan_id", "response_version", "provider", "model", "prompt_version",
-                           "input_hash", "edits", "warnings", "coverage_item_ids", "content_hash"), ("language", 'introduced_items'))
+                           "input_hash", "edits", "warnings", "coverage_item_ids", "content_hash"),
+                   ("language", 'introduced_items', 'dictionary_entries'))
     _version(chunk)
     check_id(chunk["plan_id"])
     require(chunk["response_version"] == 1 and isinstance(chunk["edits"], list), "invalid_generation")
@@ -281,15 +282,25 @@ def validate_generated(chunk):
                              for item in chunk['introduced_items']], chunk.get('language'))
         used = {item_id for edit in chunk['edits'] for item_id in edit['item_ids'] + edit['grammar_ids']}
         require(all(item['item_id'] in used for item in chunk['introduced_items']), 'invalid_generation', 'unused_definition')
+    if 'dictionary_entries' in chunk:
+        from .learning_dictionary import validate_entries
+        validate_entries(chunk['dictionary_entries'], chunk.get('language'))
+        lexical = {item_id for edit in chunk['edits'] for item_id in edit['item_ids']}
+        require(all(row['item_id'] in lexical for row in chunk['dictionary_entries']),
+                'invalid_generation', 'unused_dictionary_entry')
     return chunk
 
 
 def validate_recap(recap):
-    require_fields(recap, ("schema_version", "chapter_id", "chunk_hashes", "vocabulary", "grammar", "warnings"))
+    require_fields(recap, ("schema_version", "chapter_id", "chunk_hashes", "vocabulary", "grammar", "warnings"),
+                   optional=("lesson",))
     _version(recap)
     check_id(recap["chapter_id"])
     for key in ("chunk_hashes", "vocabulary", "grammar", "warnings"):
         require(isinstance(recap[key], list), "missing_recap")
+    if "lesson" in recap:  # Optional per-chapter grammar lesson (newer preparations).
+        from .learning_lesson import validate_lesson
+        validate_lesson(recap["lesson"])
     return recap
 
 

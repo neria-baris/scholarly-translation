@@ -17,6 +17,9 @@ from .learning_archive import save_personal_archive
 from .learning_import import import_hebrew_epub, import_translation_job
 from .learning_planner import plan_book, replan_chunk
 from .learning_generation import build_request, parse_response, build_chapter_recap
+from .learning_lesson import (LESSON_OUTPUT_TOKENS, LESSON_STAGE, build_lesson_request, parse_lesson,
+                              unavailable_lesson)
+from .learning_dictionary import dictionary_view
 from .learning_render import render_chunk
 from .learning_store import LearningStore
 
@@ -30,6 +33,20 @@ class LearningService:
         # known vocabulary can replace most words, unlike the sparse first chapter.
         return min(selection.capabilities.max_output_tokens or 6000,
                    max(6000, min(64000, 2048 + words * 128)))
+
+    def _shared_cap(self, job, configuration):
+        # Part of the persistent task policy: identical for every call of a job.
+        if job['plans'][0]['policy_version'] == 'learning-policy@1':
+            return job.get('output_tokens', 6000)
+        return max(job.get('output_tokens', 6000), max(self._dense_output_cap(p, configuration) for p in job['plans']))
+
+    @staticmethod
+    def _chapter_ids(job):
+        return list(dict.fromkeys(p['chapter_id'] for p in job['plans']))
+
+    def _max_calls(self, job):
+        # Jobs started with grammar lessons add at most one call per chapter.
+        return len(job['plans']) + (len(self._chapter_ids(job)) if 'lessons' in job else 0)
 
     def __init__(self, root):
         self.root = Path(root)
@@ -124,6 +141,9 @@ class LearningService:
                             'output_tokens': original.get('output_tokens', 6000),
                             'context_info': original.get('context_info'),
                             'warnings': original.get('warnings', [])})
+                if 'lessons' in original:
+                    job.update({'lessons_done': len(original['lessons']),
+                                'lessons_total': len(self._chapter_ids(original))})
             progress = self._progress(learner, sessions)
             archive = self._archive_snapshot(learner, progress=progress)
             return {'books': deepcopy(list(self._data['books'].values())), 'sessions': sessions,
@@ -163,13 +183,19 @@ class LearningService:
                     break
         catalog = effective_catalog(load_catalog(learner['language']), learner.get('vocabulary', []), active_chunks)
         items = {item['item_id']: item for item in catalog['items']}
+        entries, examples = dictionary_view(self._dictionary_sources(learner, sessions))
         def rows(counts, book_ids):
             result = []
             for item_id, count in counts.items():
                 item = items.get(item_id, {})
-                result.append({'item_id': item_id, 'kind': item.get('kind', 'unknown'),
+                row = {'item_id': item_id, 'kind': item.get('kind', 'unknown'),
                     'foreign': item.get('lemma', item_id), 'hebrew': item.get('sense_he', ''),
-                    'encounters': count, 'last_book_title': self._data['books'].get(book_ids[item_id], {}).get('title', '')})
+                    'encounters': count, 'last_book_title': self._data['books'].get(book_ids[item_id], {}).get('title', '')}
+                if item.get('kind') in ('word', 'phrase'):
+                    row.update({'entry': deepcopy(entries.get(item_id)), 'examples': deepcopy(examples.get(item_id, []))})
+                elif item.get('kind') == 'grammar':
+                    row['explanation_he'] = item.get('explanation_he', '')
+                result.append(row)
             return sorted(result, key=lambda row: (items.get(row['item_id'], {}).get('priority_tier', 999999), row['item_id']))
         completed = rows({row['item_id']: row['introduced_count'] for row in learner['items']},
                          {row['item_id']: row['last_completed_book_id'] for row in learner['items']})
@@ -201,6 +227,55 @@ class LearningService:
             'completed_word_count': sum(row['kind'] == 'word' for row in completed),
             'completed_structure_count': sum(row['kind'] != 'word' for row in completed),
             'completed_items': completed, 'active_book': active}
+
+    def _dictionary_sources(self, learner, sessions):
+        # Completed books in full; the active book only up to the furthest visited chapter.
+        sources = []
+        for session in sessions:
+            job = self._data['jobs'].get(session['session_id'])
+            if job is None:
+                continue
+            title = self._data['books'].get(session['book_id'], {}).get('title', '')
+            if session['status'] == 'completed':
+                sources.append((title, job['plans'], job['chunks'], None))
+            elif (session['book_id'] == learner['active_book_id']
+                  and session['base_learner_revision'] == learner['revision']):
+                cursor = session['read_cursor'] or {}
+                furthest = cursor.get('furthest_chapter_index', cursor.get('chapter_index'))
+                chapters = self.store.get_source(session['book_id'])['chapters']
+                visited = {c['chapter_id'] for i, c in enumerate(chapters) if furthest is not None and i <= furthest}
+                sources.append((title, job['plans'], job['chunks'], visited))
+        return sources
+
+    def _known_entry_ids(self, sid, language):
+        known = {row['item_id'] for chunk in self._data['jobs'][sid]['chunks']
+                 for row in chunk.get('dictionary_entries', [])}
+        for session in self.store.list_sessions(language):
+            if session['status'] == 'completed' and session['session_id'] in self._data['jobs']:
+                known.update(row['item_id'] for chunk in self._data['jobs'][session['session_id']]['chunks']
+                             for row in chunk.get('dictionary_entries', []))
+        return known
+
+    def grammar_notebook(self):
+        """Every received chapter lesson of the selected language, by book; no model call."""
+        with self._lock:
+            language = self._data['selected_language']
+            books = []
+            for session in self.store.list_sessions(language):
+                job = self._data['jobs'].get(session['session_id'])
+                if session['status'] not in ('ready', 'completed') or not job or not job.get('lessons'):
+                    continue
+                source = self.store.get_source(session['book_id'])
+                chapters = []
+                for index, chapter in enumerate(source['chapters']):
+                    lesson = job['lessons'].get(chapter['chapter_id'])
+                    if lesson and lesson['status'] == 'ready':
+                        chapters.append({'chapter_index': index, 'chapter_title': chapter['title'],
+                                         'topics': lesson['topics'], 'paragraphs': lesson['paragraphs']})
+                if chapters:
+                    books.append({'session_id': session['session_id'], 'title': source['title'],
+                                  'status': session['status'], 'chapters': chapters})
+            return {'language': language, 'books': deepcopy(books)}
 
     def _upgrade_inactive_learner(self, learner, catalog):
         require(learner['active_book_id'] is None, 'active_book_conflict')
@@ -276,7 +351,7 @@ class LearningService:
                 'configuration': configuration.to_dict(), 'plans': plans, 'current_plan': None,
                 'chunks': [], 'proposals': [], 'projected': learner, 'error_code': None,
                 'context_chars': context_chars, 'output_tokens': output_tokens, 'control_epoch': 0,
-                'retry_revision': 0, 'warnings': []}
+                'retry_revision': 0, 'warnings': [], 'lessons': {}, 'dictionary': True}
             self._save()
         self.resume(sid, adapter_factory, background=background)
         return self.store.get_session(sid)
@@ -377,25 +452,33 @@ class LearningService:
                             job['current_plan'] = replan_chunk(job['plans'][index], job['projected'], catalog)
                             self._save()  # Dispatch identity must survive a crash.
                         plan = deepcopy(job['current_plan'])
-                        budget, count = job['budget_usd'] - prior, len(job['plans'])
+                        budget, count = job['budget_usd'] - prior, self._max_calls(job)
                         require(budget > 0, 'budget_exhausted')
                         context, job['context_info'] = surrounding_context(job['plans'], index, job.get('context_chars', 0))
                         self._save()
-                    prompt, input_hash = build_request(plan, catalog, context)
+                        known, needed = None, None
+                        if job.get('dictionary'):
+                            # Entries arrive once per item, in the response that first uses it.
+                            known = self._known_entry_ids(sid, session['language'])
+                            kinds = {item['item_id']: item['kind'] for item in catalog['items']}
+                            needed = [item_id for item_id in plan['selected_item_ids']
+                                      if kinds.get(item_id) in ('word', 'phrase') and item_id not in known]
+                    prompt, input_hash = build_request(plan, catalog, context, dictionary_needed=needed)
 
                     def validate(result):
                         chunk, recap = parse_response(result.text, plan, catalog, input_hash,
-                            provider='openai', model=result.observed_model or 'gpt-6-luna')
+                            provider='openai', model=result.observed_model or 'gpt-6-luna',
+                            dictionary_known=sorted(known) if known is not None else None)
                         return {'chunk': chunk, 'recap': recap}
 
                     stage = {'learning-policy@1': 'learning-generate-v1',
                              'learning-policy@2': 'learning-generate-v2'}.get(plan['policy_version'], 'learning-generate-v3')
                     model_limit = configuration.resolve('translator')[0].capabilities.max_output_tokens or 6000
                     require(job.get('output_tokens', 6000) <= model_limit, 'output_capacity')
+                    shared_cap = self._shared_cap(job, configuration)
                     if plan['policy_version'] == 'learning-policy@1':
-                        output_cap = shared_cap = job.get('output_tokens', 6000)
+                        output_cap = shared_cap
                     else:
-                        shared_cap = max(job.get('output_tokens', 6000), max(self._dense_output_cap(p, configuration) for p in job['plans']))
                         output_cap = max(job.get('output_tokens', 6000), self._dense_output_cap(plan, configuration) if plan['review_item_ids'] else 0)
                     dependencies = {'plan': plan, 'catalog_version': catalog['version']}
                     if job.get('retry_revision', 0):
@@ -439,14 +522,20 @@ class LearningService:
                                     'last_completed_book_id': plan['book_id']})
                         job['current_plan'] = None
                         self._save()
+                if 'lessons' in self._data['jobs'][sid]:
+                    if not self._prepare_lessons(sid, configuration, adapter_factory, controls, journal, prior):
+                        return
                 with self._lock:
                     job = self._data['jobs'][sid]
                     chapter_ids = list(dict.fromkeys(p['chapter_id'] for p in job['plans']))
                     recaps = []
                     for chapter_id in chapter_ids:
                         indices = [i for i,p in enumerate(job['plans']) if p['chapter_id'] == chapter_id]
-                        recaps.append(build_chapter_recap(chapter_id, [job['chunks'][i] for i in indices],
-                                                         [job['proposals'][i] for i in indices]))
+                        recap = build_chapter_recap(chapter_id, [job['chunks'][i] for i in indices],
+                                                    [job['proposals'][i] for i in indices])
+                        if job.get('lessons', {}).get(chapter_id):
+                            recap['lesson'] = job['lessons'][chapter_id]
+                        recaps.append(recap)
                     self.store.save_prepared(sid, job['chunks'], recaps)
                     job['status'] = 'ready'
                     self._save()
@@ -473,6 +562,63 @@ class LearningService:
         finally:
             with self._lock:
                 self._running.pop(sid, None)
+
+    def _prepare_lessons(self, sid, configuration, adapter_factory, controls, journal, prior):
+        """One grammar-lesson call per chapter after all chunks; False when paused."""
+        from .chapter_pipeline import _controlled
+        from .model_adapter import PRICING_VERSION
+        for chapter_id in self._chapter_ids(self._data['jobs'][sid]):
+            with self._lock:
+                job = self._data['jobs'][sid]
+                if chapter_id in job['lessons']:
+                    continue
+                if self._running[sid].is_set():
+                    self._finish_status(sid, 'paused')
+                    return False
+                pairs = [(p, c) for p, c in zip(job['plans'], job['chunks']) if p['chapter_id'] == chapter_id]
+                if not any(u['kind'] == 'paragraph' for p, _ in pairs for u in p['units']):
+                    job['lessons'][chapter_id] = None  # Nothing to teach from.
+                    self._save()
+                    continue
+                session = self.store.get_session(sid)
+                language = session['language']
+                items = {item['item_id']: item for item in effective_catalog(
+                    load_catalog(language, version=session['catalog_version']),
+                    session.get('vocabulary', []), job['chunks'])['items']}
+                prior_topics = list(dict.fromkeys(topic for cid in self._chapter_ids(job)
+                    for topic in ((job['lessons'].get(cid) or {}).get('topics') or [])))[-30:]
+                budget, count = job['budget_usd'] - prior, self._max_calls(job)
+                require(budget > 0, 'budget_exhausted')
+                shared_cap = self._shared_cap(job, configuration)
+                output_cap = min(max(LESSON_OUTPUT_TOKENS, job.get('output_tokens', 6000)), shared_cap)
+                dependencies = {'chapter_id': chapter_id}
+                if job.get('retry_revision', 0):
+                    dependencies['explicit_retry'] = job['retry_revision']
+            prompt, input_hash, grounding = build_lesson_request(
+                chapter_id, language, session['level_id'], pairs, items, prior_topics)
+            dependencies['lesson_input'] = input_hash
+
+            def validate(result):
+                # The lesson is supplementary: a bad answer is recorded, never blocks the book.
+                try:
+                    lesson = parse_lesson(result.text, chapter_id, language, grounding, input_hash,
+                                          model=result.observed_model or 'gpt-6-luna')
+                except LearningError as exc:
+                    lesson = unavailable_lesson(input_hash, str(exc))
+                return {'lesson': lesson}
+
+            controls.get_or_create_task(sid, count, budget, PRICING_VERSION, shared_cap)
+            try:
+                parsed, _replay = _controlled(sid, 'translator', LESSON_STAGE, prompt, configuration, output_cap,
+                    controls, journal, budget, count, shared_cap, validate, dependencies, adapter_factory)
+            except Exception as exc:
+                if any(step['status'] in ('unknown', 'dispatched') for step in journal.job_steps(sid)):
+                    raise LearningError('retry_confirmation_required') from exc
+                raise
+            with self._lock:
+                self._data['jobs'][sid]['lessons'][chapter_id] = parsed['lesson']
+                self._save()
+        return True
 
     def _finish_status(self, sid, status):
         session = self.store.get_session(sid)

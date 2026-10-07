@@ -31,7 +31,8 @@ class LearningControlRecoveryTests(unittest.TestCase):
         ready = self.service.resume(failed['session_id'], adapter.factory, budget_usd=1000, background=False)
         self.assertEqual(ready['status'], 'ready')
         self.assertEqual(adapter.calls, 2)
-        self.assertEqual(self.service.summary()['jobs'][ready['session_id']]['usage']['attempted_calls'], 2)
+        # Two chunk calls plus one grammar-lesson call per chapter.
+        self.assertEqual(self.service.summary()['jobs'][ready['session_id']]['usage']['attempted_calls'], 4)
         self.assertTrue((self.root / 'calls' / ready['session_id'] / 'controls.sqlite3').exists())
 
     def test_truncated_response_preserved_and_explicit_retry_keeps_held_cost(self):
@@ -56,7 +57,7 @@ class LearningControlRecoveryTests(unittest.TestCase):
         ready = self.service.resume(sid, good.factory, output_tokens=16000, retry=True, background=False)
         self.assertEqual(ready['status'], 'ready', self.service.summary()['jobs'][sid]['error_code'])
         usage = self.service.summary()['jobs'][sid]['usage']
-        self.assertEqual(usage['attempted_calls'], 3)
+        self.assertEqual(usage['attempted_calls'], 5)  # 1 truncated + 2 chunks + 2 lessons
         self.assertGreaterEqual(usage['held_usd'], held)
         self.assertEqual(good.calls, 2)
 

@@ -16,7 +16,7 @@ from scholarly_translation.learning_generation import build_request, parse_respo
 from scholarly_translation.learning_planner import plan_book, replan_chunk
 from test_learning_generation import catalog as small_catalog, plan as small_plan, valid_payload
 from scholarly_translation.learning_service import LearningService
-from test_learning_integration import source, configuration, Adapter
+from test_learning_integration import source, configuration, Adapter, is_lesson
 
 
 class CumulativePlanningTests(unittest.TestCase):
@@ -93,6 +93,8 @@ class CumulativeServiceTests(unittest.TestCase):
 
             def generate(self, prompt, model):
                 result = super().generate(prompt, model)
+                if is_lesson(prompt):
+                    return result
                 job = next(j for j in self.service._data['jobs'].values() if j['status'] == 'preparing')
                 plan = deepcopy(job['current_plan'])
                 self.final_plans.append(plan)

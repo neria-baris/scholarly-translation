@@ -9,7 +9,7 @@ import unittest
 from scholarly_translation.learning_contracts import LearningError, fixture_source, source_hash
 from scholarly_translation.learning_service import LearningService
 from scholarly_translation.model_adapter import TextGenerationResult
-from test_learning_integration import configuration
+from test_learning_integration import configuration, is_lesson, lesson_reply
 
 FORMS = {'fr': 'papillon', 'de': 'Schmetterling', 'es': 'mariposa',
          'yi': 'פֿלאַטערל', 'it': 'farfalla'}
@@ -33,6 +33,8 @@ class ProposalAdapter:
         return self
 
     def generate(self, prompt, model):
+        if is_lesson(prompt):
+            return lesson_reply(prompt, model)
         self.calls += 1
         job = next(job for job in self.service._data['jobs'].values() if job['status'] == 'preparing')
         plan = job['current_plan']
@@ -84,7 +86,7 @@ class MultilingualLifecycleTests(unittest.TestCase):
                 adapter = ProposalAdapter(self.service)
                 session = self.prepare(adapter)
                 self.assertEqual(adapter.calls, 2)
-                self.assertEqual(adapter.roles, ['translator', 'translator'])
+                self.assertEqual(adapter.roles, ['translator'] * 4)  # 2 chunks + 2 chapter lessons
                 chunks = self.service.store.get_prepared(session['session_id'])['chunks']
                 item_id = chunks[0]['introduced_items'][0]['item_id']
                 self.assertTrue(item_id.startswith(language + '-learn-'))
@@ -155,6 +157,8 @@ class MultilingualLifecycleTests(unittest.TestCase):
         class GrammarAdapter(ProposalAdapter):
             def generate(self, prompt, model):
                 result = super().generate(prompt, model)
+                if is_lesson(prompt):
+                    return result
                 raw = json.loads(result.text)
                 job = next(job for job in self.service._data['jobs'].values() if job['status'] == 'preparing')
                 known = next((row['item'] for row in job['projected'].get('vocabulary', [])

@@ -31,6 +31,11 @@ def _prompt_version(plan):
             'learning-policy@2': 'learning-generation@2'}.get(plan['policy_version'], PROMPT_VERSION)
 
 
+def _chunk_prompt_version(plan, dictionary):
+    from .learning_dictionary import DICTIONARY_VERSION
+    return _prompt_version(plan) + ('+' + DICTIONARY_VERSION if dictionary else '')
+
+
 def _load_instructions(plan):
     asset_name = {'learning-generation@1': '08_learning_generation.md',
                   'learning-generation@2': '09_learning_cumulative_generation.md',
@@ -46,8 +51,13 @@ def _section(label, value):
     return f"{label}:\n```json\n{json.dumps(value, sort_keys=True, ensure_ascii=False, indent=2)}\n```"
 
 
-def build_request(plan, catalog, context=""):
-    """Returns (prompt_string, input_hash). Pure; makes no model call."""
+def build_request(plan, catalog, context="", dictionary_needed=None):
+    """Returns (prompt_string, input_hash). Pure; makes no model call.
+
+    ``dictionary_needed`` (lexical IDs still without a dictionary entry)
+    enables dictionary entries in the same response; None keeps the earlier
+    prompt unchanged.
+    """
     validate_plan(plan)
     validate_catalog(catalog)
     require(isinstance(context, str) and len(context) <= 2000000, "invalid_plan", "context_too_long")
@@ -80,9 +90,14 @@ def build_request(plan, catalog, context=""):
     ])
     if plan['policy_version'] == 'learning-policy@3':
         prompt += '\n\n' + _section('FREQUENCY_HINTS', catalog.get('frequency_seed', [])[:100])
+    if dictionary_needed is not None:
+        from .learning_dictionary import instructions
+        require(isinstance(dictionary_needed, list) and all(isinstance(x, str) for x in dictionary_needed),
+                'invalid_plan', 'dictionary_needed')
+        prompt += '\n\n' + instructions() + '\n\n' + _section('DICTIONARY_NEEDED', sorted(dictionary_needed))
     input_hash = fingerprint({
         "prompt": prompt,
-        "prompt_version": _prompt_version(plan), "plan": plan, "catalog_version": catalog["version"],
+        "prompt_version": _chunk_prompt_version(plan, dictionary_needed is not None), "plan": plan, "catalog_version": catalog["version"],
         "selected_items": selected_items, "context": context,
         "provider": DEFAULT_PROVIDER, "model": DEFAULT_MODEL,
     })
@@ -111,8 +126,14 @@ def _grounded_entries(entries, edits, pool_key, text_field):
     return result
 
 
-def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, model=DEFAULT_MODEL):
-    """Strict JSON + structural validation. Returns (GeneratedChunk, recap_proposal)."""
+def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, model=DEFAULT_MODEL,
+                   dictionary_known=None):
+    """Strict JSON + structural validation. Returns (GeneratedChunk, recap_proposal).
+
+    ``dictionary_known`` (IDs that already have an entry) enables the optional
+    dictionary_entries field; entries are kept only for lexical items used by
+    accepted edits here and not already known.
+    """
     validate_plan(plan)
     validate_catalog(catalog)
     require(isinstance(raw, str) and raw.strip(), "invalid_generation", "empty_response")
@@ -129,6 +150,8 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
     require(isinstance(data, dict), "invalid_generation", "not_an_object")
     fields = {'response_version', 'plan_id', 'edits', 'recap', 'warnings'}
     optional = {'introduced_items'} if plan['policy_version'] == 'learning-policy@3' else set()
+    if dictionary_known is not None:
+        optional.add('dictionary_entries')
     require(fields <= set(data) and set(data) <= fields | optional, 'invalid_generation', 'response_fields')
     require(type(data.get("response_version")) is int and data["response_version"] == 1, "invalid_generation", "response_version")
     require(data.get("plan_id") == plan["plan_id"], "invalid_generation", "plan_id_mismatch")
@@ -273,7 +296,8 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         warnings.append({'code': 'coverage_shortfall', 'unit_id': None})
     chunk = {
         "schema_version": 1, "plan_id": plan["plan_id"], "response_version": 1,
-        "provider": provider, "model": model, "prompt_version": _prompt_version(plan),
+        "provider": provider, "model": model,
+        "prompt_version": _chunk_prompt_version(plan, dictionary_known is not None),
         "input_hash": input_hash, "edits": edits, "warnings": warnings,
         "language": catalog['language'],
         "coverage_item_ids": coverage_item_ids,
@@ -284,6 +308,14 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
         chunk['content_hash'] = fingerprint({'plan_id': plan['plan_id'], 'input_hash': input_hash,
                                             'edits': edits, 'coverage_item_ids': coverage_item_ids,
                                             'introduced_items': admitted})
+    if dictionary_known is not None:
+        from .learning_dictionary import parse_entries
+        lexical_used = {item_id for edit in edits for item_id in edit['item_ids']}
+        entries = parse_entries(data.get('dictionary_entries'), language=catalog['language'], aliases=aliases,
+                                eligible_ids=lexical_used - set(dictionary_known))
+        if entries:
+            # Supplementary data: covered by the prepared hash, not by content_hash.
+            chunk['dictionary_entries'] = entries
     validate_generated(chunk)
 
     recap_raw = data.get("recap")
