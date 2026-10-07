@@ -1,4 +1,17 @@
-# Current state — UI-POLISH delivered to main (after AUTO-CONTINUE-WRITABLE)
+# Current state — CROSS-RESUME fix on main (after UI-POLISH)
+Updated: 2026-10-07. Claude continuity, user-directed bug fix (no contract; pipeline ordering).
+Symptom: the UI showed "פרק 23 מתוך 64 הושלם. בדיקה רוחבית של פרקים 15–22". Evidence: Jade City
+75ec5d08 journal: window 14-21 started 07:24:57 right after chapter 22; a cross-correction answer
+failed validation at 07:26; the user retried at 07:34; the resume translated chapter 23 first and
+finished the window at 07:39. Cause: due windows ran only after a chapter completed, so any stop
+inside or just before a due window (failed call, pause, app restart, budget) let the next chapter
+go first. Fix: `cross_windows()` once before the chapter loop. New test
+test_names_crossqa_integration::test_resume_finishes_a_due_window_before_the_next_chapter fails on
+the old code and passes now. Full offline suite 1255 OK. Paid/provider calls 0. Not pushed.
+Effect on the running job: none until the server restarts; chapter 23 is checked again in window 22-29.
+Next: the pending UI restart (AUTO-CONTINUE-WRITABLE note below) also loads this fix.
+
+## Previous: UI-POLISH delivered to main (after AUTO-CONTINUE-WRITABLE)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/ui_polish.md`.
 Result screen: one short status line + one collapsed details box (export limitations grouped by
 kind with counts, first notes, findings count, usage) instead of thousands of joined English

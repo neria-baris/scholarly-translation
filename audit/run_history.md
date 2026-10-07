@@ -1056,3 +1056,15 @@ free-form server text stays Hebrew), bilingual help page (#en or saved choice). 
 Edge screenshots of start/processing/result in both languages with real job data (stubbed fetch).
 Full offline suite 1254 OK (563 s); node --check OK. Paid/provider calls 0. Static files only: a
 browser reload shows it, no restart needed.
+
+## 2026-10-07T12:10+03:00 | CROSS-RESUME | Claude continuity, user-directed
+User asked why "chapter 23 completed, cross-check of chapters 15-22" appeared (too late?).
+Evidence: Jade City 75ec5d08 journal/controls: window 14-21 cross-chapter-qa at 07:24:57 right after
+chapter 22 (on time); cross-correction answer malformed (validation failed) 07:26:09; user retry
+(event 555 user_cache_evicted) 07:34:35; chapter 23 chapter-translate 07:34:46; remaining window
+corrections/rechecks 07:37:58-07:39:39. Cause: `_run_cross_windows` was called only after a chapter
+completed and at the end; a resume went straight to the next incomplete chapter. Fix: one call
+before the chapter loop (runs only due windows; no-op otherwise). Regression test fails before,
+passes after. Branch fix/cross-window-resume (worktree .claude/worktrees/cross-window-resume),
+rebased on ca54035, fast-forwarded into main. Full offline suite 1255 OK (507 s). Paid/provider
+calls 0. Takes effect after the next server restart; not pushed.
