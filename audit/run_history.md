@@ -1135,3 +1135,16 @@ gpt-6.1-sol held $0.1876, failed_transport latencies 1.75 s ... 0.03 s, three au
 manual one; journal shows the identical prompt completed afterwards. Cause: fixed 3-in-a-row limit
 plus immediate resends inside a short outage. Fix: dollar row limit, backoff as paused, adapter
 resend for never-opened connections, exception classes in errors. Paid/provider calls 0.
+
+## 2026-10-07T18:00+03:00 | TARGET-LANGUAGES | Claude continuity, user-directed
+User asked for target-language packs and deterministic output checks (proposed in the prompt
+review), then a UI choice (Hebrew or English for now). Contract audit/contracts/target_languages.md.
+Method: snapshot of every prompt of a full mock run (names, translate, review, QA, keeper, cross QA,
+correction) + direct renders before the change; after tokenizing, the Hebrew snapshot matched byte
+for byte (ids normalized) except REVIEW_FOCUS lines added by the new findings. English renders carry
+no Hebrew rule/letter. Planner placeholders use a target-script letter (Hebrew unchanged).
+Branch feat/target-languages (worktree .claude/worktrees/target-languages) off 8f0e654, rebased
+three times over concurrent main work (NAMES-CJK, SERVER-TEXT-EN, REMEMBER-KEYS; ui.js EN table
+conflicts resolved by re-applying the two key edits), fast-forwarded into main with user approval.
+New tests/test_target_languages.py (24, incl. a full French->English mock EPUB run). Full offline
+suite 1316 OK (529 s). Paid/provider calls 0. Not pushed.

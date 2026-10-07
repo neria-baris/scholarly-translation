@@ -1,4 +1,19 @@
-# Current state — REMEMBER-KEYS key dialog on main (after AUTO-RETRY-UNDER-DOLLAR)
+# Current state — TARGET-LANGUAGES delivered to main (after REMEMBER-KEYS key dialog)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/target_languages.md`.
+Target-language packs (`scholarly_translation/target_languages/{he,en}.md`): prompt templates and
+prompt strings use {{T:KEY}} tokens localized before data substitution; validators, name table,
+formal checks and HTML/EPUB/PDF exports follow the active pack; jobs run inside it. Hebrew prompts are
+byte-identical to main (138-prompt snapshot of a full mock run + direct renders) except review focus
+lines from the new checks. New `output_checks.py`: length ratio, sentence count, copied source run,
+added dash (note), missing NAMES form, missing approved term; review triggers + focus lines, no
+rewrites, no extra calls. UI: target select (Hebrew/English; English needs the configured model),
+summary, button, processing line, editor direction; source == target rejected. Stored keys keep
+their names (`hebrew`, ...). Full offline suite 1316 OK. Paid/provider calls 0. Not pushed.
+Open: no real English translation run yet; target select not checked in a browser; learning and
+Gate-7/8 CLI stay Hebrew; the notebook download's name-table heading still says Hebrew.
+Next: restart the UI; try one chapter into English with a configured model.
+
+## Previous: REMEMBER-KEYS key dialog on main (after AUTO-RETRY-UNDER-DOLLAR)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/remember_keys.md`.
 User: clicking the header key showed irrelevant text (the model/Auto connection dialog). Now it
 opens an "API key" dialog: per provider saved on this computer / memory only / external
