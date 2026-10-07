@@ -1862,6 +1862,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
             if notebook_mode:
                 _run_cross_windows(job, groups, structure, glossary, configuration, profile, store, journal, hard,
                                    max_calls, shared_cap, adapter_factory, save, format_repaired)
+        cross_windows()   # a resume first finishes a window that was due when the job stopped
         for index, group in enumerate(groups):
             key = str(index)
             if job['chapter_completion'].get(key):

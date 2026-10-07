@@ -179,6 +179,23 @@ class NamesCrossQATests(unittest.TestCase):
         self.execute(job, self.factory())
         self.assertEqual(len(self.calls), before)
 
+    def test_resume_finishes_a_due_window_before_the_next_chapter(self):
+        class Stopped(BaseException):
+            pass
+        def stop(job, *_):
+            if job['chapter_completion'].get('7'):
+                raise Stopped()
+        job = self.job()
+        with unittest.mock.patch.object(pipeline, '_run_cross_windows', side_effect=stop):
+            with self.assertRaises(Stopped):   # the app stops after chapter 8, before its window runs
+                self.execute(job, self.factory())
+        self.assertTrue(job['chapter_completion'].get('7'))
+        self.assertFalse(job['chapter_completion'].get('8'))
+        self.calls = []
+        self.execute(job, self.factory())
+        order = self.kinds()
+        self.assertLess(order.index('cross'), order.index('translate'))
+
     def test_fast_quality_builds_the_table_but_runs_no_cross_qa(self):
         job = self.job('fast')
         self.execute(job, self.factory())
