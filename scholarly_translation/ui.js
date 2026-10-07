@@ -46,6 +46,7 @@ const SERVER_EN={
 "העלאת התקציב ל־${1}": "Raise the budget to ${1}",
 "לרשום {1} ולנסות שוב": "Record {1} and retry",
 "החיבור לספק נותק; ניסיון חוזר אוטומטי בעוד {1} שניות": "The connection to the provider dropped; automatic retry in {1} seconds",
+"תשובת הספק נכשלה; ניסיון חוזר אוטומטי בעוד {1} שניות": "The provider's response failed; automatic retry in {1} seconds",
 "משלב וקול הספר": "Book register and voice",
 "מילת מפתח: {1}": "Keyword: {1}",
 "טבלת השמות לא נבנתה לפני התרגום (תקציב, כשל בקריאה או תשובה לא תקינה); השמות יירשמו פרק אחר פרק.": "The name table was not built before translation (budget, call failure or invalid response); names will be recorded chapter by chapter.",

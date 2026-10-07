@@ -81,3 +81,12 @@ user may resume at once or pause (a user pause, manual resume or new decision ca
 Adapters also resend, like an explicit rejection, a call whose connection never opened (httpx
 ConnectError/ConnectTimeout under the SDK error): nothing reached the provider. Transport errors
 now name the exception classes in the step error.
+
+### Addendum AUTO-RETRY-KNOWN-COST (2026-10-07, user-directed)
+User report: a truncated answer with known usage ($0.0001, `failed_truncated`) still asked "record
+the cost and retry". The user's words: retry up to 10 times until it works. `auto_decision` now
+also applies `accept_and_retry` to a `failed_call` block whose call has known usage, under the same
+row rule (accepted charges in the row plus this call's known cost below $1; at most 10 in a row;
+same 15/60/120/300 s waits; stage note "תשובת הספק נכשלה; ניסיון חוזר אוטומטי"). A truncated
+chapter notebook (`notebook_truncated`: retrying the same cap cannot help) and a step that failed
+response validation without an open provider charge still wait for the user.

@@ -1299,7 +1299,9 @@ class DocumentJobs:
             delay = job_blocks.auto_retry_delay(job)
             token = secrets.token_hex(8)
             job["status"], job["auto_retry"] = "paused", token
-            job["stage_label"] = "החיבור לספק נותק; ניסיון חוזר אוטומטי בעוד %d שניות" % delay
+            job["stage_label"] = ("החיבור לספק נותק; ניסיון חוזר אוטומטי בעוד %d שניות"
+                                  if job["decisions"][-1]["kind"] == "unknown_outcome"
+                                  else "תשובת הספק נכשלה; ניסיון חוזר אוטומטי בעוד %d שניות") % delay
             self._persist(job)
         timer = threading.Timer(delay, self._auto_resume, (job["job_id"], token))
         timer.daemon = True

@@ -23,9 +23,10 @@ _CROSS_QA_STAGE = "cross-chapter-qa"
 _VISION_STAGE = "ocr-vision"
 _SKIP_VISION_LABEL = "להמשיך בלי בדיקת המודל (טקסט ה־OCR המקומי בלבד)"
 SHORT_STORY_WORDS = 300
-# User rule (2026-10-06, sharpened 2026-10-07): unknown-outcome calls are accepted at
-# their held charge and retried without asking while the charges accepted automatically
-# in a row, plus this one, stay below this; at or above it the user decides.
+# User rule (2026-10-06, sharpened and widened 2026-10-07): unknown-outcome calls (at
+# their held charge) and failed calls with known usage (e.g. truncated) are accepted and
+# retried without asking while the charges accepted automatically in a row, plus this
+# one, stay below this; at or above it the user decides.
 AUTO_ACCEPT_BELOW_USD = 1.0
 # Backstop for a call that keeps failing although each hold is tiny (a row breaks once
 # any other call is reserved in between).
@@ -187,18 +188,25 @@ def _auto_row(job, calls):
 
 def auto_decision(job, store, journal):
     """The option to apply without asking, or None when the user must decide.
-    Only an unknown-outcome block qualifies, and only while the charges accepted
-    automatically in the current row plus the held charge now stay below
-    ``AUTO_ACCEPT_BELOW_USD`` (and the row is shorter than ``AUTO_ACCEPT_MAX_STREAK``)."""
+    An unknown-outcome block and a failed provider call with known usage qualify,
+    only while the charges accepted automatically in the current row plus the
+    charge now stay below ``AUTO_ACCEPT_BELOW_USD`` (and the row is shorter than
+    ``AUTO_ACCEPT_MAX_STREAK``)."""
     block = diagnose(job, store, journal)
-    if block is None or block["kind"] != "unknown_outcome":
+    if block is None:
+        return None
+    if block["kind"] == "unknown_outcome":
+        option = "accept_worst_case_and_retry"
+    elif block["kind"] == "failed_call" and "call" in block["details"]:
+        option = "accept_and_retry"
+    else:
         return None
     row = _auto_row(job, store.status(job["job_id"])["attempted_calls"])
     accepted = sum(c.get("charged_usd") or 0.0 for d in row for c in d.get("accepted_charges", []))
-    held = sum(c["held_usd"] for c in store.uncertain_calls(job["job_id"]))
-    if accepted + held >= AUTO_ACCEPT_BELOW_USD or len(row) >= AUTO_ACCEPT_MAX_STREAK:
+    now = sum(c["held_usd"] if c["known_usd"] is None else c["known_usd"] for c in store.uncertain_calls(job["job_id"]))
+    if accepted + now >= AUTO_ACCEPT_BELOW_USD or len(row) >= AUTO_ACCEPT_MAX_STREAK:
         return None
-    return "accept_worst_case_and_retry"
+    return option
 
 
 def auto_retry_delay(job):

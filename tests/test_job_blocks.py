@@ -245,8 +245,31 @@ class JobBlocksTests(unittest.TestCase):
         with mock.patch.object(job_blocks, "AUTO_ACCEPT_BELOW_USD", call["held_usd"]):
             self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
 
-    def test_known_cost_failure_is_never_automatic(self):
+    def test_known_cost_failure_below_one_dollar_is_retried_automatically(self):
+        # User report 2026-10-07: a $0.0001 truncated answer still asked the user.
         self.fail(raw("failed_truncated", output=4096))
+        [call] = self.store.uncertain_calls(JOB)
+        self.assertEqual(job_blocks.auto_decision(self.job, self.store, self.journal), "accept_and_retry")
+        with mock.patch.object(job_blocks, "AUTO_ACCEPT_BELOW_USD", call["known_usd"]):
+            self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
+        job_blocks.apply_decision(self.job, self.store, self.journal, "accept_and_retry", auto=True)
+        self.assertTrue(self.job["decisions"][-1]["auto"])
+        self.call(raw())
+        self.assertEqual(len(self.sent), 2)
+
+    def test_known_cost_failure_row_has_the_same_count_backstop(self):
+        with mock.patch.object(job_blocks, "AUTO_ACCEPT_MAX_STREAK", 2):
+            for _ in range(2):
+                self.fail(raw("failed_truncated", output=4096))
+                job_blocks.apply_decision(self.job, self.store, self.journal,
+                                          job_blocks.auto_decision(self.job, self.store, self.journal), auto=True)
+            self.fail(raw("failed_truncated", output=4096))
+            self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
+
+    def test_truncated_notebook_still_asks_the_user(self):
+        self.fail(raw("failed_truncated", output=4096), stage="chapter-notebook")
+        block = job_blocks.diagnose(self.job, self.store, self.journal)
+        self.assertEqual(block["kind"], "notebook_truncated")
         self.assertIsNone(job_blocks.auto_decision(self.job, self.store, self.journal))
 
     def auto_retry(self):

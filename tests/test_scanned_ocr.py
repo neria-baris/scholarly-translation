@@ -10,6 +10,7 @@ import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.utils import ImageReader
@@ -214,7 +215,8 @@ class ScannedFlowTests(unittest.TestCase):
 
     def test_failed_vision_offers_skip_and_resume_never_resends(self):
         model = FakeModel(fail_vision=True)
-        jobs, job = self.run_job(model)
+        with mock.patch.object(job_blocks, "AUTO_ACCEPT_BELOW_USD", 0.0):   # the user decides here
+            jobs, job = self.run_job(model)
         self.assertEqual(job["status"], "failed")
         block = jobs.blocker(job["job_id"], job)
         self.assertIn("skip_ocr_review", [o["id"] for o in block["options"]])
