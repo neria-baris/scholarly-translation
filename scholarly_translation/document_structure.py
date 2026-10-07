@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import re
+import statistics
 
 from .segmentation import _build_units_for_reading, _intersecting_anchors, _UNIT_FIELDS
 from .source_reading import (
@@ -55,6 +56,8 @@ _HEADING_WORD_RE = re.compile(
 )
 _JAPANESE_HEADING_RE = re.compile(r"^第[0-9一二三四五六七八九十百千]+([部章節項])")
 _NUMBERED_HEADING_RE = re.compile(r"^\d+(\.\d+)*[\.\)]?\s+\S")
+# "1. タイトル" / "2.3 タイトル": a short section number, never a year or a count ("1938 年").
+_CJK_NUMBERED_HEADING_RE = re.compile(r"^\d{1,2}(?:\.\d{1,2})*(?:[\.．]\s*|\s+)(?![\d年月日世紀頁巻号回人歳%％])\S")
 _NOTE_RE = re.compile(r"^(?:\[\d+\]|［\d+］|[※＊])\s*\S")
 _CAPTION_RE = re.compile(r"^(figure|fig\.|table|plate|tableau|図|表)\s*\d", re.IGNORECASE)
 _BIBLIOGRAPHY_RE = re.compile(r"^[A-Z][\w'-]+,\s*[A-Z]\.(\s*[A-Z]\.)*\s*\(\d{4}\)")
@@ -67,6 +70,10 @@ _QUOTE_PAIRS = [('"', '"'), ("“", "”"), ("'", "'")]
 _SENTENCE_END_RE = re.compile(r"[\.\!\?。！？…”\"')\]]\s*$")
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[\.\!\?。！？])(?:\s+|(?=\S))")
 _CJK_CHARACTER_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff]")
+# Japanese section names that stand alone on a line (introduction, conclusion, ...).
+_JAPANESE_SECTION_WORD_RE = re.compile(r"^(?:\u5e8f\u8ad6|\u5e8f|\u5e8f\u7ae0|\u306f\u3058\u3081\u306b|\u307e\u3048\u304c\u304d|\u7d50\u8ad6|\u7d50\u3073|\u7d50\u8a9e|\u3080\u3059\u3073|\u304a\u308f\u308a\u306b|\u3042\u3068\u304c\u304d|\u8b1d\u8f9e)$")
+# A run of Japanese emphasis dots (boten) extracted as its own visual line.
+_EMPHASIS_DOTS_RE = re.compile(r"^[\u3001\ufe45\ufe46\u30fb\s]{2,}$")
 
 
 def classify_line(line: str):
@@ -85,6 +92,12 @@ def classify_line(line: str):
         return "caption", None
     if _BIBLIOGRAPHY_RE.match(stripped):
         return "bibliography_entry", None
+    cjk = _CJK_CHARACTER_RE.search(stripped) is not None
+    if cjk and _JAPANESE_SECTION_WORD_RE.match(stripped):
+        return "subsection", 4
+    if (cjk and len(stripped) <= 60 and not _SENTENCE_END_RE.search(stripped)
+            and _CJK_NUMBERED_HEADING_RE.match(stripped)):
+        return "subsection", 4      # "1. ゲーデルにおける…": a section heading, not a list item
     if _LIST_RE.match(stripped):
         return "list", None
     if "=" in stripped and len(stripped.split()) <= 8 and _FORMULA_RE.match(stripped):
@@ -110,12 +123,15 @@ def classify_line(line: str):
             japanese_heading.group(1)
         ]
         return kind, {"part": 1, "chapter": 2, "section": 3, "subsection": 4}[kind]
-    if (len(stripped) <= 80 and not _SENTENCE_END_RE.search(stripped)
+    # Japanese lines took the stricter numbered rule above ("1938 年に…" is running text).
+    if (not cjk and len(stripped) <= 80 and not _SENTENCE_END_RE.search(stripped)
             and re.match(r"^\d+(?:\.\d+){2,}[\.\)]?\s+\S", stripped)):
         return "subheading", 6
-    if len(stripped) <= 80 and not _SENTENCE_END_RE.search(stripped) and _NUMBERED_HEADING_RE.match(stripped):
+    if not cjk and len(stripped) <= 80 and not _SENTENCE_END_RE.search(stripped) and _NUMBERED_HEADING_RE.match(stripped):
         return "subsection", 4
-    if len(stripped) <= 80 and not _SENTENCE_END_RE.search(stripped) and (
+    # Case is a heading signal only in scripts that have case: a Japanese line with one
+    # capital ("体系A") or a romanised name ("Kurt Gödel") is ordinary body text.
+    if not cjk and len(stripped) <= 80 and not _SENTENCE_END_RE.search(stripped) and (
         stripped.isupper() or (stripped.istitle() and len(stripped.split()) > 1)
     ):
         return "heading", 5
@@ -137,10 +153,57 @@ def _classified_lines(text: str) -> list:
     return lines
 
 
-def _merge_paragraph_lines(text: str, raw: list) -> list:
-    """Reconstruct wrapped visual lines into one paragraph node when a line
-    does not end a sentence and is immediately followed by another paragraph
-    line, without altering any source character."""
+def _page_layout(text: str, anchors) -> dict | None:
+    """Line geometry of one page for paragraph reconstruction: per-line boxes by line start,
+    the text column's right edge, the normal gap between lines and the body line height.
+    None when the page has too few located lines to judge."""
+    rows = [r for r in article_layout.line_geometry(text, anchors) if r["x1"] is not None]
+    if len(rows) < 3:
+        return None
+    widest = max(r["x1"] - r["x0"] for r in rows)
+    wide = [r for r in rows if r["x1"] - r["x0"] >= 0.6 * widest
+            and not _EMPHASIS_DOTS_RE.match(r["text"].strip())]
+    height = statistics.median(r["height"] for r in rows)
+    gaps = [b["top"] - a["bottom"] for a, b in zip(rows, rows[1:])
+            if 0 <= b["top"] - a["bottom"] < 2 * height]
+    return {"rows": {r["start"]: r for r in rows},
+            "right": statistics.median(r["x1"] for r in wide) if wide else None,
+            "gap": statistics.median(gaps) if gaps else None, "height": height}
+
+
+def _overlaps_previous(prev, row) -> bool:
+    """Whether ``row`` overlaps ``prev`` vertically: a fragment of the same visual line
+    (emphasis dots above characters, a subscript), not a line of its own."""
+    return prev is not None and row is not None and row["top"] < prev["bottom"] - 1.0
+
+
+def _continues_paragraph(segment: str, cur, nxt, layout) -> bool:
+    """Whether the visual line ``nxt`` continues the paragraph whose current line is
+    ``cur`` (text ``segment``). Without geometry: unless ``segment`` ends a sentence.
+    With geometry a paragraph also breaks at an indented next line or a wider gap, and a
+    sentence end inside a full-width Japanese line does not break it (Japanese wraps at
+    any character, so a line may end exactly at a sentence end mid-paragraph)."""
+    sentence_end = _SENTENCE_END_RE.search(segment) is not None
+    if layout is None or cur is None or nxt is None:
+        return not sentence_end
+    height = cur["height"] or layout["height"]
+    if nxt["x0"] > cur["x0"] + 0.5 * height:
+        return False
+    gap = layout["gap"]
+    if gap is not None and nxt["top"] - cur["bottom"] > max(gap * 1.8, gap + 0.6 * height):
+        return False
+    if sentence_end:
+        return (layout["right"] is not None and _CJK_CHARACTER_RE.search(segment) is not None
+                and cur["x1"] >= layout["right"] - 0.8 * height)
+    return True
+
+
+def _merge_paragraph_lines(text: str, raw: list, layout=None) -> list:
+    """Reconstruct wrapped visual lines into one paragraph node when the next
+    paragraph line continues it (see ``_continues_paragraph``), without
+    altering any source character. A fragment of the line above (Japanese emphasis
+    dots, a subscript) stays inside the paragraph and never decides a break."""
+    rows = layout["rows"] if layout else {}
     groups = []
     i, n = 0, len(raw)
     while i < n:
@@ -150,15 +213,21 @@ def _merge_paragraph_lines(text: str, raw: list) -> list:
             i += 1
             continue
         group_start, group_end, j = start, end, i
+        last = j      # the last line of the group that is a line of its own, not a fragment
         while True:
-            segment = text[raw[j][0]:raw[j][1]].strip()
             nxt = j + 1
-            if (nxt < n and raw[nxt][2] == "paragraph" and raw[nxt][0] == raw[j][1] + 1
-                    and not _SENTENCE_END_RE.search(segment)):
+            if nxt >= n or raw[nxt][2] != "paragraph" or raw[nxt][0] != raw[j][1] + 1:
+                break
+            next_text = text[raw[nxt][0]:raw[nxt][1]].strip()
+            if _EMPHASIS_DOTS_RE.match(next_text) or _overlaps_previous(rows.get(raw[last][0]), rows.get(raw[nxt][0])):
                 j = nxt
                 group_end = raw[j][1]
-            else:
+                continue
+            segment = text[raw[last][0]:raw[last][1]].strip()
+            if not _continues_paragraph(segment, rows.get(raw[last][0]), rows.get(raw[nxt][0]), layout):
                 break
+            j = last = nxt
+            group_end = raw[j][1]
         groups.append((group_start, group_end, "paragraph", None))
         i = j + 1
     return groups
@@ -206,17 +275,24 @@ def _build_nodes_for_digital_text_reading(reading: dict, previous_nodes) -> list
     return nodes
 
 
-def _apply_layout_overrides(text: str, overrides: dict) -> list:
+def _apply_layout_overrides(text: str, overrides: dict, layout=None) -> list:
     """Classified lines with ARTICLE-NOTES layout overrides applied: an overridden line takes
     the override's kind/level, and consecutive lines of one override group (a multi-line note
     or reference entry) form one span. Other lines keep the usual paragraph merging."""
     raw = _classified_lines(text)
+    if layout:
+        # A lone number overlapping the line above is a subscript or superscript (ε₀), not a
+        # page number: it stays in the paragraph.
+        rows = layout["rows"]
+        raw = [(s, e, "paragraph", None) if k == "page_furniture" and i
+               and _overlaps_previous(rows.get(raw[i - 1][0]), rows.get(s)) else (s, e, k, lv)
+               for i, (s, e, k, lv) in enumerate(raw)]
     if not overrides:
-        return _merge_paragraph_lines(text, raw)
+        return _merge_paragraph_lines(text, raw, layout)
     out, plain = [], []
     def flush():
         if plain:
-            out.extend(_merge_paragraph_lines(text, plain))
+            out.extend(_merge_paragraph_lines(text, plain, layout))
             plain.clear()
     last_group = None
     for start, end, kind, level in raw:
@@ -243,7 +319,8 @@ def _build_nodes_for_reading(reading: dict, previous_nodes, overrides=None) -> l
     text = reading["text"]
     previous_nodes = previous_nodes or []
     previous_by_id = {n["node_id"]: n for n in previous_nodes}
-    groups = _apply_layout_overrides(text, overrides)
+    layout = _page_layout(text, reading["selected_anchors"]) if origin in ("digital", "ocr") else None
+    groups = _apply_layout_overrides(text, overrides, layout)
     nodes = []
     for start, end, kind, level in groups:
         node_id = deterministic_id(

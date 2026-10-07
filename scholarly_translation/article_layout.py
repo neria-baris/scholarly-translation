@@ -21,6 +21,13 @@ import statistics
 NOTE_HEIGHT_RATIO = 0.88
 HEADING_HEIGHT_RATIO = 1.15
 MIN_BODY_WORDS = 4
+MIN_BODY_CJK = 10
+# A line mixing Japanese with Latin letters, digits or ASCII brackets has a taller box than a
+# purely Japanese line of the same type size (the Latin font's ascent/descent): about 1.10x
+# measured on a real article. Heights of such lines are divided by this before comparing.
+MIXED_SCRIPT_HEIGHT = 1.10
+# A Japanese display line (title, heading) is short; a full-width line is running text.
+CJK_HEADING_MAX_WIDTH = 0.85
 FURNITURE_MIN_PAGES = 3
 EDGE_LINES = 2
 MARK_TOKEN_RE = re.compile(r"\[\^(\d{1,3}|[*†‡§]{1,3})\]")
@@ -29,20 +36,23 @@ _STRUCTURAL_KINDS = frozenset({"part", "chapter", "section", "subsection", "subh
 BODY_KINDS = frozenset({"paragraph", "heading", "subheading", "section", "subsection", "chapter", "part",
                         "list", "quotation", "caption", "unsupported"})
 
-_LABEL_RE = re.compile(r"^\s*(?:(\d{1,3})(?!\d)(?![.,]\d)|([*†‡§]{1,3})|([¹²³⁰⁴-⁹]{1,3}))[.)]?\s*(?=\S)")
+_LABEL_RE = re.compile(r"^\s*(?:[(（](\d{1,3})[)）]|(\d{1,3})(?!\d)(?![.,]\d)|([*†‡§]{1,3})|([¹²³⁰⁴-⁹]{1,3}))[.)]?\s*(?=\S)")
 _SUPERSCRIPT_DIGITS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
 _REFERENCES_RE = re.compile(
     r"^\s*(?:[\dIVX]+\.?\s+)?(references|bibliography|select bibliography|works cited|literature cited|"
     r"literature|literatur|literaturverzeichnis|bibliographie|références|références bibliographiques|"
-    r"riferimenti bibliografici|bibliografia|bibliografía|referencias|参考文献|sources|notes and references)"
+    r"riferimenti bibliografici|bibliografia|bibliografía|referencias|参考文献|引用文献|参照文献|文献|文献一覧|sources|notes and references)"
     r"\s*:?\s*$", re.IGNORECASE)
 _ENTRY_START_RE = re.compile(
-    r"^\s*(?:\[\d{1,4}\]|\d{1,4}\.\s|[A-ZÀ-Ý][\w'’\-]+(?:\s[A-ZÀ-Ý][\w'’\-]+)?,\s|[A-ZÀ-Ý][\w'’\-]+\s[A-Z]\.|[—–-]{2,})")
+    r"^\s*(?:\[\d{1,4}\]|\d{1,4}\.\s|(?:(?:van|von|de|der|du|da|di|le|la)\s)?[A-ZÀ-Ý][\w'’\-]+(?:\s[A-ZÀ-Ý][\w'’\-]+)?,\s"
+    r"|[A-ZÀ-Ý][\w'’\-]+\s[A-Z]\.|[—–―-]{2,}|[^\s\d(（]{1,20}\s?[(（]\d{4}[a-z]?[)）])")
 _HEADINGISH_RE = re.compile(r"^\s*(?:appendix|anhang|annexe|acknowledg|notes?\s*$)", re.IGNORECASE)
 _PAGE_NUMBER_RE = re.compile(r"^(?:(?:page|page\s+n°|ページ)\s*)?\d{1,4}$", re.IGNORECASE)
 _GREEK_RE = re.compile(r"[Ͱ-Ͽἀ-῿]")
 _MATH_CHARS = set("=<>≤≥≠≈≡∈∉⊂⊆→⇒⇔∑∏∫√+−×÷·^_∂∇∞±∓′″")
 # A mark: digits glued to a word (>= 2 letters) or to closing punctuation, then space/punct/end.
+# A bracketed number right after Japanese text or closing Japanese punctuation.
+_PAREN_MARK_RE = re.compile(r"(?<=[぀-ヿ㐀-鿿」』）、。])[(（](\d{1,3})[)）]")
 _MARK_RE = re.compile(r"(?:(?<=[^\W\d_][^\W\d_])|(?<=[.,;:!?)\]”\"’']))(\d{1,3}|[*†‡§]{1,3})(?=[\s.,;:!?)\]”\"’']|$)")
 
 
@@ -92,7 +102,7 @@ def note_label(text):
     m = _LABEL_RE.match(text or "")
     if not m:
         return None
-    return m.group(1) or m.group(2) or m.group(3).translate(_SUPERSCRIPT_DIGITS)
+    return m.group(1) or m.group(2) or m.group(3) or m.group(4).translate(_SUPERSCRIPT_DIGITS)
 
 
 def _normalise_edge(text):
@@ -100,6 +110,31 @@ def _normalise_edge(text):
 
 
 # ------------------------------------------------------------------ analysis
+
+_CJK_RE = re.compile(r"[぀-ヿ㐀-鿿]")
+_LATIN_GLYPH_RE = re.compile(r"[A-Za-z0-9()\[\]]")
+_CJK_CLAUSE_END = ("。", "、", "，", "．", "：", "；", "」", "』", "）")
+_NOTES_HEADING_RE = re.compile(r"^\s*(?:註|注|脚注|後注|原注|notes?|endnotes)\s*:?\s*$", re.IGNORECASE)
+
+
+def _effective_height(ln):
+    """Line height comparable across scripts (see MIXED_SCRIPT_HEIGHT)."""
+    height = ln["height"]
+    if height and _CJK_RE.search(ln["text"]) and _LATIN_GLYPH_RE.search(ln["text"]):
+        return height / MIXED_SCRIPT_HEIGHT
+    return height
+
+
+def _body_sized(text):
+    """A line long enough to show the body type size: four spaced words, or ten
+    Japanese characters (Japanese has no spaces between words)."""
+    return len(text.split()) >= MIN_BODY_WORDS or len(_CJK_RE.findall(text)) >= MIN_BODY_CJK
+
+
+def _column_width(lines):
+    widths = [ln["x1"] - ln["x0"] for ln in lines if ln["x1"] is not None and _body_sized(ln["text"])]
+    return statistics.median(widths) if widths else None
+
 
 def _line_gap(pages, body):
     """Document-wide normal gap between consecutive lines (gaps under two body heights)."""
@@ -154,8 +189,8 @@ def analyze_readings(readings):
     if not pages:
         return {}
     from .document_structure import classify_line
-    heights = [ln["height"] for _, lines in pages for ln in lines
-               if ln["height"] and len(ln["text"].split()) >= MIN_BODY_WORDS]
+    heights = [_effective_height(ln) for _, lines in pages for ln in lines
+               if ln["height"] and _body_sized(ln["text"])]
     body = statistics.median(heights) if heights else None
     overrides = {page_id: {} for page_id, _ in pages}
 
@@ -187,7 +222,7 @@ def analyze_readings(readings):
         for ln in reversed(lines):
             if ln["start"] in page_over or _PAGE_NUMBER_RE.match(ln["text"].strip()):
                 continue            # footer / page number below the notes
-            if ln["height"] is None or ln["height"] > body * NOTE_HEIGHT_RATIO:
+            if ln["height"] is None or _effective_height(ln) > body * NOTE_HEIGHT_RATIO:
                 break
             zone.append(ln)
         zone.reverse()
@@ -206,18 +241,52 @@ def analyze_readings(readings):
         previous_had_notes = True
 
     # Display-size lines (titles, section headings): short, larger type, no final period.
+    # A Japanese line must also be clearly shorter than the text column: running text fills it.
     if body is not None:
         for page_id, lines in pages:
             page_over = overrides[page_id]
+            column = _column_width(lines)
             for ln in lines:
                 text = ln["text"].strip()
-                if (ln["start"] not in page_over and ln["height"] and ln["height"] >= body * HEADING_HEIGHT_RATIO
+                cjk = _CJK_RE.search(text) is not None
+                if cjk and (len(text) > 40 or text.endswith(_CJK_CLAUSE_END[:6]) or (
+                        column and ln["x1"] is not None and ln["x1"] - ln["x0"] >= column * CJK_HEADING_MAX_WIDTH)):
+                    continue
+                if (ln["start"] not in page_over and ln["height"]
+                        and _effective_height(ln) >= body * HEADING_HEIGHT_RATIO
                         and len(text.split()) <= 14 and not text.endswith((".", ",", ";", ":"))
                         and not _PAGE_NUMBER_RE.match(text) and not text[:1].islower()
                         and classify_line(text)[0] == "paragraph"    # keep chapter/section/list kinds
                         # a raised note mark makes a body line taller; such a line is no heading
                         and not any(not _math_context(text, m.start(1)) for m in _MARK_RE.finditer(text))):
                     page_over[ln["start"]] = ("heading", 5, ln["start"])
+
+    # Endnotes: after a standalone notes heading ("註", "Notes"), labelled entries until the
+    # references heading, a display heading or the end. A line without a label continues the
+    # note above it. Nothing happens unless the first line after the heading has a label.
+    in_notes, note_group = False, None
+    for page_id, lines in pages:
+        page_over = overrides[page_id]
+        for ln in lines:
+            text = ln["text"].strip()
+            over = page_over.get(ln["start"])
+            if _NOTES_HEADING_RE.match(text) and (over is None or over[0] == "heading"):
+                page_over[ln["start"]] = ("heading", 5, ln["start"])
+                in_notes, note_group = True, None
+                continue
+            if not in_notes or (over is not None and over[0] == "page_furniture") or _PAGE_NUMBER_RE.match(text):
+                continue
+            if _REFERENCES_RE.match(text) or (over is not None and over[0] == "heading"):
+                in_notes = False
+                continue
+            if note_label(text) is not None:
+                note_group = (page_id, ln["start"])
+            elif note_group is None:
+                in_notes = False        # not a notes section after all
+                continue
+            if note_group[0] != page_id:  # a note continuing on a new page starts a new node
+                note_group = (page_id, ln["start"])
+            page_over[ln["start"]] = ("note", None, note_group[1])
 
     # Reference list: after a references heading, until the next heading-like line.
     in_refs, entry_group, prev_text = False, None, ""
@@ -226,20 +295,24 @@ def analyze_readings(readings):
         for ln in lines:
             text = ln["text"].strip()
             over = page_over.get(ln["start"])
-            if _REFERENCES_RE.match(text) and (over is None or over[0] == "heading"):
+            # Small reference-list lines may have been taken for the page's note zone; the
+            # references heading and the entries after it are no notes.
+            if _REFERENCES_RE.match(text) and (over is None or over[0] in ("heading", "note")):
                 page_over[ln["start"]] = ("heading", 5, ln["start"])
                 in_refs, entry_group, prev_text = True, None, ""
                 continue
-            if over is not None:
+            if over is not None and not (in_refs and over[0] == "note"):
                 if over[0] == "heading":
                     in_refs = False         # the next section starts
                 continue
             if _PAGE_NUMBER_RE.match(text) or not in_refs:
                 continue
-            if _HEADINGISH_RE.match(text) or (len(text) <= 60 and text.isupper() and len(text.split()) <= 6):
+            if _HEADINGISH_RE.match(text) or (len(text) <= 60 and text.isupper() and len(text.split()) <= 6
+                                              and not _CJK_RE.search(text)):
                 in_refs = False
                 continue
-            starts = entry_group is None or (prev_text.rstrip().endswith((".", ")", "]")) and _ENTRY_START_RE.match(text))
+            starts = entry_group is None or (prev_text.rstrip().endswith((".", ")", "]", "。", "）", "』"))
+                                             and _ENTRY_START_RE.match(text))
             if starts:
                 entry_group = (page_id, ln["start"])
             if entry_group[0] != page_id:      # an entry continuing on a new page starts a new node
@@ -271,6 +344,9 @@ def find_marks(text, labels):
     found, cursor, want = [], 0, list(labels)
     candidates = [(m.start(1), m.end(1), m.group(1)) for m in _MARK_RE.finditer(text or "")
                   if not _math_context(text, m.start(1))]
+    # Japanese style "…である(8)。": the mark includes its brackets.
+    candidates += [(m.start(), m.end(), m.group(1)) for m in _PAREN_MARK_RE.finditer(text or "")]
+    candidates.sort()
     for label in want:
         hit = next((c for c in candidates if c[0] >= cursor and c[2] == label), None)
         if hit is not None:

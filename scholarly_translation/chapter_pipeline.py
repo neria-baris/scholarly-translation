@@ -266,6 +266,9 @@ def _batch_suffix(unit_ids, document_state):
 NOTE_MARK_RULE = (' [^n] is a footnote mark: copy each one exactly once, right after the {{T:TARGET}} word or '
                   'punctuation that corresponds to where it stands in the source. Mathematical expressions, '
                   'variables, symbols and equation numbers such as (3) are copied exactly.')
+SPLIT_UNIT_RULE = (' A unit may begin or end mid-sentence where the source breaks at a page: translate only '
+                   "that unit's own words, so the units read as one text when joined in order. Never repeat "
+                   'or complete content that belongs to a neighbouring unit.')
 NOTE_UNIT_RULE = (' A unit that starts with a note number is a footnote: keep that number first, then the '
                   'translated note.')
 
@@ -274,6 +277,8 @@ def build_batch_translation_prompt(structure, glossary, unit_ids, profile_id, do
     prefix = _prefix_text if _prefix_text is not None else _prefix(
         structure, glossary, list(source_unit_ids or unit_ids), profile_id, _resolver)
     suffix = _batch_suffix(unit_ids, document_state)
+    if len(unit_ids) > 1:
+        suffix += SPLIT_UNIT_RULE
     wanted = set(unit_ids)
     if any(MATH_OPEN in u['text'] for u in structure['units'] if u['unit_id'] in wanted):
         suffix += localize(' Text between ' + MATH_OPEN + ' and ' + MATH_CLOSE + ' is a protected formula: copy each '
