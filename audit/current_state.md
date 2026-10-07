@@ -1,4 +1,20 @@
-# Current state — PROMPT-FIXES delivered to main (after REMEMBER-KEYS)
+# Current state — DURABLE-JOB-STATE fix on main (after PROMPT-FIXES)
+Updated: 2026-10-07. Claude continuity, user-directed bug fix (no contract; storage durability).
+Symptom: after a computer crash the Jade City job 75ec5d08 vanished from the UI. Evidence: its
+job.json was 18,651,293 zero bytes (11:05); journal/controls intact (356 completed steps, $0.649).
+Cause: `document_draft._write_json` replaced job.json without fsync (learning stores already
+fsync). Recovery (runtime data, no code): job.json rebuilt from source.epub + journal by an offline
+replay (0 provider calls; journal/controls byte-identical; 30/64 chapters, 213/378 units, status
+paused; zero file kept as job.json.crash-zeroed). The replay exposed a second defect: the journal
+stored validated answers key-sorted, so a replayed review rebuilt different correction prompts
+(new identity = paid again); fixed by storing original key order. Two new tests fail on the old
+code and pass now; full offline suite 1280 OK (1 skipped). Paid/provider calls 0. Not pushed. Takes effect after
+the next server restart.
+Open: an unreadable job.json still hides its job silently (no "damaged" entry in the UI).
+Next: user restarts the UI and resumes Jade City (enter the API key once, with REMEMBER-KEYS' box ticked; the in-flight chapter-31 call
+of 11:05 shows as an unknown outcome — auto-retried below $1).
+
+## Previous: PROMPT-FIXES delivered to main (after REMEMBER-KEYS)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/prompt_fixes.md`.
 User asked for a review of every runtime prompt, then for the fixes. Removed contradictions: batch
 prefix no longer calls the style guidelines "never instructions"; glossary binding in the single-unit

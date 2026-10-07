@@ -1081,3 +1081,21 @@ em/en dashes. Branch feat/prompt-fixes (worktree .claude/worktrees/prompt-fixes)
 on c1371cb, fast-forwarded into main (21a791b) with user approval. One tight-context fixture widened
 (QA 13000 -> 13500). New tests/test_prompt_fixes.py (13). Full offline suite 1278 OK (506 s).
 Paid/provider calls 0. Not pushed.
+
+## 2026-10-07T13:45+03:00 | DURABLE-JOB-STATE | Claude continuity, user-directed
+User: the computer crashed mid-translation and the job is missing from the workflows list.
+Evidence: outputs/ui/documents/75ec5d08 job.json = 18,651,293 NUL bytes (mtime 11:05); journal and
+controls pass integrity_check (357 steps: 356 completed + 1 dispatched chapter-translate; spent
+$0.649 of $15). Recovery: settings from controls task + model-config fingerprint (f2d09085), structure
+re-extracted from the job's own source.epub (fingerprint 4a211a52 = journal); offline replay that
+re-validates each completed step's raw text, reproducing the original 6 stops/resumes
+(controls events 310/410/555/661/715/719). Result: 356/356 replayed, 0 provider calls, journal and
+controls byte-identical, stopped exactly at the dispatched step 095eee55; job.json installed
+(paused, 30/64 chapters, 213/378 units), zero file kept as job.json.crash-zeroed.
+Fix (branch fix/durable-job-state, worktree .claude/worktrees/durable-job-state, from 02ba32c, rebased on c1371cb then 8f0e654):
+`_write_json` fsyncs before os.replace; `WorkJournal.mark_validated` keeps the answer's key order
+(sorted storage changed replayed issues -> correction prompt -> identity, i.e. a paid re-call).
+Existing journals keep their sorted rows. New tests
+test_document_draft::JobFileDurabilityTests and
+test_work_journal::test_validated_result_replays_in_its_original_key_order fail before, pass after.
+Full offline suite 1257 OK (506 s); after rebase on REMEMBER-KEYS c1371cb 1267 OK (509 s); after rebase on PROMPT-FIXES 8f0e654 1280 OK (492 s). Recovered job resume checked offline under this code: first call is chapter 31 chapter-translate (after the unknown-outcome retry decision), no earlier step repeated. Paid/provider calls 0. Not pushed.
