@@ -20,7 +20,7 @@ from .gui import STEPS, build_command
 from .ui_decisions import (
     UIDecisionError, glossary_action, glossary_options, source_decisions, source_options,
 )
-from . import model_settings, review_salvage
+from . import model_settings, review_salvage, target_languages, user_glossary
 from .model_settings import ModelSettingsError
 
 
@@ -247,7 +247,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         saved_key_ids.update(stored)
     session_outputs: set[Path] = set()
     settings_lock = threading.Lock()
-    document_jobs = DocumentJobs(OUTPUT_ROOT)
+    user_glossary_path = OUTPUT_ROOT / "user_glossary.json"
+    document_jobs = DocumentJobs(OUTPUT_ROOT, user_glossary_path=user_glossary_path)
     learning_holder = [learning_service]
     learning_lock = threading.Lock()
 
@@ -647,6 +648,21 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                         adapter_factory = _adapter_factory_for(configuration, keys_snapshot)
                     self._json(200, document_jobs.start(source, settings, paid_confirm=data.get("paid_confirm"),
                                                          adapter_factory=adapter_factory))
+                elif route.path in ("/user-glossary", "/user-glossary-save"):
+                    target = data.get("target_language", target_languages.DEFAULT)
+                    if target not in target_languages.available():
+                        raise DocumentDraftError("שפת היעד אינה נתמכת.")
+                    try:
+                        with settings_lock:
+                            terms = user_glossary.load(user_glossary_path)
+                            if route.path == "/user-glossary-save":
+                                mine = user_glossary.parse_text(data.get("text", ""), target)
+                                terms = user_glossary.save(user_glossary_path, [
+                                    t for t in terms if t["target_language"] != target] + mine)
+                    except user_glossary.UserGlossaryError as exc:
+                        raise DocumentDraftError(str(exc)) from None
+                    mine = user_glossary.for_target(terms, target)
+                    self._json(200, {"text": user_glossary.format_text(mine), "count": len(mine)})
                 elif route.path == "/document-job":
                     job = document_jobs.get(data.get("job_id"))
                     job["blocker"] = document_jobs.blocker(job["job_id"], job)

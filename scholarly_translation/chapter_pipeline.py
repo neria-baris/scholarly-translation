@@ -9,7 +9,7 @@ from collections import deque
 from dataclasses import dataclass, replace
 from pathlib import Path
 from . import book_notebook as bn, context_strategy, document_state as document_state_module, review_qa as rq
-from . import article_layout, cross_chapter_qa as cq, name_table as nt
+from . import article_layout, cross_chapter_qa as cq, name_table as nt, user_glossary
 from .formal_checks import has_translatable_words, run_formal_checks
 from .output_checks import NOTE_ONLY_TYPES, run_output_checks
 from .epub_archive import MATH_CLOSE, MATH_OPEN
@@ -82,8 +82,12 @@ def _unit_findings(source, target, language, job=None, structure=None, glossary=
             seen.add(finding.get('source_token'))
         findings.append(finding)
     names = ((job or {}).get('name_table') or {}).get('entries') or []
-    findings.extend(run_output_checks(source, target, language, names=names,
-                                      terms=_check_terms(structure, glossary, unit_id)))
+    terms = _check_terms(structure, glossary, unit_id)
+    for forms, rendering in bn.user_terms((job or {}).get('book_notebook')):
+        form = next((f for f in forms if user_glossary.occurs(f, source)), None)
+        if form is not None:
+            terms.append({'source_term': form, 'target_term': rendering})
+    findings.extend(run_output_checks(source, target, language, names=names, terms=terms))
     return findings
 
 def _corrects_automatically(issue):
@@ -862,6 +866,24 @@ def _source_chunk(job, groups, first, selection, profile, language, cap, ask_voi
             return None
         last = first + (last - first) // 2
     return last
+
+def _seed_user_terms(job, structure):
+    """USER-TERMS: the personal-glossary terms of the job's snapshot that occur in the document
+    enter the name table (origin human, before the source pass: the add-only merge then drops
+    any model entry sharing one of their forms) and the book notebook (binding human entries
+    that shadow model entries for the same forms)."""
+    terms = job.get('user_terms') or []
+    if not terms:
+        return
+    found = user_glossary.applicable(terms, '\n'.join(u['text'] for u in structure['units']))
+    job['user_terms_applied'] = [t['source'] for t in found]
+    if not found:
+        return
+    job['book_notebook'], _ = bn.add_user_terms(job['book_notebook'], found)
+    entries = [{'source': t['source'], 'aliases': t['forms'], 'hebrew': t['target'], 'kind': 'term',
+                'gender': 'none', 'note': '; '.join(filter(None, ['set by the user', t['note']]))}
+               for t in found]
+    job['name_table'], _ = nt.merge_names(job['name_table'], entries, 0, 'human')
 
 def _run_name_table(job, groups, configuration, profile, store, journal, hard, max_calls, shared_cap,
                     adapter_factory):
@@ -1886,6 +1908,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
         job['name_table'] = nt.new_table()
         job['cross_qa'] = {'windows': {}}
         job['glossary'] = glossary
+        _seed_user_terms(job, structure)
         persist(job)
     notebook_mode = is_notebook_job(job)
     def format_repaired():

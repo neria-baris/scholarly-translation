@@ -124,6 +124,18 @@ def _names(source, target, entries, pack):
     return findings
 
 
+_JOINERS_RE = re.compile(r"[\s\-‐‑־]")
+
+
+def _contains_term(target, form, pack):
+    """A term rendering appears in ``target``; for a prefixed script (Hebrew) hyphen, maqaf and
+    space are equivalent (a compound written with any of them is the same term)."""
+    if not pack.hebrew_prefixes:
+        return _contains(target, form, pack)
+    squashed = _JOINERS_RE.sub("", _plain(target))
+    return any(_JOINERS_RE.sub("", variant) in squashed for variant in _target_forms(form, pack))
+
+
 def _terms(source, target, terms, pack):
     findings = []
     for term in terms or ():
@@ -131,7 +143,7 @@ def _terms(source, target, terms, pack):
         if not src or not tgt:
             continue
         start = source.find(src)
-        if start >= 0 and not _contains(target, tgt, pack):
+        if start >= 0 and not _contains_term(target, tgt, pack):
             findings.append(_finding("term_missing", src, start, start + len(src), tgt))
     return findings
 

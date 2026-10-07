@@ -360,6 +360,67 @@ def add_voice_entries(notebook, voice, chapter_index=0):
     return nb, rep
 
 
+USER_TERM_TAG = "user-term"
+USER_TERM_TITLE = "מונח מחייב: %s"
+
+
+def add_user_terms(notebook, terms, chapter_index=0):
+    """USER-TERMS: the user's personal-glossary terms (``user_glossary`` rows that occur in the
+    document) as global, human entries: the keeper cannot change them and they shadow any model
+    entry sharing one of their source forms. ``(new_notebook, report)``; never mutates."""
+    rep = _report("ok")
+    nb = copy.deepcopy(notebook)
+    by_id = {e["entry_id"]: e for e in nb["entries"]}
+    for term in terms or []:
+        title = _clip(USER_TERM_TITLE % term["source"], MAX_TITLE)
+        eid = make_entry_id(nb["document_id"], title, USER_TERM_TAG)
+        entry = {
+            "entry_id": eid, "tags": [USER_TERM_TAG], "title": title,
+            "note": _clip(term.get("note"), MAX_NOTE),
+            "hebrew_rendering": _clip(term["target"], MAX_RENDERING),
+            "match_terms": _norm_terms([term["source"]] + list(term.get("forms") or [])),
+            "scope": "global", "first_chapter": chapter_index, "last_chapter": chapter_index,
+            "status": "active", "origin": "human", "pinned": False,
+        }
+        if eid in by_id:
+            by_id[eid].update({k: entry[k] for k in ("note", "hebrew_rendering", "match_terms", "status")})
+            rep["updated"] += 1
+        else:
+            if len(nb["entries"]) >= MAX_ENTRIES:
+                rep["skipped"] += 1
+                rep["warnings"].append("notebook is full, user term not added")
+                continue
+            nb["entries"].append(entry)
+            by_id[eid] = entry
+            rep["added"] += 1
+    if not rep["added"] and not rep["updated"]:
+        return notebook, _report("skipped", ["no user terms"])
+    nb["revision"] += 1
+    nb["history"].append({"revision": nb["revision"], "chapter_index": chapter_index, "user_terms": len(terms),
+                          "added": rep["added"], "updated": rep["updated"], "superseded": 0,
+                          "skipped": rep["skipped"], "warnings": len(rep["warnings"])})
+    nb["history"] = nb["history"][-MAX_HISTORY:]
+    return nb, rep
+
+
+def user_terms(notebook):
+    """Active human user-term entries as ``[(forms, rendering)]``."""
+    return [(e["match_terms"], e["hebrew_rendering"]) for e in (notebook or {}).get("entries", [])
+            if e["status"] == "active" and e["origin"] == "human" and USER_TERM_TAG in e["tags"]
+            and e["match_terms"] and e["hebrew_rendering"]]
+
+
+def _shadowed_ids(entries):
+    """Model entries that share a source form with a human entry: the human choice wins, so
+    they are not shown to the translator (they stay in the notebook, marked in the download)."""
+    human = {_norm_text(t) for e in entries if e["origin"] == "human" and e["status"] == "active"
+             for t in e["match_terms"]}
+    if not human:
+        return set()
+    return {e["entry_id"] for e in entries if e["origin"] == "model"
+            and any(_norm_text(t) in human for t in e["match_terms"])}
+
+
 def _protected(entry):
     return bool(entry.get("pinned")) or entry.get("origin") == "human"
 
@@ -481,6 +542,9 @@ def _compile_terms(entries):
 
 def _entry_line(e, with_id=False):
     line = "- [%s] %s — %s" % (", ".join(e["tags"]), e["title"], e["note"])
+    if e["origin"] == "human" and USER_TERM_TAG in e["tags"]:
+        line = "- [%s, BINDING: set by the user, use exactly this rendering] %s — %s" % (
+            ", ".join(e["tags"]), e["title"], e["note"])
     if e.get("hebrew_rendering"):
         line += localize(" ({{T:TARGET}}: ") + e["hebrew_rendering"] + ")"
     if with_id:
@@ -491,7 +555,8 @@ def _entry_line(e, with_id=False):
 def _ranked_entries(notebook, text):
     """Active entries as (pinned, matching, other global, recent local) buckets for ``text``."""
     low = (text or "").casefold()
-    entries = [e for e in notebook["entries"] if e["status"] == "active"]
+    shadowed = _shadowed_ids(notebook["entries"])
+    entries = [e for e in notebook["entries"] if e["status"] == "active" and e["entry_id"] not in shadowed]
     matchers = _compile_terms(entries)
     cur = max((int(k) for k in notebook["chapter_summaries"]), default=-1)
     recent_from = max(0, cur - 1)
@@ -599,6 +664,7 @@ def render_markdown(notebook):
     if notebook["story_so_far"]:
         out += ["## Story so far", "", notebook["story_so_far"], ""]
     groups = {}
+    shadowed = _shadowed_ids(notebook["entries"])
     for e in notebook["entries"]:
         groups.setdefault(e["tags"][0], []).append(e)
     for tag in sorted(groups):
@@ -611,6 +677,8 @@ def render_markdown(notebook):
                 flags.append("pinned")
             if e["origin"] == "human":
                 flags.append("human")
+            if e["entry_id"] in shadowed:
+                flags.append("overridden by a user term")
             head = "- **%s**" % e["title"]
             if flags:
                 head += " (%s)" % ", ".join(flags)
