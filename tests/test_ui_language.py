@@ -180,8 +180,8 @@ class TableTests(unittest.TestCase):
     def test_stage_label_function_and_cross_window_pattern(self):
         js = self.js
         block = js[js.index("/*I18N-BEGIN*/"):js.index("/*I18N-END*/")]
-        start = js.index("function stageLabel(")
-        fn = js[start:js.index("\n}\n", start) + 3]
+        start = js.index("let SERVER_PATTERNS")
+        fn = js[start:js.index("\n", js.index("function stageLabel(")) + 1]
         script = "let LANG='en';\n" + block + "\n" + fn + """
 const out={known:stageLabel('מתרגם'),window:stageLabel('בדיקה רוחבית של פרקים 3–9'),other:stageLabel('תווית חדשה'),empty:stageLabel('')};
 LANG='he';out.he=stageLabel('מתרגם');

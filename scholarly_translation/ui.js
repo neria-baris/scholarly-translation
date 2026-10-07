@@ -28,20 +28,209 @@ const EN={ "brandAria": "Document translation — home", "brand": "Document tran
 const STAGE_EN={"קריאת המסמך": "Reading the document", "מתרגם": "Translating", "בניית המסמך המתורגם": "Building the translated document", "הושלם": "Completed", "מושהה — התוצאות נשמרו": "Paused — results saved", "זיהוי טקסט (OCR) בעמודים סרוקים": "Recognizing text (OCR) on scanned pages", "בדיקת ה־OCR בעזרת המודל": "Checking the OCR with the model", "בבדיקה": "Reviewing", "בבדיקת פרקים": "Reviewing chapters", "ממתין לבדיקה רוחבית": "Waiting for the cross-chapter review", "הופסק": "Stopped", "בניית טבלת השמות של הספר": "Building the book's name table", "תרגום פרק / קבוצת יחידות": "Translating a chapter / group of units", "ביקורת מקטעים ו־QA פרקי": "Segment review and chapter QA"};
 const IN_PROGRESS_EN={"failed": "Stopped", "paused": "Paused", "interrupted": "Interrupted", "queued": "Waiting", "reading": "Reading", "translating": "Translating now", "reviewing": "Reviewing", "rebuilding": "Building the file"};
 const LIMITATION_EN={"missing_translation": "Segments left in the source language", "inline_markup_flattened": "Inline formatting (emphasis/links) simplified", "units_merged_multiple_blocks": "Segments merged from several paragraphs"};
+const SERVER_EN={
+"מחברת הספר לא עודכנה אחרי פרק {1} (תקציב או כשל בקריאה); ההמשך לא הושפע.": "The book notebook was not updated after chapter {1} (budget or call failure); later work was not affected.",
+"הבדיקה הרוחבית של פרקים {1}–{2} לא בוצעה ({3}); אפשר להפעיל אותה שוב מכפתור הבדיקה הרוחבית.": "The cross-chapter review of chapters {1}–{2} did not run ({3}); you can run it again from the cross-chapter review button.",
+"בדיקה רוחבית של פרקים {1}–{2}": "Cross-chapter review of chapters {1}–{2}",
+"תקציב או כשל בקריאה": "budget or call failure",
+"העלאת התקציב ל־${1}": "Raise the budget to ${1}",
+"לרשום {1} ולנסות שוב": "Record {1} and retry",
+"משלב וקול הספר": "Book register and voice",
+"מילת מפתח: {1}": "Keyword: {1}",
+"טבלת השמות לא נבנתה לפני התרגום (תקציב, כשל בקריאה או תשובה לא תקינה); השמות יירשמו פרק אחר פרק.": "The name table was not built before translation (budget, call failure or invalid response); names will be recorded chapter by chapter.",
+"טבלת השמות: אותה צורה עברית לשמות שונים ({1}); הבדיקה הרוחבית תבדוק זאת.": "Name table: the same Hebrew form for different names ({1}); the cross-chapter review will check this.",
+"מחברת הספר לא עודכנה אחרי פרק {1}: הפרק גדול מדי עבור מודל המחברת.": "The book notebook was not updated after chapter {1}: the chapter is too large for the notebook model.",
+"מחברת הספר: עדכון פרק {1} חלקי או לא תקין; ההמשך לא הושפע.": "Book notebook: the update for chapter {1} was partial or invalid; later work was not affected.",
+"הפרקים גדולים מדי עבור מודל הבדיקה": "The chapters are too large for the review model",
+"בניית טבלת השמות של הספר": "Building the book's name table",
+"תרגום פרק / קבוצת יחידות": "Translating a chapter / group of units",
+"ביקורת מקטעים ו־QA פרקי": "Segment review and chapter QA",
+"שלב {1} נכשל ({2}). ניסיון חוזר ישלח קריאה חדשה לספק.": "Step {1} failed ({2}). A retry will send a new call to the provider.",
+"תשובת הספק נכשלה או נקטעה ({1}). השימוש ידוע: {2} לפי המחירון. אפשר לרשום את העלות ולנסות שוב את אותו שלב.": "The provider's response failed or was cut off ({1}). Known usage: {2} by the price list. You can record the cost and retry the same step.",
+"הגעתם למספר הקריאות המרבי לעבודה זו ({1}).": "You have reached the maximum number of calls for this job ({1}).",
+"התקציב שהוגדר ({1}) אינו מספיק להמשך. הוצאה עד כה: {2}.": "The configured budget ({1}) is not enough to continue. Spent so far: {2}.",
+"קריאה לספק הסתיימה בלי מידע ודאי על השימוש (למשל ניתוק). ייתכן שהספק חייב עליה. אפשר לרשום את מלוא הסכום השמור ({1}) ולנסות שוב; ייתכן חיוב כפול.": "A provider call ended without reliable usage information (for example, a disconnect). The provider may have charged for it. You can record the full reserved amount ({1}) and retry; you may be charged twice.",
+"מחברת הספר הגיעה לגודל המרבי: תשובת המודל נקטעה אחרי {1} טוקנים. הקריאה עלתה {2} לפי המחירון. בחרו איך להמשיך.": "The book notebook reached its maximum size: the model's response was cut off after {1} tokens. The call cost {2} by the price list. Choose how to continue.",
+"שלב {1} נכשל בבדיקת התשובה ({2}). התשובה של הספק נשמרה והקוד עודכן מאז: אפשר לבדוק אותה שוב בלי קריאה חדשה, או לשלוח את השלב מחדש.": "Step {1} failed the response check ({2}). The provider's response was saved and the code has been updated since: you can check it again without a new call, or resend the step.",
+"שלב {1} נכשל בבדיקת התשובה ({2}). התשובה השמורה כבר נבדקה בקוד הנוכחי ונדחתה; ניסיון חוזר ישלח קריאה חדשה לספק.": "Step {1} failed the response check ({2}). The saved response was already checked with the current code and rejected; a retry will send a new call to the provider.",
+"התקציב שהוגדר ({1}) אינו מספיק לתכנון העבודה.": "The configured budget ({1}) is not enough to plan the job.",
+"להעלות ל־{1} קריאות": "Raise to {1} calls",
+"להגדיל את חלון הפלט של המחברת ל־{1} טוקנים": "Increase the notebook's output window to {1} tokens",
+"לקצר את סיכום הספר ל־{1} מילים לכל היותר": "Shorten the book summary to at most {1} words",
+"להמשיך בלי בדיקת המודל (טקסט ה־OCR המקומי בלבד)": "Continue without the model check (local OCR text only)",
+"עלות קריאה חרגה מהסכום שנשמר לה או מהתקציב. בדקו את ההוצאה לפני שממשיכים.": "A call's cost exceeded the amount reserved for it or the budget. Check the spending before continuing.",
+"העבודה נעצרה לבטיחות התקציב.": "The job was stopped to protect the budget.",
+"האפשרות שנבחרה אינה זמינה עבור החסימה הנוכחית.": "The selected option is not available for the current block.",
+"תקציב אחר (בדולרים)": "A different budget (in dollars)",
+"לשלוח את השלב מחדש (קריאה חדשה לספק)": "Resend the step (new call to the provider)",
+"לדלג על עדכון המחברת בפרק זה": "Skip the notebook update for this chapter",
+"להמשיך": "Continue",
+"ראיתי, להמשיך": "Understood, continue",
+"להמשיך עם התשובה השמורה (בלי קריאה חדשה)": "Continue with the saved response (no new call)",
+"לרשום ולדלג על עדכון המחברת בפרק זה": "Record and skip the notebook update for this chapter",
+"יש להזין תקציב גבוה מהתקציב הנוכחי.": "Enter a budget higher than the current budget.",
+"מנהל האישורים של Windows: {1} נכשל (קוד {2}).": "Windows Credential Manager: {1} failed (code {2}).",
+"קריאה": "read",
+"המפתח ארוך מדי לשמירה במנהל האישורים של Windows.": "The key is too long to store in Windows Credential Manager.",
+"שמירה": "save",
+"מחיקה": "delete",
+"מודל ה־OCR לשפה {1} אינו מותקן.": "The OCR model for language {1} is not installed.",
+"אין מודל OCR לשפת המקור שנבחרה.": "There is no OCR model for the selected source language.",
+"Tesseract לא נמצא במחשב. התקינו אותו כדי לתרגם ספרים סרוקים.": "Tesseract was not found on this computer. Install it to translate scanned books.",
+"מסמך מקומי": "Local document",
+"לא הוגדר קובץ תצורת מודל בשרת.": "No model configuration file is set on the server.",
+"הגדרות המסמך אינן תקינות.": "The document settings are invalid.",
+"מפתח הספק אינו זמין לעבודה זו; הזינו אותו לפני המשך.": "The provider key is not available for this job; enter it before continuing.",
+"הגדרות המודל או המסמך אינן תקינות; בדקו מזהה, מגבלות, תעריפים וכתובת ספק.": "The model or document settings are invalid; check the ID, limits, rates and provider address.",
+"הקובץ גדול מדי.": "The file is too large.",
+"לא ניתן לקלוט את הספר. בדקו שזה EPUB בעברית ללא הגנה.": "The book could not be imported. Check that it is an unprotected Hebrew EPUB.",
+"בחרו קובץ שהועלה דרך הממשק.": "Choose a file uploaded through the interface.",
+"בחרו קובץ PDF או EPUB עד 25 MB.": "Choose a PDF or EPUB file up to 25 MB.",
+"הגדרות המסמך חסרות.": "The document settings are missing.",
+"פעולת הלמידה לא הושלמה.": "The learning action did not complete.",
+"ערך ההחלטה אינו תקין.": "The decision value is invalid.",
+"המחיקה דורשת אישור.": "Deletion requires confirmation.",
+"בקשת מפתחות אינה תקינה.": "The key request is invalid.",
+"מפתח API אינו תקין.": "The API key is invalid.",
+"פורמט ההורדה אינו נתמך.": "The download format is not supported.",
+"יש לשמור מפתח API עבור: {1} לפני התחלת עבודה אמיתית.": "Save an API key for {1} before starting a real job.",
+"המסמך מוגבל כרגע ל־{1} עמודים/פרקים.": "The document is currently limited to {1} pages/chapters.",
+"המסמך ארוך מדי כרגע. המגבלה היא {1} תווי מקור.": "The document is too long for now. The limit is {1} source characters.",
+"לא ניתן לקרוא את הקובץ: {1}": "Cannot read the file: {1}",
+"מבנה המסמך אינו תקין: {1}": "The document structure is invalid: {1}",
+"בנייית ה-PDF נכשלה: {1}": "Building the PDF failed: {1}",
+"קובץ תצורת המודל אינו תקין: {1}": "The model configuration file is invalid: {1}",
+"בניית ה-HTML נכשלה: {1}": "Building the HTML failed: {1}",
+"בנייית ה-EPUB נכשלה: {1}": "Building the EPUB failed: {1}",
+"התרגום נעצר: {1}": "The translation stopped: {1}",
+"התרגום האוטומטי נעצר: {1}": "The automatic translation stopped: {1}",
+"תצורת הספק שגויה: {1}": "The provider configuration is wrong: {1}",
+"בקרת התקציב/המטמון נכשלה: {1}": "The budget/cache control failed: {1}",
+"לא ניתן לתכנן את התרגום עם המודלים שנבחרו: {1}": "Cannot plan the translation with the selected models: {1}",
+"יש להגדיר תקציב מרבי למסמך (מספר חיובי) לפני תרגום בתשלום.": "Set a maximum budget per document (a positive number) before a paid translation.",
+"קובץ ה־EPUB פגום: קובצי הפרקים בתוכו ריקים (נראה שהומר באופן חלקי). השתמשו בקובץ ה־EPUB המקורי.": "The EPUB file is corrupt: its chapter files are empty (it seems to have been converted only partially). Use the original EPUB file.",
+"קובץ ה־EPUB פגום: רשימת הפרקים (spine) ריקה ולא נמצאו בו קובצי פרקים. השתמשו בקובץ ה־EPUB המקורי.": "The EPUB file is corrupt: its chapter list (spine) is empty and no chapter files were found in it. Use the original EPUB file.",
+"קובץ ה־EPUB מוגן בהגנת DRM ולא ניתן לתרגום. השתמשו בגרסה ללא הגנה.": "The EPUB file is DRM-protected and cannot be translated. Use an unprotected version.",
+"קובץ ה־EPUB פגום: רשימת הפרקים מפנה לקובץ חסר או שאינו XHTML. השתמשו בקובץ ה־EPUB המקורי.": "The EPUB file is corrupt: its chapter list points to a file that is missing or is not XHTML. Use the original EPUB file.",
+"קובץ ה־EPUB אינו מכיל טקסט הניתן לתרגום.": "The EPUB file contains no translatable text.",
+"ניתן לתרגם קובצי PDF או EPUB בלבד כרגע.": "Only PDF or EPUB files can be translated for now.",
+"זיהוי טקסט (OCR) בעמודים סרוקים": "Recognizing text (OCR) on scanned pages",
+"בדיקת ה־OCR בעזרת המודל": "Checking the OCR with the model",
+"בחרו קובץ תקין עד 25 MB.": "Choose a valid file up to 25 MB.",
+"שפת מקור לא נתמכת.": "Unsupported source language.",
+"ה־PDF מכיל עמודים סרוקים ללא טקסט. נדרש OCR לפני התרגום.": "The PDF contains scanned pages without text. OCR is required before translation.",
+"הגדרת בדיקת ה־OCR אינה תקינה.": "The OCR check setting is invalid.",
+"הגדרת האוטומציה חייבת להיות בוליאנית.": "The automation setting must be a boolean.",
+"בחרו פרופיל תרגום נתמך (אקדמי/ספרותי).": "Choose a supported translation profile (scholarly/literary).",
+"בחרו רמת בדיקה נתמכת.": "Choose a supported review level.",
+"הגדרות תרגום לא תקינות.": "Invalid translation settings.",
+"בחרו מודל נתמך.": "Choose a supported model.",
+"סוג הורדה לא תואם את קובץ המקור.": "The download type does not match the source file.",
+"בחרו פונט PDF זמין מהרשימה.": "Choose an available PDF font from the list.",
+"יש לצרף קובץ תצורת מודל כדי להשתמש במודל מוגדר.": "Attach a model configuration file to use a configured model.",
+"קובץ תצורת המודל חייב להגדיר תפקיד translator.": "The model configuration file must define a translator role.",
+"אין תרגום חלקי להורדה.": "There is no partial translation to download.",
+"עדיין אין תוצאה להורדה.": "There is no result to download yet.",
+"קובץ ה־EPUB המקורי אינו זמין להורדה.": "The original EPUB file is not available for download.",
+"מסמך לא נמצא.": "Document not found.",
+"ההרצה הופסקה. התוצאות שכבר נשמרו זמינות; לא בוצע ניסיון אוטומטי נוסף.": "The run was stopped. Results already saved are available; no further automatic attempt was made.",
+"נדרש אישור לשליחת המסמך לספק המודל המוגדר.": "Approval is required to send the document to the configured model provider.",
+"קריאת המסמך": "Reading the document",
+"מתרגם": "Translating",
+"בניית המסמך המתורגם": "Building the translated document",
+"הושלם": "Completed",
+"בבדיקה": "Reviewing",
+"בבדיקת פרקים": "Reviewing chapters",
+"מצב Auto/ללא ספק מוגדר: בדיקת פרקים נדלגה (אין תרגום עברי אמיתי לבדוק).": "Auto mode / no configured provider: the chapter review was skipped (there is no real Hebrew translation to check).",
+"מצב Auto/ללא ספק מוגדר: בדיקת מקטעים נדלגה (אין תרגום עברי אמיתי לבדוק).": "Auto mode / no configured provider: the segment review was skipped (there is no real Hebrew translation to check).",
+"תפקיד semantic_reviewer אינו מוגדר; בדיקת מקטעים נדלגה.": "The semantic_reviewer role is not configured; the segment review was skipped.",
+"תקציב המסמך הגיע למגבלה; בדיקת פרקים נוספת נדלגה.": "The document budget reached its limit; further chapter reviews were skipped.",
+"ממתין לבדיקה רוחבית": "Waiting for the cross-chapter review",
+"השהיה זמינה במסלול האוטומטי בלבד.": "Pause is available in the automatic track only.",
+"ניתן להמשיך רק עבודת אוטומציה שהתחילה עם מודל מוגדר.": "Only an automation job that started with a configured model can be resumed.",
+"לא נמצא יומן עבודה להמשך.": "No job log was found to resume.",
+"תצוגה מקדימה של עלות דורשת מודל מוגדר.": "A cost preview requires a configured model.",
+"מקטע זה אינו זמין לעריכה.": "This segment is not available for editing.",
+"המסמך השתנה. רעננו את התוצאה לפני שמירה.": "The document has changed. Refresh the result before saving.",
+"יש להזין טקסט תקין עד 30,000 תווים למקטע.": "Enter valid text of up to 30,000 characters per segment.",
+"מסמך אחר מתורגם כרגע. המתינו לסיום.": "Another document is being translated right now. Wait for it to finish.",
+"מושהה — התוצאות נשמרו": "Paused — results saved",
+"התרגום לא הושלם. בדקו חיבור, הרשאת המודל ומפתח API. התוצאה החלקית נשמרה.": "The translation did not complete. Check your connection, the model's permission and your API key. The partial result was saved.",
+"תפקיד chapter_qa אינו מוגדר; בדיקת פרקים נדלגה.": "The chapter_qa role is not configured; the chapter review was skipped.",
+"תקציב המסמך הגיע למגבלה; בדיקות מקטעים נוספות נדלגו.": "The document budget reached its limit; further segment reviews were skipped.",
+"מסמך מתורגם כרגע. המתינו לסיום או השהו אותו.": "A document is being translated right now. Wait for it to finish, or pause it.",
+"אין חסימה שדורשת החלטה בעבודה זו.": "There is no blocker in this job that requires a decision.",
+"אין תשובות בקורת שמורות לבדיקה בעבודה זו.": "There are no saved review answers to check in this job.",
+"הבדיקה הרוחבית זמינה רק לעבודה אוטומטית עם מחברת ספר.": "The cross-chapter review is available only for an automatic job with a book notebook.",
+"המסמך מתורגם כרגע. השהו אותו לפני המחיקה.": "The document is being translated right now. Pause it before deleting.",
+"הופסק": "Stopped",
+"לא נמצאה בקרת התקציב המקורית; ההמשך נעצר ללא שליחה.": "The original budget control was not found; the resume stopped without sending anything.",
+"המתינו לסיום התרגום לפני עריכה.": "Wait for the translation to finish before editing.",
+"אין מחיר ידוע למודל עבור בדיקת ה־OCR.": "The model has no known price for the OCR check.",
+"תעריף {1} חייב להיות מספר סופי ואי-שלילי.": "The {1} rate must be a finite, non-negative number.",
+"בחרו מקור מודל תקין (קטלוג או מודל אחר).": "Choose a valid model source (catalog or other model).",
+"הגדרת מודל 'אחר' חסרה.": "The 'other' model setting is missing.",
+"בחרו סוג ספק נתמך (OpenAI / Anthropic / תואם-OpenAI).": "Choose a supported provider type (OpenAI / Anthropic / OpenAI-compatible).",
+"יש להזין מזהה מודל תקין.": "Enter a valid model ID.",
+"ספק תואם-OpenAI דורש כתובת endpoint.": "An OpenAI-compatible provider requires an endpoint address.",
+"יש להזין חלון הקשר (מספר שלם חיובי).": "Enter a context window (a positive integer).",
+"יש להזין תקרת פלט (מספר שלם חיובי).": "Enter an output cap (a positive integer).",
+"תקרת הפלט הנתמכת כרגע היא עד 128,000 טוקנים לקריאה.": "The output cap currently supported is up to 128,000 tokens per call.",
+"חלון השימוש חייב להיות מספר שלם חיובי שלא עולה על חלון ההקשר.": "The usable window must be a positive integer that does not exceed the context window.",
+"בחירת מודל לתפקיד אינה תקינה.": "The model selection for the role is invalid.",
+"הגדרת המודל כוללת שדות שאינם נתמכים.": "The model setting includes unsupported fields.",
+"יש לבחור מודל מתרגם.": "Select a translator model.",
+"בחירת תפקידים אינה תקינה.": "The role selection is invalid.",
+"כתובת ה-endpoint אינה תקינה.": "The endpoint address is invalid.",
+"כתובת ה-endpoint חייבת HTTPS (HTTP מותר רק ל-localhost).": "The endpoint address must use HTTPS (HTTP is allowed only for localhost).",
+"כתובת ה-endpoint לא יכולה לכלול אישורים, פרמטרים או מזהה.": "The endpoint address cannot include credentials, parameters or an identifier.",
+"תמחור מותאם אינו תקין.": "The custom pricing is invalid.",
+"תמחור מותאם כולל שדות לא מוכרים.": "The custom pricing includes unrecognized fields.",
+"תמחור מותאם חייב לכלול לפחות input ו-output.": "Custom pricing must include at least input and output.",
+"אין לשלוח מפתחות/אישורים בתוך הגדרת המודל.": "Do not send keys/credentials inside the model setting.",
+"בחרו מודל קיים מהקטלוג.": "Choose an existing model from the catalog.",
+"המודל שנבחר אינו בקטלוג.": "The selected model is not in the catalog.",
+"הגדרת המודל שהוזנה אינה תקינה.": "The model setting entered is invalid.",
+};
 /*I18N-END*/
-function stageLabel(label){
-  if(LANG!=='en'||!label)return label;
-  if(STAGE_EN[label])return STAGE_EN[label];
-  const m=/^בדיקה רוחבית של פרקים (\d+)–(\d+)$/.exec(label);
-  return m?'Cross-chapter review of chapters '+m[1]+'–'+m[2]:label;
+function srvText(el,raw){el.dataset.raw=raw==null?'':String(raw);el.textContent=serverText(raw);el.dataset.shown=el.textContent}
+function retranslateRaw(){document.querySelectorAll('[data-raw]').forEach(el=>{if(el.textContent===el.dataset.shown)srvText(el,el.dataset.raw)})}
+let SERVER_PATTERNS=null;
+function serverPatterns(){
+  if(SERVER_PATTERNS)return SERVER_PATTERNS;
+  const list=[];
+  for(const he of Object.keys(SERVER_EN)){
+    if(!/\{\d+\}/.test(he))continue;
+    const order=[];
+    const source=he.split(/(\{\d+\})/).map(part=>{const m=/^\{(\d+)\}$/.exec(part);if(m){order.push(m[1]);return '([\\s\\S]+?)'}return part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}).join('');
+    list.push({he,order,literal:he.replace(/\{\d+\}/g,'').length,re:new RegExp('^'+source+'$')});
+  }
+  list.sort((a,b)=>b.literal-a.literal);
+  return SERVER_PATTERNS=list;
 }
+function serverText(s){
+  if(LANG!=='en'||typeof s!=='string'||!s)return s;
+  if(Object.prototype.hasOwnProperty.call(SERVER_EN,s))return SERVER_EN[s];
+  if(Object.prototype.hasOwnProperty.call(STAGE_EN,s))return STAGE_EN[s];
+  for(const p of serverPatterns()){
+    const m=p.re.exec(s);if(!m)continue;
+    const values={};p.order.forEach((n,i)=>{values[n]=serverText(m[i+1])});
+    return SERVER_EN[p.he].replace(/\{(\d+)\}/g,(all,n)=>values[n]===undefined?all:values[n]);
+  }
+  for(const sep of [/(\n)/,/( · )/]){
+    const parts=s.split(sep);
+    if(parts.length>1)return parts.map(x=>(x==='\n'||x===' · ')?x:serverText(x)).join('');
+  }
+  return s;
+}
+function stageLabel(label){return serverText(label)}
 async function request(route,data={},binary=false){
   const response=await fetch(route,{method:'POST',headers:{'Content-Type':'application/json','X-UI-Token':token},body:JSON.stringify(data)});
   if(!response.ok){let result;try{result=await response.json()}catch(_){throw Error(t('לא ניתן להתחבר לשרת המקומי. הפעילו אותו שוב.',"Cannot reach the local server. Start it again."))}
     const error=Error(result.error||t('הפעולה לא הושלמה',"The action did not complete"));error.status=response.status;throw error}
   return binary?response.blob():response.json();
 }
-function message(text){$('form-message').textContent=text;$('form-message').hidden=!text}
+function message(text){srvText($('form-message'),text);$('form-message').hidden=!text}
 function show(panel){
   const changed=$(panel).hidden;
   for(const id of ['start-panel','processing-panel','result-panel','library-panel'])$(id).hidden=id!==panel;
@@ -194,7 +383,7 @@ function setRememberChecked(checked){for(const id of ['remember-keys','resume-re
 async function forgetSavedKeys(){
   try{const result=await request('/model-keys',{forget_saved:true});applyKeyResult(result);renderKeyFields();setRememberChecked(false);remember('remember-keys','0');
     $('key-message').textContent=t('המפתחות השמורים נמחקו מהמחשב. הם נשארים בזיכרון עד סגירת התוכנית.',"The saved keys were deleted from this computer. They stay in memory until the program closes.");
-  }catch(error){$('key-message').textContent=error.message}
+  }catch(error){srvText($('key-message'),error.message)}
 }
 function renderKeyFields(){
   renderKeyIndicator();
@@ -210,7 +399,7 @@ async function saveKeys(){
   $('key-message').textContent=t('שומר…',"Saving…");
   try{const result=await request('/model-keys',{keys,...rememberChoice('remember-keys')});applyKeyResult(result);
     $('key-message').textContent=savedKeysMessage('remember-keys');renderKeyFields();updateSettings();
-  }catch(error){$('key-message').textContent=error.message}
+  }catch(error){srvText($('key-message'),error.message)}
   finally{for(const input of inputs)input.value=''}
 }
 function missingKeyProviders(){return requiredProviderIds().filter(pid=>!keyProvidersAvailable[pid])}
@@ -228,7 +417,7 @@ async function saveResumeKeys(){
   $('resume-key-message').textContent=t('שומר…',"Saving…");
   try{const result=await request('/model-keys',{keys,...rememberChoice('resume-remember-keys')});applyKeyResult(result);
     $('resume-key-message').textContent=t('המפתחות נשמרו. אפשר להמשיך.',"Keys saved. You can continue.");renderResumeKeyFields();
-  }catch(error){$('resume-key-message').textContent=error.message}
+  }catch(error){srvText($('resume-key-message'),error.message)}
   finally{for(const input of inputs)input.value=''}
 }
 
@@ -266,7 +455,7 @@ async function runPreview(){
     renderPreview(preview);
     updateSettings();
   }catch(error){if(id!==previewCounter)return;$('preview-card').hidden=false;
-    const detail=error.message;previewView=()=>{$('preview-body').textContent=t('אומדן לא זמין: ','Estimate unavailable: ')+detail};previewView()}
+    const detail=error.message;previewView=()=>{$('preview-body').textContent=t('אומדן לא זמין: ','Estimate unavailable: ')+serverText(detail)};previewView()}
 }
 function renderPreview(preview){
   previewView=()=>renderPreview(preview);
@@ -442,7 +631,7 @@ function renderProcessing(){
     if(currentJob.chapter_progress)detail=t('פרק ',"Chapter ")+currentJob.chapter_progress.current+t(' מתוך '," of ")+currentJob.chapter_progress.total+'. '+detail;
   } else detail=t('מחלצים את הטקסט ומכינים את התרגום.',"Extracting the text and preparing the translation.");
   const blocker=currentJob.blocker;
-  $('processing-detail').textContent=(currentJob.error&&!blocker?currentJob.error+' ':'')+detail+t(' אפשר לחזור לחלון הזה בהמשך.'," You can come back to this window later.");
+  $('processing-detail').textContent=(currentJob.error&&!blocker?serverText(currentJob.error)+' ':'')+detail+t(' אפשר לחזור לחלון הזה בהמשך.'," You can come back to this window later.");
   renderDecision(blocker);
   renderUsage('processing-usage');renderResumeKeyFields();
   renderStats();
@@ -471,7 +660,7 @@ async function recheckReviews(){
   $('recheck-error').hidden=true;$('recheck-button').disabled=true;
   try{const result=await request('/document-recheck-reviews',{job_id:currentJob.job_id});
     currentJob={...result,settings:result.settings||currentJob.settings};renderProcessing();
-  }catch(error){$('recheck-error').textContent=error.message;$('recheck-error').hidden=false}
+  }catch(error){srvText($('recheck-error'),error.message);$('recheck-error').hidden=false}
   finally{$('recheck-button').disabled=false}
 }
 let crossReviewPrepared=null;
@@ -491,7 +680,7 @@ async function prepareCrossReviewFromResult(){
   try{const result=await request('/document-cross-review',{job_id:currentJob.job_id});
     crossReviewPrepared=result.job_id;
     currentJob={...result,settings:result.settings||currentJob.settings};show('processing-panel');renderProcessing();
-  }catch(error){$('result-cross-review-error').textContent=error.message;$('result-cross-review-error').hidden=false}
+  }catch(error){srvText($('result-cross-review-error'),error.message);$('result-cross-review-error').hidden=false}
   finally{$('result-cross-review-button').disabled=false}
 }
 async function prepareCrossReview(){
@@ -499,7 +688,7 @@ async function prepareCrossReview(){
   try{const result=await request('/document-cross-review',{job_id:currentJob.job_id});
     crossReviewPrepared=result.job_id;
     currentJob={...result,settings:result.settings||currentJob.settings};renderProcessing();
-  }catch(error){$('cross-review-error').textContent=error.message;$('cross-review-error').hidden=false}
+  }catch(error){srvText($('cross-review-error'),error.message);$('cross-review-error').hidden=false}
   finally{$('cross-review-button').disabled=false}
 }
 function renderDecision(blocker){
@@ -508,16 +697,16 @@ function renderDecision(blocker){
   box.hidden=!waiting;if(!waiting){options.replaceChildren();return}
   if(box.dataset.rendered===JSON.stringify(blocker))return;
   box.dataset.rendered=JSON.stringify(blocker);
-  $('decision-message').textContent=blocker.message;$('decision-error').hidden=true;
+  srvText($('decision-message'),blocker.message);$('decision-error').hidden=true;
   options.replaceChildren();
   blocker.options.forEach((option,index)=>{
     const row=document.createElement('div');row.className='decision-option';
     if(option.input==='usd'){
-      row.innerHTML=`<label for="decision-input-${index}">${esc(option.label)}</label><input id="decision-input-${index}" type="number" min="0" step="0.01" inputmode="decimal" dir="ltr">
+      row.innerHTML=`<label for="decision-input-${index}">${esc(serverText(option.label))}</label><input id="decision-input-${index}" type="number" min="0" step="0.01" inputmode="decimal" dir="ltr">
         <button type="button" class="secondary-button decision-confirm">${t('אישור והמשך','Confirm and continue')}</button>`;
       row.querySelector('button').onclick=()=>decide(option,Number(row.querySelector('input').value),row.querySelector('button'));
     } else {
-      row.innerHTML=`<button type="button" class="${index===0?'primary-button':'secondary-button'}">${esc(option.label)}</button>`;
+      row.innerHTML=`<button type="button" class="${index===0?'primary-button':'secondary-button'}">${esc(serverText(option.label))}</button>`;
       row.querySelector('button').onclick=()=>decide(option,null,row.querySelector('button'));
     }
     options.append(row);
@@ -532,17 +721,17 @@ async function decide(option,value,button){
     currentJob={...result,settings:result.settings||currentJob.settings};delete $('decision-box').dataset.rendered;
     renderProcessing();
     if(!currentJob.blocker)await resumeJob();
-  }catch(error){$('decision-error').textContent=error.message;$('decision-error').hidden=false;
+  }catch(error){srvText($('decision-error'),error.message);$('decision-error').hidden=false;
     for(const control of $('decision-options').querySelectorAll('button,input'))control.disabled=false}
 }
 async function pauseJob(){
   try{currentJob=await request('/document-pause',{job_id:currentJob.job_id});renderProcessing()}
-  catch(error){$('processing-detail').textContent=error.message}
+  catch(error){srvText($('processing-detail'),error.message)}
 }
 async function resumeJob(){
   try{const result=await request('/document-resume',{job_id:currentJob.job_id});
     currentJob.status='translating';renderProcessing();await poll(result.job_id||currentJob.job_id);
-  }catch(error){$('processing-detail').textContent=error.message;renderResumeKeyFields()}
+  }catch(error){srvText($('processing-detail'),error.message);renderResumeKeyFields()}
 }
 async function poll(jobId){
   clearTimeout(pollTimer);
@@ -551,7 +740,7 @@ async function poll(jobId){
     else if(['paused','interrupted','failed'].includes(result.status)&&result.settings?.automation){show('processing-panel');renderProcessing()}
     else{setBusy(false);show('result-panel');renderResult();window.scrollTo({top:0,behavior:'smooth'})}
   }catch(error){if(!$('library-panel').hidden)return;if(error.status===400){forget('document-last-job');currentJob=null;setBusy(false);show('start-panel');message(error.message);return}
-    $('processing-detail').textContent=error.message+t(' ננסה שוב לבדוק את מצב ההרצה.'," We will try checking the job status again.");pollTimer=setTimeout(()=>poll(jobId),5000)}
+    $('processing-detail').textContent=serverText(error.message)+t(' ננסה שוב לבדוק את מצב ההרצה.'," We will try checking the job status again.");pollTimer=setTimeout(()=>poll(jobId),5000)}
 }
 function sourceExt(){return (currentJob.source_kind||'pdf').toLowerCase()}
 function qualityLabel(){
@@ -569,7 +758,7 @@ function renderResultDetails(limitations,notes,findings){
   lim.hidden=!groups.length;
   lim.innerHTML=groups.length?t('<b>הערות על בניית הקובץ</b><ul>',"<b>Notes on building the file</b><ul>")+groups.map(g=>'<li>'+esc((LANG==='en'&&LIMITATION_EN[g.kind])||g.label)+': '+ltr(num(g.count))+'</li>').join('')+'</ul>':'';
   nt.hidden=!notes.length;
-  nt.innerHTML=notes.length?t('<b>הערות בדיקה</b><ul>',"<b>Review notes</b><ul>")+notes.slice(0,shown).map(n=>'<li dir="auto">'+esc(n)+'</li>').join('')+
+  nt.innerHTML=notes.length?t('<b>הערות בדיקה</b><ul>',"<b>Review notes</b><ul>")+notes.slice(0,shown).map(n=>'<li dir="auto">'+esc(serverText(n))+'</li>').join('')+
     (notes.length>shown?'<li>'+t('ועוד '+ltr(num(notes.length-shown)),'and '+ltr(num(notes.length-shown))+' more')+'</li>':'')+'</ul>':'';
   fd.hidden=!findings;
   fd.innerHTML=findings?t('בבדיקות נרשמו ',"The checks recorded ")+ltr(num(findings))+t(' ממצאים או הערות; היסטוריית הבדיקה והתיקון מוצגת במקטעים.'," findings or notes; the review and correction history is shown per segment."):'';
@@ -589,8 +778,8 @@ function renderResultSummary(){
   const stale=currentJob.quality_status==='edited_draft_review_stale'||(currentJob.units||[]).some(u=>u.review_stale);
   const notices=[];
   if(auto)notices.push(t('זו תצוגת ניסיון של הממשק בלבד. לא בוצע תרגום אמיתי.',"This is an interface trial preview only. No real translation was performed."));
-  if(currentJob.error)notices.push(currentJob.error);
-  if(resultError)notices.push(resultError);
+  if(currentJob.error)notices.push(serverText(currentJob.error));
+  if(resultError)notices.push(serverText(resultError));
   if(!auto&&complete&&(limitations.length||notes.length||findings))notices.push(t('הקובץ מוכן. נרשמו הערות בדיקה ובנייה — פרטים למטה.',"The file is ready. Review and build notes were recorded — details below."));
   $('result-notice').textContent=notices.join(' · ');$('result-notice').hidden=!notices.length;
   renderResultDetails(limitations,notes,findings);
@@ -679,7 +868,7 @@ async function saveEdit(showMessage=true){
     renderReview();
     manualEdit=true;renderResultSummary();
     if(showMessage){reviewSaved=true;$('review-message').textContent=t('השינויים נשמרו. ההורדה כוללת את הגרסה המעודכנת.','Changes saved. The download includes the updated version.')}return true;
-  }catch(error){$('review-message').textContent=error.message;return false}finally{$('save-edit').disabled=false}
+  }catch(error){srvText($('review-message'),error.message);return false}finally{$('save-edit').disabled=false}
 }
 async function download(){
   if(dirty()&&!await saveEdit())return;
@@ -743,7 +932,7 @@ function renderInProgress(documents){
     if(doc.total_chapters)parts.push(t('פרק ',"Chapter ")+doc.completed_chapters+t(' מתוך '," of ")+doc.total_chapters);
     parts.push(doc.translated_units+t(' מתוך '," of ")+doc.total_units+t(' מקטעים'," segments"));
     if(doc.spent_usd!=null)parts.push('$'+Number(doc.spent_usd).toFixed(4)+(doc.budget_usd?t(' מתוך $'," of $")+Number(doc.budget_usd).toFixed(2):''));
-    const notice=doc.blocker?`<p class="library-blocker">${esc(doc.blocker.message)}</p>`:(doc.error?`<p class="library-blocker">${esc(doc.error)}</p>`:'');
+    const notice=doc.blocker?`<p class="library-blocker">${esc(serverText(doc.blocker.message))}</p>`:(doc.error?`<p class="library-blocker">${esc(serverText(doc.error))}</p>`:'');
     const fontField=kind==='pdf'&&doc.formats.length?`<div class="field library-font"><label for="library-font-${index}">${t(`גופן להורדה`,`Download font`)}</label><select id="library-font-${index}" class="library-font-select">${libraryFontOptions(null)}</select></div>`:'';
     const downloads=doc.formats.length?`<button type="button" class="secondary-button library-download" data-format="${kind}" data-partial="1">${t(`הורדה חלקית ${kind.toUpperCase()}`,`Partial download ${kind.toUpperCase()}`)} <span aria-hidden="true">↓</span></button>
       <button type="button" class="secondary-button library-download" data-format="html" data-partial="1">${t('HTML חלקי','Partial HTML')} <span aria-hidden="true">↓</span></button>`:'';
@@ -774,7 +963,7 @@ async function libraryDelete(doc,item,inProgress){
     try{if(localStorage.getItem('document-last-job')===doc.job_id)forget('document-last-job')}catch(_){}
     if(currentJob?.job_id===doc.job_id)currentJob=null;
     loadLibrary();
-  }catch(caught){error.textContent=caught.message;error.hidden=false;item.querySelectorAll('button,select').forEach(control=>control.disabled=false)}
+  }catch(caught){srvText(error,caught.message);error.hidden=false;item.querySelectorAll('button,select').forEach(control=>control.disabled=false)}
 }
 let libraryTab='done';
 function setLibraryTab(tab){
@@ -797,7 +986,7 @@ async function loadLibrary(){
   try{const result=await request(tab==='done'?'/document-library':'/document-in-progress',{});if(id!==libraryCounter)return;
     $('library-status').textContent='';const documents=Array.isArray(result.documents)?result.documents:[];libraryData={tab,documents};
     (tab==='done'?renderLibrary:renderInProgress)(documents);
-  }catch(error){if(id!==libraryCounter)return;$('library-status').textContent='';$('library-message').textContent=error.message;$('library-message').hidden=false}
+  }catch(error){if(id!==libraryCounter)return;$('library-status').textContent='';srvText($('library-message'),error.message);$('library-message').hidden=false}
 }
 function openLibrary(){
   const current=visiblePanel();
@@ -820,7 +1009,7 @@ async function libraryDownload(doc,button,item){
     const blob=await request('/document-download',payload,true);
     const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=libraryStem(doc.filename)+(partial?'.he.partial.':'.he.')+format;
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }catch(caught){error.textContent=caught.message;error.hidden=false}finally{button.disabled=false}
+  }catch(caught){srvText(error,caught.message);error.hidden=false}finally{button.disabled=false}
 }
 function openLearningWindow(doc,errorNode){
   errorNode.hidden=true;
@@ -946,7 +1135,7 @@ function setLanguage(next){
       if(open.includes(i.dataset.jobId))i.querySelector('.library-entry').click()});
   }
   renderKeyFields();restoreKeyInputs(kept);
-  applyAutoDirs();
+  retranslateRaw();applyAutoDirs();
 }
 $('language-button').onclick=()=>setLanguage(LANG==='en'?'he':'en');
 applyBase();

@@ -61,3 +61,17 @@ reorders them.
 
 out_of_scope: server-side English messages, learning UI translation, export/limitation semantics
 (why missing_translation is recorded), new features.
+
+## Addendum — SERVER-TEXT-EN (user: "continue", 2026-10-07)
+
+The user accepted the offered follow-up: in English mode, the Hebrew messages the Python server
+writes (blocker messages and option labels, job errors, review notes, HTTP errors, stage labels)
+appear in English too. Decision: client-side table `SERVER_EN` in ui.js (one entry per line),
+Hebrew templates with {n} placeholders → English; `serverText()` matches exactly or by pattern and
+translates captured values recursively; unknown text is shown unchanged. No Python change, so jobs
+already stored (Hebrew notes in job.json) translate as well and no server restart is needed.
+Guard: `tests/test_server_text_en.py` extracts every Hebrew UI template from the server modules
+with `ast` and fails when one lacks an English entry (or an entry is dead), so a new server message
+must be translated in the same change. Exclusions (documented in the test): linguistic word lists,
+regex classes and model prompts. Out of scope: the learning section; model-written text (findings,
+notebook) stays in the language the model wrote it.
