@@ -1,10 +1,12 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="he" dir="rtl" data-lang="he">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light"><title>עזרה — תרגום מסמכים</title>
 <link rel="stylesheet" href="/ui.css">
 <style>
+html:not([data-lang="en"]) .lang-en,html[data-lang="en"] .lang-he{display:none}
+.lang-switch{margin-inline-start:auto}
 .help-main{max-width:860px;margin:auto;padding:30px 24px 60px;line-height:1.75}
 .help-main h2{font-size:21px;margin:40px 0 12px;color:var(--teal);scroll-margin-top:20px}
 .help-main h3{font-size:15px;margin:22px 0 8px}
@@ -23,10 +25,12 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 </head>
 <body>
 <header class="app-header">
-<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span>תרגום מסמכים</span></a>
-<a class="quiet-button" href="/">חזרה לעמוד הראשי</a>
+<a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span class="lang-he">תרגום מסמכים</span><span class="lang-en">Document Translation</span></a>
+<a class="quiet-button" href="/"><span class="lang-he">חזרה לעמוד הראשי</span><span class="lang-en">Back to main page</span></a>
+<a class="quiet-button lang-switch" id="lang-switch" href="#en">English</a>
 </header>
 <main class="help-main">
+<div class="lang-he" id="help-he" lang="he" dir="rtl">
 <div class="help-hero"><span class="eyebrow">מדריך לכלי המקומי</span><h1>עזרה ושקיפות</h1>
 <p>העמוד הזה מסביר את כל השלבים, ההגדרות ועלויות האומדן של כלי התרגום המקומי. דף זה נבנה מהשרת המקומי שלכם ואינו שולח מידע לאף שרת חיצוני.</p>
 </div>
@@ -151,5 +155,149 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>הקלט מוגבל ל־2,000 עמודים/פרקים ול־3,000,000 תווים. ספרים סרוקים נתמכים: ראו <a href="#scanned">ספרים סרוקים</a>. PDF מתורגם נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את הארכיון והעיצוב, עם מגבלות במקטעים שאוחדו. עימוד מורכב ואיכות תרגום דורשים בדיקה על מסמכים אמיתיים.</p>
 <p><strong>מתמטיקה.</strong> ב־PDF המתורגם, סמלים שחסרים בגופן העברי (∑, √, ≤, אותיות יווניות, מעריכים ואינדקסים) מצוירים אוטומטית בגופן מתמטי (Noto Sans Math, ואחריו Noto Sans), ונוסחה בשורה נפרדת מוצגת משמאל לימין. ב־EPUB, נוסחאות MathML עוברות את התרגום מוגנות ומוחזרות למקומן כפי שהן; ב־PDF/HTML מוצגת גרסה טקסטואלית שלהן. קטע שכולו נוסחה אינו נשלח לבדיקת איכות. ב־PDF דיגיטלי הנוסחאות נקראות מהטקסט המוטמע; בספר סרוק הן מזוהות בבדיקת המודל (ראו <a href="#scanned">ספרים סרוקים</a>).</p>
 <p>השרת מאזין רק במחשב המקומי. המקור, הטיוטות ויומני העבודה נשמרים ב־<code>outputs/ui/</code>; מפתחות שמוזנים בממשק נשמרים בזיכרון בלבד ושדות הסיסמה מתרוקנים אחרי שמירה.</p>
+</div>
+<div class="lang-en" id="help-en" lang="en" dir="ltr">
+<div class="help-hero"><span class="eyebrow">Guide to the local tool</span><h1>Help and transparency</h1>
+<p>This page explains every step, setting and estimated cost of the local translation tool. It is built by your local server and sends no information to any external server.</p>
+</div>
+<nav class="help-nav" aria-label="Help page navigation">
+<a href="#en-steps">Steps</a><a href="#en-models">Models and keys</a><a href="#en-pricing">Pricing</a>
+<a href="#en-tokens">Tokens and cost</a><a href="#en-quality">Profile and quality</a><a href="#en-fonts">Fonts</a><a href="#en-resume">Resume and results</a><a href="#en-library">The library</a><a href="#en-blocks">When translation stops</a><a href="#en-notebook">The book notebook</a><a href="#en-scanned">Scanned books</a><a href="#en-limits">Running and limits</a>
+</nav>
+
+<h2 id="en-steps">Steps</h2>
+<ol>
+<li><strong>Choose a file</strong> — a PDF with embedded text (not a scan without text) or an EPUB, up to 25MB.</li>
+<li><strong>Options</strong> — translation profile (academic/literary), review level (fast/checked/in-depth), model (Auto for a simulated trial preview, or your own model with an API key), source language, budget (a required field with your own model; there is no built-in cap — the limit you set is enforced as a hard stop, and the conservative reservation must fit within it), and PDF font.</li>
+<li><strong>Translate</strong> — click the button. With your own model you will be asked to approve actually sending to the selected provider(s), and you will see a cost estimate in advance.</li>
+<li><strong>Progress tracking</strong> — a real progress percentage (not time-based), based on chapters/stages actually completed; you can pause and resume the job automatically. If translation stops, a <a href="#en-blocks">decision box</a> appears with an explanation and options.</li>
+<li><strong>Result</strong> — download the translated file (PDF/EPUB/HTML), optional review and manual editing, and change the PDF font without calling the model again.</li>
+<li><strong>The library</strong> — all translations, finished and in progress, are stored on your computer and available from the "Library" button at the top of the page. <a href="#en-library">Details</a>.</li>
+</ol>
+
+<h2 id="en-models">Models, QA and API keys</h2>
+<p>Auto is simulated: it sends no text to any provider, requires no key, and returns placeholder text only — never a real translation.</p>
+<p>With your own model, you choose a translator model from the catalog (below) or define an "Other" model (an ID, a provider, and for an OpenAI-compatible address, also an endpoint). Quality review (QA — "semantic_reviewer" and "chapter_qa") defaults to the same model as the translator, and can be changed separately. Keys are kept only in the memory of the local server for the current run: not on disk, not in the settings file, not in a log, not in the browser's localStorage and not in environment variables. Starting the server again resets them; resuming a paused job asks for the keys again and uses the saved job.</p>
+
+<h2 id="en-pricing">Pricing (official list price, catalog __CATALOG_VERSION__)</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>Provider</th><th>Model</th><th>Input ($/1M)</th><th>Output ($/1M)</th><th>Cache read ($/1M)</th><th>Cache write ($/1M)</th><th>Hourly write ($/1M)</th></tr></thead>
+<tbody>__PRICING_ROWS__</tbody>
+</table></div>
+<div class="callout">
+<p>In this catalog, cache writes cost more than regular input, and cache reads are cheaper than it. A short Claude write is kept for five minutes; an hourly write is more expensive and appears separately. Choosing a cache does not guarantee a hit: the provider must recognize an identical prefix and support the option. A saved local result can save an entire model call.</p>
+<p>For the OpenAI models listed here, above 272,000 input tokens in a single request the input and cache rates are multiplied by 2 and the output rate by 1.5 — for the whole request. The project estimate includes this. These standard prices are not Claude Code or ChatGPT subscription prices, and a separate API account may carry additional terms.</p>
+<p>For an "Other" model with no entered rate, an assumption of $4 per million input tokens and $20 for output is used, with no cache discount. This is a labeled estimate, not an official price and not a guaranteed billing cap for an unknown provider. You can enter the real rates to update the calculation.</p>
+</div>
+<p>Price and limit sources, checked on October 5, 2026: <a href="https://developers.openai.com/api/docs/models/gpt-6-luna" target="_blank" rel="noopener">GPT-6 Luna</a>, <a href="https://developers.openai.com/api/docs/models/gpt-6.1-sol" target="_blank" rel="noopener">GPT-6.1 Sol</a>, <a href="https://platform.claude.com/docs/en/models/sonnet-5-5/overview" target="_blank" rel="noopener">Claude Sonnet 5.5</a>, <a href="https://platform.claude.com/docs/en/models/opus-5-5/overview" target="_blank" rel="noopener">Claude Opus 5.5</a>.</p>
+
+<h2 id="en-tokens">Token uncertainty, input/output and QA/cache cost</h2>
+<p>The token count in the preview is an upper bound estimate, not an official provider count: mixed text (Hebrew/Latin/Japanese) may be counted differently from what the provider actually counts at real send time. The "expected" estimate assumes about 35% use of the output cap, zero corrections and zero cache hits (a full cache miss); the conservative ("ceiling") estimate also includes one bounded correction and one focused re-check, and assumes a full cache write. Neither estimate is a provider quote, and the actual (observed) cost may differ — it is shown separately from the reserved/planned budget during a real run.</p>
+
+<h2 id="en-quality">Translation profile and review level</h2>
+<p>According to the linked provider descriptions above, the models are intended for different kinds of work. These are the providers' descriptions, not a ranking of Hebrew translation quality in this project.</p>
+<div class="model-cards">
+<article class="model-card"><h3>Luna — focused tasks</h3><p>According to OpenAI, intended for focused tasks at large scale, at a low price. It lets you check more samples on a small budget; terminology and complex arguments should be examined in particular.</p></article>
+<article class="model-card"><h3>Sol — complex professional work</h3><p>This is how OpenAI describes the model. The regular input and output price is 20 times that of Luna; the higher price is not evidence of improvement in your particular translation.</p></article>
+<article class="model-card"><h3>Sonnet — speed and capability</h3><p>Anthropic describes it as a balance between speed and capability. The regular input and output price is the same as Sol, but cache and thinking rates may change the total cost.</p></article>
+<article class="model-card"><h3>Opus — long-running work</h3><p>According to Anthropic, intended for complex, long-running work. The input and output price is double that of Sonnet, and thinking is always on; it has not been shown in the project that it always translates or reviews better.</p></article>
+</div>
+<p>You can choose a cheap translator and a different reviewer, or check a source sample with several models. The right choice depends on the exact meaning, terminology, style and QA findings of your text; a high price or a large context window alone are not proof of quality.</p>
+<p><strong>Academic</strong> preserves semantic precision, terminology, footnotes and citations. <strong>Literary</strong> preserves voice, register and dialogue.</p>
+<p><strong>Fast</strong>: translation only, no routine QA review. <strong>Checked</strong>: review of every segment that has something to translate, except short headings (up to three words), + chapter review. <strong>In-depth</strong>: review of every segment, including headings, + chapter review.</p>
+<p>A substantive finding (MAJOR or CRITICAL) from a segment review is corrected automatically and checked again. From the chapter review, only consistency and continuity findings are corrected automatically; other chapter review findings are kept as notes. A finding whose quote is not found in the text, or one the model retracted, is omitted and not corrected.</p>
+<div class="callout warn">
+<p><strong>There is no validated quality ranking of the models.</strong> A research quality pilot with human judges on real source segments has not yet been run (the pilot is currently blocked for lack of an approved representative input, provider authorization and human judgment). A more expensive model is not guaranteed to be better for your text; we recommend running a small pilot on part of your document and checking the QA yourself before relying on a single model.</p>
+</div>
+
+<h2 id="en-fonts">PDF fonts</h2>
+<p>You can choose a font before and after translation (PDF only; EPUB uses its own original styling). Changing the font in the result rebuilds the PDF only and sends no call to the model.</p>
+<ul>__FONT_LIST__</ul>
+<h2 id="en-resume">Pause, resume and results</h2>
+<p><strong>Pause</strong> saves the response of the active call and stops before another request. <strong>Resume</strong> uses the saved source, plan and results: stages already completed are not sent or billed again. A request whose outcome is unknown is not automatically re-sent; it is shown in the <a href="#en-blocks">decision box</a> so you can choose yourself whether to send again.</p>
+<p><strong>Download</strong> builds the document from the saved draft. <strong>Review and edit</strong> shows source beside target and keeps a previous version. After an edit, the old quality review is marked as out of date; editing is not research approval.</p>
+<p>The percentages under the book reflect completed stages and chapters, and are not a time forecast. On pause and on failure the book stops flipping pages. All results are unapproved drafts, even after automatic checks.</p>
+<h2 id="en-library">The library</h2>
+<p>The <strong>Library</strong> button at the top of the page opens all translations saved on your computer, in two tabs:</p>
+<ul>
+<li><strong>Ready</strong> — completed translations. Clicking a document shows download in the source format (PDF or EPUB) or as HTML, PDF font selection, and opening for review and editing.</li>
+<li><strong>In progress</strong> — translations not yet completed: paused, stopped or interrupted. For each document the status, completed chapters and segments, and spending out of the budget are shown. A document waiting for your decision is marked "Decision required". <strong>Open and resume</strong> (or <strong>Open and decide</strong>) returns you to the progress window.</li>
+</ul>
+<p><strong>Partial download</strong> (in the "In progress" tab) builds a file from what has already been translated; segments not yet translated remain in the source language. The <code>.he.partial</code> suffix in the file name distinguishes it from a full translation. The download sends no call to the model.</p>
+<p><strong>Delete</strong> permanently deletes the translation, the copy of the source file, the book notebook and the document's cost log. You will be asked to confirm, and it cannot be undone. A document being translated right now cannot be deleted: pause it first. Deleting does not cancel a charge already recorded by the provider.</p>
+
+<h2 id="en-blocks">When translation stops</h2>
+<p>To avoid wasting money and double billing, translation stops when something is uncertain and waits for your decision. In the progress window a <strong>decision box</strong> appears with an explanation in Hebrew and options. The decision itself sends nothing to the provider; only the continuation after it does. Every decision is permanently recorded in the cost log, and limits can only be raised, not lowered.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Situation</th><th>What happened</th><th>Options</th></tr></thead>
+<tbody>
+<tr><td>The book notebook reached its maximum size</td><td>The model's notebook response was cut off at the output limit.</td><td>Increase the notebook's output window · shorten the book summary to 300 words · skip the notebook update for this chapter</td></tr>
+<tr><td>A response failed or was cut off</td><td>The provider answered, but the response is unusable. Usage is known and computed at list price.</td><td>Record the cost and send the stage again</td></tr>
+<tr><td>A response was saved but rejected by validation</td><td>The provider returned a complete response that was saved, but the structure check rejected it.</td><td>Continue with the saved response, without a new call (it is checked again) · resend the stage</td></tr>
+<tr><td>Unknown outcome</td><td>A disconnect or timeout: it is not known whether the provider processed and billed it.</td><td>Record the full amount reserved for the call and send again (a double charge is possible). When the reserved amount is under $1 this happens automatically, without asking, up to three times in a row for the same call; from $1 up, or after three attempts, the decision box appears.</td></tr>
+<tr><td>Exceeded the reserved amount</td><td>A call's cost exceeded its reservation or the budget.</td><td>Approve and continue · raise the budget</td></tr>
+<tr><td>Call limit</td><td>You reached the maximum number of calls for the job.</td><td>Raise the number of calls</td></tr>
+<tr><td>Budget limit</td><td>The budget is not enough to continue.</td><td>Raise to 125%, 150% or 200%, or to an amount you enter</td></tr>
+</tbody></table></div>
+<p><strong>Automatic retry.</strong> When the provider explicitly rejects a request before processing it (HTTP 429 "too many requests", 529 overloaded, or server errors 500/502/503/504), the request was not billed and is sent again automatically up to three times, after 2, 8 and 20 seconds (or per the provider's Retry-After, up to 60 seconds). A disconnect, timeout, or failure after the response began to arrive is not re-sent automatically and reaches the decision box.</p>
+<p><strong>Saved cross-review responses that were not used.</strong> In jobs that ran before the validation update, many reviews were marked "needs human review" only because the model wrapped the quote in quotation marks. When such a job is paused or stopped, a re-check button appears in the processing window. The re-check re-reads the saved responses without a call to the provider, and reopens chapters in which substantive findings were found. Corrections and re-checks are sent to the provider only when the job continues.</p>
+<p><strong>Segments with nothing to translate</strong>, such as URLs, email addresses, numbers or ISBNs, are kept as they are and are not sent to quality review.</p>
+
+<h2 id="en-notebook">The book notebook</h2>
+<p>In automatic translation, after each chapter the model updates a <strong>book notebook</strong>: names and the translation chosen for them, grammatical gender and forms of address, voice and register of characters, terms, wordplay and motifs, a summary of each chapter and a cumulative plot summary. In a scholarly book the notebook focuses on terms and definitions, thinkers and cited works, abbreviations and notation, and the cumulative summary is of the argument. The translator and the chapter review receive the relevant parts of the notebook to keep consistency throughout the book. You do not need to do anything; you can download the notebook (Markdown) on the result page.</p>
+<ul>
+<li><strong>The cumulative summary</strong> has no word limit: the model is asked to keep every plot line, subplot, relationship, secret and open question that may matter (in a scholarly book: the thesis, the steps of the argument, definitions, distinctions and positions of the cited authors), and to compress old events rather than drop threads. Safety limit: 60,000 characters. In the decision box you can choose to shorten it to 300 words.</li>
+<li><strong>A chapter summary</strong> is up to 5,000 characters; a <strong>note</strong> in an entry is up to 2,000 characters. Every shortening is reported as a warning and is never done silently.</li>
+<li>The notebook receives up to 24,000 tokens per call (and no more than a tenth of the model's context window). If the cumulative summary is longer than that, its middle is shortened and the beginning and the latest events are kept; it is never omitted.</li>
+<li>The translator also sees the end of the previous passage, up to 4,000 characters, to maintain continuity between chapters.</li>
+</ul>
+
+<p><strong>Name table.</strong> Before chapter 1 the model builds a name table for the book: characters, places, organizations, titles and invented terms (in a scholarly book: thinkers and authors, cited works, schools and key terms of the author, which inflect as usual), with one Hebrew form for each name. The table is locked automatically, with no approval step, and is given to the translator and the reviewers on every call. New names that appear later are added to it, and a name already in the table does not change. Vowel marks (niqqud) may be used to distinguish between names (for example names that would otherwise be written with the same letters). There is no name check in code; consistency relies on the table and the cross-review.</p>
+<p><strong>Cross-review.</strong> First a name table is built: the model reads the original book, passage by passage, and collects names, titles and invented terms; in a scholarly book also thinkers and authors, cited works and key terms (vowel marks allowed); the table is locked. Then the review compares the source with the translation in windows of 8 chapters with one overlapping chapter (1–8, 8–15, 15–22 …); the overlapping chapter, already checked, is the authority. Inconsistent names, terms, references and continuity are corrected automatically and re-checked, and the previous Hebrew wording is kept. An existing book that was already translated with a book notebook can be checked by clicking "Prepare cross-review" (or "Run cross-review again") on the result page, and then "Continue". Paid calls to the provider begin only when you click "Continue". A repeated run re-sends only text that changed.</p>
+
+<h2 id="en-articles">Articles: footnotes, bibliography and layout</h2>
+<p>In a PDF (digital or scanned) the software identifies, by line height and position, the <strong>footnotes</strong> at the bottom of the page (including a note that continues onto the next page), the <strong>note markers</strong> in the text, the <strong>running headers</strong> and page numbers that repeat on every page, and the <strong>bibliography</strong> after a heading such as References / Bibliography.</p>
+<ul>
+<li>A note marker is passed to the translator as <code>[^12]</code> and kept in its place in the translation; if the model omitted a marker, it is restored at the end of the passage and flagged for review.</li>
+<li>In the translated PDF each note appears <strong>at the bottom of the page where its marker is</strong>, in small type and with the original numbering; a long note continues at the bottom of the next page. In HTML the notes are linked and gathered at the end.</li>
+<li><strong>The bibliography stays in the source language</strong>, with no call to the model, and is displayed left to right. Running headers and a standalone formula are also not sent for translation.</li>
+<li>Mathematics is not a note marker: a digit after a variable (x2), a Greek letter or a mathematical symbol, and equation numbers such as (3), are left as they are.</li>
+</ul>
+<p>Detection is based on geometric rules; a note whose marker is not found is shown in its original place. It is worth going over a first article and checking it.</p>
+
+<h2 id="en-scanned">Scanned books</h2>
+<p>Pages without embedded text (scans) are detected automatically before translation, in two stages:</p>
+<ul>
+<li><strong>Local recognition (OCR)</strong> with Tesseract on your computer, at no cost. English uses the installation's model; French and Japanese use models bundled with the project. Choose the source language explicitly: a scanned file has no text from which to detect the language.</li>
+<li><strong>Model check</strong> (the default with your own model): each page is sent to the translator model together with the page image and the OCR text. The model returns the exact text of the page in the source language: it fixes recognition errors and fills in missing lines. Formulas are written in mathematical form and protected in translation. The model must be able to read images. You can choose "Local recognition only" in the settings.</li>
+</ul>
+<p>Words the model changed are kept with no position on the page and with confidence 0, so it is clear where each passage came from. A page where local recognition and the model differ greatly is flagged as an exception on the result page; it is worth checking. Recognized text is always sent to segment quality review at the "Checked" level.</p>
+<p><strong>Cost.</strong> Local recognition is free. The model check is one call per page (image and text), and the estimate is shown before translation. The cost of the translation itself is computed only after recognition, against the same budget; if it exceeds it, translation stops and the decision box offers to raise the budget. If the check call fails, the decision box also offers to continue with local recognition only. Results already received are not sent again.</p>
+<p>Not supported: handwriting, text inside illustrations, and complex page layout beyond what Tesseract recognizes.</p>
+
+<h2 id="en-limits">Running and limits</h2>
+<p>To run on Windows, click <strong>Run Scholarly Translation.vbs</strong> or run <code>.\run-ui.ps1</code>. For first-time installation use <strong>Install.bat</strong>. Keep the server window open. A ChatGPT or Claude Code subscription is not an API key for translation.</p>
+<p>If PowerShell blocks scripts, use the VBS file or <code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1</code>. The setting applies to this process only and does not change the computer's policy.</p>
+<p>Input is limited to 2,000 pages/chapters and 3,000,000 characters. Scanned books are supported: see <a href="#en-scanned">Scanned books</a>. A translated PDF is rebuilt and does not reproduce the original layout; EPUB preserves the archive and styling, with limitations in segments that were merged. Complex layout and translation quality require checking on real documents.</p>
+<p><strong>Mathematics.</strong> In the translated PDF, symbols missing from the Hebrew font (∑, √, ≤, Greek letters, exponents and subscripts) are drawn automatically in a math font (Noto Sans Math, then Noto Sans), and a formula on its own line is displayed left to right. In EPUB, MathML formulas pass through translation protected and are restored in place as they were; in PDF/HTML a textual version of them is shown. A segment that is entirely a formula is not sent to quality review. In a digital PDF the formulas are read from the embedded text; in a scanned book they are detected in the model check (see <a href="#en-scanned">Scanned books</a>).</p>
+<p>The server listens only on the local computer. The source, drafts and job logs are stored in <code>outputs/ui/</code>; keys entered in the interface are kept in memory only, and password fields are cleared after saving.</p>
+</div>
 </main>
+<script>
+(function(){
+var T={he:'עזרה — תרגום מסמכים',en:'Help — Document Translation'};
+function stored(){try{return localStorage.getItem('ui-language')}catch(e){return null}}
+function store(l){try{localStorage.setItem('ui-language',l)}catch(e){}}
+function pick(){var h=location.hash;if(h==='#he')return'he';if(h==='#en'||h.indexOf('#en-')===0)return'en';return stored()==='en'?'en':'he'}
+function apply(l){var d=document.documentElement;d.lang=l;d.dir=l==='en'?'ltr':'rtl';d.setAttribute('data-lang',l);document.title=T[l];
+var b=document.getElementById('lang-switch');if(b){b.textContent=l==='en'?'עברית':'English';b.setAttribute('lang',l==='en'?'he':'en');b.setAttribute('href',l==='en'?'#he':'#en')}}
+function anchor(){var h=location.hash;if(h.length>1&&h!=='#en'&&h!=='#he'){var e=document.getElementById(decodeURIComponent(h.slice(1)));if(e)e.scrollIntoView()}}
+apply(pick());
+document.addEventListener('DOMContentLoaded',function(){
+var b=document.getElementById('lang-switch');
+if(b)b.addEventListener('click',function(ev){ev.preventDefault();var n=document.documentElement.getAttribute('data-lang')==='en'?'he':'en';store(n);apply(n);history.replaceState(null,'','#'+n);window.scrollTo(0,0)});
+window.addEventListener('hashchange',function(){var h=location.hash;if(h==='#en'||h==='#he'){var n=h.slice(1);store(n);apply(n)}else if(h.indexOf('#en-')===0)apply('en')});
+anchor()});
+})();
+</script>
 </body></html>
