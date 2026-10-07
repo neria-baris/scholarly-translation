@@ -54,7 +54,7 @@
 <span class="eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p>
 <progress id="translation-progress" max="100" aria-label="התקדמות התרגום"></progress>
 <p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
-<p id="processing-budget" class="processing-budget" hidden></p>
+<div id="processing-budget" class="processing-budget" hidden></div>
 <div id="processing-usage" class="usage-summary" hidden></div>
 <div id="resume-keys" class="model-settings" hidden>
 <p class="advanced-note">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. יש להזין אותם שוב כדי להמשיך.</p>
@@ -90,9 +90,12 @@
 <div class="result-heading"><span id="result-symbol" class="result-symbol" aria-hidden="true">✓</span><span class="eyebrow" id="result-eyebrow">התרגום שלכם</span><h1 id="result-title">התרגום מוכן.</h1><p id="result-filename" dir="auto"></p></div>
 <div class="result-card"><div class="result-file"><span class="result-file-icon" aria-hidden="true">↓</span><div><strong id="download-filename" dir="auto"></strong><span id="result-meta"></span></div><span class="draft-badge">טיוטה</span></div>
 <p id="result-notice" class="result-notice" hidden></p>
-<p id="result-limitations" class="result-notice" hidden></p>
 <p id="result-exceptions" class="result-notice" hidden></p>
-<div id="result-usage" class="usage-summary" hidden></div>
+<details id="result-details" class="result-details" hidden><summary>פרטים על הבדיקה והקובץ</summary>
+<div id="result-limitations" class="status-section" hidden></div>
+<div id="result-notes" class="status-section" hidden></div>
+<p id="result-findings" class="status-section" hidden></p>
+<div id="result-usage" class="usage-summary" hidden></div></details>
 <div id="result-cross-review" class="decision-box" role="region" aria-labelledby="result-cross-review-title" hidden><h2 id="result-cross-review-title">בדיקה רוחבית של הספר</h2><p>קודם נבנית טבלת שמות: המודל קורא את הספר המקורי, קטע אחר קטע, ומרכז שמות, תארים ומונחים מומצאים; בספר עיוני גם הוגים ומחברים, חיבורים מצוטטים ומונחי מפתח (מותר ניקוד); הטבלה ננעלת. אחר כך הבדיקה משווה את המקור עם התרגום בחלונות של 8 פרקים עם פרק אחד חופף (1–8, 8–15, 15–22 …); הפרק החופף, שכבר נבדק, הוא הקובע. שמות, מונחים, הפניות ורצף לא עקביים מתוקנים אוטומטית ונבדקים שוב, והנוסח העברי הקודם נשמר.</p><div class="decision-options"><div class="decision-option"><button id="result-cross-review-button" type="button" class="secondary-button">להכין בדיקה רוחבית</button></div></div><p class="decision-note">קריאות בתשלום לספק מתחילות רק כשתלחצו ״המשך״. הרצה חוזרת שולחת מחדש רק טקסט שהשתנה.</p><p id="result-cross-review-error" class="message" role="alert" hidden></p></div>
 <details id="result-notebook" class="options" hidden><summary><span class="options-label">מחברת הספר (אופציונלי)</span><span class="chevron" aria-hidden="true">⌄</span></summary><p class="usage-summary">המודל מתעד במהלך התרגום שמות, מונחים ובחירות תרגום לשמירה על עקביות. אין צורך לעשות דבר; אפשר להוריד לעיון.</p><button id="download-notebook" class="text-button">הורדת המחברת (Markdown) <span aria-hidden="true">↓</span></button><ol id="notebook-summaries" class="usage-summary"></ol></details>
 <div class="field" id="font-after-field" hidden><label for="font-after">גופן PDF (לאחר תרגום)</label><select id="font-after"></select><small>החלפת גופן בונה מחדש את ה־PDF בלבד; אינה שולחת קריאה למודל.</small></div>

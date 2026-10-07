@@ -349,13 +349,29 @@ function renderBook(inResult=false){
     (currentJob.total_units?Math.round(95*currentJob.completed_units/currentJob.total_units):0)));
   $('processing-percentage').textContent=pct+'%';return pct;
 }
+const num=n=>Number(n||0).toLocaleString('en-US'),usd=n=>'$'+Number(n||0).toFixed(4),ltr=v=>'<bdi dir="ltr">'+esc(v)+'</bdi>';
+const statRow=(label,value)=>'<dt>'+esc(label)+'</dt><dd>'+value+'</dd>';
 function renderUsage(id){
-  const container=$(id),rows=currentJob.budget_status?.provider_usage||[];
-  container.hidden=!rows.length&&!currentJob.local_replays;
-  container.innerHTML='<p>שימוש חוזר מקומי: '+esc(currentJob.local_replays||0)+' פעולות · מטמון תוצאות מקומי: '+esc(currentJob.budget_status?.cache_hits||0)+'</p>'+
-    rows.map(row=>'<p><b>'+esc(row.provider)+' / '+esc(row.model)+'</b> · '+esc(row.calls)+' קריאות לספק · קלט '+esc(row.input)+' / פלט '+esc(row.output)+
-      ' טוקנים · חשיבה '+esc(row.reasoning)+' (כלולה בפלט) · קריאת מטמון ספק '+esc(row.cached)+' · כתיבה '+esc(row.cache_write)+' / שעה '+esc(row.cache_write_1h)+
-      (row.unmetered_calls?' · '+esc(row.unmetered_calls)+' קריאות ללא מדידה':'')+'</p>').join('');
+  const container=$(id),rows=currentJob.budget_status?.provider_usage||[],replays=currentJob.local_replays||0,hits=currentJob.budget_status?.cache_hits||0;
+  container.hidden=!rows.length&&!replays&&!hits;
+  if(container.hidden){container.innerHTML='';return}
+  const sum=key=>rows.reduce((t,r)=>t+(Number(r[key])||0),0);
+  container.innerHTML=(rows.length?'<table class="usage-table"><thead><tr><th>מודל</th><th>קריאות</th><th>טוקנים בקלט</th><th>טוקנים בפלט</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td>'+ltr(r.provider+' / '+r.model)+'</td><td>'+ltr(num(r.calls))+'</td><td>'+ltr(num(r.input))+'</td><td>'+ltr(num(r.output))+'</td></tr>').join('')+'</tbody></table>':'')+
+    '<details class="usage-more"><summary>מוני משנה</summary><dl class="stat-grid">'+
+    statRow('קריאת מטמון ספק',ltr(num(sum('cached'))))+statRow('כתיבה למטמון ספק',ltr(num(sum('cache_write'))))+statRow('כתיבה למטמון (שעה)',ltr(num(sum('cache_write_1h'))))+
+    statRow('חשיבה (כלולה בפלט)',ltr(num(sum('reasoning'))))+(sum('unmetered_calls')?statRow('קריאות ללא מדידה',ltr(num(sum('unmetered_calls')))):'')+
+    statRow('שימוש חוזר מקומי',ltr(num(replays)))+statRow('מטמון תוצאות מקומי',ltr(num(hits)))+'</dl></details>';
+}
+function renderStats(){
+  const job=currentJob,box=$('processing-budget'),p=job.progress,b=job.budget_status,rows=[];
+  const stage=job.ocr_progress?null:(p?.phase||'');
+  if(stage)rows.push(statRow('שלב',esc(stage)));
+  if(p&&p.total_chapters)rows.push(statRow('פרקים',ltr(num(p.completed_chapters)+' / '+num(p.total_chapters))));
+  else if(job.chapter_progress)rows.push(statRow('פרקים',ltr(num(job.chapter_progress.current)+' / '+num(job.chapter_progress.total))));
+  if(p&&p.total_steps)rows.push(statRow('קריאות',ltr(num(p.completed_steps)+' / '+num(p.total_steps))));
+  if(b)rows.push(statRow('הוצאה משוערת',ltr(usd(b.list_estimated_spent_usd))),statRow('שמור/ממתין',ltr(usd(b.held_usd))),statRow('נותר מהתקציב',ltr(usd(job.remaining_budget_usd))));
+  box.hidden=!rows.length;box.innerHTML=rows.length?'<dl class="stat-grid">'+rows.join('')+'</dl>':'';
 }
 function renderProcessing(){
   $('processing-title').textContent=currentJob.stage_label||'קוראים את המסמך…';
@@ -368,8 +384,7 @@ function renderProcessing(){
     const ocr=currentJob.ocr_progress;
     detail=(ocr.phase==='vision'?'בדיקת המודל מול תמונות העמודים: ':'זיהוי טקסט בעמודים סרוקים: ')+ocr.done+' מתוך '+ocr.total+' עמודים.';
   } else if(currentJob.progress&&currentJob.progress.total_chapters){
-    detail='פרק '+currentJob.progress.completed_chapters+' מתוך '+currentJob.progress.total_chapters+' הושלם. '+
-      (currentJob.progress.phase||'')+' · '+currentJob.progress.completed_steps+'/'+currentJob.progress.total_steps+' קריאות.';
+    detail='פרק '+currentJob.progress.completed_chapters+' מתוך '+currentJob.progress.total_chapters+' הושלם.';
   } else if(currentJob.total_units){
     detail=currentJob.completed_units+' מתוך '+currentJob.total_units+' מקטעים הושלמו.';
     if(currentJob.chapter_progress)detail='פרק '+currentJob.chapter_progress.current+' מתוך '+currentJob.chapter_progress.total+'. '+detail;
@@ -378,12 +393,7 @@ function renderProcessing(){
   $('processing-detail').textContent=(currentJob.error&&!blocker?currentJob.error+' ':'')+detail+' אפשר לחזור לחלון הזה בהמשך.';
   renderDecision(blocker);
   renderUsage('processing-usage');renderResumeKeyFields();
-  if(currentJob.budget_status){
-    $('processing-budget').hidden=false;
-    $('processing-budget').textContent='הוצאה משוערת: $'+currentJob.budget_status.list_estimated_spent_usd.toFixed(4)+
-      ' · שמור/ממתין: $'+currentJob.budget_status.held_usd.toFixed(4)+
-      ' · נותר מהתקציב: $'+(currentJob.remaining_budget_usd??0).toFixed(4);
-  } else $('processing-budget').hidden=true;
+  renderStats();
   const canPauseResume=currentJob.settings&&currentJob.settings.automation;
   $('pause-button').hidden=!(canPauseResume&&['translating','reviewing','queued','reading'].includes(currentJob.status));
   $('resume-button').hidden=!(canPauseResume&&!blocker&&['paused','interrupted','failed'].includes(currentJob.status));
@@ -496,6 +506,22 @@ function qualityLabel(){
   return ({checked_draft:'טיוטה שבדיקתה הושלמה',draft_with_exceptions:'טיוטה עם חריגים',
     unreviewed_draft:'טיוטה ללא QA',edited_draft_review_stale:'טיוטה ערוכה — QA קודם אינו עדכני'})[currentJob.quality_status]||'טיוטה אוטומטית לא מאושרת';
 }
+const LIMITATION_LABELS={missing_translation:'קטעים שנשארו בשפת המקור',inline_markup_flattened:'עיצוב פנימי (הדגשות/קישורים) פושט',units_merged_multiple_blocks:'מקטעים שאוחדו מכמה פסקאות'};
+function groupLimitations(list){
+  const counts=new Map();list.forEach(l=>{const k=l.kind||'other';counts.set(k,(counts.get(k)||0)+1)});
+  return [...counts.entries()].sort((a,b)=>b[1]-a[1]).map(([kind,count])=>({kind,count,label:LIMITATION_LABELS[kind]||kind}));
+}
+function renderResultDetails(limitations,notes,findings){
+  const lim=$('result-limitations'),nt=$('result-notes'),fd=$('result-findings'),groups=groupLimitations(limitations),shown=3;
+  lim.hidden=!groups.length;
+  lim.innerHTML=groups.length?'<b>הערות על בניית הקובץ</b><ul>'+groups.map(g=>'<li>'+esc(g.label)+': '+ltr(num(g.count))+'</li>').join('')+'</ul>':'';
+  nt.hidden=!notes.length;
+  nt.innerHTML=notes.length?'<b>הערות בדיקה</b><ul>'+notes.slice(0,shown).map(n=>'<li dir="auto">'+esc(n)+'</li>').join('')+
+    (notes.length>shown?'<li>ועוד '+ltr(num(notes.length-shown))+'</li>':'')+'</ul>':'';
+  fd.hidden=!findings;
+  fd.innerHTML=findings?'בבדיקות נרשמו '+ltr(num(findings))+' ממצאים או הערות; היסטוריית הבדיקה והתיקון מוצגת במקטעים.':'';
+  $('result-details').hidden=!(groups.length||notes.length||findings||!$('result-usage').hidden);
+}
 function renderResult(){
   renderBook(true);renderUsage('result-usage');
   const auto=currentJob.settings.model==='auto',complete=currentJob.status==='completed',partial=!complete&&currentJob.completed_units>0;
@@ -504,20 +530,18 @@ function renderResult(){
   $('result-filename').textContent=currentJob.filename;
   $('download-filename').textContent=currentJob.filename.replace(/\.[^.]+$/,'')+'.he.'+sourceExt();
   $('result-meta').textContent=qualityLabel()+' · '+currentJob.completed_units+'/'+currentJob.total_units+' מקטעים';
-  const notices=[];
-  if(auto)notices.push('זו תצוגת ניסיון של הממשק בלבד. לא בוצע תרגום אמיתי.');
-  if(currentJob.error)notices.push(currentJob.error);
-  (currentJob.review_notes||[]).forEach(n=>notices.push(n));
-  $('result-notice').textContent=notices.join(' · ');$('result-notice').hidden=!notices.length;
-  const limitations=currentJob.export_limitations||[];
-  $('result-limitations').textContent=limitations.length?'הערות על בניית הקובץ המתורגם: '+limitations.map(l=>l.detail||l.kind).join(' · '):'';
-  $('result-limitations').hidden=!limitations.length;
+  const limitations=currentJob.export_limitations||[],notes=currentJob.review_notes||[];
   const findings=(currentJob.units||[]).reduce((sum,u)=>sum+(u.findings||[]).length+(u.unresolved?1:0),0)+(currentJob.exceptions||[]).length+
     (currentJob.chapter_qa_results||[]).reduce((sum,q)=>sum+(q.issues||[]).length,0);
   const stale=currentJob.quality_status==='edited_draft_review_stale'||(currentJob.units||[]).some(u=>u.review_stale);
-  $('result-exceptions').textContent=(findings?'בבדיקות נרשמו '+findings+' ממצאים או הערות; היסטוריית הבדיקה והתיקון מוצגת במקטעים. ':'')+
-    (stale?'הטקסט נערך לאחר בדיקת המודל; תוצאות ה־QA הקודמות אינן אישור לגרסה הערוכה.':'');
-  $('result-exceptions').hidden=!findings&&!stale;
+  const notices=[];
+  if(auto)notices.push('זו תצוגת ניסיון של הממשק בלבד. לא בוצע תרגום אמיתי.');
+  if(currentJob.error)notices.push(currentJob.error);
+  if(!auto&&complete&&(limitations.length||notes.length||findings))notices.push('הקובץ מוכן. נרשמו הערות בדיקה ובנייה — פרטים למטה.');
+  $('result-notice').textContent=notices.join(' · ');$('result-notice').hidden=!notices.length;
+  renderResultDetails(limitations,notes,findings);
+  $('result-exceptions').textContent=stale?'הטקסט נערך לאחר בדיקת המודל; תוצאות ה־QA הקודמות אינן אישור לגרסה הערוכה.':'';
+  $('result-exceptions').hidden=!stale;
   $('download-pdf').disabled=!complete;
   renderNotebook();
   $('review-button').disabled=!complete;
