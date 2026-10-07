@@ -1,4 +1,18 @@
-# Current state — AUTO-CONTINUE-WRITABLE fix on main (after PREVIEW-SPEED)
+# Current state — UI-POLISH delivered to main (after AUTO-CONTINUE-WRITABLE)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/ui_polish.md`.
+Result screen: one short status line + one collapsed details box (export limitations grouped by
+kind with counts, first notes, findings count, usage) instead of thousands of joined English
+details. Processing view: labelled rows (stage, chapters, calls, spent/held/remaining) and a
+per-model table, numbers LTR-isolated; secondary counters collapsed. Start/processing/result views
+compacted; help link in the header. Header "English" button switches the main interface (saved in
+localStorage `ui-language`), help page bilingual. Free-form server messages (blockers, errors,
+review notes) and the learning section stay Hebrew. Full offline suite 1254 OK. Paid calls 0.
+Static UI files only: a browser reload shows it; no server restart needed.
+Open: English mode not checked against a live server (offline harness with real job data only);
+a 1366x657 result view still needs a short scroll to the download button.
+Next: user reloads the browser tab; the AUTO-CONTINUE-WRITABLE restart note below still applies.
+
+## Previous: AUTO-CONTINUE-WRITABLE fix on main (after PREVIEW-SPEED)
 Updated: 2026-10-07. Claude continuity, user-directed bug fix (contract user_decided_blocks addendum).
 Symptom: the user again had to approve an unknown-outcome retry of $0.0084 although the standing
 rule auto-accepts below $1. Evidence: Jade City job 75ec5d08, local-correction event 309 ended
@@ -77,57 +91,3 @@ decision; (b) niqqud already in finished Senlin/Jade City text stays until a use
 check or a user-approved local cleanup; (c) chapter QA retains many MAJOR hebrew_quality notes
 (Senlin 160) — no decision yet. PUNCT-RHYTHM (f87addb, concurrent session) has no audit entry.
 Next: restart the UI at a safe time; re-export Senlin to get the fixed EPUB (no model calls).
-
-## Previous: SCHOLARLY-PARITY delivered to main
-Updated: 2026-10-06. Claude continuity, user-directed. Contract `audit/contracts/scholarly_parity.md`.
-The fiction-oriented context work now also fits scholarly books: name-table prompt and
-cross-chapter QA checks are profile-specific (scholarly: cited authors/works, key terms with
-inflection, definitions, cross-references, notation, attribution, authorial voice); keeper's
-literary-only rules moved to the literary guidance; scholarly translator follows BOOK_NOTEBOOK
-(scholarly-prompts-v2@3); name kinds person/work; 04/06 and UI/help copy updated. Prompts only:
-no new steps or calls. Full offline suite 1151 OK. Paid/provider calls 0; no restart.
-Next: unchanged from below (restart the UI at a safe time; running servers predate this too).
-
-## Previous: NAMES-CROSSQA + SOURCE-PASS delivered to main
-Updated: 2026-10-06. Claude continuity, user-directed. Contract
-`audit/contracts/names_cross_qa.md` (+ integration addendum). Base f61958c (contract) on
-b23a217. Feature branch `feat/names-crossqa`; main fast-forward and normal push follow the
-verified commit (receipt in run_history).
-
-Cause: completed Jade City run c69bb5fc (64/64, $0.94). Notebook keeper never updated an entry
-(no entry_id shown) so contradicting renderings coexisted (Shae שיי 372×/שֵׁאי 258×, flipping
-between chapters; Wen/Woon both וון under prefixes); from chapter 42 the keeper rewrote a
-middle-cut story; 3 keeper answers with a stray `]` silently lost; retry after a keeper
-transport failure never re-ran the keeper; stale notes.
-
-Delivered: model-built name table before chapter 1 (locked automatically, add-only, keeper adds
-new names), binding NAMES block in translator/QA/unit-review/keeper prompts; keeper sees
-entry_ids and the whole story, tolerant JSON (stray closer repair), missing-field warnings;
-notebook budget 60000 (story share 0.5); cross-chapter QA windows 1-8, 8-15, 15-22 … with the
-overlap chapter as authoritative REFERENCE (never corrected), automatic consistency/continuity
-corrections + unit recheck, prior Hebrew in target_versions; retry reopens skipped keeper/name
-table/window steps; "prepare cross-chapter check" for existing books (result view or paused
-view) that the normal resume runs. User decisions: no deterministic name/term checks, no
-sealed names, no approval pause, niqqud allowed, Luna default, >2 parallel builders.
-
-Verification: full offline suite 1137 tests OK, also after the final UI entry point
-(388s); node --check ui.js/learning.js OK; offline replay of the 3 broken c69bb5fc keeper
-answers now parses fully (repaired), 3 story-less answers now warn. Paid/provider calls 0.
-No live restart; jobs untouched.
-
-Open: Jade City has the old text (no table); the user can prepare the cross-chapter check from
-its result view after restarting the UI — paid Luna calls, user-started. Senlin Ascension job
-is paused at chapter 1/50 under old code: restart the UI before resuming; preparing the cross
-check first gives it the name table for chapters 2-50. Cross-QA/name-table costs are not in
-the per-chapter plan (protected reserve, skipped with a note on shortage). Gate10 human
-quality acceptance remains BLOCKED.
-Next: user restarts the UI at a safe time, then (optionally) prepares the cross check for
-Senlin before resuming and for Jade City.
-
-SOURCE-PASS (addendum 2, same day, user report): the name table is now built by reading the
-whole ORIGINAL book in chunks of consecutive chapters (<=300000 tokens of source each; Jade City:
-4 calls, chapters 1-16/17-33/34-49/50-64, <= $0.14 input at Luna list price), each chunk seeing the
-names so far; progress persists per chunk. A completed cross check can run again (history kept;
-unchanged windows replay). Result view shows a visible cross-check box (was hidden in the
-collapsed notebook section); UI/help copy states original-vs-translation. Running UI servers
-(several instances, latest started 15:11) predate both deliveries: restart required to see it.

@@ -1037,3 +1037,22 @@ Cause: `_auto_continue` used ControlStore(create=False) = read-only; the settle 
 StoreCorruptionError, swallowed by its except. Fix: create=True (as in `decide`). Regression test
 through DocumentJobs (fails before, passes after). Full offline suite 1216 OK (481s). Paid/provider
 calls 0. UI restart needed; not pushed.
+
+## 2026-10-07T11:40+03:00 | UI-POLISH | Claude continuity, user-directed
+User: (a) messages after a finished translation are unclear and fill the screen; (b) the page needs
+scrolling to reach help, also in the translation view; (c) the progress info under the translation
+view is unclear with an RTL problem; (d) an English interface button. Contract
+`audit/contracts/ui_polish.md`. Evidence: Jade City c69bb5fc has 3097 English export_limitations
+that renderResult joined into one paragraph (result page 49,655 px tall at 1366 wide).
+Builders (Claude Sonnet, user allowed >2 parallel): UI-STATUS (a+c), UI-FIT (b), HELP-EN in three
+worktrees off a7a4f82 (first launch landed on origin/main and stopped cleanly; relaunched on
+explicit worktrees), then UI-EN sequentially on the merged base; conductor merged, one small direct
+CSS fix (result heading). Result: one short status line + one collapsed details box (limitations
+grouped by kind with Hebrew labels and counts, first 3 notes + "ועוד N", findings count, usage);
+labelled progress rows + per-model table with <bdi dir=ltr> numbers, secondary counters collapsed;
+start page 754->606 px, help link in the header; result page 49,655->954 px; English switch in the
+header (localStorage ui-language, live re-render, html lang/dir, fixed server stage labels mapped;
+free-form server text stays Hebrew), bilingual help page (#en or saved choice). Offline headless
+Edge screenshots of start/processing/result in both languages with real job data (stubbed fetch).
+Full offline suite 1254 OK (563 s); node --check OK. Paid/provider calls 0. Static files only: a
+browser reload shows it, no restart needed.
