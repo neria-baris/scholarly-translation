@@ -133,5 +133,13 @@
 <p id="connection-detail">Auto הוא מצב תצוגת ניסיון בלבד, ללא עלות וללא תרגום אמיתי.</p>
 <div class="dialog-actions"><button id="close-connection-ok" class="primary-button" data-i18n="close">סגירה</button></div>
 </dialog>
+<dialog id="key-dialog" aria-labelledby="key-dialog-title">
+<div class="dialog-heading"><h2 id="key-dialog-title" data-i18n="keyDlgTitle">מפתח API</h2><button id="close-key-dialog" class="quiet-button" aria-label="סגירה" data-i18n-aria="closeAria">✕</button></div>
+<p id="key-dialog-status"></p>
+<ul id="key-dialog-list" class="key-dialog-list"></ul>
+<p id="key-dialog-note" class="advanced-note"></p>
+<div class="dialog-actions"><button id="key-dialog-enter" class="primary-button" data-i18n="keyDlgEnter">הזנה או החלפה של מפתח</button><button id="key-dialog-forget" class="secondary-button" hidden data-i18n="forgetKeys">מחיקת המפתחות השמורים מהמחשב</button></div>
+<p id="key-dialog-message" class="key-message" role="status"></p>
+</dialog>
 <script>window.UI_CONFIG = __CONFIG__;</script><script src="/ui.js"></script>
 </body></html>

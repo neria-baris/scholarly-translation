@@ -603,6 +603,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                         translator_label = f"{translator.get('provider')}/{translator.get('model')}"
                     with settings_lock:
                         available_keys = {pid: True for pid in session_keys}
+                        entered_ids = set(session_keys)
                     for pid, env in (("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")):
                         if os.environ.get(env):
                             available_keys[pid] = True
@@ -624,6 +625,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                         "qa_roles": ["semantic_reviewer", "chapter_qa"],
                         "key_providers_available": available_keys,
                         "key_providers_saved": {pid: True for pid in sorted(saved_key_ids)},
+                        # Keys that come from outside the UI (environment / server configuration).
+                        "key_providers_external": {pid: True for pid in sorted(available_keys) if pid not in entered_ids},
                         "key_remember_supported": key_store is not None,
                         "configured_requirements": configured_requirements,
                     })
@@ -718,6 +721,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                             session_keys.update(updates)
                     with settings_lock:
                         available = {pid: True for pid in session_keys}
+                        entered_ids = set(session_keys)
                         saved = {pid: True for pid in sorted(saved_key_ids)}
                     for pid, env in (("openai", "OPENAI_API_KEY"), ("anthropic", "ANTHROPIC_API_KEY")):
                         if os.environ.get(env):
@@ -725,6 +729,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     if server_model_config:
                         available.update({pid: True for pid, key in _key_snapshot(ModelConfiguration.from_dict(server_model_config)).items() if key})
                     self._json(200, {"available": available, "saved": saved,
+                                     "external": {pid: True for pid in sorted(available) if pid not in entered_ids},
                                      "remember_supported": key_store is not None})
                 elif route.path == "/document-preview":
                     source = Path(data.get("path", "")).resolve()

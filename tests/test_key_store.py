@@ -146,6 +146,18 @@ class RememberKeysHTTPTests(unittest.TestCase):
         result, _ = self.post("/model-keys", {})
         self.assertNotIn("openai", result["available"])
 
+    def test_keys_from_the_environment_are_reported_as_external(self):
+        self.start(MemoryStore({"anthropic": "sk-ant-saved"}))
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env-value"}):
+            config, body = self.post("/document-config", {})
+            result, _ = self.post("/model-keys", {})
+        self.assertNotIn("sk-env-value", body)
+        self.assertEqual(config["key_providers_external"], {"openai": True})
+        self.assertEqual(result["external"], {"openai": True})
+        self.assertEqual(result["saved"], {"anthropic": True})
+        result, _ = self.post("/model-keys", {"keys": {"openai": "sk-typed"}})
+        self.assertEqual(result["external"], {})
+
     def test_invalid_stored_entries_are_ignored(self):
         self.start(MemoryStore({"Bad ID": "sk-a", "openai": "sk-a\nb", "anthropic": "  "}))
         result, _ = self.post("/model-keys", {})

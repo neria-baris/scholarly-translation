@@ -1,4 +1,15 @@
-# Current state — AUTO-RETRY-UNDER-DOLLAR (after SERVER-TEXT-EN)
+# Current state — REMEMBER-KEYS key dialog on main (after AUTO-RETRY-UNDER-DOLLAR)
+Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/remember_keys.md`.
+User: clicking the header key showed irrelevant text (the model/Auto connection dialog). Now it
+opens an "API key" dialog: per provider saved on this computer / memory only / external
+(environment or server configuration, new `key_providers_external` / `external` fields), a
+remember hint, "enter or replace a key" and "delete saved keys". Checked in headless Chrome (no
+key, saved key, English). New test for the external flag. Rebased on AUTO-RETRY-UNDER-DOLLAR (ui.js lines
+merged by hand). Paid/provider calls 0. Not pushed.
+Next: a browser reload shows the dialog; the server part (external flag, remembered keys) needs
+the pending UI restart noted below.
+
+## Previous: AUTO-RETRY-UNDER-DOLLAR (after SERVER-TEXT-EN)
 Updated: 2026-10-07. Claude continuity, user-directed (contract user_decided_blocks addendum).
 User: an academic PDF (18da9456) still asked to approve an unknown-outcome retry. Evidence: the
 writable fix worked (3 auto decisions 12:58:07/09/11), but one semantic-reviewer call failed four

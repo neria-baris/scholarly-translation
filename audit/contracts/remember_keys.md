@@ -22,8 +22,12 @@ build prompt allows keys in a local secret manager ("מנהל סודות"), neve
   supported; default checked when keys are already saved, else the last choice in localStorage
   `remember-keys` — a preference, never the key), "delete saved keys" button, labels show
   "(saved on this computer)"; header key icon: grey = no key, gold = a key is available (memory,
-  store or environment), green dot = saved on this computer; tooltip/aria lists providers; click
-  opens the connection dialog. Learning page key field gets the same checkbox.
+  store or environment), green dot = saved on this computer; tooltip/aria lists providers. Click opens a
+  dedicated "API key" dialog (follow-up: the connection dialog's Auto text was irrelevant): per
+  provider whether the key is saved on this computer, in memory only, or external (environment /
+  server configuration; `key_providers_external` / `external` from the server), a hint to tick
+  "remember", "enter or replace a key" (switches to my own model if needed, opens the options and
+  focuses the key field or translator model) and "delete saved keys". Learning page key field gets the same checkbox.
 
 ## Invariants
 
