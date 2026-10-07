@@ -13,6 +13,11 @@ Open: no real English translation run yet; target select not checked in a browse
 Gate-7/8 CLI stay Hebrew; the notebook download's name-table heading still says Hebrew.
 Next: restart the UI; try one chapter into English with a configured model.
 
+EN-DEFAULT-TARGET (2026-10-07, user-directed): English mode title "Your document, in English." (eyebrow
+and tab title too); the target select defaults to the interface language (English mode -> English,
+Hebrew mode -> Hebrew), a manual choice holds until the language switches, Auto still forces Hebrew.
+ui.js only (browser reload). Full offline suite 1316 OK (one earlier run had 1 failure that did not repeat).
+
 ## Previous: REMEMBER-KEYS key dialog on main (after AUTO-RETRY-UNDER-DOLLAR)
 Updated: 2026-10-07. Claude continuity, user-directed. Contract `audit/contracts/remember_keys.md`.
 User: clicking the header key showed irrelevant text (the model/Auto connection dialog). Now it
