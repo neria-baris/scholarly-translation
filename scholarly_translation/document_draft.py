@@ -412,9 +412,14 @@ def validate_settings(settings):
 
 
 def _write_json(path, value):
+    # Flushed to disk before the replace: an unflushed replace survives a power loss
+    # as a zero-filled job.json, and the job then disappears from the library.
     temp = path.with_suffix(".tmp")
-    temp.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp.replace(path)
+    with temp.open("w", encoding="utf-8") as handle:
+        handle.write(json.dumps(value, ensure_ascii=False, indent=2))
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temp, path)
 
 
 def _build_translations_mapping(units):

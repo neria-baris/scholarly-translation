@@ -47,6 +47,23 @@ class WorkJournalTests(unittest.TestCase):
             journal.mark_completed(identity)
             self.assertEqual(journal.status_of(identity), "completed")
 
+    def test_validated_result_replays_in_its_original_key_order(self):
+        # A replayed answer feeds later prompts (e.g. review issues -> correction prompt);
+        # a different key order there changes the prompt, the step identity, and so pays again.
+        validated = {"verdict": "FAIL", "issues": [{"severity": "MAJOR", "problem": "p", "source_span": "s"}]}
+        with WorkJournal(self.path) as journal:
+            identity = self._identity()
+            journal.plan_step(identity, job_id="job1", role="translator", stage="chapter-translate",
+                              model="m1", call_output_cap=100, prompt_text="prompt", dependencies=["u1"])
+            journal.mark_dispatched(identity)
+            journal.mark_received(identity, RAW_OK)
+            journal.mark_validated(identity, validated)
+            journal.mark_completed(identity)
+        with WorkJournal(self.path, create=False) as journal:
+            replayed = journal.read_validated(identity)
+        self.assertEqual(list(replayed), ["verdict", "issues"])
+        self.assertEqual(list(replayed["issues"][0]), ["severity", "problem", "source_span"])
+
     def test_cannot_receive_before_dispatch(self):
         with WorkJournal(self.path) as journal:
             identity = self._identity()

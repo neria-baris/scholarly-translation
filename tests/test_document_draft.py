@@ -102,6 +102,27 @@ MOCK_MODEL_CONFIG = {
 }
 
 
+class JobFileDurabilityTests(unittest.TestCase):
+    def test_job_file_is_flushed_to_disk_before_it_replaces_the_old_one(self):
+        # A power loss after an unflushed replace left job.json as 18 MB of zero bytes and
+        # the job vanished from the UI; the new content must reach the disk first.
+        from unittest import mock
+        from scholarly_translation import document_draft
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "job.json"
+            path.write_text(json.dumps({"revision": 1}), encoding="utf-8")
+            synced = []
+
+            def fsync(fd):
+                synced.append(json.loads(path.read_text(encoding="utf-8"))["revision"])
+
+            with mock.patch.object(document_draft.os, "fsync", side_effect=fsync):
+                document_draft._write_json(path, {"revision": 2})
+            self.assertEqual(synced, [1])   # synced while the old file was still in place
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"revision": 2})
+            self.assertEqual([p.name for p in Path(tmp).iterdir()], ["job.json"])
+
+
 class DocumentDraftTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

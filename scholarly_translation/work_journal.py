@@ -223,7 +223,8 @@ class WorkJournal:
             self._require_status(identity, ("received", "validated"))
             self._conn.execute(
                 "UPDATE steps SET status='validated', validated_json=?, updated_at=? WHERE identity=?",
-                (json.dumps(validated, sort_keys=True, ensure_ascii=False), _now(), identity),
+                # Original key order: a replayed answer must rebuild the same later prompts.
+                (json.dumps(validated, ensure_ascii=False), _now(), identity),
             )
 
     def read_validated(self, identity):
