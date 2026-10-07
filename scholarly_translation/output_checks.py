@@ -13,6 +13,7 @@ import re
 import unicodedata
 
 from . import target_languages
+from .name_table import _occurs as _name_occurs
 
 MIN_RATIO_CHARS = 80          # shorter units vary too much for a length ratio
 RATIO_LOW, RATIO_HIGH = 0.4, 2.5   # x the pack's expected ratio
@@ -91,10 +92,6 @@ def _added_dash(source, target):
     return [_finding("added_dash", evidence=f"{added} more")] if added > 0 else []
 
 
-def _occurs(form, text):
-    return bool(form) and re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text) is not None
-
-
 def _target_forms(form, pack):
     plain = _plain(form)
     forms = {plain}
@@ -121,10 +118,9 @@ def _names(source, target, entries, pack):
         if entry.get("kind") not in NAME_KINDS or not entry.get("hebrew"):
             continue
         name = entry.get("source") or ""
-        match = re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", source) if name else None
-        if match and not _contains(target, entry["hebrew"], pack):
-            findings.append(_finding("name_form_missing", name, match.start(), match.end(),
-                                     _plain(entry["hebrew"])))
+        if name and _name_occurs(name, source) and not _contains(target, entry["hebrew"], pack):
+            start = source.find(name)
+            findings.append(_finding("name_form_missing", name, start, start + len(name), _plain(entry["hebrew"])))
     return findings
 
 

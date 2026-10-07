@@ -214,6 +214,12 @@ class OutputCheckTests(unittest.TestCase):
                                        names=names, pack=self.HE)
         self.assertEqual([(f["type"], f["source_token"]) for f in missing], [("name_form_missing", "Shae")])
 
+    def test_japanese_source_names(self):
+        names = [{"source": "ゲーデル", "hebrew": "Gödel", "kind": "person"}]
+        found = oc.run_output_checks("ゲーデルの定理は形式主義を変えた。", "The theorem changed formalism.", "ja",
+                                     names=names, pack=self.EN)
+        self.assertEqual([f["type"] for f in found], ["name_form_missing"])
+
     def test_english_names_and_terms(self):
         source = "Kaul Shae and the Green Bone clan met at dawn by the old harbour wall near the market."
         target = "Kaul Shae and the Green Bone clan met at dawn by the old harbour wall near the market square."
