@@ -29,8 +29,9 @@ from reportlab.pdfgen import canvas as rl_canvas
 
 from .article_layout import MARK_TOKEN_RE, display_marks, footnotes
 from .export_common import (
-    ExportError, display_math, font_runs, ordered_render_units, reorder_bidi_line, require_translation,
-    resolve_hebrew_font, validate_translations_mapping, wrap_logical_lines,
+    ExportError, display_math, font_runs, mixed_string_width, ordered_render_units, reorder_bidi_line,
+    require_translation, resolve_hebrew_font, substitute_missing_glyphs, validate_translations_mapping,
+    wrap_logical_lines,
 )
 from .segmentation import validate_structure
 from .source_reading import StructureError
@@ -39,8 +40,16 @@ from . import target_languages
 _HEBREW_RE = re.compile("[֐-׿]")
 MARGIN = 54.0  # 0.75 inch
 PAGE_SIZE = A4
-LINE_LEADING = 1.28
+LINE_LEADING = 1.4           # Hebrew letters sit high in the line; 1.4 keeps lines apart
+MIN_SPLIT_LINES = 4          # blocks of up to this many lines are kept on one page
+_KEEP_WITH_NEXT = {"part", "chapter", "section", "subsection", "heading", "subheading"}
+_KEEP_WITH_NEXT_ROOM = 2 * 11 * LINE_LEADING + 8   # two body lines below a heading
+MAX_JUSTIFY_STRETCH = 4.0    # leave a line unjustified when its gaps would grow beyond this many spaces
 
+# ``align`` is the side text starts from ("right" for right-to-left, "left",
+# or "center"); ``indent`` narrows the start side and ``indent_end`` the other
+# side; ``justify`` spreads all but the last line of each paragraph across the
+# full measure; ``par_gap`` separates paragraphs joined inside one unit.
 _STYLE_BY_KIND = {
     "part":                {"size": 22, "bold": True,  "before": 26, "after": 10, "align": "center"},
     "chapter":              {"size": 19, "bold": True,  "before": 22, "after": 9,  "align": "right"},
@@ -48,10 +57,14 @@ _STYLE_BY_KIND = {
     "subsection":           {"size": 14, "bold": True,  "before": 14, "after": 6,  "align": "right"},
     "heading":              {"size": 13, "bold": True,  "before": 12, "after": 6,  "align": "right"},
     "subheading":           {"size": 12, "bold": True,  "before": 10, "after": 5,  "align": "right"},
-    "paragraph":            {"size": 11, "bold": False, "before": 4,  "after": 4,  "align": "right"},
-    "quotation":            {"size": 11, "bold": False, "before": 6,  "after": 6,  "align": "right", "indent": 28},
-    "list":                 {"size": 11, "bold": False, "before": 2,  "after": 2,  "align": "right", "indent": 18},
-    "note":                 {"size": 9,  "bold": False, "before": 3,  "after": 3,  "align": "right"},
+    "paragraph":            {"size": 11, "bold": False, "before": 4,  "after": 4,  "align": "right",
+                             "justify": True, "par_gap": 7},
+    "quotation":            {"size": 10, "bold": False, "before": 9,  "after": 9,  "align": "right",
+                             "indent": 30, "indent_end": 30, "justify": True, "par_gap": 5},
+    "list":                 {"size": 11, "bold": False, "before": 2,  "after": 2,  "align": "right", "indent": 18,
+                             "justify": True, "par_gap": 2},
+    "note":                 {"size": 9,  "bold": False, "before": 3,  "after": 3,  "align": "right",
+                             "justify": True, "par_gap": 3},
     "caption":              {"size": 9,  "bold": False, "before": 4,  "after": 4,  "align": "center"},
     "formula":              {"size": 11, "bold": False, "before": 8,  "after": 8,  "align": "center"},
     "bibliography_entry":   {"size": 10, "bold": False, "before": 2,  "after": 2,  "align": "right"},
@@ -63,6 +76,16 @@ _DEFAULT_STYLE = {"size": 11, "bold": False, "before": 4, "after": 4, "align": "
 _TITLE_STYLE = {"size": 24, "bold": True, "before": 0, "after": 20, "align": "center"}
 
 
+def _paragraph_lines(text, font, size, max_width):
+    """Wrap ``text`` into ``(logical_line, ends_paragraph)`` pairs: each explicit
+    ``\\n`` ends a paragraph, whose last line is never justified."""
+    out = []
+    for hard_line in text.split("\n"):
+        wrapped = wrap_logical_lines(hard_line, font, size, max_width) or [""]
+        out.extend((line, i == len(wrapped) - 1) for i, line in enumerate(wrapped))
+    return out
+
+
 @dataclass
 class PdfExportResult:
     content: bytes
@@ -72,7 +95,8 @@ class PdfExportResult:
     font_id: str | None = None
 
 
-FOOTNOTE_STYLE = {"size": 9, "bold": False, "before": 0, "after": 0, "align": "right"}
+FOOTNOTE_STYLE = {"size": 9, "bold": False, "before": 0, "after": 0, "align": "right", "justify": True}
+FOOTNOTE_LEADING = 1.3
 FOOTNOTE_RULE = 8.0          # space above the notes, holding the short separator rule
 FOOTNOTE_MAX_SHARE = 0.6     # notes never take more than this share of a page
 
@@ -94,7 +118,7 @@ class _PdfWriter:
 
     # -- footnotes ---------------------------------------------------------
     def _note_line_height(self):
-        return FOOTNOTE_STYLE["size"] * LINE_LEADING
+        return FOOTNOTE_STYLE["size"] * FOOTNOTE_LEADING
 
     def _foot_height(self, lines):
         return FOOTNOTE_RULE + len(lines) * self._note_line_height() if lines else 0.0
@@ -103,20 +127,28 @@ class _PdfWriter:
         return MARGIN + self._foot_height(self.foot)
 
     def _note_lines(self, label, text):
-        return wrap_logical_lines(label + " " + text, self.font_name, FOOTNOTE_STYLE["size"], self.max_width) or [label]
+        """The note's wrapped lines as ``(line, ends_paragraph, rtl_paragraph)``."""
+        text = substitute_missing_glyphs(label + " " + text, self.font_name)
+        rtl = target_languages.current().rtl and bool(_HEBREW_RE.search(text))
+        return [(line, ends, rtl) for line, ends in
+                _paragraph_lines(text, self.font_name, FOOTNOTE_STYLE["size"], self.max_width) or [(label, True)]]
 
     def _draw_foot(self):
         if not self.foot:
             return
         top = MARGIN + self._foot_height(self.foot)
+        rtl = target_languages.current().rtl
         self.canvas.setLineWidth(0.5)
-        self.canvas.line(self.right_x - 120, top - 2, self.right_x, top - 2)
+        if rtl:
+            self.canvas.line(self.right_x - 120, top - 2, self.right_x, top - 2)
+        else:
+            self.canvas.line(self.left_x, top - 2, self.left_x + 120, top - 2)
         y = top - FOOTNOTE_RULE
-        for line in self.foot:
+        for line, ends_paragraph, rtl_paragraph in self.foot:
             y -= self._note_line_height()
             saved, self.y = self.y, y
-            self._draw_line(reorder_bidi_line(line), self.font_name, FOOTNOTE_STYLE["size"],
-                            "right" if target_languages.current().rtl else "left", 0)
+            self._draw_line(reorder_bidi_line(line, rtl_paragraph), self.font_name, FOOTNOTE_STYLE["size"],
+                            "right" if rtl else "left", justify=not ends_paragraph)
             self.y = saved
         self.foot = []
 
@@ -159,58 +191,96 @@ class _PdfWriter:
         style = style or _STYLE_BY_KIND.get(kind, _DEFAULT_STYLE)
         font = self.bold_font_name if style.get("bold") else self.font_name
         size = style["size"]
-        indent = style.get("indent", 0)
-        max_width = self.max_width - indent
+        indent, indent_end = style.get("indent", 0), style.get("indent_end", 0)
+        max_width = self.max_width - indent - indent_end
         word_labels = [MARK_TOKEN_RE.findall(word) for word in text.split()]
-        text = display_marks(text)
-        logical_lines = wrap_logical_lines(text, font, size, max_width) or [""]
+        text = substitute_missing_glyphs(display_marks(text), font)
+        lines = _paragraph_lines(text, font, size, max_width) or [("", True)]
+        logical_lines = [line for line, _ in lines]
         line_height = size * LINE_LEADING
+        par_gap = style.get("par_gap", 0)
         line_labels, cursor = [], 0
         for logical_line in logical_lines:
             count = len(logical_line.split())
             line_labels.append([label for labels in word_labels[cursor:cursor + count] for label in labels])
             cursor += count
         notes = dict(notes or {})
-        needed = style.get("before", 0) + len(logical_lines) * line_height + style.get("after", 0)
-        # A block longer than a page necessarily splits. Start its first lines
-        # in the current page's remaining room instead of abandoning that room
-        # merely because the whole block cannot fit. Short blocks retain their
-        # existing keep-together behaviour.
-        if needed > self.page_height - 2 * MARGIN:
-            needed = style.get("before", 0) + min(2, len(logical_lines)) * line_height
+        breaks = sum(ends for _, ends in lines[:-1])
+        needed = (style.get("before", 0) + len(logical_lines) * line_height + breaks * par_gap
+                  + style.get("after", 0))
+        # A block of more than MIN_SPLIT_LINES lines may split: start it in the
+        # current page's remaining room when at least two of its lines fit there,
+        # instead of leaving that room empty. Short blocks stay together, and a
+        # heading keeps room for the start of the text that follows it.
+        if len(logical_lines) > MIN_SPLIT_LINES or needed > self.page_height - 2 * MARGIN:
+            needed = style.get("before", 0) + 2 * line_height
+        if kind in _KEEP_WITH_NEXT:
+            needed += _KEEP_WITH_NEXT_ROOM
         self._ensure_room(needed)
         self.y -= style.get("before", 0)
         self.canvas.setFont(font, size)
-        for logical_line, labels in zip(logical_lines, line_labels):
-            if self.y - line_height < self._bottom():
+        on_page = 0
+        for index, ((logical_line, ends_paragraph), labels) in enumerate(zip(lines, line_labels)):
+            if index and lines[index - 1][1] and par_gap and self.y < self.page_height - MARGIN - 1:
+                self.y -= par_gap     # a paragraph break inside the unit, unless it opens a page
+            # No widow: when only this block's last line would reach the next
+            # page, take this line along with it (if two still stay behind).
+            widow = (index == len(lines) - 2 and on_page >= 2 and not ends_paragraph
+                     and self.y - 2 * line_height < self._bottom())
+            if self.y - line_height < self._bottom() or widow:
                 self._new_page()
                 self.canvas.setFont(font, size)
+                on_page = 0
             new_notes = [line for label in labels if label in notes
                          for line in self._note_lines(label, notes.pop(label))]
             if new_notes:
                 self._place_notes(new_notes, line_height)
                 self.canvas.setFont(font, size)
-            visual_line = reorder_bidi_line(logical_line)
-            self._draw_line(visual_line, font, size, style.get("align", "right"), indent)
+            visual_line = reorder_bidi_line(logical_line, style.get("align") == "right")
+            self._draw_line(visual_line, font, size, style.get("align", "right"), indent, indent_end,
+                            justify=style.get("justify", False) and not ends_paragraph)
             self.y -= line_height
+            on_page += 1
         self.y -= style.get("after", 0)
 
-    def _draw_line(self, visual_line, font, size, align, indent):
+    def _draw_line(self, visual_line, font, size, align, indent=0, indent_end=0, justify=False):
         """Draw one visual-order line, switching to a glyph-fallback font for
-        characters the Hebrew font lacks (math symbols, Greek, super/subscripts)."""
-        runs = font_runs(visual_line, font)
-        width = sum(pdfmetrics.stringWidth(part, name, size) for name, part in runs)
-        if align == "center":
-            x = (self.left_x + self.right_x) / 2 - width / 2
-        elif align == "left":
-            x = self.left_x
+        characters the Hebrew font lacks (math symbols, Greek, super/subscripts).
+
+        ``indent`` narrows the side the text starts from (right for "right",
+        left for "left") and ``indent_end`` the opposite side. ``justify``
+        widens the word gaps so the line fills the measure exactly."""
+        start_left = align == "left"
+        left = self.left_x + (indent if start_left else indent_end)
+        right = self.right_x - (indent_end if start_left else indent)
+        words = visual_line.split(" ")
+        space = mixed_string_width(" ", font, size)
+        widths = [mixed_string_width(word, font, size) for word in words]
+        natural = sum(widths) + space * (len(words) - 1)
+        extra = 0.0
+        if justify and len(words) > 1 and natural < right - left:
+            extra = (right - left - natural) / (len(words) - 1)
+            if extra > space * MAX_JUSTIFY_STRETCH:
+                extra = 0.0
+        if extra:
+            x = left
+        elif align == "center":
+            x = (left + right) / 2 - natural / 2
+        elif start_left:
+            x = left
         else:
-            x = self.right_x - indent - width
-        for name, part in runs:
+            x = right - natural
+        for i, (word, width) in enumerate(zip(words, widths)):
+            # The space glyph is drawn too, so copied text keeps its word breaks.
+            self._draw_runs(word + (" " if i < len(words) - 1 else ""), font, size, x)
+            x += width + space + extra
+        self.canvas.setFont(font, size)
+
+    def _draw_runs(self, text, font, size, x):
+        for name, part in font_runs(text, font):
             self.canvas.setFont(name, size)
             self.canvas.drawString(x, self.y, part)
             x += pdfmetrics.stringWidth(part, name, size)
-        self.canvas.setFont(font, size)
 
     def draw_image(self, image_bytes, caption_width_ratio=0.8):
         reader = ImageReader(io.BytesIO(image_bytes))
