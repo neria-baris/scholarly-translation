@@ -61,6 +61,10 @@ def build_batch_translation_prompt(structure, glossary, unit_ids, profile_id, do
               + json.dumps(list(unit_ids)) + '\nTranslate exactly these units in this order, each exactly once. '
               'Respond ONLY with a JSON array of objects with unit_id, translation (nonempty Hebrew), '
               'and translation_note (nonempty string or null). No missing or extra ids, commentary or markdown.')
+    if len(unit_ids) > 1:
+        suffix += (' A unit may begin or end mid-sentence where the source breaks at a page: translate only '
+                   "that unit's own words, so the units read as one text when joined in order. Never repeat "
+                   'or complete content that belongs to a neighbouring unit.')
     return CacheablePrompt(prefix, suffix)
 
 def _translation_cap(units):

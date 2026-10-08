@@ -35,7 +35,7 @@ from dataclasses import replace as _dc_replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import chapter_pipeline, job_blocks, review_salvage, scanned_ocr, target_languages
+from . import chapter_pipeline, job_blocks, review_salvage, scanned_ocr, target_languages, user_glossary
 from . import context_strategy, document_state as document_state_module
 from . import epub_extract, pdf_extract, segmentation
 from .work_journal import WorkJournal
@@ -510,9 +510,11 @@ def _render_download(job, kind, source_path=None, font_id=None, partial=False):
 class DocumentJobs:
     """One active document worker; durable local results, no background retries."""
 
-    def __init__(self, root, adapter_factory=None):
+    def __init__(self, root, adapter_factory=None, user_glossary_path=None):
         self.root = Path(root) / "documents"
         self.adapter_factory = adapter_factory
+        # USER-TERMS: the personal glossary; each job keeps a snapshot of its target's terms.
+        self.user_glossary_path = user_glossary_path
         self._job_adapter_factories = {}
         self.lock = threading.RLock()
         self.active = None
@@ -561,6 +563,13 @@ class DocumentJobs:
             except ModelConfigError as exc:
                 raise DocumentDraftError(str(exc)) from None
         source_kind = source_kind_for(path)
+        user_terms = []
+        if self.user_glossary_path is not None:
+            try:
+                user_terms = user_glossary.for_target(user_glossary.load(self.user_glossary_path),
+                                                      target_languages.settings_code(settings))
+            except user_glossary.UserGlossaryError as exc:
+                raise DocumentDraftError(str(exc)) from None
         with self.lock:
             if self.active:
                 raise DocumentDraftError("מסמך אחר מתורגם כרגע. המתינו לסיום.")
@@ -583,7 +592,7 @@ class DocumentJobs:
                 "revision": 0, "created_at": datetime.now(timezone.utc).isoformat(),
                 "error": None, "estimated_cost_usd": 0.0,
                 "export_limitations": [], "export_page_count": 0, "review_notes": [],
-                "chapter_qa_results": [], "document_state": None,
+                "chapter_qa_results": [], "document_state": None, "user_terms": user_terms,
             }
             self._persist(job)
             self.active = job_id
