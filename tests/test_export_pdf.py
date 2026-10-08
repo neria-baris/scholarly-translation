@@ -61,13 +61,12 @@ class BidiReorderTests(unittest.TestCase):
     def test_pure_hebrew_word_is_character_reversed(self):
         self.assertEqual(reorder_bidi_line("שלום"), "".join(reversed("שלום")))
 
-    def test_numbered_list_marker_stays_intact_and_unreversed(self):
-        visual = reorder_bidi_line("1. פריט ראשון")
-        self.assertIn("1.", visual)
-        self.assertNotIn(".1", visual)
-        # the digit+period token itself is never internally reordered
-        tokens = visual.split(" ")
-        self.assertIn("1.", tokens)
+    def test_numbered_list_marker_keeps_its_number_whole(self):
+        visual = reorder_bidi_line("12. פריט ראשון")
+        # the number itself is never reversed; its period takes the right-to-left
+        # paragraph direction (UAX #9), so it is drawn to the left of the number
+        self.assertTrue(visual.endswith(" .12"))
+        self.assertNotIn("21", visual)
 
     def test_brackets_are_mirrored_when_fully_inside_hebrew_text(self):
         visual = reorder_bidi_line("(ראה הערה)")

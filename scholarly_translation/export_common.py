@@ -27,6 +27,35 @@ _MIRROR_PAIRS = {
     "{": "}", "}": "{",
     "<": ">", ">": "<",
     "\u00ab": "\u00bb", "\u00bb": "\u00ab",  # « »
+    "\u2039": "\u203a", "\u203a": "\u2039",  # single guillemets
+    "\u27e8": "\u27e9", "\u27e9": "\u27e8",  # mathematical angle brackets
+    "\u3008": "\u3009", "\u3009": "\u3008",  # CJK angle brackets
+    "\u300a": "\u300b", "\u300b": "\u300a",  # CJK double angle brackets
+    "\u3014": "\u3015", "\u3015": "\u3014",  # CJK tortoise-shell brackets
+}
+
+# Display stand-ins for punctuation that neither the selected font nor the
+# glyph fallbacks can draw (CJK brackets, middle dot and fullwidth punctuation
+# left in a translation from Japanese or Chinese). Applied only when no
+# available font has the original glyph, so it never prints as an empty box.
+_GLYPH_SUBSTITUTES = {
+    "\u3008": "\u27e8",
+    "\u3009": "\u27e9",
+    "\u300a": "\u00ab",
+    "\u300b": "\u00bb",
+    "\u300c": "\u201c",
+    "\u300d": "\u201d",
+    "\u300e": "\u2018",
+    "\u300f": "\u2019",
+    "\u3014": "[",
+    "\u3015": "]",
+    "\u3010": "[",
+    "\u3011": "]",
+    "\u30fb": "\u00b7",
+    "\uff1a": ":",
+    "\uff0c": ",",
+    "\uff08": "(",
+    "\uff09": ")",
 }
 
 
@@ -255,6 +284,19 @@ def font_runs(text: str, font_name: str, fallbacks=None) -> list:
     return [(name, "".join(chars)) for name, chars in runs]
 
 
+def substitute_missing_glyphs(text: str, font_name: str) -> str:
+    """Replace punctuation no available font can draw with a close stand-in
+    (see ``_GLYPH_SUBSTITUTES``) so it does not print as an empty box."""
+    if not any(ch in _GLYPH_SUBSTITUTES for ch in text):
+        return text
+    primary = _glyph_map(font_name)
+    if primary is None:
+        return text
+    maps = [primary] + [m for m in (_glyph_map(name) for name in fallback_fonts()) if m is not None]
+    return "".join(_GLYPH_SUBSTITUTES[ch] if ch in _GLYPH_SUBSTITUTES
+                   and not any(ord(ch) in m for m in maps) else ch for ch in text)
+
+
 def mixed_string_width(text: str, font_name: str, font_size: float) -> float:
     from reportlab.pdfbase import pdfmetrics
     return sum(pdfmetrics.stringWidth(part, name, font_size) for name, part in font_runs(text, font_name))
@@ -320,7 +362,7 @@ def _reverse_hebrew_token(token: str) -> str:
                    for part in reversed(parts))
 
 
-def reorder_bidi_line(text: str) -> str:
+def reorder_bidi_line(text: str, rtl_paragraph: bool = False) -> str:
     """Return a left-to-right-drawable "visual order" rendering of one
     line of mixed Hebrew/Latin/digit text, assuming an overall
     right-to-left (Hebrew) paragraph base direction.
@@ -341,8 +383,12 @@ def reorder_bidi_line(text: str) -> str:
     token's characters are reversed, and any paired bracket/quote character
     is swapped with its mirror partner (the standard behaviour for mirrored
     glyphs in an RTL run); a left-to-right run (including embedded numbers)
-    is left internally untouched, so numbers and numbered-list markers such
-    as ``"1."`` are never broken, reversed or reordered internally. Pure
+    keeps its letters, digits and inner punctuation in order, so numbers and
+    citations are never broken or reversed internally; only punctuation at
+    its two edges takes the right-to-left paragraph direction (UAX #9 rule
+    for neutrals between opposite directions), so ``"1931,"`` before Hebrew
+    draws its comma on the Hebrew side and a list marker ``"1."`` draws its
+    period to the left of the number, as a browser shows it. Pure
     left-to-right text (no Hebrew token at all) is returned unchanged.
 
     Known limitation: a single token that mixes Hebrew and non-Hebrew
@@ -351,16 +397,20 @@ def reorder_bidi_line(text: str) -> str:
     as a whole, which is not a fully correct embedded-number treatment for
     that rare case. Reflects the smallest-robust-exporter scope of this
     session, not full UAX #9 compliance.
+
+    ``rtl_paragraph`` says the line belongs to a right-to-left paragraph even
+    when this line has no Hebrew of its own (the wrapped tail of a Latin
+    citation), so its edge punctuation still takes the paragraph direction.
     """
     if not text:
         return text
     lines = normalize_nfc(text).split("\n")
-    return "\n".join(_reorder_bidi_single_line(line) for line in lines)
+    return "\n".join(_reorder_bidi_single_line(line, rtl_paragraph) for line in lines)
 
 
-def _reorder_bidi_single_line(line: str) -> str:
+def _reorder_bidi_single_line(line: str, rtl_paragraph: bool = False) -> str:
     tokens = line.split(" ")
-    if not any(_is_hebrew_token(t) for t in tokens):
+    if not rtl_paragraph and not any(_is_hebrew_token(t) for t in tokens):
         return line  # no Hebrew at all: pure left-to-right, nothing to reorder
 
     # Group consecutive same-direction tokens into runs first, so that a
@@ -381,11 +431,51 @@ def _reorder_bidi_single_line(line: str) -> str:
     visual_runs = []
     for is_hebrew, run_tokens in reversed(runs):
         if is_hebrew:
-            processed = [_reverse_hebrew_token(tok) for tok in reversed(run_tokens)]
+            visual_runs.append(" ".join(_reverse_hebrew_token(tok) for tok in reversed(run_tokens)))
         else:
-            processed = run_tokens
-        visual_runs.append(" ".join(processed))
+            # Punctuation at the edges of a left-to-right island sits between it
+            # and Hebrew text (or the line's right-to-left edge), so it takes the
+            # paragraph direction, as in UAX #9: "1931," shows its comma on the
+            # Hebrew side and "(1)." its period at the far left.
+            lead, core, trail = _split_edge_punctuation(" ".join(run_tokens))
+            visual_runs.append(_mirror_reverse(trail) + core + _mirror_reverse(lead))
     return " ".join(visual_runs)
+
+
+_KEEP_WITH_NUMBER = set("%‰‱#")
+
+
+def _is_edge_punctuation(ch: str) -> bool:
+    return unicodedata.category(ch).startswith("P") and ch not in _KEEP_WITH_NUMBER
+
+
+def _split_edge_punctuation(run: str):
+    start, end = 0, len(run)
+    while start < end and _is_edge_punctuation(run[start]):
+        start += 1
+    while end > start and _is_edge_punctuation(run[end - 1]):
+        end -= 1
+    # Never split a bracket pair: "ZF (1963) (4)." keeps "(4)" whole and peels only ".".
+    depth = unopened = 0
+    for ch in run[start:end]:
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            if depth:
+                depth -= 1
+            else:
+                unopened += 1
+    while depth and end < len(run):
+        depth -= run[end] in ")]}"
+        end += 1
+    while unopened and start > 0:
+        start -= 1
+        unopened -= run[start] in "([{"
+    return run[:start], run[start:end], run[end:]
+
+
+def _mirror_reverse(text: str) -> str:
+    return "".join(_MIRROR_PAIRS.get(ch, ch) for ch in reversed(text))
 
 
 def wrap_logical_lines(text: str, font_name: str, font_size: float, max_width: float) -> list:
