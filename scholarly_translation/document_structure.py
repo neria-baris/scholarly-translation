@@ -168,7 +168,148 @@ def _page_layout(text: str, anchors) -> dict | None:
             if 0 <= b["top"] - a["bottom"] < 2 * height]
     return {"rows": {r["start"]: r for r in rows},
             "right": statistics.median(r["x1"] for r in wide) if wide else None,
+            "left": _body_left(wide, height),
+            "merged_columns": _merged_columns(rows),
             "gap": statistics.median(gaps) if gaps else None, "height": height}
+
+
+_CJK_SPACE_CJK_RE = re.compile(r"[　-ヿ㐀-鿿＀-￯] [　-ヿ㐀-鿿＀-￯]")
+
+
+def _merged_columns(rows) -> bool:
+    """Whether the page's extracted lines join two text columns side by side: Japanese
+    has no spaces between words, so a space between Japanese characters on many lines is
+    the gutter. Indentation on such a page says nothing about one column's layout."""
+    joined = sum(bool(_CJK_SPACE_CJK_RE.search(r["text"])) for r in rows)
+    return joined >= max(BODY_EDGE_LINES, BODY_EDGE_SHARE * len(rows))
+
+
+def _body_left(wide, height):
+    """The text column's left edge: the leftmost start shared by a real share of the wide
+    lines (BODY_EDGE_LINES and BODY_EDGE_SHARE). A running header and footer in the margin
+    do not move it; a page that is mostly an indented quotation may lose its edge (the
+    quotation is then not detected, never mistaken)."""
+    starts = sorted(r["x0"] for r in wide)
+    need = max(BODY_EDGE_LINES, BODY_EDGE_SHARE * len(starts))
+    i = 0
+    while i < len(starts):
+        j = i
+        while j + 1 < len(starts) and starts[j + 1] - starts[i] <= 0.2 * height:
+            j += 1
+        if j - i + 1 >= need:
+            return starts[i]
+        i = j + 1
+    return None
+
+
+# INDENTED-QUOTES: a block quotation set off by indentation alone (no quote marks).
+BODY_EDGE_LINES = 3         # the body edge is shared by at least this many wide lines
+BODY_EDGE_SHARE = 0.15      # ... and at least this share of them
+QUOTE_INDENT = 1.5          # left indent beyond the body edge, in line heights (> a first-line indent)
+QUOTE_ALIGN = 0.3           # its lines share one left edge within this many line heights
+QUOTE_MIN_LINES = 3         # at body size; two lines suffice when the type is smaller
+QUOTE_SMALL_TYPE = 0.92     # height ratio below which a block counts as set in smaller type
+QUOTE_COLUMN_LINE = 5.0     # a line this many line heights long ending left of an edge marks a column
+
+
+def _own_rows(text: str, start: int, end: int, layout) -> list:
+    """Located rows of the visual lines in ``text[start:end]`` that are lines of their own:
+    no emphasis-dot runs and no fragments overlapping the line above."""
+    rows = []
+    for row in layout["rows"].values():
+        if start <= row["start"] < end and not _EMPHASIS_DOTS_RE.match(row["text"].strip()):
+            if not _overlaps_previous(rows[-1] if rows else None, row):
+                rows.append(row)
+    return sorted(rows, key=lambda r: r["start"])
+
+
+def _quote_indent(row, layout) -> bool:
+    return (layout.get("left") is not None and row is not None
+            and row["x0"] >= layout["left"] + QUOTE_INDENT * (row["height"] or layout["height"]))
+
+
+def _indented_block(rows, layout):
+    """``(edge, strong)`` when paragraph lines ``rows`` are an indented block: at least two
+    lines, every one indented well beyond the body edge at one shared left edge (the first
+    line may sit further in). ``strong`` when it has QUOTE_MIN_LINES lines or smaller type.
+    Centered display lines have no shared edge. None otherwise."""
+    if len(rows) < 2 or not all(_quote_indent(r, layout) for r in rows):
+        return None
+    height = layout["height"]
+    edge = statistics.median(r["x0"] for r in rows[1:])
+    if any(abs(r["x0"] - edge) > QUOTE_ALIGN * height for r in rows[1:]) or rows[0]["x0"] < edge - QUOTE_ALIGN * height:
+        return None
+    if _column_edge(edge, layout) or _beside_block(rows, edge, layout):
+        return None
+    small = statistics.median(r["height"] for r in rows) <= QUOTE_SMALL_TYPE * height
+    return edge, len(rows) >= QUOTE_MIN_LINES or small
+
+
+def _beside_block(rows, edge, layout) -> bool:
+    """Whether something stands left of the block within its vertical span (a drop
+    capital, a heading or figure in the margin): the lines make room for it, they are
+    not set in."""
+    top, bottom = rows[0]["top"], rows[-1]["bottom"]
+    tolerance = QUOTE_ALIGN * layout["height"]
+    return any(r["x1"] <= edge + tolerance and r["bottom"] > top + tolerance and r["top"] < bottom - tolerance
+               for r in layout["rows"].values() if r not in rows)
+
+
+def _column_edge(edge, layout) -> bool:
+    """Whether ``edge`` starts a text column rather than an indent: on a multi-column page
+    lines of real length end to the left of it (the column beside it). On a single-column
+    page nothing longer than a few characters ends left of a quotation's indent."""
+    height = layout["height"]
+    beside = [r for r in layout["rows"].values()
+              if r["x1"] <= edge + QUOTE_ALIGN * height and r["x1"] - r["x0"] >= QUOTE_COLUMN_LINE * height]
+    return len(beside) >= 2
+
+
+_QUOTE_NEIGHBOUR_SKIP = frozenset({"page_furniture", "note"})
+
+
+def _set_off(text: str, group, layout) -> bool:
+    """Whether the block ``group`` has extra space above or below it, beyond the normal
+    gap between lines (a displayed quotation; a hanging indent continues its entry)."""
+    gap = layout["gap"]
+    rows = _own_rows(text, group[0], group[1], layout)
+    if gap is None or not rows:
+        return False
+    limit = max(gap * 1.8, gap + 0.6 * layout["height"])
+    others = [r for r in layout["rows"].values() if not group[0] <= r["start"] < group[1]
+              and not _EMPHASIS_DOTS_RE.match(r["text"].strip())]
+    above = [rows[0]["top"] - r["bottom"] for r in others if r["bottom"] <= rows[0]["top"]]
+    below = [r["top"] - rows[-1]["bottom"] for r in others if r["top"] >= rows[-1]["bottom"]]
+    return (bool(above) and min(above) > limit) or (bool(below) and min(below) > limit)
+
+
+def _mark_indented_quotations(text: str, groups: list, layout) -> list:
+    """Retype paragraph groups that are indented block quotations as ``quotation``.
+
+    A strong indented block (see ``_indented_block``) is a quotation. A two-line block is
+    one when another indented block shares its edge next to it (consecutive displayed
+    statements) or when it opens or closes the page's text (a quotation continuing across
+    a page break). Lines after a list item or a reference entry continue that item (a
+    hanging indent), never a quotation."""
+    if not layout or layout.get("left") is None or layout.get("merged_columns"):
+        return groups
+    body = [i for i, g in enumerate(groups) if g[2] not in _QUOTE_NEIGHBOUR_SKIP]
+    blocks = {}
+    for pos, i in enumerate(body):
+        start, end, kind, _ = groups[i]
+        before = groups[body[pos - 1]][2] if pos else None
+        if kind == "paragraph" and before not in ("list", "bibliography_entry"):
+            block = _indented_block(_own_rows(text, start, end, layout), layout)
+            if block:
+                blocks[pos] = block
+    tolerance = QUOTE_ALIGN * layout["height"]
+    out = list(groups)
+    for pos, (edge, strong) in blocks.items():
+        neighbour = any(abs(blocks[p][0] - edge) <= tolerance for p in (pos - 1, pos + 1) if p in blocks)
+        if strong or neighbour or pos in (0, len(body) - 1) or _set_off(text, groups[body[pos]], layout):
+            start, end, _, level = groups[body[pos]]
+            out[body[pos]] = (start, end, "quotation", level)
+    return out
 
 
 def _overlaps_previous(prev, row) -> bool:
@@ -177,24 +318,39 @@ def _overlaps_previous(prev, row) -> bool:
     return prev is not None and row is not None and row["top"] < prev["bottom"] - 1.0
 
 
-def _continues_paragraph(segment: str, cur, nxt, layout) -> bool:
+def _continues_paragraph(segment: str, cur, nxt, layout, prev=None) -> bool:
     """Whether the visual line ``nxt`` continues the paragraph whose current line is
     ``cur`` (text ``segment``). Without geometry: unless ``segment`` ends a sentence.
     With geometry a paragraph also breaks at an indented next line or a wider gap, and a
     sentence end inside a full-width Japanese line does not break it (Japanese wraps at
-    any character, so a line may end exactly at a sentence end mid-paragraph)."""
+    any character, so a line may end exactly at a sentence end mid-paragraph). ``prev``
+    is the paragraph's line before ``cur``: when both sit at a block-quotation indent, a
+    next line further out ends the quotation."""
     sentence_end = _SENTENCE_END_RE.search(segment) is not None
     if layout is None or cur is None or nxt is None:
         return not sentence_end
     height = cur["height"] or layout["height"]
     if nxt["x0"] > cur["x0"] + 0.5 * height:
         return False
+    if prev is not None and _quote_indent(cur, layout) and _quote_indent(prev, layout) \
+            and nxt["x0"] < cur["x0"] - 0.5 * height:
+        return False      # the text column resumes after an indented block quotation
     gap = layout["gap"]
     if gap is not None and nxt["top"] - cur["bottom"] > max(gap * 1.8, gap + 0.6 * height):
         return False
     if sentence_end:
-        return (layout["right"] is not None and _CJK_CHARACTER_RE.search(segment) is not None
-                and cur["x1"] >= layout["right"] - 0.8 * height)
+        full_width = layout["right"] is not None and cur["x1"] >= layout["right"] - 0.8 * height
+        if _CJK_CHARACTER_RE.search(segment) is not None:
+            return full_width
+        # Inside an indented quotation a full line ending a sentence is followed by more of it,
+        # unless the next line is indented further (a new paragraph of the quotation). "Full"
+        # is measured against the quotation's own right edge, which may be indented too.
+        if (_quote_indent(cur, layout) and _quote_indent(nxt, layout)
+                and abs(nxt["x0"] - cur["x0"]) <= QUOTE_ALIGN * height):
+            edge = max(r["x1"] for r in layout["rows"].values()
+                       if abs(r["x0"] - cur["x0"]) <= QUOTE_ALIGN * height)
+            return cur["x1"] >= edge - 0.8 * height
+        return False
     return True
 
 
@@ -214,6 +370,7 @@ def _merge_paragraph_lines(text: str, raw: list, layout=None) -> list:
             continue
         group_start, group_end, j = start, end, i
         last = j      # the last line of the group that is a line of its own, not a fragment
+        before = None  # the line of its own before ``last``
         while True:
             nxt = j + 1
             if nxt >= n or raw[nxt][2] != "paragraph" or raw[nxt][0] != raw[j][1] + 1:
@@ -224,8 +381,10 @@ def _merge_paragraph_lines(text: str, raw: list, layout=None) -> list:
                 group_end = raw[j][1]
                 continue
             segment = text[raw[last][0]:raw[last][1]].strip()
-            if not _continues_paragraph(segment, rows.get(raw[last][0]), rows.get(raw[nxt][0]), layout):
+            if not _continues_paragraph(segment, rows.get(raw[last][0]), rows.get(raw[nxt][0]), layout,
+                                        rows.get(raw[before][0]) if before is not None else None):
                 break
+            before = last
             j = last = nxt
             group_end = raw[j][1]
         groups.append((group_start, group_end, "paragraph", None))
@@ -320,7 +479,7 @@ def _build_nodes_for_reading(reading: dict, previous_nodes, overrides=None) -> l
     previous_nodes = previous_nodes or []
     previous_by_id = {n["node_id"]: n for n in previous_nodes}
     layout = _page_layout(text, reading["selected_anchors"]) if origin in ("digital", "ocr") else None
-    groups = _apply_layout_overrides(text, overrides, layout)
+    groups = _mark_indented_quotations(text, _apply_layout_overrides(text, overrides, layout), layout)
     nodes = []
     for start, end, kind, level in groups:
         node_id = deterministic_id(
