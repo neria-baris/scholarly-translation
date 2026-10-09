@@ -43,31 +43,43 @@ class OpenVocabularyTests(unittest.TestCase):
 
     def test_invalid_proposals_never_enter_history(self):
         original = deepcopy(self.payload)
-        mutations = [lambda p: p['introduced_items'][0].update(sense_he='English'),
-                     lambda p: p['introduced_items'][0].update(forms=['שלום']),
-                     lambda p: p['introduced_items'][0].update(item_id='fr-maison'),
-                     lambda p: p['introduced_items'].append(deepcopy(p['introduced_items'][0])),
-                     lambda p: p.update(edits=[]),
-                     lambda p: p['edits'][0].update(item_ids=['undefined']),
-                     lambda p: p['edits'][0].update(original='not source')]
-        for mutation in mutations:
+        # The only edit depends on the broken proposal or source: nothing survives.
+        rejected = [lambda p: p['introduced_items'][0].update(sense_he='English'),
+                    lambda p: p['introduced_items'][0].update(forms=['שלום']),
+                    lambda p: p['introduced_items'][0].update(item_id='fr-maison'),
+                    lambda p: p['edits'][0].update(item_ids=['undefined']),
+                    lambda p: p['edits'][0].update(original='not source')]
+        for mutation in rejected:
             with self.subTest(mutation=mutation):
                 self.payload = deepcopy(original)
                 mutation(self.payload)
                 with self.assertRaises(LearningError):
                     self.parse()
+        # A duplicate or unused proposal is dropped; the rest of the answer stands.
+        for mutation in (lambda p: p['introduced_items'].append(deepcopy(p['introduced_items'][0])),
+                         lambda p: p.update(edits=[])):
+            with self.subTest(mutation=mutation):
+                self.payload = deepcopy(original)
+                mutation(self.payload)
+                report = {}
+                chunk, _ = parse_response(json.dumps(self.payload), self.plan, self.catalog, self.hash,
+                                          report=report)
+                self.assertEqual(len(chunk.get('introduced_items', [])), len(chunk['edits']))
+                self.assertTrue(report['dropped'])
 
-    def test_new_density_and_combined_quotas_apply_to_proposals(self):
+    def test_new_density_and_combined_quotas_trim_edits(self):
         self.plan['limits']['max_foreign_share'] = .01
-        with self.assertRaises(LearningError):
-            self.parse()
+        chunk, _ = self.parse()
+        self.assertEqual((chunk['edits'], chunk.get('introduced_items')), ([], None))
         self.plan['limits']['max_foreign_share'] = .5
         self.plan['limits']['new_items_per_chunk'] = 1
         self.payload['introduced_items'].append({'item_id': 'new-grammar', 'kind': 'grammar', 'lemma': 'maisonnette',
              'sense_he': 'סיומת הקטנה', 'forms': ['maisonnette'], 'explanation_he': 'במילה זו מודגמת צורת הקטנה.'})
         self.payload['edits'][0]['grammar_ids'] = ['new-grammar']
-        with self.assertRaises(LearningError):
-            self.parse()
+        report = {}
+        chunk, _ = parse_response(json.dumps(self.payload), self.plan, self.catalog, self.hash, report=report)
+        self.assertEqual(chunk['edits'], [])
+        self.assertIn('quota:new_items_per_chunk', report['dropped'])
         self.plan['limits']['new_items_per_chunk'] = 3
         chunk, recap = self.parse()
         self.assertEqual(len(chunk['introduced_items']), 2)

@@ -1,12 +1,14 @@
-# Current state — REASONING-CAPS delivered and synchronized on main
-Updated: 2026-10-07T16:10:31.553Z. Sol conductor, user-directed focused bug fix after Gate 12.
+# Current state — LEARN-SALVAGE built on branch, integration awaiting user decision
+Updated: 2026-10-09. Claude Code primary agent (conductor), user-directed learning fix.
 
-Verified delivery commit: 35b33b144b4a0a7b6b86c7aada3419d9f3c99db2, clean main, pushed and ls-remote verified. Contract: audit/contracts/reasoning_caps.md.
+Main: 4e3979e (SYNC-VERIFY). The main checkout still holds pre-existing, unverified, uncommitted learning/runtime changes (18 files: learning model choice, Haiku catalogue entry, interrupted-call recovery, learning auto-retry, fenced-JSON tolerance, UI). They were not authored in this session and were not modified.
 
-Review caps now add experimental reasoning headroom to the existing answer allowance: none 0, low 8192, medium 16384, high 32768, xhigh 49152, max 65536. Existing catalogue defaults apply. Unit/chapter/focused recheck/cross QA use the same total in capacity checks, preview, reservations and dispatch; selected effort is preserved. Saved high-effort jobs refresh stale estimates on resume, preserving completed units, groups, contexts, charges and journal.
+Branch fix/learn-salvage (worktree .claude/worktrees/learn-salvage): commit 1 = exact snapshot of those uncommitted changes (WIP-SNAPSHOT, unverified as authored); commit 2 = LEARN-SALVAGE (contract audit/contracts/learn_salvage.md). Policy@3 learning answers: spans located by original text, repeated Hebrew context trimmed, invalid parts dropped, quotas trim instead of rejecting; book notebook (learned items ranked, book-wide paced new-word allowance from local word counts) via prompt asset 13 (learning-generation@4); rejected answers resent after 2/5/15/30 s. Policy@1/@2 unchanged.
 
-Verification: 8 new tests; 67 focused PASS; full offline 1334 PASS in 539.952s, diff check PASS. No runtime provider call or live server/job mutation. Sonnet CLI snapshot attempt had connection failures; network launch rejected by automatic approval review for source export. Sol performed the permitted small direct fix; Opus/Astra 0. Development billing unknown; no further model calls planned.
+Verification: learning tests 250 PASS; full offline suite 1409 PASS (skipped=1) 476.1 s on the branch (snapshot + fix). Offline replay of recorded rejected learning answers: 11/13 accepted. Runtime provider calls 0.
 
-Open: restart UI server to load fix; then user can resume the saved high-effort job. Original dollar budget stays fixed; larger review reservations may require explicit budget renewal. Headroom is a local initial assumption, not a provider maximum or proof of output quality. Translation/keeper/name-prepass/learning caps remain existing behavior. Gate-10 real-source/human quality acceptance stays pending. Earlier target-language, durability, remembered-key and retry changes remain in main; historical details preserved in audit/run_history.md. LEARN-EN-BASE contract at 6f70896 is separate work, not implemented here.
+Open: (1) user decides how the pre-existing uncommitted changes enter main (commit them as-is, or let their author finish) before fix/learn-salvage is integrated; (2) after integration restart the UI server so the waiting learning job (session-f928b03a, auto-retry running) uses the new code; (3) provider-side JSON schema enforcement not done (no malformed-JSON evidence). Gate-10 real-source/human quality acceptance stays pending. LEARN-EN-BASE contract at 6f70896 remains separate, unimplemented.
 
-Git: delivery and prior accepted main commits synchronized to the authorized origin/main. Preexisting Windows cache excluded locally, no deletion. Separate receipt commit records delivery hash, never its own. Next runtime action: restart UI server and resume saved job with its existing reasoning level; no automatic paid run performed.
+Active delegated work: none started in this session. Many older worktrees exist; not touched.
+
+Next action: obtain the user's decision on the pre-existing uncommitted main changes, then fast-forward/merge fix/learn-salvage into main, re-run the full suite on main, push only as authorized.

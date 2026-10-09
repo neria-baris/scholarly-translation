@@ -161,7 +161,7 @@ class LearningIntegrationTests(unittest.TestCase):
         self.assertEqual(failed['status'], 'failed')
         self.assertEqual(self.service.summary()['jobs'][failed['session_id']]['auto_retry']['count'], 1)
         delay, function, args = self.scheduled.pop()
-        self.assertEqual(delay, 15)
+        self.assertEqual(delay, 2)  # A rejected answer is resent soon, unlike provider failures.
         self.adapter.fail = False
         # Fire the timer in the foreground.
         self.service.resume = (lambda original: lambda *a, **k: original(*a, **{**k, 'background': False}))(self.service.resume)
@@ -290,6 +290,7 @@ class LearningIntegrationTests(unittest.TestCase):
         base = self.service.store.get_learner()
         job.update({'status': 'preparing', 'chunks': [], 'proposals': [], 'projected': base,
                     'current_plan': replan_chunk(job['plans'][0], base, load_catalog())})
+        job.pop('new_foreign_words_used')  # Saved with the chunk, so lost with it.
         session = self.service.store.get_session(sid)
         session.update({'status': 'preparing', 'prepared_hash': None, 'chunk_ids': []})
         self.service.store.update_session(session)

@@ -18,7 +18,8 @@ from .learning_controls import (DEFAULT_LEARNING_MODEL, auto_context_chars, lear
 from .learning_archive import save_personal_archive
 from .learning_import import import_hebrew_epub, import_translation_job
 from .learning_planner import plan_book, replan_chunk
-from .learning_generation import build_request, parse_response, build_chapter_recap
+from .learning_generation import (book_notebook, build_request, new_foreign_words, parse_response,
+                                  build_chapter_recap)
 from .learning_lesson import (LESSON_OUTPUT_TOKENS, LESSON_STAGE, build_lesson_request, parse_lesson,
                               unavailable_lesson)
 from .learning_dictionary import dictionary_view
@@ -30,6 +31,8 @@ from .learning_store import LearningStore
 _NOT_RETRIABLE = frozenset({'budget_exhausted', 'context_capacity', 'output_capacity', 'missing_api_key',
     'stale_learner', 'catalog_changed', 'accounting_unavailable', 'learning_save_failed', 'invalid_status',
     'already_running', 'session_not_found', 'provider_configuration'})
+# Waits before resending after the model's answer was rejected (seconds).
+INVALID_ANSWER_RETRY_DELAYS = (2, 5, 15, 30)
 
 
 class LearningService:
@@ -567,13 +570,21 @@ class LearningService:
                             kinds = {item['item_id']: item['kind'] for item in catalog['items']}
                             needed = [item_id for item_id in plan['selected_item_ids']
                                       if kinds.get(item_id) in ('word', 'phrase') and item_id not in known]
-                    prompt, input_hash = build_request(plan, catalog, context, dictionary_needed=needed)
+                        notebook = None
+                        if plan['policy_version'] == 'learning-policy@3':
+                            # The book ledger: what was learned, and the book-wide new-word budget.
+                            notebook = book_notebook(job['plans'], index, plan, job['projected'], catalog,
+                                                     self._new_words_used(job))
+                    prompt, input_hash = build_request(plan, catalog, context, dictionary_needed=needed,
+                                                       notebook=notebook)
+                    report = {}
 
                     def validate(result):
                         chunk, recap = parse_response(result.text, plan, catalog, input_hash,
                             provider=configuration.resolve('translator')[1].provider_type,
                             model=result.observed_model or configuration.resolve('translator')[0].model,
-                            dictionary_known=sorted(known) if known is not None else None)
+                            dictionary_known=sorted(known) if known is not None else None,
+                            notebook=notebook, report=report)
                         return {'chunk': chunk, 'recap': recap}
 
                     stage = {'learning-policy@1': 'learning-generate-v1',
@@ -584,8 +595,9 @@ class LearningService:
                     if plan['policy_version'] == 'learning-policy@1':
                         output_cap = shared_cap
                     else:
+                        dense = plan['review_item_ids'] or (notebook and notebook['learned'])
                         output_cap = self._with_reasoning(max(job.get('output_tokens', 6000),
-                            self._dense_output_cap(plan, configuration) if plan['review_item_ids'] else 0), configuration)
+                            self._dense_output_cap(plan, configuration) if dense else 0), configuration)
                     dependencies = {'plan': plan, 'catalog_version': catalog['version']}
                     if job.get('retry_revision', 0):
                         dependencies['explicit_retry'] = job['retry_revision']
@@ -601,6 +613,13 @@ class LearningService:
                         raise
                     with self._lock:
                         job = self._data['jobs'][sid]
+                        job['new_foreign_words_used'] = (self._new_words_used(job)
+                                                         + new_foreign_words(parsed['chunk'], plan))
+                        if report.get('dropped'):
+                            # Salvaged answers: which parts were dropped, for diagnosis only.
+                            counts = job.setdefault('dropped_answer_parts', {})
+                            for reason in report['dropped']:
+                                counts[reason] = counts.get(reason, 0) + 1
                         job['chunks'].append(parsed['chunk'])
                         job['proposals'].append({'chunk_id': parsed['chunk']['plan_id'], 'recap': parsed['recap']})
                         definitions = parsed['chunk'].get('introduced_items', [])
@@ -689,6 +708,14 @@ class LearningService:
         except LearningError:
             return float('inf')  # Unknown cost never authorizes an automatic resend.
 
+    @staticmethod
+    def _new_words_used(job):
+        """New foreign words spent so far in this book: persisted per job; for older
+        jobs, the words of their admitted definitions (a cheap approximation)."""
+        if 'new_foreign_words_used' in job:
+            return job['new_foreign_words_used']
+        return sum(new_foreign_words(chunk, {'new_item_ids': []}) for chunk in job['chunks'])
+
     def _accepted(self, sid):
         """A validated answer ends any failure row; later waste counts from here."""
         job = self._data['jobs'][sid]
@@ -714,7 +741,10 @@ class LearningService:
             from .model_config import ModelConfiguration
             limit = ModelConfiguration.from_dict(job['configuration']).resolve('translator')[0]                 .capabilities.max_output_tokens or job['output_tokens']
             job['output_tokens'] = min(job['output_tokens'] * 2, limit)
-        delay = AUTO_RETRY_DELAYS[min(count, len(AUTO_RETRY_DELAYS)) - 1]
+        # A rejected answer is not provider load: resend soon. Other failures keep
+        # the shared pacing (rate limits, outages).
+        delays = INVALID_ANSWER_RETRY_DELAYS if job.get('error_code') == 'invalid_generation' else AUTO_RETRY_DELAYS
+        delay = delays[min(count, len(delays)) - 1]
         job['auto_retry'] = {'count': count, 'wasted_usd': wasted, 'token': secrets.token_hex(8),
                              'retry_at': time.time() + delay, 'stopped': False}
         self._save()
