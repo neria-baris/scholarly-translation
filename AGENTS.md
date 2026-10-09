@@ -1,6 +1,6 @@
 # Repository execution contract
 
-Sol (Codex, normally gpt-6.1-sol) is the conductor. Claude Code is the primary builder where delegated implementation is appropriate.
+The conductor is the primary agent: whichever agent the user is talking to directly in the current session (Claude Code, Codex/Sol, or another). It delegates scoped implementation to builder subagents where appropriate (see development controls).
 
 Before substantial work, read the relevant sources of truth:
 
@@ -14,7 +14,7 @@ Execution rules:
 
 - Work in gate order under the central prompt's supervised-autonomy rule: advance after verified acceptance, tests, audit, a clean commit and known push status (see network-outage limit in development controls); pause only for genuine human decisions or blockers.
 - Maintain append-only `audit/gate_history.md` and `audit/run_history.md`; preserve superseded results with timestamps and gate numbers. Update them before presenting a Gate Card.
-- Sol owns routine Git operations and verified commits after passed gates. Review complete and staged diffs, stage only intended paths, and leave a clean working tree at completed gates. Follow the detailed commit-receipt procedure.
+- The conductor owns routine Git operations and verified commits after passed gates. Review complete and staged diffs, stage only intended paths, and leave a clean working tree at completed gates. Follow the detailed commit-receipt procedure.
 - The user authorizes ordinary verified fast-forward gate pushes to `origin/main` at `https://github.com/neria-baris/scholarly-translation.git`, including the necessary remote checks. Destructive operations remain unauthorized; stop on divergence or unexpected changes. Never infer broader permission from a configured remote.
 - Prefer deterministic, local and cheap tools before expensive models where appropriate. Avoid unnecessary model calls and implementation beyond the current gate.
 - Never commit secrets, credentials, local inputs, caches or sensitive generated data.

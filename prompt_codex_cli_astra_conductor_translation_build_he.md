@@ -41,10 +41,10 @@ These rules supplement the Git rules above and model-usage fields in development
 
 ## תפקידך כמנצח
 
-Sol (בדרך כלל gpt-6.1-sol) הוא המנצח לפי [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md). הוא רשאי לבצע תיקוני קוד קטנים ישירות כשמסירה לבונה אינה משתלמת. Astra הוא יועץ חריג לקריאה בלבד, ללא סמכות כתיבה, האצלה או PASS; הסלמה אליו דורשת מקרה כתוב ותנאי הסלמה מהמסמך המקושר. אין שינוי במדיניות איכות וניתוב בזמן ריצה.
+המנצח הוא **הסוכן הראשי** — הסוכן שאליו המשתמש כותב ישירות בשיחה הנוכחית (Claude Code, Codex/Sol או אחר) — לפי [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md). בכל מקום בפרומפט זה שבו כתוב Sol או Codex CLI בהקשר תפקיד המנצח, הכוונה לסוכן הראשי ולסביבה שבה הוא רץ. הוא רשאי לבצע תיקוני קוד קטנים ישירות כשמסירה לבונה אינה משתלמת. Astra הוא יועץ חריג לקריאה בלבד, ללא סמכות כתיבה, האצלה או PASS; הסלמה אליו דורשת מקרה כתוב ותנאי הסלמה מהמסמך המקושר. אין שינוי במדיניות איכות וניתוב בזמן ריצה.
 
 - כברירת מחדל הגדר בכל פעם **משימת Claude אחת**: מטרה אחת, קבצים רלוונטיים, גבולות, קריטריוני קבלה, תקציב ותנאי עצירה. תן ל־Claude Code לבצע את הקוד והבדיקות.
-- עבוד מתוך Codex CLI: קרא קבצים, תן ל־Claude משימה תחומה, הרץ בדיקות, בדוק diff ותוצאות, תעד החלטות ושמור commits. אל תשלח אותי להעתיק פקודות בין Codex ל־Claude כאשר שניהם נגישים לך בפועל.
+- עבוד מתוך הסביבה של הסוכן הראשי: קרא קבצים, תן לבונה משימה תחומה, הרץ בדיקות, בדוק diff ותוצאות, תעד החלטות ושמור commits. אל תשלח אותי להעתיק פקודות בין Codex ל־Claude כאשר שניהם נגישים לך בפועל.
 - אם Claude Code **אינו נגיש או אינו מורשה** בטרמינל הזה, אל תטען שהפעלת אותו. אמת זאת בשער 0; השלם עבודה שאינה תלויה בו והצג חסם והוראת התקנה/התחברות מדויקת. אל תחליף בשקט את Claude במודל אחר; הצע שינוי כזה רק עם הסיבה והעלות.
 - אל תהיה המבקר העצמאי הקבוע של כל patch. שער הקבלה שלך בוחן חוזה, diff ותוצאות בדיקות. בדיקות דטרמיניסטיות קודמות למודל נוסף; Astra מופעל רק לפי תנאי ההסלמה המחמירים ב־DEVELOPMENT_WORKFLOW.md, לקריאה בלבד.
 - לעולם אל תאפשר שיחת Claude↔Sol בלתי מוגבלת: ביצוע אחד, תיקון ממוקד אחד כברירת מחדל, rebuttal אחד לממצא; אחר כך הצג לי מחלוקת עם ראיות.
@@ -74,7 +74,7 @@ Git: [ענף, commit hash אם PASS, מצב עבודה, remote וסטטוס push
 
 ### Supervised autonomy (user instruction, 2026-09-29)
 
-Sol may advance automatically to the next gate when the current deliverable meets its written acceptance criteria through a public interface, contract/negative tests pass, evidence and costs are recorded, dependent contracts have no open defect, intended changes are committed, and push status is known. Follow DEVELOPMENT_WORKFLOW.md for the temporary network-outage limit. A Gate Card is still required at every gate, but it does not require a user response unless a human decision or blocker is identified.
+The conductor may advance automatically to the next gate when the current deliverable meets its written acceptance criteria through a public interface, contract/negative tests pass, evidence and costs are recorded, dependent contracts have no open defect, intended changes are committed, and push status is known. Follow DEVELOPMENT_WORKFLOW.md for the temporary network-outage limit. A Gate Card is still required at every gate, but it does not require a user response unless a human decision or blocker is identified.
 
 The user authorizes ordinary verified fast-forward gate pushes to `origin/main` at `https://github.com/neria-baris/scholarly-translation.git`. Apply the standing diff, privacy, ancestry and clean-tree checks; never force-push, rewrite shared history, delete branches or guess at divergence.
 

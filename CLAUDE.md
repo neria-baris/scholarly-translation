@@ -1,9 +1,11 @@
-# Continuity bootstrap for this integration run
+# Claude Code in this repository
 
-Sol/Codex remains the normal conductor; Claude Code remains the primary builder.
-Only on an explicit continuity handoff for this run may Claude temporarily assume
-the Sol conductor responsibilities: contracts, verification, integration, audit
-and routine Git. This is not a permanent policy change. Builders never merge.
+The conductor is the primary agent: whichever agent the user is talking to
+directly in the current session (Claude Code, Codex/Sol, or another). When the
+user writes to Claude Code, Claude holds the conductor role — contracts,
+verification, integration, audit and routine Git — with no handoff required.
+Delegated builders are scoped subagents; builders never merge. The role mapping
+is defined in `DEVELOPMENT_WORKFLOW.md` ("Ownership and progression").
 
 Read in order before substantial work:
 1. `AGENTS.md`
@@ -19,13 +21,15 @@ A/B/C/E were already implemented; do not reimplement them. Git and
 `audit/current_state.md` govern live state. Inspect status, remotes, branches,
 worktrees and the decorated all-branch graph yourself; reconcile the checkpoint
 with Git, then continue its exact next action. Git governs any discrepancy.
-Preserve valid running worktrees/delegated tasks instead of restarting them.
+Preserve valid running worktrees/delegated tasks instead of restarting them,
+including work started by a previous primary agent.
 
-Use delegated builders/worktrees under the SAME limits in
-`DEVELOPMENT_WORKFLOW.md`: at most two independent writers, checked common base,
-separate ownership, tests and sequential integration; no recursive delegation.
-Use the existing audit files only. Ask for genuine human decisions required by
-policy. No paid runtime provider calls or policy changes follow from takeover.
+Use delegated builders/worktrees under the limits in `DEVELOPMENT_WORKFLOW.md`:
+at most two independent writers, checked common base, separate ownership, tests
+and sequential integration; no recursive delegation. Use the existing audit
+files only. Ask for genuine human decisions required by policy. No paid runtime
+provider calls follow from holding the conductor role.
 
-For return to Sol, finish or safely stop atomic Git work, record active delegated
-work and one exact next action in the same checkpoint, and leave Git stable.
+Before the session ends, finish or safely stop atomic Git work, record active
+delegated work and one exact next action in `audit/current_state.md`, and leave
+Git stable so any other agent can continue as primary.

@@ -2,11 +2,13 @@
 
 User-authorized development update, 2026-09-30. This supplements the central gate specification and development policy; the product's runtime quality/routing strategy is unchanged. Historical audit cards are never rewritten.
 
+Role update authorized by user on 2026-10-09: the conductor is the primary agent the user is talking to directly in the current session, whatever its vendor or model (Claude Code, Codex/Sol or another). No handoff is required for an agent to hold the role. Where current policy documents say "Sol" for the conductor role, read "the conductor"; historical audit records that name Sol stay as written.
+
 Gate-11 extension authorized by user on 2026-10-01: persistent budget, cache and usage controls may proceed and receive scoped software acceptance independently while Gate-10 human quality evaluation remains preliminary/BLOCKED. Contract: `audit/contracts/gate_11.md`. This does not establish quality, choose a model or authorize release. The earlier gate-order rule remains for dependent work; this explicit independent extension is the exception.
 
 ## Ownership and progression
 
-Sol (normally gpt-6.1-sol) owns gates, contracts, verification, integration, audit and routine Git. Small direct fixes are allowed when delegation adds no value. Claude Code Sonnet is the scoped builder; Opus is for demonstrated implementation difficulty under a settled contract. No recursive delegation or model debate; one owner, one focused fix by default, at most one evidence-backed rebuttal.
+The conductor (the primary agent, see above) owns gates, contracts, verification, integration, audit and routine Git. Small direct fixes are allowed when delegation adds no value. Delegated builders are scoped subagents, by default Claude Code Sonnet; Opus is for demonstrated implementation difficulty under a settled contract. No recursive delegation or model debate; one owner, one focused fix by default, at most one evidence-backed rebuttal.
 
 Advance in gate order after a working public interface, contract/negative/integration tests, no defect in dependent contracts, documented evidence/limitations/cost, reviewed diff, clean commit and known push status. Gate Cards remain mandatory; routine transitions require no user response. Synthetic/permissibly sourced fixtures suffice for software construction. Real OCR/translation quality, gold judgments and model selection remain preliminary/BLOCKED until genuine examples and human judgment exist.
 
@@ -20,7 +22,7 @@ Before a component, write a concise contract under `audit/contracts/` with: comp
 
 Minimal data spine: stable document/page/region/segment IDs; source location/language; stage ID/version; relevant input hash; warnings/status. Model-derived records add provider/model/prompt/glossary versions and observable usage. Derived data never overwrites source. Segmentation changes preserve prior-version links. Extend schemas only for current needs, with explicit legacy reading or migration.
 
-At most two isolated writers, only after a checked shared contract: separate paths/branches/worktrees, common base, independent tests and merge order. Shared schema/config changes and integration stay sequential. Only Sol writes shared audit logs.
+At most two isolated writers, only after a checked shared contract: separate paths/branches/worktrees, common base, independent tests and merge order. Shared schema/config changes and integration stay sequential. Only the conductor writes shared audit logs.
 
 ## Strict Astra escalation
 
@@ -31,7 +33,7 @@ Astra is an exceptional read-only adviser: no gate ownership, edits, delegation 
 3. Independent results conflict on core correctness and a small deterministic test cannot resolve them.
 4. A specific serious cross-component scenario remains without a discriminating test after code-path examination.
 
-Case fields: issue_id, trigger, consequence, files/commit, tests, attempt IDs, two alternatives, exact question, effect of each answer. Send only the case and necessary excerpts. Sol verifies the short evidence/uncertainty/test answer and decides. One Astra call per issue; at most two per gate for distinct issues. Same-issue repetition needs new evidence and user approval. After three cumulative calls, summarize verified value/cost and stop automatic Astra escalation pending user decision. Opus and Astra are not both called on one question without new evidence. Routine failures, Git, missing input or ceremonial approval are not triggers.
+Case fields: issue_id, trigger, consequence, files/commit, tests, attempt IDs, two alternatives, exact question, effect of each answer. Send only the case and necessary excerpts. The conductor verifies the short evidence/uncertainty/test answer and decides. One Astra call per issue; at most two per gate for distinct issues. Same-issue repetition needs new evidence and user approval. After three cumulative calls, summarize verified value/cost and stop automatic Astra escalation pending user decision. Opus and Astra are not both called on one question without new evidence. Routine failures, Git, missing input or ceremonial approval are not triggers.
 
 ## Audit, budgets and checkpoint
 
@@ -41,7 +43,7 @@ Case fields: issue_id, trigger, consequence, files/commit, tests, attempt IDs, t
 - `audit/attempts.jsonl`: substantive attempt ID/issue/hypothesis/evidence/performer+model/diff or command/expected+observed outcome/keep-revert-revise. Repeating a test without a new hypothesis is not another attempt.
 - `audit/current_state.md`: replaceable checkpoint, approximately 500 words maximum: current gate/latest known commit/contracts/open issues/blockers/remaining quotas/next action. Read it on resumption; after PASS remove resolved issues. Commit hashes are recorded in the next audit update or short receipt, never self-referentially.
 
-Cards link IDs/evidence and summarize counts by Sol/Sonnet/Opus/Astra, elapsed time and known/unknown costs. Default evidence is summaries; timestamped audit/raw files only for necessary irreproducible evidence, without full prompts, private source text, secrets or environment values. Existing historical evidence remains preserved.
+Cards link IDs/evidence and summarize counts by conductor (with its model)/Sonnet/Opus/Astra, elapsed time and known/unknown costs. Default evidence is summaries; timestamped audit/raw files only for necessary irreproducible evidence, without full prompts, private source text, secrets or environment values. Existing historical evidence remains preserved.
 
 Use policy stop-loss $2/$10/$30 for measurable tiny/normal/complex API tasks or lower contractual caps. Subscription turns/quota/time and list-price estimates are separate from actual charges. Do not claim a hard spending cap without an enforcing mechanism; bound tasks/calls when billing is unknown. Stop measurable spending at its cap; a failed attempt gets one scoped fix/retest before reassessment. Before another model call, check whether a deterministic test/cache/removing the call gives the same decision.
 
