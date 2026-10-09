@@ -20,7 +20,8 @@ FMT = re.compile(r'\{[^{}]*\}')
 
 # Modules whose Hebrew is linguistic word lists, regex character classes or model prompts,
 # never shown as UI text.
-EXCLUDED_MODULES = {"semantic_review.py", "evaluation.py", "export_html.py", "review_qa.py", "name_table.py"}
+EXCLUDED_MODULES = {"semantic_review.py", "evaluation.py", "export_html.py", "review_qa.py", "name_table.py",
+                    "comic_typeset.py"}  # comic_typeset: a Hebrew glyph-width sample, not a message
 # Concatenated fragments in web_ui.py, covered by the composite template below.
 FRAGMENTS = {'יש לשמור מפתח API עבור: ', ' לפני התחלת עבודה אמיתית.'}
 COMPOSITE = "יש לשמור מפתח API עבור: {1} לפני התחלת עבודה אמיתית."
