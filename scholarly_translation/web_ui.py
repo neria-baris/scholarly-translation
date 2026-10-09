@@ -977,12 +977,54 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
     return Handler
 
 
+def claim_single_instance(folder: Path):
+    """One server per data folder. Two servers would each keep their own
+    in-memory view of running jobs while sharing (and overwriting) the same
+    saved state: a job shows as stopped in one and refuses to resume as
+    already running in the other. Returns the open lock handle (held until the
+    process exits; the OS releases it even after a crash), or None when
+    another live server holds the folder."""
+    folder.mkdir(parents=True, exist_ok=True)
+    handle = open(folder / "web_ui.lock", "a+b")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return None
+    return handle
+
+
+def running_instance_url(folder: Path) -> str | None:
+    """The address the live server recorded, if it is a local UI address."""
+    try:
+        url = (folder / "web_ui.url").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return url if re.fullmatch(r"http://127\.0\.0\.1:\d{1,5}/", url) else None
+
+
 def main() -> int:
+    instance_folder = OUTPUT_ROOT.parent
+    instance_lock = claim_single_instance(instance_folder)
+    if instance_lock is None:
+        existing = running_instance_url(instance_folder)
+        print("The server is already running in another window; opening it instead of starting a second one." +
+              (f" ({existing})" if existing else ""), flush=True)
+        if existing:
+            webbrowser.open(existing)
+        return 0
     token = secrets.token_urlsafe(24)
     model_config_path = os.environ.get("SCHOLARLY_TRANSLATION_MODEL_CONFIG")
     from .key_store import default_key_store
     server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(token, model_config_path, key_store=default_key_store()))
     url = f"http://127.0.0.1:{server.server_port}/"
+    (instance_folder / "web_ui.url").write_text(url, encoding="utf-8")
     print(f"Local UI: {url}", flush=True)
     webbrowser.open(url)
     try:
@@ -991,6 +1033,7 @@ def main() -> int:
         pass
     finally:
         server.server_close()
+        instance_lock.close()
     return 0
 
 
