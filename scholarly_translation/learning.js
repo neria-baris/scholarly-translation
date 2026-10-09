@@ -35,6 +35,10 @@ const ERROR_MESSAGES={
   missing_api_key:'יש להזין מפתח API לפני הכנת ספר.',
   state_conflict:'הפעולה לא תואמת את המצב הנוכחי; רעננו ונסו שוב.',
   book_not_ready:'הספר עדיין לא מוכן לקריאה.',
+  book_not_found:'הספר לא נמצא; רעננו את הדף.',
+  invalid_title:'יש להזין שם באורך 1 עד 500 תווים.',
+  invalid_model:'המודל או רמת האיכות שנבחרו אינם זמינים ללמידה.',
+  book_in_use:'הספר נמצא בלמידה פעילה. יש לסיים או לנטוש אותו לפני מחיקה.',
   invalid_cursor:'מיקום קריאה לא תקין.',
   unknown_action:'פעולה לא מוכרת.',
   unsupported_format:'יש להעלות קובץ EPUB.',
@@ -95,7 +99,8 @@ async function loadState(){
   renderBooks();
   renderProgress();
   clearTimeout(pollTimer);
-  if(state.sessions.some(s=>s.status==='preparing'))pollTimer=setTimeout(async()=>{
+  const waiting=Object.values(state.jobs).some(j=>j.auto_retry&&j.auto_retry.retry_at);
+  if(waiting||state.sessions.some(s=>s.status==='preparing'))pollTimer=setTimeout(async()=>{
     try{await loadState()}catch(error){$('import-error').textContent=error.message;$('import-error').hidden=false}
   },2000);
 }
@@ -155,72 +160,145 @@ function renderLanguages(){
 function sessionForBook(bookId){return state.sessions.filter(s=>s.book_id===bookId&&state.jobs[s.session_id]?.status!=='abandoned')
   .sort((a,b)=>b.base_learner_revision-a.base_learner_revision)[0]}
 function bookStatusLabel(status){
-  return {imported:'יובא, לא הוכן',preparing:'בהכנה',ready:'מוכן לקריאה',paused:'מושהה',
-    failed:'נעצר עם שגיאה',completed:'הושלם',}[status]||status;
+  return {imported:'לא הוכן',preparing:'בהכנה',ready:'מוכן לקריאה',paused:'מושהה',
+    failed:'נעצר',completed:'נקרא',}[status]||status;
 }
 function usageLine(usage){
   if(!usage)return'';
   if(usage.accounting_unavailable)return errorText('accounting_unavailable');
-  return `קריאות: ${usage.attempted_calls} · אומדן לפי מחירון: $${usage.list_estimated_spent_usd.toFixed(4)} · שמור לקריאות: $${usage.held_usd.toFixed(4)}`+
-    (usage.stopped?' · נעצר':'');
+  return `עלות עד כה: $${usage.list_estimated_spent_usd.toFixed(4)} (לפי מחירון) · ${usage.attempted_calls} קריאות למודל`+
+    (usage.held_usd>0?` · עוד $${usage.held_usd.toFixed(4)} שמורים לקריאה שתוצאתה לא ידועה`:'');
 }
+function element(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node}
+function button(text,kind,onclick){const node=element('button',kind,text);node.type='button';node.onclick=onclick;return node}
+function noteParagraph(text){return element('p','muted',text)}
+function errorParagraph(text){const p=element('p','message',text);p.setAttribute('role','alert');return p}
+async function act(body,work){try{await work();await loadState()}catch(error){body.append(errorParagraph(error.message))}}
+
 function renderBooks(){
   const host=$('books-list');host.replaceChildren();
   $('books-empty').hidden=state.books.length>0;
-  for(const book of state.books){
+  const rank=book=>{const status=sessionForBook(book.book_id)?.status;
+    return status&&status!=='completed'?0:status==='completed'?2:1};
+  for(const book of [...state.books].sort((a,b)=>rank(a)-rank(b))){
     const session=sessionForBook(book.book_id);
     const job=session?state.jobs[session.session_id]:null;
-    const item=document.createElement('li');item.className='book-item';
-    item.innerHTML=`<div class="book-head"><strong dir="auto">${esc(book.title)}</strong>`+
-      `<span class="tag">${esc(book.origin==='hebrew_epub'?'EPUB':'מהספרייה')}</span>`+
-      (session?`<span class="tag">${esc(bookStatusLabel(session.status))}</span>`:'<span class="tag">לא הוכן</span>')+
-      `</div><div class="book-body"></div>`;
-    const body=item.querySelector('.book-body');
-    if(job){
-      body.append(noteParagraph(`נשמרו ${job.accepted_chunks} מתוך ${job.total_chunks} קטעים; הקטעים שהתקבלו אינם נמחקים כשנעצרים.`));
-      if(job.context_info)body.append(noteParagraph(`הקשר נוסף: ${job.context_info.provided_chars} תווים מתוך ${job.context_info.available_chars} הזמינים, לפי בקשת ${job.context_info.requested_chars} תווים. אפשר לשנות בחידוש.`));
-      if(job.usage?.held_usd>0)body.append(noteParagraph(`חיוב שאינו ודאי עדיין שמור בחישוב התקציב: $${job.usage.held_usd.toFixed(4)}. ניסיון חדש עשוי לעלות בנוסף.`));
-    }
+    const status=session?session.status:'new';
+    const item=element('li','book-item');item.dataset.status=status;
+    const head=element('div','book-head');
+    const title=element('strong',null,book.title);title.dir='auto';
+    head.append(title,element('span','status-badge',session?bookStatusLabel(status):'לא הוכן'),bookMenu(book,item));
+    head.querySelector('.status-badge').dataset.status=status;
+    const body=element('div','book-body');
+    item.append(head,body);
+    const blocked=!session&&!!state.learner.active_book_id;
+    item.classList.toggle('blocked',blocked);
+    body.append(blocked?noteParagraph('לא הוכן. אפשר להכין אותו אחרי שמסיימים או נוטשים את הספר שבהכנה או בקריאה.'):statusLine(session,job));
+    if(job&&job.total_chunks&&['preparing','paused','failed'].includes(status))body.append(progressBar(job));
+    const actions=element('div','book-actions-row');body.append(actions);
     if(!session){
-      body.append(prepareForm(book));
-    }else if(['imported','paused','failed'].includes(session.status)){
-      if(job&&job.error_code)body.append(noteParagraph(errorText(job.error_code)));
-      body.append(resumeForm(session,job));
-      if(['imported','paused','failed'].includes(session.status))body.append(abandonButton(session));
-    }else if(session.status==='preparing'){
-      body.append(noteParagraph(`הכנה: ${job?job.accepted_chunks:0}/${job?job.total_chunks:0} קטעים.`+
-        (job&&job.lessons_total&&job.accepted_chunks===job.total_chunks?` שיעורי דקדוק: ${job.lessons_done}/${job.lessons_total} פרקים.`:'')));
-      if(job&&job.usage)body.append(noteParagraph(usageLine(job.usage)));
-      const pause=document.createElement('button');pause.type='button';pause.className='secondary-button';
-      pause.textContent='השהיית הכנה';pause.onclick=async()=>{try{await request('/learning/pause',{session_id:session.session_id});await loadState()}catch(error){body.append(errorParagraph(error.message))}};
-      body.append(pause);
-    }else if(session.status==='ready'||session.status==='completed'){
-      if(job&&job.usage)body.append(noteParagraph(usageLine(job.usage)));
-      const read=document.createElement('button');read.type='button';read.className='primary-button';
-      read.textContent=session.status==='completed'?'קריאה חוזרת':(session.read_cursor?'המשך קריאה':'התחלת קריאה');
-      read.onclick=()=>openReader(session,book);
-      body.append(read);
-      body.append(exportForm(session));
+      if(!blocked)actions.append(button('הכנה לקריאה…','secondary-button',()=>{actions.replaceChildren();body.append(prepareForm(book))}));
+    }else if(status==='preparing'){
+      actions.append(button('השהיה','secondary-button',()=>act(body,()=>request('/learning/pause',{session_id:session.session_id}))));
+    }else if(['imported','paused','failed'].includes(status)){
+      if(job?.auto_retry?.retry_at)
+        actions.append(button('ביטול הניסיון האוטומטי','secondary-button',()=>act(body,()=>request('/learning/pause',{session_id:session.session_id}))));
+      else if(job?.error_code==='budget_exhausted')actions.append(budgetForm(session,job,'הגדלת התקציב והמשך'));
+      else actions.append(button('המשך הכנה','primary-button',()=>act(body,()=>
+        request('/learning/resume',{session_id:session.session_id,retry:status==='failed'}))));
+      body.append(moreOptions(session,job));
+    }else{
+      const read=button(status==='completed'?'קריאה חוזרת':(session.read_cursor?'המשך קריאה':'התחלת קריאה'),'primary-button',()=>openReader(session,book));
+      actions.append(read);
+      const download=element('details','more');download.append(element('summary',null,'הורדת ספר הלמידה'),exportForm(session));
+      body.append(download);
     }
+    if(job)body.append(detailsBlock(book,job));
     host.append(item);
   }
 }
-function noteParagraph(text){const p=document.createElement('p');p.className='muted';p.textContent=text;return p}
-function errorParagraph(text){const p=document.createElement('p');p.className='message';p.setAttribute('role','alert');p.textContent=text;return p}
+function statusLine(session,job){
+  if(!session)return noteParagraph('עדיין לא הוכן לקריאה. ההכנה משלבת מילים בשפה הנלמדת בתוך הטקסט העברי.');
+  const done=job?`${job.accepted_chunks} מתוך ${job.total_chunks} קטעים`:'';
+  const percent=job&&job.total_chunks?Math.floor(100*job.accepted_chunks/job.total_chunks)+'%':'';
+  const retry=job?.auto_retry;
+  switch(session.status){
+    case 'preparing':
+      return noteParagraph(job&&job.lessons_total&&job.accepted_chunks===job.total_chunks?
+        `כותב שיעורי דקדוק: ${job.lessons_done} מתוך ${job.lessons_total} פרקים.`:`מכין את הספר: ${percent} (${done}).`);
+    case 'paused': return noteParagraph(`ההכנה מושהית אחרי ${done}. מה שהוכן נשמר.`);
+    case 'imported': return noteParagraph('ההכנה עוד לא התחילה.');
+    case 'failed':
+      if(retry?.retry_at){
+        const seconds=Math.max(0,Math.round(retry.retry_at-Date.now()/1000));
+        const line=element('p','retry-note',`תשובת המודל לא התקבלה כראוי. מנסה שוב אוטומטית בעוד ${seconds} שניות (ניסיון ${retry.count} מתוך 10).`);
+        line.setAttribute('role','status');return line;
+      }
+      return errorParagraph(errorText(job?.error_code)+(retry?.stopped?` הניסיונות האוטומטיים נעצרו (${retry.count} ניסיונות, $${retry.wasted_usd.toFixed(4)}).`:''));
+    case 'ready': return noteParagraph(session.read_cursor?`בקריאה: פרק ${session.read_cursor.chapter_index+1}.`:'מוכן לקריאה.');
+    case 'completed': return noteParagraph('סימנת שקראת את הספר; המילים נשמרו להמשך.');
+  }
+  return noteParagraph(bookStatusLabel(session.status));
+}
+function progressBar(job){
+  const bar=element('div','prep-progress');bar.setAttribute('role','progressbar');
+  bar.setAttribute('aria-label','התקדמות ההכנה');bar.setAttribute('aria-valuemin','0');
+  bar.setAttribute('aria-valuemax',String(job.total_chunks));bar.setAttribute('aria-valuenow',String(job.accepted_chunks));
+  const fill=element('span');fill.style.width=Math.round(100*job.accepted_chunks/job.total_chunks)+'%';
+  bar.append(fill);
+  return bar;
+}
+function detailsBlock(book,job){
+  const details=element('details','more');details.append(element('summary',null,'פרטים'));
+  if(job.model)details.append(noteParagraph('מודל: '+modelLabel(job.model)+(job.model.reasoning?' · חשיבה: '+(REASONING_NAMES[job.model.reasoning]||job.model.reasoning):'')));
+  if(job.budget_usd)details.append(noteParagraph(`תקציב מרבי: $${job.budget_usd}`));
+  if(job.usage)details.append(noteParagraph(usageLine(job.usage)));
+  details.append(noteParagraph(book.origin==='hebrew_epub'?'מקור: EPUB שהועלה.':'מקור: ספריית התרגומים.'));
+  return details;
+}
+function moreOptions(session,job){
+  const details=element('details','more');details.append(element('summary',null,'עוד אפשרויות'));
+  if(job&&job.error_code!=='budget_exhausted')details.append(budgetForm(session,job,'שמירת תקציב והמשך'));
+  details.append(noteParagraph('נטישה משחררת את הספר בלי לשמור התקדמות, כדי שאפשר יהיה להכין ספר אחר.'));
+  details.append(button('נטישת הספר','secondary-button',()=>{
+    if(confirm('לנטוש את הספר? ההתקדמות בו לא תישמר.'))act(details,()=>request('/learning/abandon',{session_id:session.session_id}))}));
+  return details;
+}
+function budgetForm(session,job,label){
+  const form=element('form','inline-form');
+  form.innerHTML=`<label>תקציב מרבי ($)<input name="budget" type="number" min="${esc(job.budget_usd)}" step="any" value="${esc(job.budget_usd*(job.error_code==='budget_exhausted'?2:1))}" required dir="ltr"></label>
+    <button type="submit" class="primary-button">${esc(label)}</button>`;
+  form.onsubmit=event=>{event.preventDefault();act(form,()=>request('/learning/resume',{session_id:session.session_id,
+    budget_usd:Number(form.querySelector('[name=budget]').value),retry:session.status==='failed'}))};
+  return form;
+}
+function bookMenu(book,item){
+  const menu=element('details','book-menu');
+  const summary=element('summary',null,'⋯');summary.setAttribute('aria-label','פעולות על הספר');
+  const list=element('div','book-menu-list');
+  list.append(button('שינוי שם','quiet-button',()=>{
+    const title=prompt('שם חדש לספר:',book.title);
+    if(title===null||title.trim()===book.title)return;
+    act(item,()=>request('/learning/rename-book',{book_id:book.book_id,title}));
+  }),button('מחיקה מהרשימה','quiet-button',()=>{
+    if(confirm(`למחוק את "${book.title}" מהרשימה? מילים שכבר נלמדו נשמרות.`))act(item,()=>request('/learning/delete-book',{book_id:book.book_id}));
+  }));
+  menu.append(summary,list);
+  return menu;
+}
 function exportForm(session){
-  const form=document.createElement('form');form.className='export-form';
-  form.innerHTML=`<label>פורמט ייצוא<select name="format"><option value="epub">EPUB לקורא ספרים</option><option value="html">HTML לקריאה בדפדפן ללא חיבור</option></select></label>
-    <label><input name="meanings" type="checkbox" checked> קישורי פירוש בקובץ</label>
-    <label><input name="preserve" type="checkbox" checked> שמירת עיצוב ותמונות המקור ב־EPUB</label>
-    <button type="submit" class="secondary-button">הורדת ספר הלמידה</button>`;
-  const message=document.createElement('p');message.className='muted';message.setAttribute('role','status');
+  const form=element('form','export-form');
+  form.innerHTML=`<label>פורמט<select name="format"><option value="epub">EPUB לקורא ספרים</option><option value="html">HTML לדפדפן</option></select></label>
+    <label><input name="meanings" type="checkbox" checked> פירוש בלחיצה בקובץ</label>
+    <label><input name="preserve" type="checkbox" checked> שמירת העיצוב והתמונות של המקור</label>
+    <button type="submit" class="secondary-button">הורדה</button>`;
+  const message=element('p','muted');message.setAttribute('role','status');
   const book=state.books.find(entry=>entry.book_id===session.book_id);
-  message.textContent=book?.epub_layout==='retained'?
-    'EPUB משמר את התמונות, הגופנים והעיצוב ככל שניתן. HTML או ביטול שמירת העיצוב מפיקים טקסט בעימוד חדש. כולל סיכומי פרקים; תמיכה בפירושים תלויה בקורא. אחרי הקריאה חזרו לסמן קראתי.':
-    'לקובץ זה אין עותק EPUB מקורי שמור: הייצוא יהיה טקסט בעימוד חדש, ללא תמונות המקור. אפשר לייבא מחדש כדי לשמר אותן. אחרי הקריאה חזרו לסמן קראתי.';
+  message.textContent=book?.epub_layout==='retained'?'אחרי קריאה מחוץ לאתר חזרו לכאן וסמנו "קראתי".':
+    'לספר זה אין עותק EPUB מקורי שמור, לכן הקובץ יהיה טקסט בלי תמונות המקור. אחרי הקריאה חזרו לסמן "קראתי".';
   form.append(message);
   form.onsubmit=async(event)=>{
-    event.preventDefault();const button=form.querySelector('button');button.disabled=true;
+    event.preventDefault();const submit=form.querySelector('button');submit.disabled=true;
     try{
       const response=await fetch('/learning/export',{method:'POST',headers:{'Content-Type':'application/json','X-UI-Token':token},
         body:JSON.stringify({session_id:session.session_id,format:form.querySelector('[name=format]').value,
@@ -235,61 +313,62 @@ function exportForm(session){
       link.href=url;link.download=match?decodeURIComponent(match[1]):'learning.'+form.querySelector('[name=format]').value;
       document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
       const warning=response.headers.get('X-Learning-Export-Warnings');
-      message.textContent=(warning?.includes('reflowed_text')?'הורד טקסט בעימוד חדש, ללא תמונות ועיצוב המקור. ':'הקובץ עם עיצוב המקור הוכן להורדה. ')+
-        'אחרי סיום הקריאה מחוץ לאתר חזרו לסמן קראתי; ההורדה אינה שומרת השלמה.';
+      message.textContent=(warning?.includes('reflowed_text')?'הורד טקסט בעימוד חדש, בלי תמונות ועיצוב המקור. ':'הקובץ הורד עם עיצוב המקור. ')+
+        'ההורדה אינה מסמנת קריאה; אחרי הקריאה סמנו "קראתי".';
     }catch(error){message.textContent=Object.values(ERROR_MESSAGES).includes(error.message)?error.message:errorText('export_failed')}
-    finally{button.disabled=false}
+    finally{submit.disabled=false}
   };
   return form;
 }
+
+// ---- model choice ----
+const REASONING_NAMES={none:'בסיסית (בלי חשיבה)',low:'טובה (חשיבה קלה)',medium:'גבוהה (חשיבה בינונית)',
+  high:'גבוהה מאוד (חשיבה רבה)',xhigh:'מעולה (חשיבה רבה מאוד)',max:'מרבית (איטית ויקרה)'};
+const PROVIDER_NAMES={openai:'OpenAI',anthropic:'Anthropic'};
+function modelLabel(model){
+  const id=model.model;
+  if(id.startsWith('claude-')){const [,family,...version]=id.split('-');return family.charAt(0).toUpperCase()+family.slice(1)+' '+version.join('.')}
+  const name=id.replace(/^gpt-[\d.]+-/,'');
+  return name.charAt(0).toUpperCase()+name.slice(1);
+}
 function prepareForm(book){
-  const wrap=document.createElement('form');wrap.className='budget-form';
-  const disabled=!!state.learner.active_book_id;
-  wrap.innerHTML=`${preparationOptions(null,disabled)}
-    <button type="submit" class="primary-button" ${disabled?'disabled':''}>הכן לקריאה</button>`;
-  if(disabled)wrap.append(noteParagraph('יש לסיים או לנטוש את הספר הפעיל לפני הכנת ספר נוסף.'));
-  wrap.onsubmit=async(event)=>{
+  const form=element('form','prepare-form');
+  const models=state.models||[];
+  const cheapest=Math.min(...models.map(m=>m.rates_per_million.output));
+  const options=models.map(m=>{const ratio=m.rates_per_million.output/cheapest;
+    return `<option value="${esc(m.model)}">${esc(modelLabel(m))} · ${PROVIDER_NAMES[m.provider]||m.provider} — ${ratio<1.01?'הזול ביותר':'יקר פי '+Math.round(ratio)}</option>`}).join('');
+  form.innerHTML=`<div class="form-row">
+      <label>מודל<select name="model">${options}</select></label>
+      <label class="reasoning-field">איכות<select name="reasoning"></select></label>
+      <label>תקציב מרבי ($)<input name="budget" type="number" min="0.000001" step="any" required dir="ltr" placeholder="למשל 5"></label>
+    </div>
+    <div class="key-field" hidden><label><span class="key-label"></span><input name="key" type="password" autocomplete="off" dir="ltr"></label>
+      <p class="muted">המפתח נשמר בזיכרון השרת המקומי עד לכיבויו.</p></div>
+    <p class="muted">מודל זול יותר מתאים לרוב הספרים; מודל יקר יותר בוחר מילים ומסביר דקדוק בדיוק רב יותר. ההקשר ואורך התשובה נקבעים אוטומטית, ותשובה שנכשלה נשלחת שוב מעצמה.</p>
+    <div class="book-actions-row"><button type="submit" class="primary-button">התחלת ההכנה</button></div>`;
+  const model=form.querySelector('[name=model]'),reasoning=form.querySelector('[name=reasoning]');
+  const fill=()=>{
+    const entry=models.find(m=>m.model===model.value);
+    reasoning.innerHTML=entry.reasoning_values.map(v=>`<option value="${v}">${esc(REASONING_NAMES[v]||v)}</option>`).join('');
+    reasoning.value=entry.default_reasoning||'';
+    form.querySelector('.reasoning-field').hidden=!entry.reasoning_values.length;
+    const missing=state.keys_available&&!state.keys_available[entry.provider];
+    form.querySelector('.key-field').hidden=!missing;
+    form.querySelector('[name=key]').required=!!missing;
+    form.querySelector('.key-label').textContent=`מפתח ${PROVIDER_NAMES[entry.provider]||entry.provider} (חסר)`;
+  };
+  model.value=state.model;model.onchange=fill;fill();
+  form.onsubmit=event=>{
     event.preventDefault();
-    const button=wrap.querySelector('button');button.disabled=true;
-    try{await request('/learning/prepare',{book_id:book.book_id,...optionsFrom(wrap)});await loadState()}
-    catch(error){wrap.append(errorParagraph(error.message));button.disabled=false}
+    const entry=models.find(m=>m.model===model.value),key=form.querySelector('[name=key]');
+    act(form,async()=>{
+      if(!form.querySelector('.key-field').hidden&&key.value)await request('/model-keys',{keys:{[entry.provider]:key.value}});
+      key.value='';
+      await request('/learning/prepare',{book_id:book.book_id,budget_usd:Number(form.querySelector('[name=budget]').value),
+        model:entry.model,...(entry.reasoning_values.length?{reasoning:reasoning.value}:{})});
+    });
   };
-  return wrap;
-}
-function resumeForm(session,job){
-  const wrap=document.createElement('form');wrap.className='budget-form';
-  wrap.innerHTML=`${preparationOptions(job,false)}
-    <label><input name="retry" type="checkbox"> ניסיון חדש לקטע שלא התקבל — עלול לגרור חיוב נוסף</label>
-    <button type="submit" class="primary-button">חידוש הכנה</button>`;
-  wrap.onsubmit=async(event)=>{
-    event.preventDefault();
-    const payload={session_id:session.session_id,...optionsFrom(wrap),retry:wrap.querySelector('[name=retry]').checked};
-    try{await request('/learning/resume',payload);await loadState()}
-    catch(error){wrap.append(errorParagraph(error.message))}
-  };
-  return wrap;
-}
-function preparationOptions(job,disabled){
-  const attrs=disabled?'disabled':'';
-  return `<label>תקציב כולל מרבי ($)<input name="budget" type="number" min="0.000001" step="any" value="${esc(job?.budget_usd??'')}" required dir="ltr" ${attrs}></label>
-    <label>היקף הקשר נוסף (תווים)<input name="context" type="number" min="0" max="2000000" step="1" value="${job?.context_chars??4000}" required dir="ltr" ${attrs}></label>
-    <label>אורך תשובה מותר (טוקנים)<input name="output" type="number" min="1" step="1" value="${job?.output_tokens??6000}" required dir="ltr" ${attrs}></label>`;
-}
-function optionsFrom(form){return {budget_usd:Number(form.querySelector('[name=budget]').value),
-  context_chars:Number(form.querySelector('[name=context]').value),output_tokens:Number(form.querySelector('[name=output]').value)}}
-function abandonButton(session){
-  const wrap=document.createElement('div');
-  const note=document.createElement('p');note.className='muted';
-  note.textContent='נטישה משחררת את מקום הספר הפעיל בלי לשמור התקדמות או השלמה.';
-  const button=document.createElement('button');button.type='button';button.className='secondary-button';
-  button.textContent='נטישת ספר';
-  button.onclick=async()=>{
-    if(!confirm('נטישת הספר תשחרר אותו בלי לשמור השלמה. להמשיך?'))return;
-    try{await request('/learning/abandon',{session_id:session.session_id});await loadState()}
-    catch(error){wrap.append(errorParagraph(error.message))}
-  };
-  wrap.append(note,button);
-  return wrap;
+  return form;
 }
 
 function renderProgress(){
@@ -487,7 +566,7 @@ $('save-key').onclick=async()=>{
   const value=$('learning-key').value;
   $('learning-key').value='';
   const remember=!$('learning-remember').hidden&&$('learning-remember-key').checked;
-  try{await request('/model-keys',{keys:{openai:value},...($('learning-remember').hidden?{}:{remember})});
+  try{await request('/model-keys',{keys:{[$('learning-key-provider').value]:value},...($('learning-remember').hidden?{}:{remember})});await loadState();
     $('key-message').textContent=remember?'המפתח נשמר במחשב (מנהל האישורים של Windows) ויישאר גם אחרי סגירת התוכנית.':'המפתח נשמר בזיכרון עד לכיבוי השרת.'}
   catch(error){$('key-message').textContent=error.message}
 };

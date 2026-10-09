@@ -103,6 +103,18 @@ def _group_pages(pages):
     return groups
 
 
+def title_from_filename(name):
+    """Book title as the user knows the file: the translation library's
+    download is ``<stem>.he.epub``, so both its source filename and an
+    uploaded download reduce to the same ``<stem>``. None when nothing is
+    left (callers then fall back to the book's own heading)."""
+    title = re.split(r"[\\/]", name or "")[-1].strip()
+    for suffix in (".epub", ".pdf", ".partial", ".he"):
+        if title.lower().endswith(suffix):
+            title = title[:-len(suffix)].rstrip()
+    return title or None
+
+
 def _finalize_source(book_id, title, origin, chapters):
     source = {
         "schema_version": 1, "book_id": check_id(book_id), "revision": 1,
@@ -202,4 +214,4 @@ def import_translation_job(snapshot, book_id=None):
         "kind": "translation_library", "original_hash": text_hash(original_source_text),
         "source_job_id": job_id, "source_revision": int(snapshot.get("revision") or 0),
     }
-    return _finalize_source(resolved_book_id, snapshot.get("filename"), origin, chapters)
+    return _finalize_source(resolved_book_id, title_from_filename(snapshot.get("filename")), origin, chapters)

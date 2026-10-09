@@ -259,19 +259,30 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 learning_holder[0] = LearningService(OUTPUT_ROOT.parent / "learning")
             return learning_holder[0]
 
-    def _learning_adapter():
+    def _learning_adapter(model=None, reasoning=None, configuration=None):
+        """A new preparation's chosen model, or a saved job's own configuration
+        on resume; the key of that model's provider must be available."""
         from .learning_contracts import require
-        configuration = model_settings.build_configuration({"translator": {
-            "source": "catalog", "provider": "openai", "model": "gpt-6-luna"}})
+        from .learning_controls import learning_model_selection
+        if configuration is None:
+            configuration = model_settings.build_configuration({"translator": learning_model_selection(model, reasoning)})
         keys = _key_snapshot(configuration)
-        require(bool(keys.get("openai")), "missing_api_key")
+        require(bool(keys.get(configuration.resolve("translator")[0].provider)), "missing_api_key")
         return configuration, _adapter_factory_for(configuration, keys)
 
     def _learning_action(path, data):
         from .learning_contracts import require
         service = _learning()
         if path == "/learning/state":
-            return service.summary()
+            from .learning_controls import learning_model_options
+            summary = service.summary()
+            summary["keys_available"] = {}
+            for entry in learning_model_options():
+                if entry["provider"] not in summary["keys_available"]:
+                    configuration = model_settings.build_configuration({"translator": {
+                        "source": "catalog", "provider": entry["provider"], "model": entry["model"]}})
+                    summary["keys_available"][entry["provider"]] = bool(_key_snapshot(configuration).get(entry["provider"]))
+            return summary
         if path == "/learning/language":
             return service.select_language(data.get("language"))
         if path == "/learning/import-translation":
@@ -289,14 +300,18 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     # book metadata and export UI report the missing layout.
                     template = None
             return service.import_translation(snapshot, epub_template=template)
+        if path == "/learning/rename-book":
+            return service.rename_book(data.get("book_id"), data.get("title"))
+        if path == "/learning/delete-book":
+            return service.delete_book(data.get("book_id"))
         if path == "/learning/effort":
             return service.set_effort(data.get("level_id"))
         if path == "/learning/prepare":
-            configuration, factory = _learning_adapter()
+            configuration, factory = _learning_adapter(data.get("model"), data.get("reasoning"))
             return service.start(data.get("book_id"), data.get("budget_usd"), configuration, factory,
-                                 context_chars=data.get('context_chars', 4000), output_tokens=data.get('output_tokens', 6000))
+                                 context_chars=data.get('context_chars'), output_tokens=data.get('output_tokens'))
         if path == "/learning/resume":
-            _configuration, factory = _learning_adapter()
+            _configuration, factory = _learning_adapter(configuration=service.job_configuration(data.get("session_id")))
             return service.resume(data.get("session_id"), factory, budget_usd=data.get("budget_usd"),
                                   context_chars=data.get('context_chars'), output_tokens=data.get('output_tokens'),
                                   retry=data.get('retry', False))
@@ -547,7 +562,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     content = self.rfile.read(length)
                     if len(content) != length:
                         raise LearningError("incomplete_upload")
-                    self._json(200, _learning().import_epub(content))
+                    from .learning_import import title_from_filename
+                    self._json(200, _learning().import_epub(content, title=title_from_filename(name)))
                 except (LearningError, ValueError, OSError):
                     self._json(400, {"error": "לא ניתן לקלוט את הספר. בדקו שזה EPUB בעברית ללא הגנה.", "code": "epub_import_failed"})
                 return

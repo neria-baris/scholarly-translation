@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 
 from .learning_contracts import (
-    LearningError, check_id, fingerprint, require, validate_catalog,
+    LearningError, check_id, fingerprint, require, unwrap_json_fence, validate_catalog,
     validate_generated, validate_plan, validate_recap, word_count,
 )
 
@@ -150,7 +150,7 @@ def parse_response(raw, plan, catalog, input_hash, provider=DEFAULT_PROVIDER, mo
             result[key] = value
         return result
     try:
-        data = json.loads(raw, object_pairs_hook=unique_pairs)
+        data = json.loads(unwrap_json_fence(raw), object_pairs_hook=unique_pairs)
     except json.JSONDecodeError:
         raise LearningError("invalid_generation", "malformed_json")
     require(isinstance(data, dict), "invalid_generation", "not_an_object")

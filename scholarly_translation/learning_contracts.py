@@ -27,6 +27,13 @@ class LearningError(ValueError):
         super().__init__(message or code)
 
 
+def unwrap_json_fence(raw):
+    """A reply that is exactly one fenced JSON block (common for models without
+    a JSON response mode) yields its body; anything else is returned as is."""
+    match = re.fullmatch(r"\s*```(?:json)?[ \t]*\n(.*)\n[ \t]*```\s*", raw, re.DOTALL)
+    return match.group(1) if match else raw
+
+
 def require(condition, code="invalid_record", message=None):
     if not condition:
         raise LearningError(code, message)

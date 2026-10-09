@@ -106,6 +106,11 @@ class LearningStore:
             _atomic_write(path, source)
         return copy.deepcopy(source)
 
+    def delete_source(self, book_id):
+        """Remove a source no session references (the service checks that)."""
+        with self._lock:
+            self._source_path(book_id).unlink(missing_ok=True)
+
     def get_source(self, book_id):
         path = self._source_path(book_id)
         require(path.exists(), "invalid_record", "unknown book_id")

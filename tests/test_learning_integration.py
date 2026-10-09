@@ -3,6 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from scholarly_translation.learning_contracts import LearningError, fixture_source, source_hash
 from scholarly_translation.learning_service import LearningService
@@ -89,6 +90,8 @@ class LearningIntegrationTests(unittest.TestCase):
         self.service = LearningService(self.root)
         self.service._add_source(source())
         self.adapter = Adapter(self.service)
+        self.scheduled = []  # Automatic retries run when a test fires them.
+        self.service._schedule = lambda delay, function, args: self.scheduled.append((delay, function, args))
 
     def prepare(self):
         return self.service.start('book-one', 1, configuration(), self.adapter.factory, background=False)
@@ -118,6 +121,123 @@ class LearningIntegrationTests(unittest.TestCase):
         self.assertIn('fr-bonjour', next_plan['review_item_ids'])
         self.assertEqual(next_session['level_id'], ready['level_id'])
         self.assertEqual(next_session['support_mode'], ready['support_mode'])
+
+    def test_rename_changes_display_title_only(self):
+        renamed = self.service.rename_book('book-one', '  Jade   City ')
+        self.assertEqual(renamed['title'], 'Jade City')
+        self.assertEqual(self.service.summary()['books'][0]['title'], 'Jade City')
+        self.assertEqual(LearningService(self.root).summary()['books'][0]['title'], 'Jade City')
+        ready = self.prepare()
+        self.assertEqual(self.service.reader(ready['session_id'])['title'], 'Jade City')
+        self.assertNotEqual(self.service.store.get_source('book-one')['title'], 'Jade City')
+        for bad in ('   ', 'x' * 501, None):
+            with self.assertRaises(LearningError) as ctx:
+                self.service.rename_book('book-one', bad)
+            self.assertEqual(ctx.exception.code, 'invalid_title')
+
+    def test_delete_unused_book_removes_its_files(self):
+        self.service.delete_book('book-one')
+        self.assertEqual(self.service.summary()['books'], [])
+        self.assertFalse((self.root / 'state' / 'sources' / 'book-one.json').exists())
+        with self.assertRaises(LearningError) as ctx:
+            self.service.delete_book('book-one')
+        self.assertEqual(ctx.exception.code, 'book_not_found')
+
+    def test_delete_refuses_active_book_and_hides_completed_one(self):
+        ready = self.prepare()
+        with self.assertRaises(LearningError) as ctx:
+            self.service.delete_book('book-one')
+        self.assertEqual(ctx.exception.code, 'book_in_use')
+        self.service.complete(ready['session_id'], ready['prepared_hash'], 'complete-one')
+        self.assertEqual(self.service.delete_book('book-one')['deleted'], 'hidden')
+        self.assertEqual(self.service.summary()['books'], [])
+        # History stays readable after the book leaves the list.
+        self.assertIn('bonjour', self.service.reader(ready['session_id'])['html'])
+        self.assertTrue((self.root / 'state' / 'sources' / 'book-one.json').exists())
+
+    def test_invalid_answer_is_retried_automatically_with_a_fresh_call(self):
+        self.adapter.fail = True
+        failed = self.prepare()
+        self.assertEqual(failed['status'], 'failed')
+        self.assertEqual(self.service.summary()['jobs'][failed['session_id']]['auto_retry']['count'], 1)
+        delay, function, args = self.scheduled.pop()
+        self.assertEqual(delay, 15)
+        self.adapter.fail = False
+        # Fire the timer in the foreground.
+        self.service.resume = (lambda original: lambda *a, **k: original(*a, **{**k, 'background': False}))(self.service.resume)
+        function(*args)
+        self.assertEqual(self.service.store.get_session(failed['session_id'])['status'], 'ready')
+        self.assertEqual(self.adapter.calls, 2)  # The invalid answer was not replayed from cache.
+        self.assertIsNone(self.service.summary()['jobs'][failed['session_id']]['auto_retry'])
+
+    def test_automatic_retry_stops_at_one_dollar_of_failures(self):
+        self.adapter.fail = True
+        with patch.object(LearningService, '_spent', side_effect=[0.0, 1.0]):
+            failed = self.prepare()
+        self.assertEqual(self.scheduled, [])
+        state = self.service.summary()['jobs'][failed['session_id']]['auto_retry']
+        self.assertTrue(state['stopped'])
+        self.assertIsNone(state['retry_at'])
+
+    def test_automatic_retry_stops_after_ten_in_a_row(self):
+        self.adapter.fail = True
+        failed = self.prepare()
+        self.service.resume = (lambda original: lambda *a, **k: original(*a, **{**k, 'background': False}))(self.service.resume)
+        while self.scheduled:
+            _delay, function, args = self.scheduled.pop()
+            function(*args)
+        self.assertEqual(self.adapter.calls, 11)
+        self.assertTrue(self.service.summary()['jobs'][failed['session_id']]['auto_retry']['stopped'])
+
+    def test_pause_cancels_a_waiting_automatic_retry(self):
+        self.adapter.fail = True
+        failed = self.prepare()
+        _delay, function, args = self.scheduled.pop()
+        self.service.pause(failed['session_id'])
+        function(*args)
+        self.assertEqual(self.adapter.calls, 1)
+        self.assertEqual(self.service.store.get_session(failed['session_id'])['status'], 'failed')
+
+    def test_budget_failure_waits_for_the_user(self):
+        self.service.start('book-one', 1e-9, configuration(), self.adapter.factory, background=False)
+        self.assertEqual(self.scheduled, [])
+
+    def test_reasoning_level_adds_output_headroom(self):
+        from scholarly_translation.learning_controls import learning_model_selection
+        plain = configuration()
+        high = build_configuration({'translator': learning_model_selection('gpt-6-luna', 'high')})
+        job = {'plans': [{'policy_version': 'learning-policy@1'}], 'output_tokens': 6000}
+        self.assertEqual(self.service._shared_cap(job, plain), 6000)
+        self.assertEqual(self.service._shared_cap(job, high), 6000 + 32768)
+        with self.assertRaises(LearningError) as ctx:
+            learning_model_selection('gpt-6-luna', 'extreme')
+        self.assertEqual(ctx.exception.code, 'invalid_model')
+        with self.assertRaises(LearningError):
+            learning_model_selection('gpt-unknown')
+        haiku = learning_model_selection('claude-haiku-4-5')
+        self.assertEqual((haiku['provider'], 'reasoning' in haiku), ('anthropic', False))
+        with self.assertRaises(LearningError):
+            learning_model_selection('claude-haiku-4-5', 'high')  # Haiku takes no effort level.
+
+    def test_automatic_limits_size_context_and_grow_after_cut_off_answer(self):
+        from scholarly_translation.learning_controls import auto_context_chars
+        self.adapter.fail = True
+        failed = self.prepare()
+        job = self.service._data['jobs'][failed['session_id']]
+        self.assertIsNone(job['context_chars'])
+        plan = job['plans'][0]
+        self.assertEqual(job['context_info']['requested_chars'], auto_context_chars(plan))
+        self.assertTrue(1500 <= auto_context_chars(plan) <= 6000)
+        job['error_code'], job['auto_retry'] = 'response_incomplete', None
+        self.service._plan_auto_retry(failed['session_id'])
+        self.assertEqual(job['output_tokens'], 12000)
+
+    def test_fenced_json_reply_is_accepted(self):
+        from scholarly_translation.learning_contracts import unwrap_json_fence
+        fence = chr(96) * 3
+        self.assertEqual(unwrap_json_fence(fence + 'json\n{"a": 1}\n' + fence), '{"a": 1}')
+        prose = 'text ' + fence + 'json\n{}\n' + fence
+        self.assertEqual(unwrap_json_fence(prose), prose)
 
     def test_invalid_edit_preserves_state_and_replay_never_resends(self):
         self.adapter.fail = True

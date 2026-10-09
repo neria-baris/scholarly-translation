@@ -13,7 +13,7 @@ import json
 import re
 from pathlib import Path
 
-from .learning_contracts import LearningError, check_id, fingerprint, require
+from .learning_contracts import LearningError, check_id, fingerprint, require, unwrap_json_fence
 
 LESSON_PROMPT_VERSION = 'learning-lesson@1'
 LESSON_STAGE = 'learning-lesson-v1'
@@ -140,7 +140,7 @@ def parse_lesson(raw, chapter_id, language, grounding, input_hash, *, provider='
             result[key] = value
         return result
     try:
-        data = json.loads(raw, object_pairs_hook=unique_pairs)
+        data = json.loads(unwrap_json_fence(raw), object_pairs_hook=unique_pairs)
     except json.JSONDecodeError:
         raise LearningError('invalid_lesson', 'malformed_json')
     require(isinstance(data, dict) and set(data) == {'response_version', 'chapter_id', 'topics', 'paragraphs'},

@@ -10,7 +10,7 @@ import unittest
 import zipfile
 
 from scholarly_translation.learning_contracts import LearningError, validate_source
-from scholarly_translation.learning_import import import_hebrew_epub, import_translation_job
+from scholarly_translation.learning_import import import_hebrew_epub, import_translation_job, title_from_filename
 
 HEBREW_HEADING = "פרק ראשון"
 HEBREW_PARAGRAPH_1 = "הילד הביט בבית הישן ואז הלך בדרך הארוכה אל העיר הגדולה."
@@ -152,6 +152,18 @@ class ImportTranslationJobTests(unittest.TestCase):
         self.assertEqual(source["origin"]["source_revision"], 3)
         texts = [u["text"] for c in source["chapters"] for u in c["units"]]
         self.assertEqual(texts, [HEBREW_PARAGRAPH_1, HEBREW_PARAGRAPH_2])
+
+    def test_title_matches_library_download_name(self):
+        snapshot = _completed_job_snapshot()
+        snapshot["filename"] = "[Saga 1] Fonda, Lee - Jade City (2017, Orbit).epub"
+        source = import_translation_job(snapshot)
+        self.assertEqual(source["title"], "[Saga 1] Fonda, Lee - Jade City (2017, Orbit)")
+        # The downloaded "<stem>.he.epub", uploaded back, gets the same title.
+        uploaded = import_hebrew_epub(_epub_bytes([f"<h1>זכויות יוצרים</h1><p>{HEBREW_PARAGRAPH_1}</p>"]),
+                                      title=title_from_filename("[Saga 1] Fonda, Lee - Jade City (2017, Orbit).he.epub"))
+        self.assertEqual(uploaded["title"], source["title"])
+        self.assertEqual(title_from_filename("x.he.partial.pdf"), "x")
+        self.assertIsNone(title_from_filename(".epub"))
 
     def test_unfinished_job_rejected(self):
         snapshot = _completed_job_snapshot()

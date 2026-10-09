@@ -143,6 +143,26 @@ class ControlStoreBasicsTests(unittest.TestCase):
             store.reserve("task-1", stage="translate", worst_case_usd=0.0000001)
         store.close()
 
+    def test_interrupted_in_flight_call_becomes_unknown_outcome(self):
+        # A process stopped mid-call left the reservation 'reserved': the resend of the
+        # same cache key was refused forever. After mark_interrupted it is an uncertain
+        # call the user (or the standing rule) can accept, and the resend is allowed.
+        store = ControlStore(self.db_path)
+        store.get_or_create_task("task-1", 5, 0.01, "2026-09-30", 256)
+        event_id, _ = store.reserve("task-1", stage="translate", worst_case_usd=0.001, cache_key="k" * 64)
+        with self.assertRaises(BudgetExhaustedError):
+            store.reserve("task-1", stage="translate", worst_case_usd=0.001, cache_key="k" * 64)
+        self.assertEqual(store.mark_interrupted("task-1"), 1)
+        self.assertEqual(store.mark_interrupted("task-1"), 0)
+        [call] = store.uncertain_calls("task-1")
+        self.assertEqual((call["event_id"], call["known_usd"], call["provider_outcome"]), (event_id, None, "interrupted"))
+        self.assertTrue(store.status("task-1")["stopped"])
+        store.user_settle("task-1", event_id)
+        store.user_resume("task-1")
+        store.reserve("task-1", stage="translate", worst_case_usd=0.001, cache_key="k" * 64)
+        self.assertAlmostEqual(store.status("task-1")["list_estimated_spent_usd"], 0.001)
+        store.close()
+
     def test_anomalous_overage_freezes_task(self):
         store = ControlStore(self.db_path)
         store.get_or_create_task("task-1", 5, 0.0001, "2026-09-30", 256)

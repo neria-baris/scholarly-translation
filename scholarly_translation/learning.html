@@ -15,28 +15,33 @@
 <p id="import-error" class="message" role="alert" hidden></p>
 
 <section id="upload-section" class="card" aria-labelledby="upload-title">
-<h2 id="upload-title">העלאת EPUB בעברית</h2>
-<p class="muted">מעלים ספר EPUB בעברית כדי להתחיל ללמוד שפה דרך קריאה.</p>
+<h2 id="upload-title">הוספת ספר</h2>
+<p class="muted">ספר שתורגם כאן מתווסף מספריית התרגומים (כפתור "למידת שפה" ליד הספר). אפשר גם להעלות כל ספר EPUB בעברית; שמו יהיה שם הקובץ.</p>
 <input id="epub-file" class="visually-hidden" type="file" accept=".epub,application/epub+zip" aria-label="בחירת קובץ EPUB בעברית">
 <button id="epub-choose" type="button" class="secondary-button">בחירת קובץ EPUB</button>
 <p id="upload-message" class="message" role="alert" hidden></p>
 </section>
 
 <section id="effort-section" class="card" aria-labelledby="effort-title">
-<h2 id="effort-title">רמת מאמץ</h2>
+<h2 id="effort-title">מה לומדים</h2>
 <label for="learning-language">השפה שלומדים</label>
 <select id="learning-language" aria-describedby="language-note"></select>
-<p id="language-note" class="muted">לכל שפה היסטוריה ורמת מאמץ משלה. אפשר להחליף שפה כשאין ספר פעיל.</p>
+<p class="muted" id="level-label">רמת מאמץ: כמה מהטקסט מוחלף בחומר חדש בשפה הנלמדת.</p>
+<p class="muted" id="effort-note"></p>
+<div id="effort-levels" class="levels" role="radiogroup" aria-labelledby="level-label"></div>
+<details class="more"><summary>איך זה עובד?</summary>
+<p id="language-note" class="muted">לכל שפה היסטוריה ורמת מאמץ משלה. אפשר להחליף שפה כשאין ספר בהכנה או בקריאה.</p>
 <p class="muted">האחוזים מגבילים חומר חדש; מילים שכבר פגשתם ממשיכות להצטבר בפרקים הבאים.</p>
 <p class="muted">לומדים מההקשר, עם אפשרות לבקש פירוש בלחיצה. אין פירוש אוטומטי צמוד למילה בשום רמה.</p>
-<p class="muted" id="effort-note"></p>
-<div id="effort-levels" class="levels" role="radiogroup" aria-labelledby="effort-title"></div>
+</details>
 </section>
 
 <section id="key-section" class="card" aria-labelledby="key-title">
-<details><summary id="key-title">מפתח להכנת ספר</summary>
+<details><summary id="key-title">מפתחות API</summary>
 <p class="muted">המפתח נשמר בזיכרון השרת המקומי לאורך הפעלה זו; אינו נשמר בדפדפן או בכתובת. סימון "לזכור" שומר אותו מוצפן במנהל האישורים של Windows, כך שיישאר גם אחרי סגירת התוכנית. אפשר גם להגדיר אותו <a href="/" target="_blank" rel="noopener">במסך התרגום הראשי</a>.</p>
-<label for="learning-key">מפתח OpenAI</label>
+<label for="learning-key-provider">ספק</label>
+<select id="learning-key-provider"><option value="openai">OpenAI (Luna, Sol)</option><option value="anthropic">Anthropic (Haiku, Sonnet, Opus)</option></select>
+<label for="learning-key">מפתח</label>
 <input id="learning-key" type="password" autocomplete="off" dir="ltr">
 <label id="learning-remember" hidden><input id="learning-remember-key" type="checkbox"> לזכור במחשב הזה (מנהל האישורים של Windows)</label>
 <button id="save-key" type="button" class="secondary-button">שמירת מפתח</button>

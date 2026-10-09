@@ -5,6 +5,11 @@ Official sources checked 2026-10-05 (see audit/contracts/automation_1.md):
 - https://developers.openai.com/api/docs/models/gpt-6.1-sol
 - https://platform.claude.com/docs/en/models/sonnet-5-5/overview
 - https://platform.claude.com/docs/en/models/opus-5-5/overview
+Added 2026-10-09 without changing any existing rate (so the version and
+every cache key stay as they were): claude-haiku-4-5, from Anthropic's
+current model table -- $1 input / $5 output per MTok, 200K context, 64K
+output; cache reads 0.1x and 5m/1h cache writes 1.25x/2x input. Haiku 4.5
+takes no effort setting; this project sends it no thinking parameter.
 
 Rates are standard USD list price per 1,000,000 tokens as verified on
 ``CATALOG_VERSION``'s date. This module performs no network call and holds
@@ -78,6 +83,13 @@ _CATALOG = {
         rates_per_million={"input": 4.0, "output": 20.0, "cached": 0.20,
                             "cache_write": 5.0, "cache_write_1h": 8.0},
         reasoning_values=(), long_context=False, thinking_always_on=True,
+    ),
+    ("anthropic", "claude-haiku-4-5"): ModelPricing(
+        provider="anthropic", model="claude-haiku-4-5",
+        context_window=200_000, max_output_tokens=64_000,
+        rates_per_million={"input": 1.0, "output": 5.0, "cached": 0.10,
+                            "cache_write": 1.25, "cache_write_1h": 2.0},
+        reasoning_values=(), long_context=False, thinking_always_on=False,
     ),
 }
 

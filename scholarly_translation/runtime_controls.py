@@ -341,6 +341,18 @@ class ControlStore:
         notices.extend(f"budget_observed_{n}_percent" for n in (50, 80) if total / _money(task["hard_list_usd"], floor=True) >= n / 100)
         return notices
 
+    def mark_interrupted(self, task_id):
+        """No worker runs this task (caller guarantees it): every call still
+        ``reserved`` lost its outcome when the process stopped. Each becomes an
+        uncertain, not-metered call (task stopped) so the unknown-outcome
+        decision applies instead of refusing the resend forever. Returns the count."""
+        self._task(task_id)
+        events = [r["event_id"] for r in self._conn.execute(
+            "SELECT event_id FROM reservations WHERE task_id=? AND state='reserved' ORDER BY event_id", (task_id,))]
+        for event_id in events:
+            self.settle(event_id, token_usage={}, estimate="not_metered", outcome="interrupted")
+        return len(events)
+
     # --- explicit user decisions (never automatic) --------------------------
 
     def uncertain_calls(self, task_id):

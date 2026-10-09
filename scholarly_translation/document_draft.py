@@ -1207,6 +1207,12 @@ class DocumentJobs:
             if journal_path.is_file():
                 with WorkJournal(journal_path, create=False) as journal:
                     journal.resume(job_id)
+            controls = self._folder(job_id) / "controls.sqlite3"
+            if controls.is_file():
+                # No worker holds the slot: a call left in flight lost its outcome.
+                with ControlStore(controls, create=True) as store:
+                    if job_blocks.store_has_task(store, job_id):
+                        store.mark_interrupted(job_id)
             if adapter_factory is not None:
                 self._job_adapter_factories[job_id] = adapter_factory
             job["status"], job["error"] = "translating", None

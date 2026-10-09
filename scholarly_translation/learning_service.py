@@ -6,13 +6,15 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import threading
 import time
 
 from .learning_contracts import LearningError, POLICY_VERSION, SUPPORTED_LANGUAGE_CODES, check_id, require, validate_source, word_count
 from .learning_catalog import load_catalog
 from .learning_vocabulary import effective_catalog
-from .learning_controls import validate_options, surrounding_context
+from .learning_controls import (DEFAULT_LEARNING_MODEL, auto_context_chars, learning_model_options,
+                                validate_options, surrounding_context)
 from .learning_archive import save_personal_archive
 from .learning_import import import_hebrew_epub, import_translation_job
 from .learning_planner import plan_book, replan_chunk
@@ -22,6 +24,12 @@ from .learning_lesson import (LESSON_OUTPUT_TOKENS, LESSON_STAGE, build_lesson_r
 from .learning_dictionary import dictionary_view
 from .learning_render import render_chunk
 from .learning_store import LearningStore
+
+
+# Failures that a resend cannot fix: they wait for the user.
+_NOT_RETRIABLE = frozenset({'budget_exhausted', 'context_capacity', 'output_capacity', 'missing_api_key',
+    'stale_learner', 'catalog_changed', 'accounting_unavailable', 'learning_save_failed', 'invalid_status',
+    'already_running', 'session_not_found', 'provider_configuration'})
 
 
 class LearningService:
@@ -34,11 +42,26 @@ class LearningService:
         return min(selection.capabilities.max_output_tokens or 6000,
                    max(6000, min(64000, 2048 + words * 128)))
 
+    @staticmethod
+    def _with_reasoning(tokens, configuration):
+        """Add the selected reasoning level's headroom (reasoning tokens count
+        as output), within the model's output limit; none adds nothing."""
+        from .reasoning_budget import review_reasoning_headroom
+        selection = configuration.resolve('translator')[0]
+        try:
+            headroom = review_reasoning_headroom(selection)
+        except ValueError:
+            headroom = 0
+        if not headroom:
+            return tokens
+        return min(tokens + headroom, selection.capabilities.max_output_tokens or tokens + headroom)
+
     def _shared_cap(self, job, configuration):
         # Part of the persistent task policy: identical for every call of a job.
         if job['plans'][0]['policy_version'] == 'learning-policy@1':
-            return job.get('output_tokens', 6000)
-        return max(job.get('output_tokens', 6000), max(self._dense_output_cap(p, configuration) for p in job['plans']))
+            return self._with_reasoning(job.get('output_tokens', 6000), configuration)
+        return self._with_reasoning(max(job.get('output_tokens', 6000),
+                                        max(self._dense_output_cap(p, configuration) for p in job['plans'])), configuration)
 
     @staticmethod
     def _chapter_ids(job):
@@ -76,6 +99,8 @@ class LearningService:
                     'error_code': 'budget_required'}
         # A process restart never restarts model calls or borrows credentials.
         for job in self._data['jobs'].values():
+            if (job.get('auto_retry') or {}).get('token'):
+                job['auto_retry']['token'] = None
             session = self.store.get_session(job['session_id'])
             if session['status'] in ('ready', 'completed'):
                 job['status'] = session['status']
@@ -125,6 +150,42 @@ class LearningService:
         return self._add_source(import_translation_job(snapshot, book_id='book-' + secrets.token_hex(12)),
                                 epub=epub_template, asset_kind='translation_template')
 
+    def _title(self, source):
+        """The learner-facing name: a rename lives in the book index, never in
+        the immutable source (its hash covers the imported title)."""
+        return self._data['books'].get(source['book_id'], {}).get('title') or source['title']
+
+    def rename_book(self, book_id, title):
+        require(isinstance(title, str), 'invalid_title')
+        title = ' '.join(title.split())
+        require(0 < len(title) <= 500, 'invalid_title')
+        with self._lock:
+            book = self._data['books'].get(check_id(book_id))
+            require(book is not None and not book.get('hidden'), 'book_not_found')
+            book['title'] = title
+            self._save()
+            return deepcopy(book)
+
+    def delete_book(self, book_id):
+        """Remove a book from the list. A book under active learning is
+        refused; one with learning history is only hidden, so its sessions,
+        progress and notebook keep working; otherwise its files are removed."""
+        with self._lock:
+            book_id = check_id(book_id)
+            book = self._data['books'].get(book_id)
+            require(book is not None and not book.get('hidden'), 'book_not_found')
+            require(not any(self.store.get_learner(code)['active_book_id'] == book_id
+                            for code in SUPPORTED_LANGUAGE_CODES), 'book_in_use')
+            if any(session['book_id'] == book_id for session in self.store.list_sessions()):
+                book['hidden'] = True
+                self._save()
+                return {'book_id': book_id, 'deleted': 'hidden'}
+            del self._data['books'][book_id]
+            self._save()
+            self.store.delete_source(book_id)
+            shutil.rmtree(self.root / 'epub_assets' / book_id, ignore_errors=True)
+            return {'book_id': book_id, 'deleted': 'removed'}
+
     def summary(self):
         with self._lock:
             language = self._data['selected_language']
@@ -140,17 +201,35 @@ class LearningService:
                 job.update({'context_chars': original.get('context_chars', 0),
                             'output_tokens': original.get('output_tokens', 6000),
                             'context_info': original.get('context_info'),
-                            'warnings': original.get('warnings', [])})
+                            'warnings': original.get('warnings', []),
+                            'model': self._model_of(original),
+                            'auto_retry': self._auto_retry_view(original)})
                 if 'lessons' in original:
                     job.update({'lessons_done': len(original['lessons']),
                                 'lessons_total': len(self._chapter_ids(original))})
             progress = self._progress(learner, sessions)
             archive = self._archive_snapshot(learner, progress=progress)
-            return {'books': deepcopy(list(self._data['books'].values())), 'sessions': sessions,
+            books = [book for book in self._data['books'].values() if not book.get('hidden')]
+            return {'books': deepcopy(books), 'sessions': sessions,
                     'learner': learner, 'jobs': jobs, 'progress': progress, 'personal_archive': archive,
                     'selected_language': language,
                     'languages': [{'id': code, 'available': True} for code in SUPPORTED_LANGUAGE_CODES],
-                    'levels': load_catalog(language)['levels'], 'model': 'gpt-6-luna'}
+                    'levels': load_catalog(language)['levels'], 'model': DEFAULT_LEARNING_MODEL,
+                    'models': learning_model_options()}
+
+    @staticmethod
+    def _model_of(job):
+        translator = job['configuration']['models']['translator']
+        return {'model': translator['model'], 'reasoning': translator['capabilities'].get('reasoning')}
+
+    @staticmethod
+    def _auto_retry_view(job):
+        state = job.get('auto_retry')
+        if not state:
+            return None
+        return {'count': state['count'], 'wasted_usd': state['wasted_usd'],
+                'retry_at': state.get('retry_at') if state.get('token') else None,
+                'stopped': bool(state.get('stopped'))}
 
     def _archive_snapshot(self, learner, *, progress=None, chapter=None):
         language = learner['language']
@@ -217,7 +296,7 @@ class LearningService:
                         for edit in chunk['edits']:
                             for item_id in edit['item_ids'] + edit['grammar_ids']:
                                 counts[item_id] = counts.get(item_id, 0) + 1
-                active = {'book_id': session['book_id'], 'title': source['title'],
+                active = {'book_id': session['book_id'], 'title': self._title(source),
                     'chapter_index': chapter_index, 'chapter_count': len(source['chapters']),
                     'read_items': rows(counts, {item_id: session['book_id'] for item_id in counts}),
                     'prepared_chunks': len(job.get('chunks', [])), 'total_chunks': len(job.get('plans', []))}
@@ -273,7 +352,7 @@ class LearningService:
                         chapters.append({'chapter_index': index, 'chapter_title': chapter['title'],
                                          'topics': lesson['topics'], 'paragraphs': lesson['paragraphs']})
                 if chapters:
-                    books.append({'session_id': session['session_id'], 'title': source['title'],
+                    books.append({'session_id': session['session_id'], 'title': self._title(source),
                                   'status': session['status'], 'chapters': chapters})
             return {'language': language, 'books': deepcopy(books)}
 
@@ -334,8 +413,11 @@ class LearningService:
             return learner
 
     def start(self, book_id, budget_usd, configuration, adapter_factory, *, background=True,
-              context_chars=4000, output_tokens=6000):
-        validate_options(budget_usd, context_chars, output_tokens)
+              context_chars=None, output_tokens=None):
+        # Omitted limits are automatic: context sized per passage, answer
+        # length sized per passage and grown after a cut-off answer.
+        output_tokens = 6000 if output_tokens is None else output_tokens
+        validate_options(budget_usd, 0 if context_chars is None else context_chars, output_tokens)
         with self._lock:
             source = self.store.get_source(check_id(book_id))
             language = self._data['selected_language']
@@ -357,7 +439,7 @@ class LearningService:
         return self.store.get_session(sid)
 
     def resume(self, session_id, adapter_factory, *, background=True, budget_usd=None,
-               context_chars=None, output_tokens=None, retry=False):
+               context_chars=None, output_tokens=None, retry=False, _automatic=False):
         from .model_config import ModelConfiguration
         sid = check_id(session_id)
         with self._lock:
@@ -371,7 +453,7 @@ class LearningService:
             options = (budget_usd if budget_usd is not None else job['budget_usd'],
                        context_chars if context_chars is not None else job.get('context_chars', 0),
                        output_tokens if output_tokens is not None else job.get('output_tokens', 6000))
-            validate_options(*options)
+            validate_options(options[0], 0 if options[1] is None else options[1], options[2])
             require(type(retry) is bool, 'invalid_learning_request')
             require(job['budget_usd'] is None or options[0] >= job['budget_usd'], 'budget_cannot_decrease')
             changed = options != (job['budget_usd'], job.get('context_chars', 0), job.get('output_tokens', 6000))
@@ -383,6 +465,12 @@ class LearningService:
             job.update(dict(zip(('budget_usd', 'context_chars', 'output_tokens'), options)))
             configuration = ModelConfiguration.from_dict(job['configuration'])
             job['status'], job['error_code'] = 'preparing', None
+            if _automatic:
+                job['auto_retry']['token'] = None
+            else:
+                job['auto_retry'] = None  # A user decision starts a fresh row.
+            if not job.get('auto_retry'):
+                job['retry_base_usd'] = self._spent(sid)
             session['status'] = 'preparing'
             self.store.update_session(session)
             self._running[sid] = threading.Event()
@@ -393,12 +481,24 @@ class LearningService:
             self._run(sid, configuration, adapter_factory)
         return self.store.get_session(sid)
 
+    def job_configuration(self, session_id):
+        """The model configuration a saved preparation was started with."""
+        from .model_config import ModelConfiguration
+        with self._lock:
+            job = self._data['jobs'].get(check_id(session_id))
+            require(job is not None, 'session_not_found')
+            return ModelConfiguration.from_dict(job['configuration'])
+
     def pause(self, session_id):
         sid = check_id(session_id)
         with self._lock:
             require(sid in self._data['jobs'], 'session_not_found')
+            waiting = self._data['jobs'][sid].get('auto_retry') or {}
             if sid in self._running:
                 self._running[sid].set()
+            elif waiting.get('token'):
+                waiting['token'], waiting['stopped'] = None, True
+                self._save()
             else:
                 require(self.store.get_session(sid)['status'] == 'paused', 'invalid_status')
         return {'pause_requested': True}
@@ -418,6 +518,7 @@ class LearningService:
         from .work_journal import WorkJournal
         directory = self.root / 'calls' / sid
         directory.mkdir(parents=True, exist_ok=True)
+        delay = None
         try:
             epoch = self._data['jobs'][sid].get('control_epoch', 0)
             ledger = directory / f'attempt-{epoch}' / 'controls.sqlite3' if epoch else directory / 'controls.sqlite3'
@@ -454,7 +555,10 @@ class LearningService:
                         plan = deepcopy(job['current_plan'])
                         budget, count = job['budget_usd'] - prior, self._max_calls(job)
                         require(budget > 0, 'budget_exhausted')
-                        context, job['context_info'] = surrounding_context(job['plans'], index, job.get('context_chars', 0))
+                        requested = job.get('context_chars', 0)
+                        if requested is None:
+                            requested = auto_context_chars(plan)
+                        context, job['context_info'] = surrounding_context(job['plans'], index, requested)
                         self._save()
                         known, needed = None, None
                         if job.get('dictionary'):
@@ -467,7 +571,8 @@ class LearningService:
 
                     def validate(result):
                         chunk, recap = parse_response(result.text, plan, catalog, input_hash,
-                            provider='openai', model=result.observed_model or 'gpt-6-luna',
+                            provider=configuration.resolve('translator')[1].provider_type,
+                            model=result.observed_model or configuration.resolve('translator')[0].model,
                             dictionary_known=sorted(known) if known is not None else None)
                         return {'chunk': chunk, 'recap': recap}
 
@@ -479,7 +584,8 @@ class LearningService:
                     if plan['policy_version'] == 'learning-policy@1':
                         output_cap = shared_cap
                     else:
-                        output_cap = max(job.get('output_tokens', 6000), self._dense_output_cap(plan, configuration) if plan['review_item_ids'] else 0)
+                        output_cap = self._with_reasoning(max(job.get('output_tokens', 6000),
+                            self._dense_output_cap(plan, configuration) if plan['review_item_ids'] else 0), configuration)
                     dependencies = {'plan': plan, 'catalog_version': catalog['version']}
                     if job.get('retry_revision', 0):
                         dependencies['explicit_retry'] = job['retry_revision']
@@ -521,6 +627,7 @@ class LearningService:
                                 job['projected']['items'].append({'item_id': item_id, 'introduced_count': encounters,
                                     'last_completed_book_id': plan['book_id']})
                         job['current_plan'] = None
+                        self._accepted(sid)
                         self._save()
                 if 'lessons' in self._data['jobs'][sid]:
                     if not self._prepare_lessons(sid, configuration, adapter_factory, controls, journal, prior):
@@ -558,10 +665,80 @@ class LearningService:
                     self._data['jobs'][sid]['status'] = 'ready'
                     self._save()
                 else:
+                    from .model_adapter import OpenAIConfigurationError
+                    retriable = (code not in _NOT_RETRIABLE and not self._running[sid].is_set()
+                                 and not isinstance(exc, OpenAIConfigurationError))
                     self._finish_status(sid, 'failed')
+                    delay = self._plan_auto_retry(sid) if retriable else None
         finally:
             with self._lock:
                 self._running.pop(sid, None)
+        if delay is not None:
+            self._schedule(delay, self._auto_resume, (sid, self._data['jobs'][sid]['auto_retry']['token'], adapter_factory))
+
+    @staticmethod
+    def _schedule(delay, function, args):
+        timer = threading.Timer(delay, function, args)
+        timer.daemon = True
+        timer.start()
+
+    def _spent(self, sid):
+        """Charges so far, uncertain holds included (worst case)."""
+        try:
+            return sum(row['list_estimated_spent_usd'] + row['held_usd'] for _, row in self._ledger_statuses(sid))
+        except LearningError:
+            return float('inf')  # Unknown cost never authorizes an automatic resend.
+
+    def _accepted(self, sid):
+        """A validated answer ends any failure row; later waste counts from here."""
+        job = self._data['jobs'][sid]
+        job['auto_retry'] = None
+        job['retry_base_usd'] = self._spent(sid)
+
+    def _plan_auto_retry(self, sid):
+        """User rule (shared with translation, job_blocks): a failed, truncated,
+        invalid or unknown-outcome answer is resent automatically while the
+        charges of this failure row stay below AUTO_ACCEPT_BELOW_USD and the row
+        is shorter than AUTO_ACCEPT_MAX_STREAK. Returns the wait in seconds,
+        or None when the user decides."""
+        from .job_blocks import AUTO_ACCEPT_BELOW_USD, AUTO_ACCEPT_MAX_STREAK, AUTO_RETRY_DELAYS
+        job = self._data['jobs'][sid]
+        count = (job.get('auto_retry') or {}).get('count', 0) + 1
+        wasted = max(0.0, self._spent(sid) - job.get('retry_base_usd', 0.0))
+        if wasted >= AUTO_ACCEPT_BELOW_USD or count > AUTO_ACCEPT_MAX_STREAK:
+            job['auto_retry'] = {'count': count - 1, 'wasted_usd': min(wasted, 1e9), 'token': None, 'stopped': True}
+            self._save()
+            return None
+        if job.get('error_code') == 'response_incomplete' and job.get('context_chars', 0) is None:
+            # Automatic limits: a cut-off answer is resent with twice the room.
+            from .model_config import ModelConfiguration
+            limit = ModelConfiguration.from_dict(job['configuration']).resolve('translator')[0]                 .capabilities.max_output_tokens or job['output_tokens']
+            job['output_tokens'] = min(job['output_tokens'] * 2, limit)
+        delay = AUTO_RETRY_DELAYS[min(count, len(AUTO_RETRY_DELAYS)) - 1]
+        job['auto_retry'] = {'count': count, 'wasted_usd': wasted, 'token': secrets.token_hex(8),
+                             'retry_at': time.time() + delay, 'stopped': False}
+        self._save()
+        return delay
+
+    def _auto_resume(self, sid, token, adapter_factory):
+        """Resend unless the user acted meanwhile (resumed, paused or abandoned)."""
+        with self._lock:
+            job = self._data['jobs'].get(sid)
+            if (not job or job['status'] != 'failed' or sid in self._running
+                    or (job.get('auto_retry') or {}).get('token') != token):
+                return
+        try:
+            self.resume(sid, adapter_factory, retry=True, _automatic=True)
+        except LearningError as exc:
+            try:
+                with self._lock:
+                    job = self._data['jobs'][sid]
+                    job['error_code'], job['auto_retry']['token'] = exc.code, None
+                    self._save()
+            except (LearningError, OSError):
+                pass  # The user resumes this one.
+        except OSError:
+            pass
 
     def _prepare_lessons(self, sid, configuration, adapter_factory, controls, journal, prior):
         """One grammar-lesson call per chapter after all chunks; False when paused."""
@@ -590,7 +767,8 @@ class LearningService:
                 budget, count = job['budget_usd'] - prior, self._max_calls(job)
                 require(budget > 0, 'budget_exhausted')
                 shared_cap = self._shared_cap(job, configuration)
-                output_cap = min(max(LESSON_OUTPUT_TOKENS, job.get('output_tokens', 6000)), shared_cap)
+                output_cap = min(self._with_reasoning(max(LESSON_OUTPUT_TOKENS, job.get('output_tokens', 6000)),
+                                                      configuration), shared_cap)
                 dependencies = {'chapter_id': chapter_id}
                 if job.get('retry_revision', 0):
                     dependencies['explicit_retry'] = job['retry_revision']
@@ -602,7 +780,8 @@ class LearningService:
                 # The lesson is supplementary: a bad answer is recorded, never blocks the book.
                 try:
                     lesson = parse_lesson(result.text, chapter_id, language, grounding, input_hash,
-                                          model=result.observed_model or 'gpt-6-luna')
+                                          provider=configuration.resolve('translator')[1].provider_type,
+                                          model=result.observed_model or configuration.resolve('translator')[0].model)
                 except LearningError as exc:
                     lesson = unavailable_lesson(input_hash, str(exc))
                 return {'lesson': lesson}
@@ -617,6 +796,7 @@ class LearningService:
                 raise
             with self._lock:
                 self._data['jobs'][sid]['lessons'][chapter_id] = parsed['lesson']
+                self._accepted(sid)
                 self._save()
         return True
 
@@ -654,7 +834,7 @@ class LearningService:
             archive = self._archive_snapshot(self.store.get_learner(session['language']), chapter={
                 'session_id': session_id, 'book_id': session['book_id'], 'chapter_id': chapter['chapter_id'],
                 'chapter_title': chapter['title'], 'recap': recap, 'items': items})
-            return {'session': session, 'title': source['title'], 'chapter_title': chapter['title'],
+            return {'session': session, 'title': self._title(source), 'chapter_title': chapter['title'],
                     'chapter_index': chapter_index, 'chapter_count': len(source['chapters']),
                     'language': session['language'], 'html': ''.join(rendered), 'recap': recap,
                     'items': items, 'archive_warning': archive['warning']}

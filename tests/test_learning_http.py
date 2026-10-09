@@ -61,7 +61,18 @@ class LearningHttpTests(unittest.TestCase):
             status, summary = self.post('/learning/state', {})
             self.assertEqual(status, 200)
             self.assertEqual(summary['books'][0]['book_id'], book['book_id'])
+            self.assertEqual(book['title'], 'book')
             self.assertEqual(summary['sessions'], [])
+
+    def test_rename_and_delete_book_routes(self):
+        _, book = self.post('/learning/upload-epub?name=book.epub', _hebrew_epub_bytes(), raw=True)
+        self.assertEqual(self.post('/learning/rename-book', {'book_id': book['book_id'], 'title': 'x'}, token='wrong')[0], 403)
+        status, renamed = self.post('/learning/rename-book', {'book_id': book['book_id'], 'title': 'שם חדש'})
+        self.assertEqual((status, renamed['title']), (200, 'שם חדש'))
+        status, deleted = self.post('/learning/delete-book', {'book_id': book['book_id']})
+        self.assertEqual((status, deleted['deleted']), (200, 'removed'))
+        self.assertEqual(self.post('/learning/state', {})[1]['books'], [])
+        self.assertEqual(self.post('/learning/delete-book', {'book_id': book['book_id']})[0], 400)
 
     def test_handoff_is_server_snapshot_and_unfinished_job_refused(self):
         with patch('scholarly_translation.document_draft.DocumentJobs.get', return_value=_completed_job_snapshot()) as get:
@@ -100,7 +111,9 @@ class LearningHttpTests(unittest.TestCase):
             self.assertEqual(self.post('/learning/language', {'language': 'it'})[0], 200)
 
     def test_resume_forwards_explicit_user_options(self):
-        with patch.object(self.service, 'resume', return_value={'status': 'paused'}) as resume:
+        from scholarly_translation.model_settings import build_configuration
+        luna = build_configuration({'translator': {'source': 'catalog', 'provider': 'openai', 'model': 'gpt-6-luna'}})
+        with patch.object(self.service, 'resume', return_value={'status': 'paused'}) as resume,                 patch.object(self.service, 'job_configuration', return_value=luna):
             # The adapter key gate is intentionally exercised separately by the
             # existing missing-key test; use the route's existing model fixture.
             with patch.dict('os.environ', {'OPENAI_API_KEY': 'synthetic-test-key'}):
