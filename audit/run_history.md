@@ -1191,3 +1191,6 @@ User report: learning preparation repeatedly showed "ניסיון 4 מתוך 10"
 
 ## 2026-10-09T13:02:30Z | LEARN-SALVAGE | integration receipt PASS
 User chose to keep both in main. Main checkout's uncommitted changes verified byte-identical to snapshot 000e49c (child of 4e3979e, tree equal to the working tree, index clean); main advanced by mixed reset to 000e49c (no file touched, status clean), then fast-forward to c5d6f88. Full offline suite on main: 1409 PASS (skipped=1), 553.8 s. Not pushed (awaiting user). UI server (web_ui, started 15:49) still runs the previous code until restarted by the user. Runtime provider calls 0. This receipt records c5d6f88, not its own hash.
+
+## 2026-10-09T13:04:46Z | LEARN-SALVAGE | push receipt
+User approved push without re-running tests. origin URL checked; remote main 4e3979e was an ancestor; ordinary push 4e3979e..84d0a76 succeeded; ls-remote equals 84d0a76. This receipt records 84d0a76, not its own hash.
