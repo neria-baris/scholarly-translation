@@ -53,8 +53,11 @@ def _width(font, text, rtl):
     return font.getlength(_visual(text, rtl))
 
 
-def _max_size(region, page_height):
-    return max(min_font_px(page_height), int(1.1 * float(region["line_height"])))
+def _max_size(region, page_height, font_path):
+    """Largest size whose line pitch stays within about 1.05x the source line pitch
+    (detection reports ``line_height`` as the distance between lettering lines)."""
+    ratio = _line_height(_font(font_path, 100)) / 100
+    return max(min_font_px(page_height), int(1.05 * float(region["line_height"]) / ratio))
 
 
 # ---------------------------------------------------------------- areas
@@ -192,7 +195,7 @@ def _try_block(area, text, font, rtl, lh, cy, strict=True):
 
 def _fit_bubble(region, text, font_path, rtl, page_height):
     area = _Area(region)
-    lo, hi = min_font_px(page_height), _max_size(region, page_height)
+    lo, hi = min_font_px(page_height), _max_size(region, page_height, font_path)
     src_cy = (region["bbox"][1] + region["bbox"][3]) / 2
     for size in range(hi, lo - 1, -1):
         font = _font(font_path, size)
@@ -232,7 +235,7 @@ def _fit_bubble(region, text, font_path, rtl, page_height):
 def _fit_box(region, text, font_path, rtl, page_height, page_width):
     bbox = region["bbox"]
     bw, bh = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    lo, hi = min_font_px(page_height), _max_size(region, page_height)
+    lo, hi = min_font_px(page_height), _max_size(region, page_height, font_path)
     cx, cy = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
     right = page_width if page_width else bbox[2] + int(0.5 * bw) + 20
     width_cap = max(int(bw * 1.4), 8 * lo)
@@ -320,7 +323,7 @@ def fit(region, text, font_path, rtl, page_height, page_width=None) -> dict:
 def capacity(region, font_path, rtl, page_height) -> int:
     """Approximate characters that fit at a comfortable size (a length hint for the prompt)."""
     lo = min_font_px(page_height)
-    size = max(lo, min(_max_size(region, page_height), int(round(float(region["line_height"]) / 1.3))))
+    size = max(lo, int(round(_max_size(region, page_height, font_path) * 0.85)))
     font = _font(font_path, size)
     sample = "שלום לכולם אנחנו הולכים" if rtl else "the quick brown fox jumps"
     char_w = font.getlength(sample) / len(sample)

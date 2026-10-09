@@ -75,12 +75,14 @@ class TypesetTests(unittest.TestCase):
     def test_short_text_larger_than_long_and_size_cap(self):
         region = _region(self.balloon)
         short = ts.fit(region, "Hi!", self.latin, False, self.h)
-        long = ts.fit(region, "Where were you last night? I waited for hours and nobody told me anything.",
-                      self.latin, False, self.h)
+        long = ts.fit(region, "Where were you last night? I waited for hours and hours, and nobody told me "
+                      "anything at all, not even your sister, who always knows everything.", self.latin, False, self.h)
+        self.assertFalse(long["overflow"])
         self.assertGreater(short["font_size"], long["font_size"])
-        cap = 1.1 * region["line_height"]
-        self.assertLessEqual(short["font_size"], cap)
-        self.assertLessEqual(long["font_size"], cap)
+        # the drawn line pitch never exceeds the source line pitch by more than ~5%
+        cap = 1.05 * region["line_height"] + 1
+        self.assertLessEqual(short["line_height"], cap)
+        self.assertLessEqual(long["line_height"], cap)
 
     def test_overflow_reported_at_min_size(self):
         region = _region(self.balloon)
