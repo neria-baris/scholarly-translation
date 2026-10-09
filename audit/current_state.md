@@ -1,3 +1,24 @@
+# Current state — COMIC engine integrated on main (not pushed)
+Updated: 2026-10-09. Claude Code primary agent (conductor), user request: comic translation.
+
+Main: ed223c0 COMIC-C on e0b0658 COMIC-A, 0fcff44 COMIC-B, cd7257f COMIC-0, 1ecc6a1 SINGLE-INSTANCE. Not pushed (origin/main = 7a06f80). Contract audit/contracts/comic_translation.md.
+
+Usable now: `python -m scholarly_translation.comic_pipeline INPUT --out DIR --source-language en|fr|ja --target he [--model mock|configured --model-config PATH] [--budget-usd 1.0] [--pages 1-5] [--notebook PATH]`. Inputs: image, folder, CBZ/ZIP, PDF. Outputs: pages/*.png, comic.cbz, comic.pdf, comic.json, review.html.
+
+Verification: full offline suite 1481 tests; 3 failures fixed and rerun. Runtime provider calls 0.
+
+Open / blocked:
+- Real-comic quality BLOCKED: needs a few real pages from the user and approval of a paid configured run (cost per page ~2 vision calls).
+- Not yet done: web UI integration (next step), comic-style Hebrew font (would need a download), screentone/colour/vertical-Japanese detection limits (model boxes + snap cover part of it).
+- Agent worktrees of the three builders remain (.claude/worktrees/agent-ac5d8c…, agent-a940f7…, agent-a07f20…), contents integrated; safe to remove after the user confirms.
+- From SINGLE-INSTANCE: stop old web_ui servers, start one, resume learning job session-f928b03a.
+
+Active delegated work: none.
+
+Next action: user supplies sample comic pages and approves a small paid run (or asks for UI integration); push main when the user approves.
+
+---
+Previous checkpoint:
 # Current state — SINGLE-INSTANCE on main (not pushed)
 Updated: 2026-10-09. Claude Code primary agent (conductor), user-reported bug.
 
@@ -7,20 +28,3 @@ Verification: full offline suite 1411 tests, 1 failure (test_server_text_en: new
 Translation + learning in parallel: supported in one server (one translation document and one learning book at a time, separate slots).
 
 Next action: stop both old servers (they carry no lock), start one server, resume learning job session-f928b03a (124/355, failed/auto-retry); then push main if the user approves.
-
----
-Previous checkpoint:
-# Current state — LEARN-SALVAGE integrated on main and pushed
-Updated: 2026-10-09. Claude Code primary agent (conductor), user-directed learning fix.
-
-Main: c5d6f88 (LEARN-SALVAGE) on 000e49c (WIP-SNAPSHOT of previously uncommitted learning/runtime changes: learning model choice, Haiku catalogue entry, interrupted-call recovery, learning auto-retry, fenced-JSON tolerance, UI; kept by user decision, authored before this session). Working tree clean. Pushed: origin/main = 84d0a76 (integration receipt) plus this push receipt.
-
-Branch fix/learn-salvage (worktree .claude/worktrees/learn-salvage): commit 1 = exact snapshot of those uncommitted changes (WIP-SNAPSHOT, unverified as authored); commit 2 = LEARN-SALVAGE (contract audit/contracts/learn_salvage.md). Policy@3 learning answers: spans located by original text, repeated Hebrew context trimmed, invalid parts dropped, quotas trim instead of rejecting; book notebook (learned items ranked, book-wide paced new-word allowance from local word counts) via prompt asset 13 (learning-generation@4); rejected answers resent after 2/5/15/30 s. Policy@1/@2 unchanged.
-
-Verification: learning tests 250 PASS; full offline suite 1409 PASS (skipped=1) on the branch (476.1 s) and again on main (553.8 s). Offline replay of recorded rejected learning answers: 11/13 accepted. Runtime provider calls 0.
-
-Open: (1) restart the UI server (web_ui running since 15:49 has the old code) so the waiting learning job (session-f928b03a, auto-retry running) uses the new code; (3) provider-side JSON schema enforcement not done (no malformed-JSON evidence). Gate-10 real-source/human quality acceptance stays pending. LEARN-EN-BASE contract at 6f70896 remains separate, unimplemented.
-
-Active delegated work: none started in this session. Many older worktrees exist; not touched.
-
-Next action: user restarts the UI server and resumes/continues the learning job.
