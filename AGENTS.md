@@ -18,5 +18,5 @@ Execution rules:
 - The user authorizes ordinary verified fast-forward gate pushes to `origin/main` at `https://github.com/neria-baris/scholarly-translation.git`, including the necessary remote checks. Destructive operations remain unauthorized; stop on divergence or unexpected changes. Never infer broader permission from a configured remote.
 - Prefer deterministic, local and cheap tools before expensive models where appropriate. Avoid unnecessary model calls and implementation beyond the current gate.
 - Never commit secrets, credentials, local inputs, caches or sensitive generated data.
-- Read `audit/current_state.md` before resuming; update it at gate boundaries. Astra is an exceptional read-only adviser, only under the written escalation controls.
+- Read `audit/current_state.md` before resuming; update it at gate boundaries. Astra or Fable (Claude Fable) is an exceptional read-only adviser, only under the written escalation controls.
 - If applicable instructions conflict, stop and surface the conflict rather than guessing.

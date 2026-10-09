@@ -25,8 +25,9 @@ Preserve valid running worktrees/delegated tasks instead of restarting them,
 including work started by a previous primary agent.
 
 Use delegated builders/worktrees under the limits in `DEVELOPMENT_WORKFLOW.md`:
-at most two independent writers, checked common base, separate ownership, tests
-and sequential integration; no recursive delegation. Use the existing audit
+any number of independent writers (no fixed cap), checked common base, separate
+ownership, tests and sequential integration; no recursive delegation. Escalation
+may go to Astra or Fable under the same written controls. Use the existing audit
 files only. Ask for genuine human decisions required by policy. No paid runtime
 provider calls follow from holding the conductor role.
 

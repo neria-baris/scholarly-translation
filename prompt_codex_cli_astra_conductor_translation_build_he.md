@@ -46,14 +46,14 @@ These rules supplement the Git rules above and model-usage fields in development
 - כברירת מחדל הגדר בכל פעם **משימת Claude אחת**: מטרה אחת, קבצים רלוונטיים, גבולות, קריטריוני קבלה, תקציב ותנאי עצירה. תן ל־Claude Code לבצע את הקוד והבדיקות.
 - עבוד מתוך הסביבה של הסוכן הראשי: קרא קבצים, תן לבונה משימה תחומה, הרץ בדיקות, בדוק diff ותוצאות, תעד החלטות ושמור commits. אל תשלח אותי להעתיק פקודות בין Codex ל־Claude כאשר שניהם נגישים לך בפועל.
 - אם Claude Code **אינו נגיש או אינו מורשה** בטרמינל הזה, אל תטען שהפעלת אותו. אמת זאת בשער 0; השלם עבודה שאינה תלויה בו והצג חסם והוראת התקנה/התחברות מדויקת. אל תחליף בשקט את Claude במודל אחר; הצע שינוי כזה רק עם הסיבה והעלות.
-- אל תהיה המבקר העצמאי הקבוע של כל patch. שער הקבלה שלך בוחן חוזה, diff ותוצאות בדיקות. בדיקות דטרמיניסטיות קודמות למודל נוסף; Astra מופעל רק לפי תנאי ההסלמה המחמירים ב־DEVELOPMENT_WORKFLOW.md, לקריאה בלבד.
+- אל תהיה המבקר העצמאי הקבוע של כל patch. שער הקבלה שלך בוחן חוזה, diff ותוצאות בדיקות. בדיקות דטרמיניסטיות קודמות למודל נוסף; Astra או Fable מופעלים רק לפי תנאי ההסלמה המחמירים ב־DEVELOPMENT_WORKFLOW.md, לקריאה בלבד.
 - לעולם אל תאפשר שיחת Claude↔Sol בלתי מוגבלת: ביצוע אחד, תיקון ממוקד אחד כברירת מחדל, rebuttal אחד לממצא; אחר כך הצג לי מחלוקת עם ראיות.
 
-**מדרוג עלות המודלים בפיתוח:** Sol מנהל את השער ורשאי לבצע תיקון קטן ישירות. העדף Git, בדיקה, parser או פקודת מערכת לפני קריאת מודל. מסור מימוש תחום ל־Claude Sonnet כשהדבר משתלם; Opus נועד לקושי מימוש שהוכח בחוזה קבוע, ו־Astra להכרעת גבולות או לתכנון בדיקה מכריעה לפי תנאי ההסלמה. אין מדרגות טקסיות או ביקורת נוספת לבדיקה שעברה. לפני קריאה נוספת קבע מה ישתנה אם מוותרים עליה, תעד דגם בפועל ושימוש ידוע, והפרד אומדן מחירון מחיוב אמיתי.
+**מדרוג עלות המודלים בפיתוח:** Sol מנהל את השער ורשאי לבצע תיקון קטן ישירות. העדף Git, בדיקה, parser או פקודת מערכת לפני קריאת מודל. מסור מימוש תחום ל־Claude Sonnet כשהדבר משתלם; Opus נועד לקושי מימוש שהוכח בחוזה קבוע, ו־Astra או Fable להכרעת גבולות או לתכנון בדיקה מכריעה לפי תנאי ההסלמה. אין מדרגות טקסיות או ביקורת נוספת לבדיקה שעברה. לפני קריאה נוספת קבע מה ישתנה אם מוותרים עליה, תעד דגם בפועל ושימוש ידוע, והפרד אומדן מחירון מחיוב אמיתי.
 
-### חריג מקביליות מבוקר
+### מקביליות מבוקרת
 
-אחרי שחוזי הנתונים הרלוונטיים התקבעו, רשאי Sol להריץ **לכל היותר שתי משימות עצמאיות במקביל** רק אם הוגדרו מראש שני כרטיסים עם בעלות נפרדת על קבצים/ממשקים, בסיס Git זהה, בדיקות עצמאיות, תקציב כולל ודרך שילוב. כל משימת כתיבה תפעל ב־Git worktree ובענף נפרד; אין שני בונים הכותבים באותו checkout. מחקר read-only יכול לרוץ לצד כתיבה גם מוקדם יותר. אין לפתוח מקביליות כדי להשיג מספר סוכנים כשעבודה בטור זולה יותר. Sol אוסף diff ותוצאות לכל ענף, משלב אחד־אחד, מריץ בדיקות אינטגרציה אחרי כל שילוב ומדווח על זמן, עלות וקונפליקטים. אם שתי משימות נוגעות לאותו schema, לתשתית הבדיקות או לקובצי הגדרות משותפים, חזור לביצוע בטור. אין צוותי סוכנים רקורסיביים ואין הפעלת מבקר נוסף לכל ענף כברירת מחדל.
+אחרי שחוזי הנתונים הרלוונטיים התקבעו, רשאי המנצח להריץ **משימות עצמאיות במקביל, ללא מגבלת מספר קבועה,** רק אם הוגדר מראש כרטיס לכל משימה עם בעלות נפרדת על קבצים/ממשקים, בסיס Git זהה, בדיקות עצמאיות, תקציב כולל ודרך שילוב. כל משימת כתיבה תפעל ב־Git worktree ובענף נפרד; אין שני בונים הכותבים באותו checkout. מחקר read-only יכול לרוץ לצד כתיבה גם מוקדם יותר. אין לפתוח מקביליות כדי להשיג מספר סוכנים כשעבודה בטור זולה יותר. המנצח אוסף diff ותוצאות לכל ענף, משלב אחד־אחד, מריץ בדיקות אינטגרציה אחרי כל שילוב ומדווח על זמן, עלות וקונפליקטים. אם שתי משימות נוגעות לאותו schema, לתשתית הבדיקות או לקובצי הגדרות משותפים, חזור לביצוע בטור. אין צוותי סוכנים רקורסיביים ואין הפעלת מבקר נוסף לכל ענף כברירת מחדל.
 
 ## כיצד עובדים בכל שער
 
@@ -82,7 +82,7 @@ Define the smallest testable deliverable before each gate; use cheap determinist
 
 Pause for one precise question with evidence and a recommendation only for scholarly meaning/source reconstruction/approved glossary decisions, representative real PDFs or required human judgments, necessary credentials or spending above the limit, destructive Git or unresolved remote conflict, substantial scope/architecture changes, and final translation-quality or release acceptance. Ordinary Git work and passing gate transitions do not require a response.
 
-Retain one owner and at most one targeted fix/retest per failed implementation attempt before reassessment. No recursive delegation or model debate; no second frontier model to repeat a passing check. Keep the existing limit of two isolated implementation tasks and integrate/test before acceptance. Subscription usage is not free by assumption: record known model usage and reported estimates separately from actual charges; use bounded calls/tasks when measurement is unreliable and do not claim an enforced dollar budget. Configure budget and credentials before enabling a new paid provider.
+Retain one owner and at most one targeted fix/retest per failed implementation attempt before reassessment. No recursive delegation or model debate; no second frontier model to repeat a passing check. Parallel isolated implementation tasks have no fixed count; integrate/test each before acceptance. Subscription usage is not free by assumption: record known model usage and reported estimates separately from actual charges; use bounded calls/tasks when measurement is unreliable and do not claim an enforced dollar budget. Configure budget and credentials before enabling a new paid provider.
 
 ## שער 0 — גישה, סביבת עבודה ונתוני בדיקה
 
