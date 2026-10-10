@@ -125,17 +125,25 @@ class PromptRenderTests(unittest.TestCase):
         self.assertIn("voice", review)
 
     def test_literary_style_guidance_and_version_bump(self):
-        self.assertEqual(PROMPT_VERSIONS["literary"], "literary-prompts-v2@4")
-        self.assertEqual(PROMPT_VERSIONS["scholarly"], "scholarly-prompts-v2@5")
+        self.assertEqual(PROMPT_VERSIONS["literary"], "literary-prompts-v2@5")
+        self.assertEqual(PROMPT_VERSIONS["scholarly"], "scholarly-prompts-v2@6")
         literary = style_profile_text("literary")
-        self.assertIn("literary-prompts-v2@4", literary)
+        self.assertIn("literary-prompts-v2@5", literary)
         for needle in ("BOOK_NOTEBOOK", "translation_note", "translationese", "Mark dialogue"):
             self.assertIn(needle, literary)
         scholarly = style_profile_text("scholarly")
-        self.assertIn("scholarly-prompts-v2@5", scholarly)
+        self.assertIn("scholarly-prompts-v2@6", scholarly)
         for needle in ("BOOK_NOTEBOOK", "translation_note", "(terms, names, notation, voice)"):
             self.assertIn(needle, scholarly)
         self.assertNotIn("Mark dialogue", scholarly)
+        for text in (literary, scholarly):
+            # REVIEW-SUGGESTIONS: idiomatic structure, with the Hebrew pack's specifics.
+            self.assertIn("never carry source-language syntax over word for word", text)
+            self.assertIn("In Hebrew in particular", text)
+            self.assertIn("never justifies an\nunidiomatic construction", text)
+        review = (Path(__file__).resolve().parents[1] / "scholarly_translation" / "runtime_prompts"
+                  / "04_independent_semantic_review.md").read_text(encoding="utf-8")
+        self.assertIn("over-literal renderings", review)
         for text in (literary, scholarly):
             # PROMPT-FIXES: guidelines shared with reviewers, one order of authority, and the dash
             # rule narrowed to the em/en dash as punctuation (user decision 2026-10-07).

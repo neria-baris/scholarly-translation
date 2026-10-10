@@ -20,18 +20,23 @@ MAX_LOCAL_STATE_CHARS = 2000
 MAX_SOURCE_CONTEXT_CHARS = 4000
 
 PROMPT_VERSIONS = {
-    "scholarly": "scholarly-prompts-v2@5",
-    "literary": "literary-prompts-v2@4",
+    "scholarly": "scholarly-prompts-v2@6",
+    "literary": "literary-prompts-v2@5",
 }
 CONFIG_VERSIONS = dict(PROMPT_VERSIONS)
 
-_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@5):
+_SCHOLARLY_STYLE_PROFILE = """STYLE_PROFILE (scholarly, scholarly-prompts-v2@6):
 Guidelines for translating scholarly prose into {{T:TARGET}} (reviewers judge
 the translation by them). Produce faithful, readable
 academic {{T:TARGET}} while preserving the author's exact claims, distinctions,
 qualifications, ambiguity, and argumentative structure. Fidelity outranks
 elegance: do not simplify, explain, strengthen, weaken, summarize, or
-silently reinterpret the source merely to improve style.
+silently reinterpret the source merely to improve style. Fidelity is to
+meaning, not to the source's surface form. Write idiomatic
+{{T:TARGET}}: never carry source-language syntax over word for word; word
+order, constructions and idioms become what a skilled {{T:TARGET}} writer
+would write for the same meaning, losing nothing.
+{{T:IDIOM_NOTE}}
 
 The TARGET UNIT is a semantically complete unit supplied by segmentation;
 do not assume that it is a PDF line or a paragraph. The original source
@@ -56,7 +61,8 @@ otherwise, noting any departure in translation_note; context and the
 previous passage only disambiguate.
 
 Keep the source's punctuation and rhythm as closely as {{T:TARGET}} allows; do
-not merge or split sentences for style. Do not add a dash (— or –) as
+not merge or split sentences for style. Keeping a sentence never justifies an
+unidiomatic construction inside it. Do not add a dash (— or –) as
 punctuation the source lacks; a hyphen in a word or range is fine.
 
 When a materially important phrase admits more than one plausible reading
@@ -64,7 +70,7 @@ and context does not resolve it, choose the best-supported reading and
 report the uncertainty briefly; never turn a guess into an established
 fact."""
 
-_LITERARY_STYLE_PROFILE = """STYLE_PROFILE (literary, literary-prompts-v2@4):
+_LITERARY_STYLE_PROFILE = """STYLE_PROFILE (literary, literary-prompts-v2@5):
 Guidelines for translating literary prose into {{T:TARGET}} (reviewers judge
 the translation by them). Produce faithful literary
 {{T:TARGET}} that preserves meaning, voice, characterization, register, rhythm,
@@ -102,7 +108,10 @@ your own rendering. {{T:LIT_ADDRESS}}, and keep
 forms of address and register consistent for each relationship. Mark dialogue
 as the source does, consistently. Avoid translationese and
 calques: write what a {{T:TARGET}} author would write, without drifting from the
-source.
+source. Write idiomatic {{T:TARGET}}: never carry source-language syntax over word for word; word
+order, constructions and idioms become what a skilled {{T:TARGET}} writer
+would write for the same meaning, losing nothing.
+{{T:IDIOM_NOTE}}
 
 Order of authority: approved terminology and NAMES are binding; follow
 BOOK_NOTEBOOK (terms, names, notation, voice) unless the source requires
@@ -110,7 +119,8 @@ otherwise, noting any departure in translation_note; context and the
 previous passage only disambiguate.
 
 Keep the source's punctuation and rhythm as closely as {{T:TARGET}} allows; do
-not merge or split sentences for style. Do not add a dash (— or –) as
+not merge or split sentences for style. Keeping a sentence never justifies an
+unidiomatic construction inside it. Do not add a dash (— or –) as
 punctuation the source lacks; a hyphen in a word or range is fine.
 
 When two materially different readings remain plausible, choose the

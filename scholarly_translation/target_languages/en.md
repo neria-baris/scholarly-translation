@@ -32,6 +32,8 @@ archaic, biblical or colloquial English
 Decide deliberately how "you", titles and terms of address are rendered
 and which pronouns each character takes
 
+## IDIOM_NOTE
+
 ## QA_CATEGORY_NOTE
 hebrew_quality is the fixed name of the category for the quality of the English text.
 

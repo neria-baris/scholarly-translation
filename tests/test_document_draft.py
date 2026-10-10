@@ -94,10 +94,11 @@ MOCK_MODEL_CONFIG = {
     "schema_version": 1,
     "providers": {"fake": {"type": "openai", "credential_env": "FAKE_TEST_API_KEY"}},
     "models": {
+        # REVIEW-SUGGESTIONS: the style profiles gained idiomatic-structure guidance (~700 upper-bound tokens).
         "translator": {"provider": "fake", "model": "fake-translator-1",
-                        "capabilities": {"context_window": 8000, "usable_context_tokens": 6000}},
+                        "capabilities": {"context_window": 9000, "usable_context_tokens": 7000}},
         "semantic_reviewer": {"provider": "fake", "model": "fake-reviewer-1",
-                              "capabilities": {"context_window": 8000, "usable_context_tokens": 6000}},
+                              "capabilities": {"context_window": 9000, "usable_context_tokens": 7000}},
         # REVIEW-EFFECT: the QA template gained explicit span/output rules (~1k upper-bound tokens).
         "chapter_qa": {"provider": "fake", "model": "fake-chapter-qa-1",
                        "capabilities": {"context_window": 9000, "usable_context_tokens": 8000}},

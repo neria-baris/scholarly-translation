@@ -20,7 +20,8 @@ Check for:
 - departures from GLOSSARY_AND_APPROVED_DECISIONS, NAMES or BOOK_NOTEBOOK renderings;
 - unjustified disambiguation;
 - loss of meaningful ambiguity;
-- errors in names, citations, numbers, formulas, or quotations.
+- errors in names, citations, numbers, formulas, or quotations;
+- over-literal renderings: source syntax, idioms or constructions carried over word for word so that the {{T:TARGET}} reads as foreign or blurs the meaning (MINOR unless the meaning changes); the suggested correction is the idiomatic {{T:TARGET}} for the same meaning.
 
 For literary text, also treat as fidelity issues (not as style preferences):
 - humor, irony or wordplay whose effect is lost, flattened, or replaced by a literal rendering that no longer works in {{T:TARGET}};

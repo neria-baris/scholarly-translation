@@ -32,6 +32,9 @@ biblical/rabbinic/colloquial Hebrew
 Decide Hebrew grammatical gender and number deliberately
 for "you" (singular/plural, masculine/feminine) and for characters
 
+## IDIOM_NOTE
+In Hebrew in particular: drop subject pronouns the verb marks; prefer a possessive suffix or construct state to chains of של; prefer an active or impersonal form to a calqued passive; render idioms by sense (take place: התקיים, not לקח מקום; make sense: הגיוני, not עושה שכל).
+
 ## QA_CATEGORY_NOTE
 
 ## KEEPER_NAME_FORMS

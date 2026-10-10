@@ -1148,6 +1148,27 @@ class DocumentJobs:
         job["cross_review_report"] = report
         return job
 
+    def apply_review_suggestions(self, job_id):
+        """Reopen the finished chapters whose review suggestions were never applied. Sends
+        nothing to any provider: the job is left paused and the normal ``resume`` corrects."""
+        with self.lock:
+            if self.active is not None:
+                raise DocumentDraftError("מסמך מתורגם כרגע. המתינו לסיום או השהו אותו.")
+            job = self.get(job_id)
+            try:
+                report = chapter_pipeline.enable_review_suggestions(job)
+            except chapter_pipeline.ChapterPipelineError as exc:
+                raise DocumentDraftError(str(exc)) from None
+            if not report["reopened_chapters"]:
+                raise DocumentDraftError("אין בעבודה זו הצעות תיקון שעוד לא הוחלו.")
+            for transient in ("budget_status", "remaining_budget_usd", "estimated_cost_usd"):
+                job.pop(transient, None)
+            self._persist(job)
+        job = self.get(job_id)
+        job["blocker"] = self.blocker(job_id, job)
+        job["suggestions_report"] = report
+        return job
+
     def delete(self, job_id):
         """Permanently remove a saved job folder (source copy, translation, journal,
         cost log). Refused while that job is running. Sends nothing to any provider."""

@@ -1,3 +1,23 @@
+# Current state — REVIEW-SUGGESTIONS on main (not pushed)
+Updated: 2026-10-10. Claude Code primary agent (conductor), user request: apply review suggestions automatically (also in finished books) and avoid over-literal translation.
+
+Main: REVIEW-SUGGESTIONS commit on 6055666 COMIC. Not pushed (origin/main = 7a06f80; COMIC, SINGLE-INSTANCE and this commit are local). Contract audit/contracts/review_suggestions.md.
+
+Done: every unit-review suggestion and chapter-QA Hebrew-quality finding is corrected automatically (consistency/continuity only when MAJOR/CRITICAL); each issue sent once; human edits never overwritten. Finished books show "הצעות התיקון של הבדיקה" on the result page: the button reopens chapters (no call), Resume runs the corrections + rechecks (paid, ~$0.01-0.30 per local book at list price). Translator profiles (scholarly v2@6, literary v2@5) and the Hebrew pack now require idiomatic structure; reviewer/QA flag calques.
+
+Verification: full offline suite 1486 OK. Runtime provider calls 0.
+
+Open:
+- The running web_ui server must be restarted to load the new code (single-instance lock: stop the old server, start one).
+- Finished books were reviewed with the old reviewer prompt; calque detection applies to new reviews only (re-review of finished books is out of scope unless the user asks).
+- Real-comic quality BLOCKED (user pages + paid-run approval). Builder worktrees from COMIC remain (.claude/worktrees/agent-*), safe to remove after user confirmation.
+
+Active delegated work: none.
+
+Next action: restart the web UI; the user opens each finished book and clicks the suggestions button, then Resume; push main when the user approves.
+
+---
+Previous checkpoint:
 # Current state — COMIC engine integrated on main (not pushed)
 Updated: 2026-10-09. Claude Code primary agent (conductor), user request: comic translation.
 
@@ -16,15 +36,3 @@ Open / blocked:
 Active delegated work: none.
 
 Next action: user supplies sample comic pages and approves a small paid run (or asks for UI integration); push main when the user approves.
-
----
-Previous checkpoint:
-# Current state — SINGLE-INSTANCE on main (not pushed)
-Updated: 2026-10-09. Claude Code primary agent (conductor), user-reported bug.
-
-Main: 422d649 SINGLE-INSTANCE (contract audit/contracts/single_server_instance.md) on 7a06f80. Not pushed (origin/main = 7a06f80).
-Cause of "נעצר" + resume -> "ההכנה כבר רצה": two web_ui servers live at once (PIDs 2864 from 15:49 on port 54376, 19368 from 16:02 on port 50756), both on outputs/learning, each with its own in-memory running set, overwriting shared state. Fix: web_ui holds an OS lock on outputs/web_ui.lock; a second launch opens the running server and exits.
-Verification: full offline suite 1411 tests, 1 failure (test_server_text_en: new Hebrew console string) fixed by making the console line English; affected tests (server_text_en, single_instance, web_ui) 15 PASS. Runtime provider calls 0.
-Translation + learning in parallel: supported in one server (one translation document and one learning book at a time, separate slots).
-
-Next action: stop both old servers (they carry no lock), start one server, resume learning job session-f928b03a (124/355, failed/auto-retry); then push main if the user approves.

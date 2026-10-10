@@ -172,7 +172,7 @@ class Automation3HTTPTests(unittest.TestCase):
                 # REVIEW-EFFECT: the chapter-QA template grew by ~370 upper-bound tokens
                 # (span/output rules); this small model also serves as QA and keeper.
                 "translator": {"source": "other", "provider_type": "openai", "model": "some-future-model",
-                               "context_window": 12000, "max_output_tokens": 500},
+                               "context_window": 13000, "max_output_tokens": 500},   # REVIEW-SUGGESTIONS: +700 profile tokens
                 "semantic_reviewer": {"source": "catalog", "provider": "openai", "model": "gpt-6-luna"},
             },
         }

@@ -23,14 +23,8 @@ _CHAPTER_EXCEPTIONS = {"qa_result_needs_human", "qa_note_retained", "ambiguous_q
 _PARSE_CAP = 4096   # the parser never looks at the call cap
 
 
-def _text_at_review(record):
-    """Hebrew as it was when reviewed (reviews and QA run before any correction)."""
-    versions = record.get("target_versions") or []
-    return versions[0]["text"] if versions else record["target_text"]
-
-
 def _frozen(records):
-    return [dict(r, target_text=_text_at_review(r)) for r in records]
+    return [dict(r, target_text=cp._text_at_review(r)) for r in records]
 
 
 def candidates(job):
@@ -120,15 +114,8 @@ def recheck_saved_reviews(job, journal):
             completion[str(chapter)] = False
             report["reopened_chapters"].append(number)
         records = [by_id[uid] for uid in job["chapter_groups"][chapter] if uid in by_id]
-        results = [r.get("review") or {} for r in records] + [
-            e for k, e in automation_qa.items() if k.startswith("%s:" % chapter)]
-        to_correct = set()
-        for result in results:
-            for issue in result.get("issues", []):
-                affected = cp._corrects_automatically(issue) and cp._issue_unit(issue, records)
-                if affected and not affected.get("correction_done"):
-                    to_correct.add(affected["unit_id"])
-        report["units_to_correct"] += len(to_correct)
+        plan, _ = cp._chapter_issue_plan(job, str(chapter), records, number)
+        report["units_to_correct"] += sum(bool(pending) for pending, _ in plan.values())
     if report["reopened_chapters"] and job.get("status") == "completed":
         job["status"], job["stage_label"] = "paused", "הופסק"
     job.setdefault("review_salvage", []).append(dict(report, at=time.time()))

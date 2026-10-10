@@ -685,9 +685,12 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     job["blocker"] = document_jobs.blocker(job["job_id"], job)
                     job["recheck_candidates"] = sum(review_salvage.candidates(job))
                     job["cross_review_available"] = chapter_pipeline.cross_review_available(job)
+                    job["review_suggestions"] = sum(chapter_pipeline.review_suggestions(job).values())
                     self._json(200, job)
                 elif route.path == "/document-recheck-reviews":
                     self._json(200, document_jobs.recheck_saved_reviews(data.get("job_id")))
+                elif route.path == "/document-apply-suggestions":
+                    self._json(200, document_jobs.apply_review_suggestions(data.get("job_id")))
                 elif route.path == "/document-cross-review":
                     self._json(200, document_jobs.cross_chapter_review(data.get("job_id")))
                 elif route.path == "/document-decide":

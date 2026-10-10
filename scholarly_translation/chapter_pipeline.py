@@ -38,6 +38,9 @@ _MATERIAL_SEVERITIES = {'CRITICAL', 'MAJOR'}
 # Chapter QA corrects automatically only what a single unit review cannot see
 # (user decision 2026-10-06); its other findings stay as retained notes.
 QA_AUTO_CORRECT_CATEGORIES = {'consistency', 'continuity'}
+# Review suggestions are applied whatever their severity: every unit-review suggestion and
+# chapter QA's Hebrew-quality corrections (user decision 2026-10-10, review_suggestions.md).
+QA_ALWAYS_APPLIED_CATEGORIES = {'hebrew_quality'}
 
 def _package_code_fingerprint():
     digest = hashlib.sha256()
@@ -92,9 +95,106 @@ def _unit_findings(source, target, language, job=None, structure=None, glossary=
     return findings
 
 def _corrects_automatically(issue):
-    """Unit-review issues have no category; chapter-QA issues do."""
+    """Unit-review issues have no category; chapter-QA issues do. The cross-chapter QA rule,
+    and the chapter rule before 2026-10-10 (what legacy corrections already sent)."""
     return (issue.get('severity') in _MATERIAL_SEVERITIES
             and ('category' not in issue or issue['category'] in QA_AUTO_CORRECT_CATEGORIES))
+
+def _applies_automatically(issue):
+    """Unit-review and chapter-QA issues the chapter correction sends to the translator."""
+    return ('category' not in issue or issue['category'] in QA_ALWAYS_APPLIED_CATEGORIES
+            or _corrects_automatically(issue))
+
+def _issue_key(issue):
+    return fingerprint(issue)
+
+def _text_at_review(record):
+    """The text unit reviews and chapter QA saw: they run before any correction."""
+    versions = record.get('target_versions') or []
+    return versions[0]['text'] if versions else record['target_text']
+
+def _issue_still_present(issue, record):
+    """False once a later correction or edit rewrote the span the issue cites."""
+    if 'translation_span' in issue:
+        return issue['translation_span'] in record['target_text']
+    span = issue.get('span') or ''
+    return span in record['target_text'] or span in record['source_text']
+
+def _sent_issue_keys(record, located):
+    if 'applied_issues' in record:
+        return set(record['applied_issues'])
+    if record.get('correction_done'):
+        # Corrected before applied issues were recorded: the old rule's issues were sent.
+        return {_issue_key(i) for i in located if _corrects_automatically(i)}
+    return set()
+
+def _chapter_issue_plan(job, key, records, chapter):
+    """Pure. ``({unit_id: (issues to send, keys already sent)}, exceptions)`` for one chapter's
+    stored unit reviews and chapter QA. Issues are located on the text the reviews saw."""
+    results = [r['review'] for r in records if r.get('review')] + [
+        value for name, value in job.get('automation_qa', {}).items() if name.startswith(key + ':')]
+    frozen = [dict(r, target_text=_text_at_review(r)) for r in records]
+    by_id = {r['unit_id']: r for r in records}
+    located, exceptions = {r['unit_id']: [] for r in records}, []
+    for result in results:
+        reported = result.get('issues', [])
+        # A parser failure or an unlocated negative verdict is not
+        # a clean quality result. Keep it visible after export.
+        if (result.get('status') in ('failed', 'needs_human') or
+                result.get('status') == 'completed' and result.get('verdict') != 'PASS' and not reported):
+            exceptions.append({'type': 'qa_result_needs_human', 'chapter': chapter,
+                               'status': result.get('status'), 'verdict': result.get('verdict')})
+        for issue in reported:
+            if not _applies_automatically(issue):
+                exceptions.append({'type': 'qa_note_retained', 'chapter': chapter, 'issue': issue})
+                continue
+            affected = _issue_unit(issue, frozen)
+            if affected:
+                located[affected['unit_id']].append(issue)
+            else:
+                exceptions.append({'type': 'ambiguous_qa_location', 'chapter': chapter})
+    plan = {}
+    for uid, issues in located.items():
+        record, sent = by_id[uid], _sent_issue_keys(by_id[uid], issues)
+        pending = [] if record.get('human_edited') else [
+            i for i in issues if _issue_key(i) not in sent and _issue_still_present(i, record)]
+        plan[uid] = (list({_issue_key(i): i for i in pending}.values()), sent)
+    return plan, exceptions
+
+def review_suggestions(job):
+    """``{chapter index: unit count}``: finished chapters whose stored reviews hold suggestions
+    that were never sent to the translator (books translated before 2026-10-10)."""
+    settings = job.get('settings', {})
+    if not (settings.get('automation') and settings.get('quality') != 'fast' and job.get('chapter_groups')):
+        return {}
+    by_id = {r['unit_id']: r for r in job.get('units', [])}
+    found = {}
+    for index, ids in enumerate(job['chapter_groups']):
+        if not job.get('chapter_completion', {}).get(str(index)):
+            continue
+        records = [by_id[uid] for uid in ids if uid in by_id and not _untranslatable_passthrough(by_id[uid])]
+        plan, _ = _chapter_issue_plan(job, str(index), records, index + 1)
+        count = sum(bool(pending) for pending, _ in plan.values())
+        if count:
+            found[index] = count
+    return found
+
+_CHAPTER_NOTE_EXCEPTIONS = {'qa_result_needs_human', 'qa_note_retained', 'ambiguous_qa_location'}
+
+def enable_review_suggestions(job):
+    """Reopen the finished chapters with unsent review suggestions; the normal resume corrects
+    and rechecks those units (paid calls). Sends nothing."""
+    settings = job.get('settings', {})
+    _require(settings.get('automation') and job.get('chapter_groups'), 'review suggestions need an automated job')
+    _require(settings.get('quality') != 'fast', 'review suggestions need reviews (checked or thorough quality)')
+    found = review_suggestions(job)
+    for index in found:
+        job['chapter_completion'][str(index)] = False
+        job['exceptions'] = [e for e in job.get('exceptions', [])
+                             if not (e.get('chapter') == index + 1 and e.get('type') in _CHAPTER_NOTE_EXCEPTIONS)]
+    if found and job.get('status') == 'completed':
+        job['status'], job['stage_label'] = 'paused', 'הופסק'
+    return {'reopened_chapters': [i + 1 for i in sorted(found)], 'units_to_correct': sum(found.values())}
 
 class ChapterPipelineError(ValueError):
     pass
@@ -1991,7 +2091,9 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 state_version = state['revision']
             plan = plan_chapter(structure, glossary, ids, configuration, quality, profile, state, keeper=notebook_mode)
             current_chapter.update(ids=ids, key=key, plan=plan)
-            future = sum(p['conservative_total_ceiling_usd'] for p in job['chapter_plans'][index+1:])
+            # A reopened chapter reserves nothing for later chapters that are already finished.
+            future = sum(p['conservative_total_ceiling_usd'] for later, p in enumerate(job['chapter_plans'])
+                         if later > index and not job['chapter_completion'].get(str(later)))
             job['chapter_progress'] = {'current': index+1, 'total': len(groups)}
             existing = {r['unit_id']: r for r in job['units']}
             for batch_index, batch in enumerate(plan['batches']):
@@ -2068,17 +2170,19 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                 translator, translator_def = configuration.resolve('translator')
                 def unit_notebook(record):
                     return _unit_notebook(job, record, reviewer) if notebook_mode else ''
+                stored_plan, _ = _chapter_issue_plan(job, key, records, index+1)
                 for record in records:
                     uid = record['unit_id']
                     cap = _unit_review_cap(reviewer, record)
                     request = _review_request('semantic_reviewer', [record], configuration, profile, cap)
                     prompt = _resolved_review_prompt(request, 'semantic_reviewer', [record], prefix, unit_notebook(record))
                     review_cost = _quote(reviewer, reviewer_def, prompt, cap)['ceiling']
+                    unsent = bool(stored_plan[uid][0])
                     if record['review'] is None:
                         pending['review:'+uid] = review_cost
-                    if not record.get('recheck'):
+                    if not record.get('recheck') or unsent:
                         pending['recheck:'+uid] = review_cost
-                    if not record.get('correction_done'):
+                    if not record.get('correction_done') or unsent:
                         correction_cap = _translation_cap([_units_by_id(structure)[uid]])
                         correction_prompt = _correction_prompt(record, []) + _filler('𐀀', _correction_issue_limit(record, translator, correction_cap))
                         pending['correct:'+uid] = _quote(translator, translator_def, correction_prompt, correction_cap)['ceiling']
@@ -2118,42 +2222,23 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                         job['local_replays'] = job.get('local_replays', 0) + int(replay)
                         job['chapter_qa_results'].append(dict(result, unit_ids=[r['unit_id'] for r in qa_group]))
                         save()
-                issues_by_id = {uid: [] for uid in ids}
-                all_results = [r['review'] for r in records] + [value for name, value in entries.items() if name.startswith(key+':')]
-                for result in all_results:
-                    reported = result.get('issues', [])
-                    # A parser failure or an unlocated negative verdict is not
-                    # a clean quality result. Keep it visible after export.
-                    if (result.get('status') in ('failed', 'needs_human') or
-                            result.get('status') == 'completed' and result.get('verdict') != 'PASS' and not reported):
-                        exception = {'type': 'qa_result_needs_human', 'chapter': index+1,
-                                     'status': result.get('status'), 'verdict': result.get('verdict')}
-                        if exception not in job.setdefault('exceptions', []):
-                            job['exceptions'].append(exception)
-                    for issue in result.get('issues', []):
-                        if not _corrects_automatically(issue):
-                            exception = {'type': 'qa_note_retained', 'chapter': index+1,
-                                         'issue': issue}
-                            if exception not in job.setdefault('exceptions', []):
-                                job['exceptions'].append(exception)
-                            continue
-                        affected = _issue_unit(issue, records)
-                        if affected:
-                            issues_by_id[affected['unit_id']].append(issue)
-                        else:
-                            job.setdefault('exceptions', []).append({'type': 'ambiguous_qa_location', 'chapter': index+1})
+                issue_plan, exceptions = _chapter_issue_plan(job, key, records, index+1)
+                for exception in exceptions:
+                    _exception_once(job, exception)
                 for record in records:
-                    material = issues_by_id[record['unit_id']]
+                    material, sent = issue_plan[record['unit_id']]
                     if not material and not record.get('correction_pending_recheck'):
                         pending.pop('correct:'+record['unit_id'], None)
                         pending.pop('recheck:'+record['unit_id'], None)
                         continue
-                    if material and not record.get('correction_done'):
+                    if material:
+                        # Each issue is sent once: an earlier correction's issues are not repeated.
+                        applied = sorted(sent | {_issue_key(i) for i in material})
                         issue_payload = json.dumps(material, ensure_ascii=False)
                         selection, _ = configuration.resolve('translator')
                         cap = _translation_cap([_units_by_id(structure)[record['unit_id']]])
                         if len(issue_payload) > _correction_issue_limit(record, selection, cap):
-                            record['correction_done'] = True
+                            record['correction_done'], record['applied_issues'] = True, applied
                             record['unresolved'] = 'correction issue payload exceeds bounded automatic scope'
                             pending.pop('correct:'+record['unit_id'], None)
                             pending.pop('recheck:'+record['unit_id'], None)
@@ -2171,6 +2256,7 @@ def execute_document_chapters(job, structure, glossary, units, configuration, st
                                                             record['source_language'], job, structure, glossary,
                                                             record['unit_id'])
                         record['correction_done'], record['correction_pending_recheck'] = True, True
+                        record['applied_issues'] = applied
                         job['revision'] += 1
                         save()
                     if record.get('correction_pending_recheck'):

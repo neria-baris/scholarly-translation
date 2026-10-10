@@ -302,7 +302,8 @@ class PipelineRecoveryAcceptanceTests(unittest.TestCase):
 
     def test_nonpassing_minor_chapter_qa_is_visible_as_draft_with_exceptions(self):
         job, structure = self.document_fixture()
-        qa = ("VERDICT: REVISE\nISSUES:\n1. Category: hebrew_quality\nSeverity: MINOR\n"
+        # REVIEW-SUGGESTIONS: Hebrew-quality findings are now corrected; a minor consistency one stays a note.
+        qa = ("VERDICT: REVISE\nISSUES:\n1. Category: consistency\nSeverity: MINOR\n"
               "Span: חלק מהחוקרים\nCorrection: מקצת החוקרים\nCHAPTER_LEVEL_NOTES: wording\nSTATE_UPDATES: none")
         self.execute(job, structure, self.document_factory(qa_text=qa))
         self.assertEqual(job["chapter_qa_results"][0]["verdict"], "REVISE")

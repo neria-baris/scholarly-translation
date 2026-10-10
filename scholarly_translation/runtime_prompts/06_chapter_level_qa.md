@@ -49,7 +49,7 @@ BOOK_NOTEBOOK holds earlier decisions for this book (names and renderings, voice
 Report only real problems; no stylistic rewrite.
 
 ## {{T:TARGET}} quality
-Flag genuinely awkward or unclear {{T:TARGET}} when it impairs readability or meaning, but do not turn this into a general stylistic rewrite.
+Flag genuinely awkward or unclear {{T:TARGET}} when it impairs readability or meaning, including source syntax, idioms or constructions carried over word for word (calques), but do not turn this into a general stylistic rewrite.
 
 ## Punctuation and rhythm
 The {{T:TARGET}} keeps the source's punctuation and rhythm. A dash (— or –) used as punctuation the source lacks is a MINOR issue; never add one in a correction. A hyphen inside a word or a range is not a dash issue.
