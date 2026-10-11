@@ -119,6 +119,19 @@ def new_region(candidate, page_index, number, **fields):
     return region
 
 
+def mirror_region(region, width):
+    """Copy of ``region`` with its bbox and interior mirrored left-right on a page ``width``
+    wide (pages are mirrored so a right-to-left reader meets the panels in order)."""
+    mirrored = dict(region)
+    x0, y0, x1, y1 = region["bbox"]
+    mirrored["bbox"] = [width - x1, y0, width - x0, y1]
+    interior = region.get("interior")
+    if interior:
+        mirrored["interior"] = {"step": interior["step"],
+                                "rows": [[y, width - b, width - a] for y, a, b in interior["rows"]]}
+    return mirrored
+
+
 def validate_region(region, path="region", width=None, height=None):
     validate_candidate(region, path, width, height)
     for key in ("region_id", "page_id", "order", "kind", "source_text", "speaker", "speaker_gender",

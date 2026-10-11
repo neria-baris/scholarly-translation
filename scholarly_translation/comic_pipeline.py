@@ -353,9 +353,23 @@ def separate_regions(regions, gap=4):
         region["interior"] = {"step": interior["step"], "rows": rows} if rows else None
 
 
-def _fit_region(stages, region, font, rtl, size):
+def should_mirror(mirror, source_language, target_code):
+    """``auto``: mirror the page when a left-to-right comic is translated into a right-to-left
+    language, so the panel grid is read right to left too (never for manga, already RTL)."""
+    if mirror in (True, "yes"):
+        return True
+    if mirror in (False, "no"):
+        return False
+    if mirror != "auto":
+        raise ComicPipelineError("mirror must be auto, yes or no")
+    return target_languages.load(target_code).rtl and source_language not in comic_model.RIGHT_TO_LEFT_SOURCES
+
+
+def _fit_region(stages, region, font, rtl, size, mirror=False):
+    """Layout in output-page coordinates: on a mirrored page it is fitted to the mirrored region."""
     text = region["translation"]["text"]
-    layout = stages.fit(region, text, font, rtl, size[1], size[0])
+    target = records.mirror_region(region, size[0]) if mirror else region
+    layout = stages.fit(target, text, font, rtl, size[1], size[0])
     region["layout"] = layout
     region["warnings"] = [w for w in region["warnings"] if w != "overflow"]
     if layout.get("overflow"):
@@ -365,9 +379,27 @@ def _fit_region(stages, region, font, rtl, size):
         region["translation"]["status"] = "ok"
 
 
-def process_page(ctx, stages, number, name, image, raw, comic, source_language, target_code, notebook, summaries):
+def _render(stages, image, regions, mirror):
+    """Output page. Mirrored: the page is flipped, sound effects left in the art are put back
+    unflipped (readable) at their mirrored place, and the mirrored regions are rendered."""
+    placed = [r for r in regions if r["layout"] is not None]
+    if not mirror:
+        return stages.render_page(image, placed)
+    width, height = image.size
+    base = ImageOps.mirror(image)
+    for region in placed:
+        if region["layout"]["style"] == "subtitle":
+            x0, y0, x1, y1 = region["bbox"]
+            box = (max(0, x0 - 2), max(0, y0 - 2), min(width, x1 + 2), min(height, y1 + 2))
+            base.paste(image.crop(box), (width - box[2], box[1]))
+    return stages.render_page(base, [records.mirror_region(r, width) for r in placed])
+
+
+def process_page(ctx, stages, number, name, image, raw, comic, source_language, target_code, notebook, summaries,
+                 mirror=False):
     """Run one page; returns ``(page, output image)``. Model/validation failures mark the page
-    ``failed`` (original kept as its output)."""
+    ``failed`` (original kept, unmirrored, as its output). Recognition and translation always
+    see the original page; ``mirror`` only changes the rendered output."""
     pack = target_languages.load(target_code)
     page = records.new_page(number, name, raw, image.width, image.height)
     page["versions"] = {"detect": stages.DETECT_VERSION, "typeset": stages.TYPESET_VERSION,
@@ -431,7 +463,7 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         page["status"] = "translated"
         # typeset, at most one shorten call, re-fit
         for region in page["regions"]:
-            _fit_region(stages, region, font, pack.rtl, image.size)
+            _fit_region(stages, region, font, pack.rtl, image.size, mirror)
         over = [r for r in page["regions"] if r["translation"]["status"] == "overflow"]
         if over:
             items = [{"id": r["region_id"], "text": r["translation"]["text"], "max_chars": capacities[r["region_id"]]}
@@ -451,8 +483,9 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
             else:
                 for region in over:
                     region["translation"]["text"] = shorter[region["region_id"]]
-                    _fit_region(stages, region, font, pack.rtl, image.size)
-        rendered = stages.render_page(image, [r for r in page["regions"] if r["layout"] is not None])
+                    _fit_region(stages, region, font, pack.rtl, image.size, mirror)
+        rendered = _render(stages, image, page["regions"], mirror)
+        page["mirrored"] = mirror
         page["status"] = "rendered"
         summaries.append(page["summary"])
         return page, rendered
@@ -466,10 +499,14 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
 
 # ---------------------------------------------------------------- outputs
 
-def _write_cbz(path, pages_dir, names):
+def _write_cbz(path, pages_dir, names, language=None, rtl=False):
     with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED) as archive:
         for name in names:
             archive.write(pages_dir / name, name)
+        if rtl:  # comic readers turn pages right to left
+            archive.writestr("ComicInfo.xml", '<?xml version="1.0" encoding="utf-8"?>\n<ComicInfo>'
+                             '<LanguageISO>%s</LanguageISO><Manga>YesAndRightToLeft</Manga></ComicInfo>\n'
+                             % html.escape(language or ""))
 
 
 def _write_pdf(path, images):
@@ -544,7 +581,8 @@ def _settle_budget(store, comic_id, budget_usd):
 
 
 def run_comic(input_path, out_dir, source_language, target_code, model="mock", model_config=None, budget_usd=1.0,
-              pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None):
+              pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None,
+              mirror="auto"):
     """Translate a comic into ``out_dir`` and return the validated comic dict."""
     if model not in ("mock", "configured"):
         raise ComicPipelineError("model must be mock or configured")
@@ -553,6 +591,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
     except target_languages.TargetLanguageError as exc:
         raise ComicPipelineError(str(exc)) from None
     pack = target_languages.load(target_code)
+    mirror = should_mirror(mirror, source_language, target_code)
     out = Path(out_dir)
     stages = stages or default_stages()
     sleep = sleep or time.sleep
@@ -599,7 +638,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
                     images.append(None)
                     continue
                 page, rendered = process_page(ctx, stages, number, name, image, raw, comic, source_language,
-                                              target_code, notebook, summaries)
+                                              target_code, notebook, summaries, mirror)
                 file_name = "%03d.png" % number
                 image.save(out / "originals" / file_name)
                 rendered.save(out / "pages" / file_name)
@@ -614,7 +653,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
         store.close()
     good = [(n, i) for n, i in zip(names, images) if n]
     if good:
-        _write_cbz(out / "comic.cbz", out / "pages", [n for n, _ in good])
+        _write_cbz(out / "comic.cbz", out / "pages", [n for n, _ in good], target_code, pack.rtl)
         _write_pdf(out / "comic.pdf", [i for _, i in good])
     _write_json(out / "comic.json", comic)
     reviewed = [p for p, n in zip(comic["pages"], names) if n]
@@ -662,10 +701,12 @@ def main(argv=None):
     parser.add_argument("--budget-usd", type=float, default=1.0)
     parser.add_argument("--pages", help="pages to process, e.g. 1-5,8")
     parser.add_argument("--notebook", help="comic notebook JSON shared across volumes (read, then written)")
+    parser.add_argument("--mirror", choices=("auto", "yes", "no"), default="auto",
+                        help="mirror pages so the panels read right to left (auto: LTR comic into an RTL language)")
     args = parser.parse_args(argv)
     try:
         comic = run_comic(args.input, args.out, args.source_language, args.target, args.model, args.model_config,
-                          args.budget_usd, args.pages, args.notebook,
+                          args.budget_usd, args.pages, args.notebook, mirror=args.mirror,
                           progress=lambda done, total, page_id: _safe_print("%s done (%d/%d)" % (page_id, done, total)))
     except (ComicPipelineError, ModelConfigError, OpenAIConfigurationError, RuntimeControlsError) as exc:
         _safe_print("error: %s" % exc)

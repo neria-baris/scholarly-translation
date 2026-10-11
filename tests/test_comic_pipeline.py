@@ -202,7 +202,8 @@ class MockEndToEndTests(TempCase):
         self.assertEqual(region["translation"]["status"], "ok")
         self.assertEqual(progress[-1], (2, 2, "p002"))
         with zipfile.ZipFile(out / "comic.cbz") as archive:
-            self.assertEqual(archive.namelist(), ["001.png", "002.png"])
+            self.assertEqual(archive.namelist(), ["001.png", "002.png", "ComicInfo.xml"])
+            self.assertIn(b"YesAndRightToLeft", archive.read("ComicInfo.xml"))       # Hebrew: pages turn RTL
         self.assertTrue((out / "comic.pdf").read_bytes().startswith(b"%PDF"))
         review = (out / "review.html").read_text(encoding="utf-8")
         self.assertIn('href="originals/001.png"', review)
@@ -212,7 +213,10 @@ class MockEndToEndTests(TempCase):
         self.assertEqual(json.loads(notebook.read_text(encoding="utf-8")), {"characters": [], "terms": []})
         self.assertEqual({p.name: p.read_bytes() for p in src.iterdir()}, before)     # sources untouched
         translated = Image.open(out / "pages" / "001.png").convert("RGB")
-        self.assertEqual(translated.getpixel((region["bbox"][0] + 1, region["bbox"][1] + 1)), (200, 255, 200))
+        # English into Hebrew: the page is mirrored, so the region is drawn at its mirrored place
+        self.assertTrue(comic["pages"][0]["mirrored"])
+        self.assertEqual(translated.getpixel((translated.width - region["bbox"][0] - 2, region["bbox"][1] + 1)),
+                         (200, 255, 200))
         self.assertEqual(comic["pages"][0]["versions"]["detect"], "stub-detect@1")
 
     def test_pages_subset_keeps_numbering(self):
@@ -343,6 +347,38 @@ class BudgetTests(unittest.TestCase):
                 self.assertEqual(cp._settle_budget(store, "comic-x", 1.0), 5.0)       # never lowered
             finally:
                 store.close()
+
+
+class MirrorTests(unittest.TestCase):
+    def test_auto_mirrors_ltr_comics_into_rtl_languages_only(self):
+        self.assertTrue(cp.should_mirror("auto", "es", "he"))
+        self.assertFalse(cp.should_mirror("auto", "ja", "he"))      # manga already reads right to left
+        self.assertFalse(cp.should_mirror("no", "es", "he"))
+        self.assertTrue(cp.should_mirror("yes", "ja", "he"))
+        with self.assertRaises(cp.ComicPipelineError):
+            cp.should_mirror("sideways", "es", "he")
+
+    def test_mirror_region(self):
+        region = {"bbox": [10, 5, 40, 25], "interior": {"step": 2, "rows": [[6, 8, 44], [8, 9, 43]]}}
+        mirrored = records.mirror_region(region, 100)
+        self.assertEqual(mirrored["bbox"], [60, 5, 90, 25])
+        self.assertEqual(mirrored["interior"]["rows"], [[6, 56, 92], [8, 57, 91]])
+        self.assertEqual(region["bbox"], [10, 5, 40, 25])                # source geometry untouched
+
+    def test_render_flips_art_and_keeps_sfx_readable(self):
+        image = Image.new("RGB", (100, 50), "white")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([0, 0, 9, 49], fill=(255, 0, 0))                  # art on the left edge
+        draw.rectangle([70, 10, 89, 19], fill=(0, 0, 255))
+        draw.rectangle([70, 10, 74, 19], fill=(0, 255, 0))               # sfx lettering, green on its left
+        sfx = {"bbox": [70, 10, 90, 20], "layout": {"style": "subtitle"}}
+        drawn = []
+        stages = SimpleNamespace(render_page=lambda img, regions: drawn.extend(regions) or img)
+        out = cp._render(stages, image, [sfx], True)
+        self.assertEqual(out.getpixel((95, 25)), (255, 0, 0))            # art mirrored to the right edge
+        self.assertEqual(out.getpixel((11, 15)), (0, 255, 0))            # sfx patch at its mirrored place, unflipped
+        self.assertEqual(drawn[0]["bbox"], [10, 10, 30, 20])
+        self.assertEqual(image.getpixel((5, 25)), (255, 0, 0))           # input untouched
 
 class SeparateRegionsTests(unittest.TestCase):
     def region(self, bbox, rows):
