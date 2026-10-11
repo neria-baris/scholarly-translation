@@ -40,7 +40,7 @@ def _hebrew(text):
 
 def _foreign_form(text, language):
     letters = [char for char in text if char.isalpha()]
-    script = 'HEBREW' if language == 'yi' else 'LATIN'
+    script = {'yi': 'HEBREW', 'ar': 'ARABIC'}.get(language, 'LATIN')
     return bool(letters) and all(script in unicodedata.name(char, '') for char in letters) \
         and not any(char in '<>&' for char in text)
 

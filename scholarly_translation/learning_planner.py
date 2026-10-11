@@ -118,7 +118,7 @@ def _build_plan(source, chapter, chunk_index, units, learner, catalog, level, po
     return validate_plan(plan)
 
 
-def plan_book(source, learner, catalog, *, policy_version=POLICY_VERSION):
+def plan_book(source, learner, catalog, *, policy_version=POLICY_VERSION, skip_initial_chapters=0):
     """Freeze chunk boundaries and provisional candidates for every chapter."""
     source = validate_source(source)
     learner = validate_learner(learner)
@@ -126,17 +126,27 @@ def plan_book(source, learner, catalog, *, policy_version=POLICY_VERSION):
     require(learner["language"] == catalog["language"], "unsupported_language")
     require(isinstance(policy_version, str) and bool(policy_version.strip()), "invalid_plan")
     level = _level_by_id(catalog, learner["level_id"])
+    from .learning_frontmatter import validate_skip
+    validate_skip(source, skip_initial_chapters)
 
     plans = []
-    for chapter in source["chapters"]:
+    for chapter_index, chapter in enumerate(source["chapters"]):
         for chunk_index, units in enumerate(_chunk_units(chapter["units"])):
-            plans.append(_build_plan(source, chapter, chunk_index, units, learner, catalog, level, policy_version))
+            plan = _build_plan(source, chapter, chunk_index, units, learner, catalog, level, policy_version)
+            if chapter_index < skip_initial_chapters:
+                plan.update(learning_excluded=True, selected_item_ids=[], new_item_ids=[], review_item_ids=[])
+                if 'review_targets' in plan:
+                    plan['review_targets'] = {}
+                plan['plan_id'] = 'plan-' + fingerprint({k: v for k, v in plan.items() if k != 'plan_id'})[:32]
+            plans.append(validate_plan(plan))
     return plans
 
 
 def replan_chunk(provisional_plan, projected_learner, catalog):
     """Recompute the final plan right before generation using accepted earlier occurrences."""
     provisional_plan = validate_plan(provisional_plan)
+    if provisional_plan.get('learning_excluded'):
+        return dict(provisional_plan)
     projected_learner = validate_learner(projected_learner)
     catalog = validate_catalog(catalog)
     require(projected_learner["language"] == catalog["language"], "unsupported_language")

@@ -123,11 +123,21 @@ class LearningHttpTests(unittest.TestCase):
             self.assertEqual(resume.call_args.kwargs, {'budget_usd': 200, 'context_chars': 40000,
                                                        'output_tokens': 12000, 'retry': True})
 
+    def test_prepare_forwards_initial_chapter_setting(self):
+        with patch.object(self.service, 'start', return_value={'status': 'paused'}) as start:
+            with patch.dict('os.environ', {'OPENAI_API_KEY': 'synthetic-test-key'}):
+                status, _ = self.post('/learning/prepare', {'book_id': 'demo', 'budget_usd': 1,
+                                                           'skip_initial_chapters': 3})
+            self.assertEqual(status, 200)
+            self.assertEqual(start.call_args.kwargs['skip_initial_chapters'], 3)
+
     def test_legacy_home_and_wordlists_still_available(self):
         with urlopen(self.base + '/') as response:
             self.assertIn('תרגום מסמכים', response.read().decode())
         with urlopen(self.base + '/learning/wordlist?language=yi') as response:
             self.assertIn('500', response.read().decode())
+        with urlopen(self.base + '/learning/wordlist?language=ar') as response:
+            self.assertIn('كتاب', response.read().decode())
         status, _ = self.post('/learning/upload-epub?name=book.pdf', b'bad', raw=True)
         self.assertEqual(status, 400)
 

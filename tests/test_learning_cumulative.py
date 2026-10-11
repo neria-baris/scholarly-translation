@@ -149,7 +149,11 @@ class CumulativeServiceTests(unittest.TestCase):
         ready = self.prepare()
         session = self.service.store.get_session(ready['session_id'])
         session['support_mode'] = 'inline'
-        self.service.store.update_session(session)
+        session.pop('starting_learner')  # Legacy records predate frozen snapshots.
+        # Simulate a persisted pre-snapshot session, rather than mutating a
+        # newly created session's immutable starting learner through the API.
+        path = self.service.store._session_path(session['session_id'])
+        path.write_text(json.dumps(session, ensure_ascii=False), encoding='utf-8')
         fragment = self.service.reader(ready['session_id'])['html']
         self.assertIn('bonjour', fragment)
         self.assertNotIn('learning-gloss-inline', fragment)

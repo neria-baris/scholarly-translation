@@ -28,6 +28,7 @@ from .learning_contracts import (
     validate_source,
     validate_generated,
     validate_recap,
+    session_is_active,
 )
 
 
@@ -44,6 +45,13 @@ def _atomic_write(path, data):
 def _read_json(path):
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def frozen_learner(learner):
+    result = copy.deepcopy(learner)
+    result['active_book_id'] = None
+    result.pop('active_session_ids', None)
+    return validate_learner(result)
 
 
 class LearningStore:
@@ -122,9 +130,10 @@ class LearningStore:
         with self._lock:
             if not path.exists():
                 learner = new_learner(language=language)
+                learner['active_session_ids'] = []
                 _atomic_write(path, learner)
                 return copy.deepcopy(learner)
-            return validate_learner(_read_json(path))
+            return copy.deepcopy(self._read_learner_locked(language))
 
     def save_learner(self, learner):
         learner = validate_learner(copy.deepcopy(learner))
@@ -133,26 +142,32 @@ class LearningStore:
         return copy.deepcopy(learner)
 
     # -- sessions ------------------------------------------------------------
-    def create_session(self, source, learner):
-        """Import is separate; this call claims the one active-book slot."""
+    def create_session(self, source, learner, *, skip_initial_chapters=0):
+        """Claim a distinct book and freeze the current committed baseline."""
         source = validate_source(copy.deepcopy(source))
+        from .learning_frontmatter import validate_skip
+        validate_skip(source, skip_initial_chapters)
         learner = validate_learner(copy.deepcopy(learner))
         with self._lock:
             current = self._read_learner_locked(learner["language"])
             require(current["revision"] == learner["revision"], "state_conflict", "stale learner revision")
-            require(current["active_book_id"] is None, "active_book_conflict")
+            active = [self.get_session(sid) for sid in current['active_session_ids']]
+            require(not any(s['book_id'] == source['book_id'] for s in active), 'active_book_conflict')
+            baseline = self.starting_learner(current)
             session_id = f"session-{uuid.uuid4().hex}"
             session = validate_session({
                 "schema_version": 1, "session_id": session_id, "learner_id": learner["learner_id"],
                 "language": learner["language"], "book_id": source["book_id"], "source_hash": source["source_hash"],
-                "base_learner_revision": learner["revision"], "policy_version": POLICY_VERSION,
-                "catalog_version": learner["catalog_version"], "level_id": learner["level_id"],
-                "support_mode": learner["support_mode"], "status": "imported", "prepared_hash": None,
+                "base_learner_revision": baseline["revision"], "policy_version": POLICY_VERSION,
+                "catalog_version": baseline["catalog_version"], "level_id": baseline["level_id"],
+                "support_mode": baseline["support_mode"], "status": "imported", "prepared_hash": None,
                 "chunk_ids": [], "read_cursor": None,
-                "vocabulary": copy.deepcopy(learner.get('vocabulary', [])),
+                "vocabulary": copy.deepcopy(baseline.get('vocabulary', [])),
+                "starting_learner": baseline, "skip_initial_chapters": skip_initial_chapters,
             })
             updated_learner = copy.deepcopy(current)
-            updated_learner["active_book_id"] = source["book_id"]
+            updated_learner['active_session_ids'].append(session_id)
+            updated_learner["active_book_id"] = updated_learner['active_book_id'] or source["book_id"]
             updated_learner = validate_learner(updated_learner)
             txn = {'learner': updated_learner, 'session': session}
             pending = self._pending_dir() / f'{uuid.uuid4().hex}.json'
@@ -165,9 +180,37 @@ class LearningStore:
         path = self._learner_path(language)
         if not path.exists():
             learner = new_learner(language=language)
+            learner['active_session_ids'] = []
             _atomic_write(path, learner)
             return learner
-        return validate_learner(_read_json(path))
+        learner = validate_learner(_read_json(path))
+        if 'active_session_ids' not in learner:
+            # Pin legacy state before any sibling can advance shared history.
+            candidates = [s for s in self.list_sessions(language) if session_is_active(learner, s)
+                          and s['status'] != 'completed'] if learner['active_book_id'] else []
+            require(len(candidates) == (1 if learner['active_book_id'] else 0), 'corrupt_store')
+            learner['active_session_ids'] = [s['session_id'] for s in candidates]
+            if candidates:
+                session = candidates[0]
+                session['starting_learner'] = frozen_learner(learner)
+                session.setdefault('vocabulary', copy.deepcopy(learner.get('vocabulary', [])))
+                txn = {'learner': learner, 'session': session}
+                pending = self._pending_dir() / f'{uuid.uuid4().hex}.json'
+                _atomic_write(pending, txn)
+                self._apply_txn(txn)
+                pending.unlink()
+            else:
+                _atomic_write(path, learner)
+        return validate_learner(learner)
+
+    def starting_learner(self, learner):
+        """Opening state for a new book; active books retain their own snapshots."""
+        return frozen_learner(learner)
+
+    def _release(self, learner, session):
+        learner['active_session_ids'] = [sid for sid in learner['active_session_ids'] if sid != session['session_id']]
+        learner['active_book_id'] = (self.get_session(learner['active_session_ids'][0])['book_id']
+                                     if learner['active_session_ids'] else None)
 
     def get_session(self, session_id):
         path = self._session_path(session_id)
@@ -189,6 +232,12 @@ class LearningStore:
         session = validate_session(copy.deepcopy(session))
         with self._lock:
             require(self._session_path(session["session_id"]).exists(), "invalid_record", "unknown session_id")
+            existing = validate_session(_read_json(self._session_path(session['session_id'])))
+            require(session.get('skip_initial_chapters', 0) == existing.get('skip_initial_chapters', 0),
+                    'state_conflict', 'initial chapter exclusion is immutable')
+            if 'starting_learner' in existing:
+                require(session.get('starting_learner') == existing['starting_learner'],
+                        'state_conflict', 'starting learner is immutable')
             _atomic_write(self._session_path(session["session_id"]), session)
         return copy.deepcopy(session)
 
@@ -198,9 +247,8 @@ class LearningStore:
             session = validate_session(_read_json(self._session_path(session_id)))
             require(session['status'] in ('failed', 'paused', 'imported'), 'state_conflict')
             learner = self._read_learner_locked(session['language'])
-            require(learner['active_book_id'] == session['book_id'] and
-                    learner['revision'] == session['base_learner_revision'], 'state_conflict')
-            learner['active_book_id'] = None
+            require(session_is_active(learner, session), 'state_conflict')
+            self._release(learner, session)
             learner['revision'] += 1
             session['status'] = 'failed'
             txn = {'learner': validate_learner(learner), 'session': session}
@@ -230,8 +278,19 @@ class LearningStore:
             from .learning_catalog import load_catalog
             from .learning_planner import plan_book
             source = validate_source(_read_json(self._source_path(session['book_id'])))
-            learner = self._read_learner_locked(session['language'])
-            expected_count = len(plan_book(source, learner, load_catalog(session['language'], version=session['catalog_version']), policy_version=session['policy_version']))
+            current = self._read_learner_locked(session['language'])
+            require(session_is_active(current, session), 'state_conflict')
+            learner = session.get('starting_learner', current)
+            expected_plans = plan_book(source, learner, load_catalog(session['language'], version=session['catalog_version']), policy_version=session['policy_version'], skip_initial_chapters=session.get('skip_initial_chapters', 0))
+            expected_count = len(expected_plans)
+            from .learning_frontmatter import passthrough
+            for plan, chunk in zip(expected_plans, chunks):
+                if plan.get('learning_excluded'):
+                    require(chunk == passthrough(plan, session['language'])[0], 'invalid_generation', 'excluded chunk changed')
+            excluded = {p['chapter_id'] for p in expected_plans if p.get('learning_excluded')}
+            require(not any(r['chapter_id'] in excluded and
+                            (r['vocabulary'] or r['grammar'] or 'lesson' in r) for r in recaps),
+                    'invalid_generation', 'excluded recap changed')
             full_coverage = (len(chunks) == expected_count and recap_hashes == all_hashes and
                 len(recaps) == len(source['chapters']) and
                 {r['chapter_id'] for r in recaps} == {c['chapter_id'] for c in source['chapters']})
@@ -290,11 +349,14 @@ class LearningStore:
             prepared = _read_json(self._prepared_path(session_id))
 
             completed_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            remaining = [sid for sid in learner['active_session_ids'] if sid != session_id]
             new_learner, receipt = apply_completion(
                 learner, session, prepared["chunks"], prepared["recaps"],
                 completion_id=completion_id, completed_at=completed_at,
+                remaining_active_book_id=self.get_session(remaining[0])['book_id'] if remaining else None,
             )
             new_session = validate_session({**session, "status": "completed"})
+            self._release(new_learner, session)
 
             txn = {"learner": new_learner, "session": new_session, "receipt": receipt}
             txn_path = self._pending_dir() / f"{uuid.uuid4().hex}.json"

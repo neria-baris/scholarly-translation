@@ -20,6 +20,15 @@ def load_catalog(language="fr", *, version=None):
     """Load and validate the catalog for ``language``; pure, read-only."""
     if language not in SUPPORTED_LANGUAGE_CODES:
         raise LearningError("unsupported_language", f"unsupported language: {language!r}")
+    if language == 'ar':
+        if version not in (None, 'ar-seed@1'):
+            raise LearningError('catalog_changed', 'catalog version is unavailable')
+        words = json.loads((_DATA_DIR / 'ar_starter.json').read_text(encoding='utf-8'))['words']
+        return validate_catalog({'schema_version': 1, 'language': 'ar', 'version': 'ar-seed@1',
+            'provenance': {'basis': 'Locally authored Modern Standard Arabic starter candidates; ordering is not corpus frequency.',
+                           'source': 'learning_data/ar_starter.json', 'license': 'local'},
+            'frequency_seed': [{'rank': i, 'word': w} for i, w in enumerate(words, 1)],
+            'items': [], 'levels': deepcopy(DEFAULT_LEVELS)})
     dataset_path = _DATA_DIR.parents[1] / 'prompts/language_learning/wordlists/european_500.json'
     dataset = json.loads(dataset_path.read_text(encoding='utf-8'))
     seed = [{'rank': row['rank'], 'word': row['word']} for row in dataset['languages'][language]['words']]

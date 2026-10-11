@@ -21,7 +21,7 @@ def render_chunk(source_units, generated_chunk, support_mode):
     require(isinstance(generated_chunk, dict) and isinstance(generated_chunk.get("edits"), list),
             "invalid_generation", "generated_chunk")
     language = generated_chunk.get('language', 'und')
-    require(language in ('und', 'fr', 'de', 'es', 'yi', 'it'), 'unsupported_language')
+    require(language in ('und', 'fr', 'de', 'es', 'yi', 'it', 'ar'), 'unsupported_language')
 
     units_by_id = {unit["unit_id"]: unit for unit in source_units}
     edits_by_unit = {}
@@ -59,11 +59,11 @@ def _render_occurrence(unit_id, index, edit, support_mode, language):
     gloss = html.escape(edit.get("gloss_he", ""), quote=True)
     foreign = html.escape(edit["replacement"])
     if support_mode == 'context':
-        return (f'<bdi lang="{language}" dir="{"rtl" if language == "yi" else "ltr"}" '
+        return (f'<bdi lang="{language}" dir="{"rtl" if language in ("yi", "ar") else "ltr"}" '
                 f'data-occurrence-id="{occurrence_id}" class="learning-foreign">{foreign}</bdi>')
     css_class = "learning-foreign" + (" learning-foreign-click" if support_mode == "click" else "")
     attrs = (
-        f'lang="{language}" dir="{"rtl" if language == "yi" else "ltr"}" data-occurrence-id="{occurrence_id}" '
+        f'lang="{language}" dir="{"rtl" if language in ("yi", "ar") else "ltr"}" data-occurrence-id="{occurrence_id}" '
         f'class="{css_class}" data-gloss-he="{gloss}"'
     )
     if support_mode == "click":

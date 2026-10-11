@@ -74,7 +74,7 @@ def book_notebook(plans, index, plan, learner, catalog, new_words_used=0):
     ``max_foreign_share`` bounds new foreign words against the book read so far
     (floored at PACING_FLOOR_WORDS, capped at the whole book), never one passage.
     """
-    words = [sum(word_count(unit['text']) for unit in p['units'] if unit['kind'] == 'paragraph') for p in plans]
+    words = [0 if p.get('learning_excluded') else sum(word_count(unit['text']) for unit in p['units'] if unit['kind'] == 'paragraph') for p in plans]
     book_words, through = sum(words), sum(words[:index + 1])
     share = plan['limits']['max_foreign_share']
     allowance = share * min(book_words, max(through, PACING_FLOOR_WORDS)) - new_words_used
@@ -151,6 +151,8 @@ def build_request(plan, catalog, context="", dictionary_needed=None, notebook=No
         require(isinstance(dictionary_needed, list) and all(isinstance(x, str) for x in dictionary_needed),
                 'invalid_plan', 'dictionary_needed')
         prompt += '\n\n' + instructions() + '\n\n' + _section('DICTIONARY_NEEDED', sorted(dictionary_needed))
+    if catalog["language"] == "ar":
+        prompt += "\n\nUse Modern Standard Arabic (literary Arabic), in native Arabic script; no transliteration or dialect. Preserve source meaning and use grammatically correct contextual forms."
     identity = {
         "prompt": prompt,
         "prompt_version": _chunk_prompt_version(plan, dictionary_needed is not None, notebook is not None),

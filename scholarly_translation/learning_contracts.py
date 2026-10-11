@@ -9,7 +9,7 @@ import re
 
 SCHEMA_VERSION = 1
 POLICY_VERSION = "learning-policy@3"
-SUPPORTED_LANGUAGE_CODES = ("fr", "de", "es", "yi", "it")
+SUPPORTED_LANGUAGE_CODES = ("fr", "de", "es", "yi", "it", "ar")
 MAX_CHUNK_CHARS = 2400
 DEFAULT_LEVELS = [
     {"level_id": "1", "new_items_per_chunk": 3, "max_foreign_share": .10,
@@ -177,7 +177,7 @@ def new_learner(language="fr", learner_id="local", catalog_version=None):
 
 def validate_learner(learner):
     require_fields(learner, ("schema_version", "learner_id", "language", "revision", "catalog_version",
-                             "level_id", "support_mode", "items", "completed_books", "active_book_id"), ('vocabulary',))
+                             "level_id", "support_mode", "items", "completed_books", "active_book_id"), ('vocabulary', 'active_session_ids'))
     _version(learner)
     check_id(learner["learner_id"])
     require(learner["language"] in SUPPORTED_LANGUAGE_CODES, "unsupported_language")
@@ -200,17 +200,25 @@ def validate_learner(learner):
         _text(row["prepared_hash"], 64)
     if learner["active_book_id"] is not None:
         check_id(learner["active_book_id"])
+    if 'active_session_ids' in learner:
+        ids = learner['active_session_ids']
+        require(isinstance(ids, list))
+        for sid in ids:
+            check_id(sid)
+        require(len(set(ids)) == len(ids))
+        require(bool(ids) == (learner['active_book_id'] is not None))
     return learner
 
 
 def validate_session(session):
     require_fields(session, ("schema_version", "session_id", "learner_id", "language", "book_id", "source_hash",
                              "base_learner_revision", "policy_version", "catalog_version", "level_id",
-                             "support_mode", "status", "prepared_hash", "chunk_ids", "read_cursor"), ('vocabulary',))
+                             "support_mode", "status", "prepared_hash", "chunk_ids", "read_cursor"), ('vocabulary', 'starting_learner', 'skip_initial_chapters'))
     _version(session)
     for key in ("session_id", "learner_id", "book_id", "level_id"):
         check_id(session[key])
     _integer(session["base_learner_revision"])
+    _integer(session.get('skip_initial_chapters', 0))
     require(session["language"] in SUPPORTED_LANGUAGE_CODES, "unsupported_language")
     if 'vocabulary' in session:
         from .learning_vocabulary import validate_vocabulary
@@ -225,17 +233,39 @@ def validate_session(session):
     if session["prepared_hash"] is not None:
         _text(session["prepared_hash"], 64)
     require(session["read_cursor"] is None or isinstance(session["read_cursor"], dict))
+    if 'starting_learner' in session:
+        baseline = validate_learner(session['starting_learner'])
+        require(baseline['active_book_id'] is None and not baseline.get('active_session_ids'))
+        require(baseline['revision'] == session['base_learner_revision'])
+        require(all(baseline[k] == session[k] for k in
+                    ('learner_id', 'language', 'catalog_version', 'level_id', 'support_mode')))
+        require(baseline.get('vocabulary', []) == session.get('vocabulary', []))
     return session
+
+
+def session_is_active(learner, session):
+    """Explicit membership for parallel records, revision guard for legacy ones."""
+    if session['language'] != learner['language'] or session['learner_id'] != learner['learner_id']:
+        return False
+    if 'active_session_ids' in learner:
+        return session['session_id'] in learner['active_session_ids']
+    return (learner['active_book_id'] == session['book_id'] and
+            learner['revision'] == session['base_learner_revision'])
 
 
 def validate_plan(plan):
     require_fields(plan, ("schema_version", "plan_id", "book_id", "chapter_id", "chunk_id", "source_hash", "units",
                           "base_learner_revision", "catalog_version", "policy_version", "level_id", "support_mode",
-                          "selected_item_ids", "new_item_ids", "review_item_ids", "limits"), ("language", "review_targets"))
+                          "selected_item_ids", "new_item_ids", "review_item_ids", "limits"), ("language", "review_targets", "learning_excluded"))
     _version(plan)
     for key in ("plan_id", "book_id", "chapter_id", "chunk_id", "level_id"):
         check_id(plan[key])
     _integer(plan["base_learner_revision"])
+    if 'learning_excluded' in plan:
+        require(type(plan['learning_excluded']) is bool, 'invalid_plan')
+        if plan['learning_excluded']:
+            require(not any(plan[key] for key in ('selected_item_ids', 'new_item_ids', 'review_item_ids')),
+                    'invalid_plan')
     require(bool(plan["units"]), "invalid_plan")
     _ids(plan["units"], "unit_id")
     for unit in plan["units"]:

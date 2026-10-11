@@ -99,7 +99,7 @@ class LearningTests(unittest.TestCase):
         assert first["active_book_id"] is None
 
 
-    def test_create_session_claims_single_active_slot(self):
+    def test_create_session_allows_distinct_books_and_refuses_duplicate(self):
         tmp_path = Path(self._tmp.name)
         store = LearningStore(tmp_path / "learning")
         learner = store.get_learner("fr")
@@ -111,8 +111,10 @@ class LearningTests(unittest.TestCase):
         other_source = fixture_source("book-two")
         store.save_source(other_source)
         stale_learner = store.get_learner("fr")
+        second = store.create_session(other_source, stale_learner)
+        assert second['starting_learner'] == session['starting_learner']
         with self.assertRaises(LearningError) as exc:
-            store.create_session(other_source, stale_learner)
+            store.create_session(other_source, store.get_learner('fr'))
         assert exc.exception.code == "active_book_conflict"
 
 

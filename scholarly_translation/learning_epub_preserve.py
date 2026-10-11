@@ -203,7 +203,7 @@ def _translation_mapping(units, blocks):
 
 
 def _foreign(text, language):
-    direction = 'rtl' if language == 'yi' else 'ltr'
+    direction = 'rtl' if language in ('yi', 'ar') else 'ltr'
     element = ET.Element('{' + _XHTML + '}bdi', {'lang': language, 'dir': direction,
                          'class': 'learning-foreign', 'style': _FOREIGN_STYLE + 'direction:' + direction})
     element.text = text
@@ -404,6 +404,8 @@ def _build(raw, source, plans, prepared, session, catalog, include_meanings):
                     doc['parents'][reference] = parent
                 doc['changed'] = True
         for chapter_index, (chapter, recap) in enumerate(zip(source['chapters'], prepared['recaps'])):
+            if chapter_index < session.get('skip_initial_chapters', 0):
+                continue
             block, _ = unit_mapping[chapter['units'][-1]['unit_id']]
             doc = documents[block['path']]
             anchor = _safe_recap_anchor(block['element'], doc['parents'])

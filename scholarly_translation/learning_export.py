@@ -88,6 +88,9 @@ def _validate(source, plans, prepared, session, catalog):
     _coverage(len(plans) == len(chunks) and len(plan_ids) == len(set(plan_ids)) and
               plan_ids == session['chunk_ids'] == [chunk['plan_id'] for chunk in chunks], 'chunk_order')
     chapter_ids = [chapter['chapter_id'] for chapter in source['chapters']]
+    from .learning_frontmatter import validate_skip, passthrough
+    validate_skip(source, session.get('skip_initial_chapters', 0))
+    excluded = set(chapter_ids[:session.get('skip_initial_chapters', 0)])
     _coverage(chapter_ids == [recap['chapter_id'] for recap in prepared['recaps']], 'recap_order')
     items = {item['item_id']: item for item in catalog['items']}
     for row in session.get('vocabulary', []):
@@ -95,6 +98,9 @@ def _validate(source, plans, prepared, session, catalog):
     grouped = {chapter_id: [] for chapter_id in chapter_ids}
     ordered_chapters = []
     for plan, chunk in zip(plans, chunks):
+        _coverage(bool(plan.get('learning_excluded')) == (plan['chapter_id'] in excluded), 'exclusion_prefix')
+        if plan.get('learning_excluded'):
+            _coverage(chunk == passthrough(plan, session['language'])[0], 'excluded_chunk_changed')
         _coverage(plan['chapter_id'] in grouped, 'unknown_chapter')
         _coverage(all(plan[key] == session[key] for key in
                       ('book_id', 'source_hash', 'catalog_version', 'policy_version', 'level_id', 'support_mode')),
@@ -141,6 +147,7 @@ def _validate(source, plans, prepared, session, catalog):
         for warning in recap['warnings']:
             _coverage(isinstance(warning, dict) and isinstance(warning.get('code'), str), 'warning')
         if 'lesson' in recap:
+            _coverage(chapter['chapter_id'] not in excluded, 'excluded_lesson')
             from .learning_lesson import validate_lesson
             try:
                 validate_lesson(recap['lesson'])
@@ -150,7 +157,7 @@ def _validate(source, plans, prepared, session, catalog):
 
 
 def _foreign(text, language):
-    direction = 'rtl' if language == 'yi' else 'ltr'
+    direction = 'rtl' if language in ('yi', 'ar') else 'ltr'
     return f'<bdi lang="{language}" dir="{direction}" class="learning-foreign">{_e(text)}</bdi>'
 
 
@@ -229,7 +236,8 @@ def _chapter_body(chapter, recap, pairs, items, language, index, include_meaning
                         f'href="#{note_id}" id="{ref_id}">{match.group(0)}</a>')
             fragment = re.sub(r'<bdi\b[^>]*>.*?</bdi>', note_link, fragment, flags=re.DOTALL)
         parts.append(fragment.replace('\r', '&#13;'))
-    parts.append(_recap(recap, pairs, items, language))
+    if not pairs[0][0].get('learning_excluded'):
+        parts.append(_recap(recap, pairs, items, language))
     if notes:
         parts.append('<section class="learning-notes" aria-label="פירושי מילים"><h2>פירושי מילים</h2>' +
                      ''.join(notes) + '</section>')

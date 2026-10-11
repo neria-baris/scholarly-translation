@@ -15,10 +15,12 @@ from .learning_contracts import (
     validate_learner,
     validate_recap,
     validate_session,
+    session_is_active,
 )
 
 
-def apply_completion(learner, session, generated_chunks, recaps, *, completion_id, completed_at):
+def apply_completion(learner, session, generated_chunks, recaps, *, completion_id, completed_at,
+                     remaining_active_book_id=None):
     """Apply one exactly-once completion; pure, returns (LearnerState, CompletionReceipt)."""
     learner = validate_learner(learner)
     session = validate_session(session)
@@ -31,9 +33,12 @@ def apply_completion(learner, session, generated_chunks, recaps, *, completion_i
     require(session["status"] == "ready", "state_conflict")
     require(session["learner_id"] == learner["learner_id"], "state_conflict")
     require(session["language"] == learner["language"], "state_conflict")
-    require(session["base_learner_revision"] == learner["revision"], "state_conflict")
+    if 'starting_learner' not in session:
+        require(session["base_learner_revision"] == learner["revision"], "state_conflict")
+    else:
+        require(session["base_learner_revision"] <= learner["revision"], "state_conflict")
     require(all(session[key] == learner[key] for key in ('catalog_version', 'level_id', 'support_mode')), 'state_conflict')
-    require(learner["active_book_id"] == session["book_id"], "state_conflict")
+    require(session_is_active(learner, session), "state_conflict")
 
     existing_completion_ids = {row["completion_id"] for row in learner["completed_books"]}
     require(completion_id not in existing_completion_ids, "state_conflict")
@@ -81,6 +86,12 @@ def apply_completion(learner, session, generated_chunks, recaps, *, completion_i
         {"book_id": session["book_id"], "prepared_hash": expected_hash, "completion_id": completion_id},
     ]
     new_learner["active_book_id"] = None
+    if 'active_session_ids' in learner:
+        new_learner['active_session_ids'] = [sid for sid in learner['active_session_ids']
+                                             if sid != session['session_id']]
+        if new_learner['active_session_ids']:
+            check_id(remaining_active_book_id)
+            new_learner['active_book_id'] = remaining_active_book_id
     new_learner = validate_learner(new_learner)
 
     receipt = {

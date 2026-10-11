@@ -18,7 +18,7 @@ from scholarly_translation.learning_planner import plan_book
 NS = {'x': 'http://www.w3.org/1999/xhtml', 's': 'http://www.w3.org/2000/svg'}
 EPUB_TYPE = '{http://www.idpf.org/2007/ops}type'
 FORMS = {'fr': ('enfant', 'était'), 'de': ('Kind', 'war'), 'es': ('niño', 'era'),
-         'yi': ('קינד', 'געווען'), 'it': ('bambino', 'era')}
+         'yi': ('קינד', 'געווען'), 'it': ('bambino', 'era'), 'ar': ('الطفل', 'كان')}
 
 
 def epub(body, *, version='3.0'):
@@ -208,7 +208,7 @@ class PreservedEpubTests(unittest.TestCase):
                 p = root.find('.//x:p[@id="p1"]', NS)
                 self.assertEqual(''.join(p.itertext()), FORMS[language][0] + ' ' + FORMS[language][1] + ' כאן.')
                 for node in root.findall('.//x:bdi', NS):
-                    self.assertEqual(node.get('dir'), 'rtl' if language == 'yi' else 'ltr')
+                    self.assertEqual(node.get('dir'), 'rtl' if language in ('yi', 'ar') else 'ltr')
                     self.assertEqual(node.get('lang'), language)
                     self.assertIn('unicode-bidi:isolate', node.get('style'))
                     self.assertIn('underline dotted', node.get('style'))

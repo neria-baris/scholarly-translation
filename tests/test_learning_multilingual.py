@@ -12,7 +12,7 @@ from scholarly_translation.model_adapter import TextGenerationResult
 from test_learning_integration import configuration, is_lesson, lesson_reply
 
 FORMS = {'fr': 'papillon', 'de': 'Schmetterling', 'es': 'mariposa',
-         'yi': 'פֿלאַטערל', 'it': 'farfalla'}
+         'yi': 'פֿלאַטערל', 'it': 'farfalla', 'ar': 'فراشة'}
 
 
 def butterfly_book(book_id='butterflies', chapters=2):
@@ -77,7 +77,7 @@ class MultilingualLifecycleTests(unittest.TestCase):
         self.assertEqual(session['status'], 'ready', self.service._data['jobs'][session['session_id']].get('error_code'))
         return session
 
-    def test_five_languages_grow_recur_and_keep_separate_history(self):
+    def test_six_languages_grow_recur_and_keep_separate_history(self):
         for language, form in FORMS.items():
             with self.subTest(language=language):
                 summary = self.service.select_language(language)
@@ -102,8 +102,11 @@ class MultilingualLifecycleTests(unittest.TestCase):
                 reader = self.service.reader(session['session_id'], gloss_on_click=True)
                 self.assertEqual(reader['language'], language)
                 self.assertIn(form, reader['html'])
-                if language == 'yi':
-                    self.assertIn('lang="yi" dir="rtl"', reader['html'])
+                if language in ('yi', 'ar'):
+                    self.assertIn(f'lang="{language}" dir="rtl"', reader['html'])
+                if language == 'ar':
+                    exported = self.service.export_book(session['session_id'], format='html')['body'].decode()
+                    self.assertIn('lang="ar" dir="rtl"', exported)
                 self.service.complete(session['session_id'], session['prepared_hash'], 'complete-' + language)
                 before = self.service.store.get_learner(language)
                 self.service.complete(session['session_id'], session['prepared_hash'], 'complete-' + language)
@@ -121,13 +124,13 @@ class MultilingualLifecycleTests(unittest.TestCase):
         self.assertEqual(next_adapter.plans[0]['review_targets'][
             reopened.store.get_learner('de')['items'][0]['item_id']]['seen_count'], 21)
 
-    def test_active_guard_and_language_selection_persist_without_generation(self):
+    def test_active_language_selection_persists_without_generation(self):
         self.service.select_language('es')
         self.assertEqual(LearningService(self.root).summary()['selected_language'], 'es')
         adapter = ProposalAdapter(self.service)
         self.prepare(adapter)
-        with self.assertRaises(LearningError):
-            self.service.select_language('yi')
+        self.service.select_language('yi')
+        self.assertEqual(LearningService(self.root).summary()['selected_language'], 'yi')
         self.assertEqual(adapter.calls, 2)
         with self.assertRaises(LearningError):
             self.service.select_language('unknown')

@@ -263,7 +263,7 @@ class LearningIntegrationTests(unittest.TestCase):
         self.assertEqual(next_adapter.calls, 1)
         self.assertEqual(len(reopened.store.get_prepared(session['session_id'])['recaps']), 2)
 
-    def test_budget_stop_and_active_book_guard(self):
+    def test_budget_stop_preserves_independent_book_and_duplicate_guard(self):
         for amount in (0, -1, float('nan'), True):
             with self.assertRaises(LearningError):
                 self.service.start('book-one', amount, configuration(), self.adapter.factory, background=False)
@@ -271,8 +271,10 @@ class LearningIntegrationTests(unittest.TestCase):
         self.assertEqual(stopped['status'], 'failed')
         self.assertEqual(self.adapter.calls, 0)
         self.service._add_source(source('book-two'))
+        ready = self.service.start('book-two', 1, configuration(), self.adapter.factory, background=False)
+        self.assertEqual(ready['status'], 'ready')
         with self.assertRaises(LearningError):
-            self.service.start('book-two', 1, configuration(), self.adapter.factory, background=False)
+            self.service.start('book-one', 1, configuration(), self.adapter.factory, background=False)
 
     def test_effort_carries_into_next_book(self):
         self.service.set_effort('2')

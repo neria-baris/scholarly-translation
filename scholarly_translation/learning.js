@@ -2,7 +2,7 @@ const {token}=window.UI_CONFIG;
 const $=id=>document.getElementById(id);
 function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
-const LANGUAGE_NAMES={fr:'צרפתית',de:'גרמנית',es:'ספרדית',yi:'יידיש',it:'איטלקית'};
+const LANGUAGE_NAMES={fr:'צרפתית',de:'גרמנית',es:'ספרדית',yi:'יידיש',it:'איטלקית',ar:'ערבית ספרותית'};
 const ERROR_MESSAGES={
   invalid_budget:'יש להזין תקציב חיובי. אפשר להגדיל את התקציב ולהמשיך.',
   budget_cannot_decrease:'בחידוש אפשר לשמור את התקציב או להגדיל אותו; ההוצאה הקודמת נשארת בחישוב.',
@@ -25,7 +25,7 @@ const ERROR_MESSAGES={
   invalid_export_coverage:'לא ניתן לאמת שהייצוא מכיל את כל הספר. נתוני הספר נשמרו והייצוא נעצר.',
   corrupt_store:'נתוני הספר אינם תואמים לגרסה שנשמרה. הייצוא נעצר כדי שלא להוריד ספר פגום.',
   export_failed:'לא ניתן להשלים את ההורדה. נתוני הספר נשמרו; נסו שוב.',
-  active_book_conflict:'יש ספר פעיל אחד בלבד; יש לסיים או לנטוש אותו לפני התחלת ספר נוסף.',
+  active_book_conflict:'הספר כבר פעיל בשפה זו, או ששינוי הרמה דורש לסיים את הספרים הפעילים בשפה זו.',
   session_not_found:'ההפעלה לא נמצאה.',
   already_running:'ההכנה כבר רצה.',
   invalid_status:'לא ניתן לבצע פעולה זו במצב הנוכחי.',
@@ -94,6 +94,7 @@ async function importFromQuery(){
 
 async function loadState(){
   state=await request('/learning/state',{});
+  $('learning-update-message').hidden=!learningUpdateNeeded(state);
   renderEffort();
   renderLanguages();
   renderBooks();
@@ -105,6 +106,11 @@ async function loadState(){
   },2000);
 }
 
+function learningUpdateNeeded(summary){
+  return !summary.languages.some(language=>language.id==='ar')||
+    summary.books.some(book=>!Array.isArray(book.chapters)||!book.chapters.length);
+}
+
 // ---- effort ----
 function renderEffort(){
   const active=!!state.learner.active_book_id;
@@ -114,8 +120,8 @@ function renderEffort(){
     option.textContent=LANGUAGE_NAMES[lang.id]||lang.id;option.disabled=!lang.available;
     selector.append(option);
   }
-  selector.value=state.selected_language||state.learner.language;selector.disabled=active;
-  $('effort-note').textContent=active?'לא ניתן לשנות רמת מאמץ בזמן שספר פעיל.':'בחרו את קצב שילוב החומר החדש. החזרה על מילים מוכרות מצטברת מעבר לכך.';
+  selector.value=state.selected_language||state.learner.language;selector.disabled=false;
+  $('effort-note').textContent=active?'אפשר להכין ספרים נוספים ולעבור בין שפות. ספרים שמתחילים יחד מתחילים מאותה נקודת פתיחה. כל ספר שהושלם מוסיף מילים לספרים חדשים, בלי לשנות ספרים שכבר התחילו. שינוי הרמה זמין לאחר סיום הספרים הפעילים בשפה זו.':'בחרו את קצב שילוב החומר החדש. החזרה על מילים מוכרות מצטברת מעבר לכך.';
   const host=$('effort-levels');host.replaceChildren();
   const labels={'1':'1 — עד 10% חומר חדש','2':'2 — עד 20% חומר חדש','3':'3 — עד 30% חומר חדש וביטויים קצרים'};
   for(const level of state.levels){
@@ -140,7 +146,7 @@ $('learning-language').onchange=async()=>{
     document.body.classList.remove('reading','progress-open');$('progress-return').hidden=true;
     $('reader-progress').setAttribute('aria-expanded','false');await loadState();
   }catch(error){selector.value=state.selected_language||state.learner.language;
-    selector.disabled=!!state.learner.active_book_id;
+    selector.disabled=false;
     $('import-error').textContent=error.message;$('import-error').hidden=false}
 };
 
@@ -151,7 +157,7 @@ function renderLanguages(){
     const item=document.createElement('li');
     item.innerHTML=`<span>${esc(LANGUAGE_NAMES[lang.id]||lang.id)}</span>`+
       (lang.available?'<span class="tag available">פעיל ללמידה</span>':'<span class="tag">רשימת מילים בלבד — למידה עדיין לא זמינה</span>')+
-      ` <a href="/learning/wordlist?language=${encodeURIComponent(lang.id)}" target="_blank" rel="noopener">רשימת 500 מילים</a>`;
+      ` <a href="/learning/wordlist?language=${encodeURIComponent(lang.id)}" target="_blank" rel="noopener">${lang.id==='ar'?'רשימת מילים ראשונית':'רשימת 500 מילים'}</a>`;
     host.append(item);
   }
 }
@@ -191,13 +197,11 @@ function renderBooks(){
     head.querySelector('.status-badge').dataset.status=status;
     const body=element('div','book-body');
     item.append(head,body);
-    const blocked=!session&&!!state.learner.active_book_id;
-    item.classList.toggle('blocked',blocked);
-    body.append(blocked?noteParagraph('לא הוכן. אפשר להכין אותו אחרי שמסיימים או נוטשים את הספר שבהכנה או בקריאה.'):statusLine(session,job));
+    body.append(statusLine(session,job));
     if(job&&job.total_chunks&&['preparing','paused','failed'].includes(status))body.append(progressBar(job));
     const actions=element('div','book-actions-row');body.append(actions);
     if(!session){
-      if(!blocked)actions.append(button('הכנה לקריאה…','secondary-button',()=>{actions.replaceChildren();body.append(prepareForm(book))}));
+      actions.append(button('הכנה לקריאה…','secondary-button',()=>{actions.replaceChildren();body.append(prepareForm(book))}));
     }else if(status==='preparing'){
       actions.append(button('השהיה','secondary-button',()=>act(body,()=>request('/learning/pause',{session_id:session.session_id}))));
     }else if(['imported','paused','failed'].includes(status)){
@@ -346,6 +350,19 @@ function prepareForm(book){
       <p class="muted">המפתח נשמר בזיכרון השרת המקומי עד לכיבויו.</p></div>
     <p class="muted">מודל זול יותר מתאים לרוב הספרים; מודל יקר יותר בוחר מילים ומסביר דקדוק בדיוק רב יותר. ההקשר ואורך התשובה נקבעים אוטומטית, ותשובה שנכשלה נשלחת שוב מעצמה.</p>
     <div class="book-actions-row"><button type="submit" class="primary-button">התחלת ההכנה</button></div>`;
+  const startLabel=element('label',null,'להתחיל ללמוד מהפרק');
+  const startChapter=element('select');startChapter.name='skip_initial_chapters';
+  const chapterChoices=Array.isArray(book.chapters)&&book.chapters.length>0;
+  if(!chapterChoices){
+    startChapter.append(element('option',null,'נדרשת הפעלה מחדש של התוכנה'));
+    startChapter.disabled=true;
+  }
+  for(const [index,chapter] of (book.chapters||[]).entries()){
+    const option=element('option',null,`${index+1}. ${chapter.title}`);option.value=String(index);startChapter.append(option);
+  }
+  startLabel.append(startChapter);form.querySelector('.form-row').append(startLabel);
+  form.querySelector('button[type=submit]').disabled=learningUpdateNeeded(state);
+  form.insertBefore(noteParagraph('הפרקים שלפני הפרק הנבחר (כותרת, זכויות יוצרים, תוכן עניינים וכדומה) יישארו בעברית, בלי למידה או שיעורי דקדוק.'),form.querySelector('.book-actions-row'));
   const model=form.querySelector('[name=model]'),reasoning=form.querySelector('[name=reasoning]');
   const fill=()=>{
     const entry=models.find(m=>m.model===model.value);
@@ -365,7 +382,7 @@ function prepareForm(book){
       if(!form.querySelector('.key-field').hidden&&key.value)await request('/model-keys',{keys:{[entry.provider]:key.value}});
       key.value='';
       await request('/learning/prepare',{book_id:book.book_id,budget_usd:Number(form.querySelector('[name=budget]').value),
-        model:entry.model,...(entry.reasoning_values.length?{reasoning:reasoning.value}:{})});
+        skip_initial_chapters:Number(startChapter.value||0),model:entry.model,...(entry.reasoning_values.length?{reasoning:reasoning.value}:{})});
     });
   };
   return form;
@@ -389,14 +406,13 @@ function renderProgress(){
   $('progress-milestone').textContent=completed>=goal?
     `עברתם את אבן הדרך הראשונה של ${goal} מילים — הלמידה ממשיכה בלי תקרה קבועה.`:
     `אבן הדרך הראשונה: ${completed} מתוך ${goal} מילים. זו התחלה, לא תקרה סופית.`;
-  const current=progress.active_book;
-  $('progress-current-book').hidden=!current;
-  if(current){
-    $('progress-current-title').textContent=current.title;
-    $('progress-current-counts').textContent=
-      `הוכנו ${current.prepared_chunks} מתוך ${current.total_chunks} קטעים`+
-      (current.chapter_index!=null?` · פרק ${current.chapter_index+1} מתוך ${current.chapter_count}`:' · טרם התחילה קריאה');
-  }
+  const books=progress.active_books||(progress.active_book?[progress.active_book]:[]);
+  $('progress-current-book').hidden=!books.length;
+  $('progress-current-title').textContent=books.length===1?books[0].title:`${books.length} ספרים פעילים`;
+  const counts=$('progress-current-counts');counts.replaceChildren();
+  for(const current of books)counts.append(element('span','current-book-progress',
+    `${current.title}: הוכנו ${current.prepared_chunks} מתוך ${current.total_chunks} קטעים`+
+    (current.chapter_index!=null?(current.chapter_index<(current.skip_initial_chapters||0)?' · פרקי פתיחה ללא למידה':` · פרק למידה ${current.chapter_index+1-(current.skip_initial_chapters||0)} מתוך ${current.chapter_count-(current.skip_initial_chapters||0)}`):' · טרם התחילה קריאה')));
   renderVocabLists(progress);
 }
 
@@ -405,7 +421,13 @@ function renderVocabLists(progress){
   const savedMap=new Map();
   for(const item of progress.completed_items||[])savedMap.set(item.item_id,item);
   const currentMap=new Map();
-  if(progress.active_book)for(const item of progress.active_book.read_items||[])currentMap.set(item.item_id,item);
+  for(const book of progress.active_books||(progress.active_book?[progress.active_book]:[])){
+    for(const item of book.read_items||[]){
+      const existing=currentMap.get(item.item_id);
+      if(existing){existing.encounters+=item.encounters;existing.last_book_title+=' / '+book.title}
+      else currentMap.set(item.item_id,{...item,last_book_title:book.title});
+    }
+  }
   const ids=new Set([...savedMap.keys(),...currentMap.keys()]);
   const words=[],grammar=[];
   for(const id of ids){
@@ -427,7 +449,7 @@ function renderVocabColumn(host,rows,query){
   }
   for(const row of rows){
     const li=document.createElement('li');li.className='vocab-item';
-    const foreign=document.createElement('bdi');foreign.dir=state.learner.language==='yi'?'rtl':'ltr';
+    const foreign=document.createElement('bdi');foreign.dir=['yi','ar'].includes(state.learner.language)?'rtl':'ltr';
     foreign.lang=state.learner.language;foreign.textContent=row.base.foreign;
     const hebrew=document.createElement('span');hebrew.textContent=' — '+row.base.hebrew;
     const tags=document.createElement('span');tags.className='vocab-tags';
@@ -438,7 +460,7 @@ function renderVocabColumn(host,rows,query){
     }
     if(row.current){
       const tag=document.createElement('span');tag.className='tag';
-      tag.textContent=`בספר הנוכחי — טרם נשמר (${row.current.encounters})`;
+      tag.textContent=`${row.current.last_book_title} — טרם נשמר (${row.current.encounters})`;
       tags.append(tag);
     }
     const details=document.createElement('details'),summary=document.createElement('summary');
@@ -452,7 +474,7 @@ const PART_OF_SPEECH_HE={noun:'שם עצם',verb:'פועל',adjective:'שם תו
   interjection:'מילת קריאה',phrase:'ביטוי',other:'אחר'};
 const GENDER_HE={masculine:'זכר',feminine:'נקבה',neuter:'סתמי',common:'זכר ונקבה'};
 function foreignText(text){
-  const node=document.createElement('bdi');node.dir=state.learner.language==='yi'?'rtl':'ltr';
+  const node=document.createElement('bdi');node.dir=['yi','ar'].includes(state.learner.language)?'rtl':'ltr';
   node.lang=state.learner.language;node.textContent=text;return node;
 }
 function entryBody(base){
@@ -573,7 +595,7 @@ $('save-key').onclick=async()=>{
 
 // ---- reader ----
 function openReader(session,book){
-  activeReader={session_id:session.session_id,chapter_index:session.read_cursor?session.read_cursor.chapter_index:0,book};
+  activeReader={session_id:session.session_id,chapter_index:session.read_cursor?session.read_cursor.chapter_index:(session.skip_initial_chapters||0),book};
   document.body.classList.add('reading');
   document.body.classList.remove('progress-open');$('progress-return').hidden=true;
   $('reader-section').hidden=false;window.scrollTo({top:0,behavior:'auto'});
@@ -614,6 +636,7 @@ async function loadChapter(index){
     $('complete-button').disabled=activeReader.completed;
     $('complete-button').textContent=activeReader.completed?'הספר כבר סומן כקראתי':'קראתי את הספר';
     renderRecap(result.recap,result.items);
+    $('recap-section').hidden=!!result.learning_excluded;
     await request('/learning/cursor',{session_id:activeReader.session_id,chapter_index:result.chapter_index});
     if(activeReader!==reader||serial!==chapterRequest)return;
     await loadState();
@@ -657,7 +680,7 @@ function renderRecap(recap,items={}){
   if($('recap-empty').hidden===false)$('recap-empty').textContent='לא נוספו פריטי לימוד חדשים בפרק זה.';
   for(const entry of vocabulary){
     const li=document.createElement('li'),foreign=document.createElement('bdi');
-    foreign.dir=language==='yi'?'rtl':'ltr';foreign.lang=language;foreign.textContent=items[entry.item_id]?.lemma||entry.item_id;
+    foreign.dir=['yi','ar'].includes(language)?'rtl':'ltr';foreign.lang=language;foreign.textContent=items[entry.item_id]?.lemma||entry.item_id;
     li.append(foreign,document.createTextNode(' — '+(entry.gloss_he||'')));vocabHost.append(li);
   }
   for(const entry of grammar){
@@ -665,7 +688,7 @@ function renderRecap(recap,items={}){
     for(const example of entry.examples||[]){
       if(!example.foreign)continue;
       const row=document.createElement('li'),foreign=document.createElement('bdi');
-      foreign.dir=language==='yi'?'rtl':'ltr';foreign.lang=language;foreign.textContent=example.foreign;
+      foreign.dir=['yi','ar'].includes(language)?'rtl':'ltr';foreign.lang=language;foreign.textContent=example.foreign;
       row.append(foreign,document.createTextNode(' — '+example.hebrew));grammarHost.append(row);
     }
   }
@@ -693,7 +716,7 @@ function renderLesson(lesson,language){
     const list=document.createElement('ul');list.className='lesson-examples';
     for(const example of paragraph.examples){
       const li=document.createElement('li'),foreign=document.createElement('bdi');
-      foreign.dir=language==='yi'?'rtl':'ltr';foreign.lang=language;foreign.className='lesson-foreign';foreign.textContent=example.foreign;
+      foreign.dir=['yi','ar'].includes(language)?'rtl':'ltr';foreign.lang=language;foreign.className='lesson-foreign';foreign.textContent=example.foreign;
       li.append(foreign,document.createTextNode(' — '+example.hebrew));
       if(example.note_he){const note=document.createElement('span');note.className='lesson-note';note.textContent=example.note_he;li.append(note)}
       list.append(li);

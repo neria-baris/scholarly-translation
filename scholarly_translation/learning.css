@@ -129,3 +129,4 @@ input[type=number],input[type=password],input[type=text]{min-height:40px;border:
 .book-body p.retry-note{margin:0}
 #learning-key-provider{min-height:40px;border:1px solid #e2ded4;border-radius:8px;padding:8px 10px;background:#fff;margin-bottom:10px}
 .book-item.blocked{opacity:.7}.book-item.blocked .book-body{margin-top:6px}
+.current-book-progress{display:block;margin-block:.35rem}

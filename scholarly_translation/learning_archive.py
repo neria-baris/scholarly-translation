@@ -102,12 +102,22 @@ GENDER_HE = {'masculine': 'זכר', 'feminine': 'נקבה', 'neuter': 'סתמי'
 def _dictionary(language, progress):
     require(isinstance(progress, dict), 'invalid_archive')
     active = progress.get('active_book')
-    require(active is None or isinstance(active, dict), 'invalid_archive')
+    books = progress.get('active_books', [active] if active else [])
+    require(isinstance(books, list) and all(isinstance(book, dict) for book in books), 'invalid_archive')
+    current = {}
+    for book in books:
+        for row in _rows(book.get('read_items', []), language):
+            if row['item_id'] in current:
+                current[row['item_id']]['encounters'] += row['encounters']
+            else:
+                current[row['item_id']] = row
     return {'schema_version': 1, 'language': language,
             'saved_items': _rows(progress.get('completed_items', []), language),
-            'current_items': _rows(active.get('read_items', []) if active else [], language),
-            'current_book_title': active.get('title') if active else None,
-            'status_note_he': 'היתקלויות שנשמרו לאחר סימון קראתי, לצד היתקלויות בספר הנוכחי שטרם נשמרו. אין כאן קביעה של שליטה במילים.'}
+            'current_items': _rows(list(current.values()), language),
+            'current_book_title': ' / '.join(book.get('title', '') for book in books) or None,
+            'current_books': [{'title': book.get('title', ''),
+                              'read_items': _rows(book.get('read_items', []), language)} for book in books],
+            'status_note_he': 'היתקלויות שנשמרו לאחר סימון קראתי, לצד היתקלויות בספרים הפעילים שטרם נשמרו. אין כאן קביעה של שליטה במילים.'}
 
 
 def _dictionary_md(record):

@@ -35,7 +35,7 @@ def proposal_item(raw, language, level, frequency_seed=()):
     require(len(set(forms)) == len(forms), 'invalid_generation', 'duplicate_form')
     for form in [lemma] + forms:
         letters = [char for char in form if char.isalpha()]
-        script = 'HEBREW' if language == 'yi' else 'LATIN'
+        script = {'yi': 'HEBREW', 'ar': 'ARABIC'}.get(language, 'LATIN')
         require(letters and all(script in unicodedata.name(char, '') for char in letters),
                 'invalid_generation', 'foreign_script')
         require(not any(char in '<>&' for char in form), 'invalid_generation', 'foreign_markup')

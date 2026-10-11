@@ -109,6 +109,18 @@ class LearningJsTests(unittest.TestCase):
         self.assertNotIn('פירוש לצד המילה', effort_fn)
         self.assertNotIn('פירוש בלחיצה', effort_fn)
 
+    def test_language_switch_and_new_book_are_available_during_active_learning(self):
+        effort_fn = self.js[self.js.index('function renderEffort'):self.js.index('// ---- languages')]
+        self.assertIn('selector.disabled=false', effort_fn)
+        self.assertNotIn('selector.disabled=active', effort_fn)
+        books_fn = self.js[self.js.index('function renderBooks'):self.js.index('function bookMenu')]
+        self.assertNotIn('const blocked=', books_fn)
+        self.assertIn('prepareForm(book)', books_fn)
+
+    def test_progress_includes_each_active_book(self):
+        self.assertIn('progress.active_books', self.js)
+        self.assertIn('for(const current of books)', self.js)
+
     def test_explicit_completion_action(self):
         self.assertIn('/learning/complete', self.js)
         self.assertIn("button.disabled=true", self.js)
@@ -170,11 +182,18 @@ class UiJsLibraryHandoffTests(unittest.TestCase):
 
 
 class WordlistConstraintTests(unittest.TestCase):
-    def test_wordlist_links_cover_all_five_languages(self):
+    def test_wordlist_links_cover_all_six_languages(self):
         js = (ROOT / 'learning.js').read_text(encoding='utf-8')
         self.assertIn('LANGUAGE_NAMES', js)
-        for code in ('fr', 'de', 'es', 'yi', 'it'):
+        for code in ('fr', 'de', 'es', 'yi', 'it', 'ar'):
             self.assertIn(f"{code}:", js)
+
+    def test_frontmatter_start_selection_and_reader_default(self):
+        js = (ROOT / 'learning.js').read_text(encoding='utf-8')
+        self.assertIn("startChapter.name='skip_initial_chapters'", js)
+        self.assertIn('skip_initial_chapters:Number(startChapter.value||0)', js)
+        self.assertIn('session.skip_initial_chapters||0', js)
+        self.assertIn("$('recap-section').hidden=!!result.learning_excluded", js)
 
 
 if __name__ == '__main__':

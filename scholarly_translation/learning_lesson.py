@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 from .learning_contracts import LearningError, check_id, fingerprint, require, unwrap_json_fence
@@ -94,6 +95,8 @@ def build_lesson_request(chapter_id, language, level_id, pairs, items, prior_top
         _section('INSERTIONS', grounding['insertions']),
         _section('CHAPTER_UNITS', grounding['units']),
     ])
+    if language == 'ar':
+        prompt += '\n\nUse Modern Standard Arabic in native Arabic script for all foreign examples; no transliteration or dialect.'
     input_hash = fingerprint({'prompt': prompt, 'prompt_version': LESSON_PROMPT_VERSION})
     return prompt, input_hash, grounding
 
@@ -124,6 +127,10 @@ def _example(raw, grounding, units, language):
             return None
         if language != 'yi' and _HEBREW_LETTER.search(foreign):
             return None
+        if language == 'ar':
+            letters = [char for char in foreign if char.isalpha()]
+            if not letters or any('ARABIC' not in unicodedata.name(char, '') for char in letters):
+                return None
         return {'kind': 'sentence', 'unit_id': raw['unit_id'], 'hebrew': hebrew,
                 'foreign': foreign, 'note_he': note.strip()}
     return None

@@ -11,8 +11,8 @@ def validate_options(budget, context_chars, output_tokens):
 
 
 def surrounding_context(plans, index, requested):
-    before = '\n'.join(unit['text'] for plan in plans[:index] for unit in plan['units'])
-    after = '\n'.join(unit['text'] for plan in plans[index + 1:] for unit in plan['units'])
+    before = '\n'.join(unit['text'] for plan in plans[:index] if not plan.get('learning_excluded') for unit in plan['units'])
+    after = '\n'.join(unit['text'] for plan in plans[index + 1:] if not plan.get('learning_excluded') for unit in plan['units'])
     available = len(before) + len(after)
     left = min(len(before), requested // 2)
     right = min(len(after), requested - left)

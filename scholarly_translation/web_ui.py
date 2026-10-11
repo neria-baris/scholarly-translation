@@ -309,7 +309,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         if path == "/learning/prepare":
             configuration, factory = _learning_adapter(data.get("model"), data.get("reasoning"))
             return service.start(data.get("book_id"), data.get("budget_usd"), configuration, factory,
-                                 context_chars=data.get('context_chars'), output_tokens=data.get('output_tokens'))
+                                 context_chars=data.get('context_chars'), output_tokens=data.get('output_tokens'),
+                                 skip_initial_chapters=data.get('skip_initial_chapters', 0))
         if path == "/learning/resume":
             _configuration, factory = _learning_adapter(configuration=service.job_configuration(data.get("session_id")))
             return service.resume(data.get("session_id"), factory, budget_usd=data.get("budget_usd"),
@@ -467,10 +468,10 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         def do_GET(self) -> None:
             if urlparse(self.path).path == "/learning/wordlist":
                 language = parse_qs(urlparse(self.path).query).get('language', [''])[0]
-                if language not in ('fr', 'de', 'es', 'yi', 'it'):
+                if language not in ('fr', 'de', 'es', 'yi', 'it', 'ar'):
                     self._json(404, {"error": "not found"})
                     return
-                self._reply(200, (ROOT / 'prompts' / 'language_learning' / 'wordlists' / (language + '_500.md')).read_bytes(), 'text/plain')
+                self._reply(200, (ROOT / 'prompts' / 'language_learning' / 'wordlists' / ('ar_starter.md' if language == 'ar' else language + '_500.md')).read_bytes(), 'text/plain')
                 return
             if urlparse(self.path).path == '/learning/help':
                 self._reply(200, (UI_DIR / 'learning_help.html').read_bytes(), 'text/html')
