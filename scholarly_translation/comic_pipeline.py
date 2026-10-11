@@ -447,11 +447,12 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
                       for r in page["regions"]}
         ids = [r["region_id"] for r in page["regions"]]
         kinds = {r["region_id"]: r["kind"] for r in page["regions"]}
+        sources = {r["region_id"]: r["source_text"] for r in page["regions"]}
         prompt = comic_model.translation_prompt(image, page, notebook, summaries, source_language, target_code,
                                                 capacities, dialogue)
         answer = ctx.call(
             TRANSLATION_STAGE, prompt,
-            lambda result: comic_model.parse_translation(result.text, ids, target_code, kinds),
+            lambda result: comic_model.parse_translation(result.text, ids, target_code, kinds, sources),
             dict(base_deps, stage=comic_model.TRANSLATION_VERSION, typeset=stages.TYPESET_VERSION,
                  regions=ids), _cap(6144, len(ids), 400))
         for item, region in zip(answer["translations"], page["regions"]):
@@ -474,7 +475,8 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
             try:
                 shorter = ctx.call(
                     SHORTEN_STAGE, comic_model.shorten_prompt(image, page, items, target_code),
-                    lambda result: comic_model.parse_shorten(result.text, over_ids, target_code, current, kinds),
+                    lambda result: comic_model.parse_shorten(result.text, over_ids, target_code, current, kinds,
+                                                             sources),
                     dict(base_deps, stage=comic_model.SHORTEN_VERSION, typeset=stages.TYPESET_VERSION,
                          regions=over_ids, current=current), _cap(4096, len(items), 300))
             except _FATAL:

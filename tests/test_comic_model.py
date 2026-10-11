@@ -212,6 +212,15 @@ class ReconcileTests(unittest.TestCase):
         records.validate_page(page)
 
 
+
+class WordlessTranslationTests(unittest.TestCase):
+    def test_words_need_words(self):
+        bad = json.dumps({"translations": [{"id": "a", "text": "!", "note": ""}], "notebook": {}, "summary": ""})
+        with self.assertRaises(cm.ComicModelError):
+            cm.parse_translation(bad, ["a"], "he", sources={"a": "¡Qué robo!"})
+        ok = json.dumps({"translations": [{"id": "a", "text": "?!", "note": ""}], "notebook": {}, "summary": ""})
+        self.assertEqual(cm.parse_translation(ok, ["a"], "he", sources={"a": "¿!"})["translations"][0]["text"], "?!")
+
 class TranslationPromptTests(unittest.TestCase):
     def test_contents(self):
         image = make_page(0.5).image

@@ -401,7 +401,7 @@ def _check_script(text, target_code, where):
         _fail("%s: not written in %s" % (where, pack.name))
 
 
-def _translations(data, ids, target_code, kinds, with_note):
+def _translations(data, ids, target_code, kinds, with_note, sources=None):
     entries = data.get("translations")
     if not isinstance(entries, list):
         _fail("'translations' must be a list")
@@ -416,6 +416,9 @@ def _translations(data, ids, target_code, kinds, with_note):
         if key in found:
             _fail("%s: id %r answered twice" % (where, key))
         text = _clean_text(entry.get("text"), where)
+        source = (sources or {}).get(key, "")
+        if any(ch.isalpha() for ch in source) and not any(ch.isalpha() for ch in text):
+            _fail("%s: the source has words but the translation has none" % where)
         # Sound effects may stay in the original lettering when no equivalent exists.
         if (kinds or {}).get(key) != "sfx":
             _check_script(text, target_code, where)
@@ -428,13 +431,13 @@ def _translations(data, ids, target_code, kinds, with_note):
     return [found[key] for key in ids]
 
 
-def parse_translation(text, region_ids, target_code, kinds=None):
+def parse_translation(text, region_ids, target_code, kinds=None, sources=None):
     """Validator for the translation answer: every id exactly once, no extras, non-empty text
     in the target script. ``kinds`` (id -> kind) lets ``sfx`` skip the script check.
     Returns ``{"translations": [{id, text, note}] (request order), "notebook", "summary"}``."""
     data = _object(text, "translation")
     ids = list(region_ids)
-    translations = _translations(data, ids, target_code, kinds, True)
+    translations = _translations(data, ids, target_code, kinds, True, sources)
     notebook = records.new_notebook()
     raw = data.get("notebook") or {}
     if not isinstance(raw, dict):
@@ -478,13 +481,13 @@ def shorten_prompt(image, page, overflowing, target_code):
     return ImagePrompt(text, marked_page_image(image, chosen, [r["order"] for r in chosen]), "image/jpeg")
 
 
-def parse_shorten(text, ids, target_code, current=None, kinds=None):
+def parse_shorten(text, ids, target_code, current=None, kinds=None, sources=None):
     """Validator for the shorten answer: exactly ``ids``, non-empty target-script text; when
     ``current`` (id -> present text) is given the new text must not be longer.
     Returns ``{id: text}``."""
     data = _object(text, "shorten")
     result = {}
-    for item in _translations(data, list(ids), target_code, kinds, False):
+    for item in _translations(data, list(ids), target_code, kinds, False, sources):
         if current and len(item["text"]) > len(current[item["id"]]):
             _fail("%s: the rewrite is longer than the current text" % item["id"])
         result[item["id"]] = item["text"]
