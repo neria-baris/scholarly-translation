@@ -110,7 +110,7 @@ def new_region(candidate, page_index, number, **fields):
         "line_height": candidate["line_height"], "confidence": candidate["confidence"],
         "kind": "speech", "source_text": "", "speaker": None,
         "speaker_gender": "unknown", "addressee_gender": "unknown", "origin": "local",
-        "warnings": [], "translation": None, "layout": None,
+        "warnings": [], "translation": None, "layout": None, "panel": None,
     }
     unknown = set(fields) - set(region)
     if unknown:
@@ -139,6 +139,8 @@ def validate_region(region, path="region", width=None, height=None):
         if key not in region:
             _fail(path, "missing %s" % key)
     _int(region["order"], path + ".order")
+    if region.get("panel") is not None:
+        _int(region["panel"], path + ".panel")
     if region["kind"] not in KINDS:
         _fail(path + ".kind", "unknown kind %r" % region["kind"])
     if not isinstance(region["source_text"], str):
@@ -199,12 +201,15 @@ def validate_page(page, path="page"):
 
 
 def new_notebook():
-    return {"characters": [], "terms": []}
+    return {"characters": [], "terms": [], "story": ""}
 
 
 def validate_notebook(notebook, path="notebook"):
-    if not isinstance(notebook, dict) or set(notebook) != {"characters", "terms"}:
-        _fail(path, "expected {characters, terms}")
+    if (not isinstance(notebook, dict) or not {"characters", "terms"} <= set(notebook)
+            or not set(notebook) <= {"characters", "terms", "story"}):
+        _fail(path, "expected {characters, terms, story}")
+    if not isinstance(notebook.get("story", ""), str):
+        _fail(path + ".story", "expected a string")
     for i, item in enumerate(notebook["characters"]):
         where = "%s.characters[%d]" % (path, i)
         if not isinstance(item, dict) or not {"name", "target_name", "gender", "note"} <= set(item):

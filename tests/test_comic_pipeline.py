@@ -210,7 +210,7 @@ class MockEndToEndTests(TempCase):
         self.assertIn('dir="rtl"', review)
         self.assertIn("[source 1]", review)
         self.assertIn("Mock run", review)
-        self.assertEqual(json.loads(notebook.read_text(encoding="utf-8")), {"characters": [], "terms": []})
+        self.assertEqual(json.loads(notebook.read_text(encoding="utf-8")), {"characters": [], "terms": [], "story": ""})
         self.assertEqual({p.name: p.read_bytes() for p in src.iterdir()}, before)     # sources untouched
         translated = Image.open(out / "pages" / "001.png").convert("RGB")
         # English into Hebrew: the page is mirrored, so the region is drawn at its mirrored place

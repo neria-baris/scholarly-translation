@@ -53,9 +53,11 @@ class MarkedImageTests(unittest.TestCase):
         marked = Image.open(io.BytesIO(data))
         self.assertEqual(marked.format, "JPEG")
         self.assertEqual(max(marked.size), cm.MARKED_LONG_EDGE)
-        x, y = round(1000 * 0.5), round(600 * 0.5)  # the outline's left edge in the scaled image
-        reds = [marked.getpixel((x + dx, y)) for dx in range(-4, 5)]
-        self.assertTrue(any(r > 200 and g < 80 for r, g, _ in reds), reds)
+        scale = cm.MARKED_LONG_EDGE / 3200
+        x, y = round(1000 * scale), round(600 * scale)  # the lettering's left edge in the scaled image
+        reds = [marked.getpixel((x - dx, y)) for dx in range(1, 30)]
+        self.assertTrue(any(r > 140 and g < 80 for r, g, _ in reds), reds)   # a thin frame left of the lettering
+        self.assertTrue(all(marked.getpixel((x + dx, y))[1] > 200 for dx in range(1, 5)))  # none on it
 
     def test_small_image_not_enlarged(self):
         data = cm.marked_page_image(Image.new("RGB", (400, 300), (255, 255, 255)), [candidate([50, 50, 150, 100])])

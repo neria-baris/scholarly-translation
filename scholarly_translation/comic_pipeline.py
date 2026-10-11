@@ -396,7 +396,7 @@ def _render(stages, image, regions, mirror):
 
 
 def process_page(ctx, stages, number, name, image, raw, comic, source_language, target_code, notebook, summaries,
-                 mirror=False):
+                 mirror=False, dialogue=None):
     """Run one page; returns ``(page, output image)``. Model/validation failures mark the page
     ``failed`` (original kept, unmirrored, as its output). Recognition and translation always
     see the original page; ``mirror`` only changes the rendered output."""
@@ -428,6 +428,7 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         page["regions"] = comic_model.reconcile(page, image, candidates, parsed, stages.snap_region)
         separate_regions(page["regions"])
         page["summary"] = parsed["summary"]
+        page["panels"] = parsed.get("panels", [])
         page["status"] = "recognised"
         update = records.new_notebook()
         update["characters"] = [{"name": c["name"], "target_name": "", "gender": c["gender"],
@@ -447,7 +448,7 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         ids = [r["region_id"] for r in page["regions"]]
         kinds = {r["region_id"]: r["kind"] for r in page["regions"]}
         prompt = comic_model.translation_prompt(image, page, notebook, summaries, source_language, target_code,
-                                                capacities)
+                                                capacities, dialogue)
         answer = ctx.call(
             TRANSLATION_STAGE, prompt,
             lambda result: comic_model.parse_translation(result.text, ids, target_code, kinds),
@@ -488,6 +489,9 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         page["mirrored"] = mirror
         page["status"] = "rendered"
         summaries.append(page["summary"])
+        if dialogue is not None:   # the next page's translator sees this page's dialogue
+            dialogue[:] = [{"speaker": r["speaker"], "source": r["source_text"], "target": r["translation"]["text"]}
+                           for r in page["regions"] if r["translation"]]
         return page, rendered
     except _FATAL:
         raise
@@ -625,7 +629,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
             todo = [(i + 1, s) for i, s in enumerate(sources) if selected is None or (i + 1) in selected]
             budget_usd = _settle_budget(store, comic_id, budget_usd)
             ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep)
-            summaries = []
+            summaries, dialogue = [], []
             for done, (number, (name, load)) in enumerate(todo, 1):
                 try:
                     image, raw = load()
@@ -638,7 +642,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
                     images.append(None)
                     continue
                 page, rendered = process_page(ctx, stages, number, name, image, raw, comic, source_language,
-                                              target_code, notebook, summaries, mirror)
+                                              target_code, notebook, summaries, mirror, dialogue)
                 file_name = "%03d.png" % number
                 image.save(out / "originals" / file_name)
                 rendered.save(out / "pages" / file_name)

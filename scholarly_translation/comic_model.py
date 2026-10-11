@@ -22,11 +22,11 @@ PROMPT_DIR = Path(__file__).resolve().parent / "runtime_prompts"
 RECOGNITION_PROMPT = PROMPT_DIR / "14_comic_recognition.md"
 TRANSLATION_PROMPT = PROMPT_DIR / "15_comic_translation.md"
 SHORTEN_PROMPT = PROMPT_DIR / "16_comic_shorten.md"
-RECOGNITION_VERSION = "comic-recognition@2"
-TRANSLATION_VERSION = "comic-translation@1"
+RECOGNITION_VERSION = "comic-recognition@3"
+TRANSLATION_VERSION = "comic-translation@2"
 SHORTEN_VERSION = "comic-shorten@1"
 
-MARKED_LONG_EDGE = 1600
+MARKED_LONG_EDGE = 2048
 LABEL_FONT = Path(__file__).resolve().parent / "assets" / "fonts" / "notosans" / "NotoSans-Regular.ttf"
 LANGUAGE_NAMES = {"en": "English", "fr": "French", "es": "Spanish", "ja": "Japanese"}
 RIGHT_TO_LEFT_SOURCES = ("ja",)
@@ -56,8 +56,9 @@ def _font(size):
 
 
 def marked_page_image(image, candidates, labels=None):
-    """JPEG bytes of the page (long edge <= 1600) with every candidate bbox outlined in red
-    and its number (1-based position, or ``labels[i]``) in a black-on-yellow label."""
+    """JPEG bytes of the page (long edge <= MARKED_LONG_EDGE) with every candidate bbox framed
+    in thin red a little outside the lettering (so the frame never covers a letter) and its
+    number (1-based position, or ``labels[i]``) in a black-on-yellow label outside the frame."""
     image = image.convert("RGB")
     scale = min(1.0, MARKED_LONG_EDGE / max(image.size))
     if scale < 1.0:
@@ -66,10 +67,10 @@ def marked_page_image(image, candidates, labels=None):
     draw = ImageDraw.Draw(image)
     size = max(14, round(max(image.size) / 70))
     font = _font(size)
-    width = max(2, round(max(image.size) / 500))
+    width = max(1, round(max(image.size) / 900))
     for i, candidate in enumerate(candidates):
         x0, y0, x1, y1 = (round(v * scale) for v in candidate["bbox"])
-        pad = width + 1
+        pad = width + max(3, size // 4)
         box = [max(0, x0 - pad), max(0, y0 - pad), min(image.width - 1, x1 + pad), min(image.height - 1, y1 + pad)]
         draw.rectangle(box, outline=(255, 0, 0), width=width)
         label = str(labels[i] if labels is not None else i + 1)
@@ -232,10 +233,13 @@ def parse_recognition(text, mark_count):
         order = entry.get("order")
         if order is not None and not _int(order):
             _fail("%s.order: expected an integer" % where)
+        panel = entry.get("panel")
+        if panel is not None and not _int(panel):
+            _fail("%s.panel: expected an integer" % where)
         regions.append({"marks": marks, "box": box, "kind": kind, "text": source, "speaker": speaker,
                         "speaker_gender": _gender(entry, "speaker_gender", where),
                         "addressee_gender": _gender(entry, "addressee_gender", where),
-                        "order": order, "_position": i})
+                        "order": order, "panel": panel, "_position": i})
     regions.sort(key=lambda r: (r["order"] if r["order"] is not None else r["_position"] + 1, r["_position"]))
     for number, region in enumerate(regions, 1):
         region["order"] = number
@@ -250,7 +254,16 @@ def parse_recognition(text, mark_count):
         appearance = item.get("appearance", "")
         characters.append({"name": item["name"].strip(), "gender": _gender(item, "gender", "characters[%d]" % i),
                            "appearance": appearance if isinstance(appearance, str) else ""})
-    return {"regions": regions, "summary": summary.strip(), "characters": characters}
+    panels = []
+    raw_panels = data.get("panels") or []
+    if not isinstance(raw_panels, list):
+        _fail("recognition: 'panels' must be a list")
+    for i, item in enumerate(raw_panels):
+        if (not isinstance(item, dict) or not _int(item.get("panel"))
+                or not isinstance(item.get("description"), str)):
+            _fail("panels[%d]: expected {panel, description}" % i)
+        panels.append({"panel": item["panel"], "description": " ".join(item["description"].split())})
+    return {"regions": regions, "summary": summary.strip(), "characters": characters, "panels": panels}
 
 
 # ---------------------------------------------------------------- reconcile
@@ -313,14 +326,16 @@ def reconcile(page, image, candidates, parsed, snap):
         result.append(records.new_region(
             candidate, page["index"], number, order=number, kind=entry["kind"], source_text=entry["text"],
             speaker=entry["speaker"], speaker_gender=entry["speaker_gender"],
-            addressee_gender=entry["addressee_gender"], origin=origin, warnings=warnings))
+            addressee_gender=entry["addressee_gender"], origin=origin, warnings=warnings,
+            panel=entry.get("panel")))
     return result
 
 
 # ---------------------------------------------------------------- translation
 
 def _region_rows(regions, capacities):
-    return [{"id": r["region_id"], "order": r["order"], "kind": r["kind"], "speaker": r["speaker"],
+    return [{"id": r["region_id"], "order": r["order"], "panel": r.get("panel"), "kind": r["kind"],
+             "speaker": r["speaker"],
              "speaker_gender": r["speaker_gender"], "addressee_gender": r["addressee_gender"],
              "source": r["source_text"], "max_chars": int(capacities.get(r["region_id"], 0)) or None}
             for r in regions]
@@ -331,8 +346,23 @@ def _term_lines(notebook):
     return "\n".join(lines) or "(none yet)"
 
 
-def translation_prompt(image, page, notebook, previous_summaries, source_language, target_code, capacities):
-    """Vision prompt for the translation call of one page."""
+def _panel_lines(page):
+    lines = ["- Panel %d: %s" % (p["panel"], p["description"]) for p in page.get("panels") or []]
+    return "\n".join(lines) or "(no panel descriptions)"
+
+
+def _dialogue_lines(previous_dialogue):
+    lines = []
+    for item in previous_dialogue or []:
+        who = "[%s] " % item["speaker"] if item.get("speaker") else ""
+        lines.append("- %s%s -> %s" % (who, item["source"], item["target"]))
+    return "\n".join(lines) or "(none)"
+
+
+def translation_prompt(image, page, notebook, previous_summaries, source_language, target_code, capacities,
+                       previous_dialogue=None):
+    """Vision prompt for the translation call of one page: the page, its panel descriptions,
+    the running story, the previous page's dialogue and the notebook."""
     pack = target_languages.load(target_code)
     regions = page["regions"]
     if pack.rtl:
@@ -345,7 +375,9 @@ def translation_prompt(image, page, notebook, previous_summaries, source_languag
     text = _fill(template, LANGUAGE=LANGUAGE_NAMES.get(source_language, source_language),
                  REGIONS="\n".join(_json(row) for row in _region_rows(regions, capacities)),
                  CHARACTERS=_character_lines(notebook, True), TERMS=_term_lines(notebook),
-                 SUMMARIES="\n".join("- " + s for s in recent) or "(this is the first page)")
+                 SUMMARIES="\n".join("- " + s for s in recent) or "(this is the first page)",
+                 STORY=(notebook or {}).get("story") or "(the album begins here)",
+                 PANELS=_panel_lines(page), PREVIOUS_DIALOGUE=_dialogue_lines(previous_dialogue))
     labels = [r["order"] for r in regions]
     return ImagePrompt(text, marked_page_image(image, regions, labels), "image/jpeg")
 
@@ -422,9 +454,12 @@ def parse_translation(text, region_ids, target_code, kinds=None):
                                                    for k in ("source", "target")):
             _fail("notebook.terms[%d]: expected source and target" % i)
         notebook["terms"].append({"source": item["source"].strip(), "target": item["target"].strip()})
-    summary = data.get("summary", "")
+    summary, story = data.get("summary", ""), data.get("story", "")
     if not isinstance(summary, str):
         _fail("translation: 'summary' must be a string")
+    if not isinstance(story, str):
+        _fail("translation: 'story' must be a string")
+    notebook["story"] = story.strip()
     return {"translations": translations, "notebook": notebook, "summary": summary.strip()}
 
 
@@ -463,6 +498,9 @@ def merge_notebook(notebook, updates):
     that proposes a different ``target_name``/term target for a known name/source is dropped
     and reported as ``notebook_conflict:<name>``; a missing gender or note is filled in."""
     merged = copy.deepcopy(notebook)
+    merged.setdefault("story", "")
+    if updates.get("story"):
+        merged["story"] = updates["story"]          # the running synopsis is rewritten each page
     warnings = []
 
     def warn(name):
