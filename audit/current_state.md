@@ -1,3 +1,14 @@
+# Current state — COMIC on real pages (Claude Code session); other owner's checkpoint below
+Updated: 2026-10-11. Claude Code primary agent (conductor) for the comic work.
+
+Comic commits on main (not pushed): 839f016, f369db0, 615b3f6, 255138a, 87b5813 (see run_history). CLI: python -m scholarly_translation.comic_pipeline INPUT --out DIR --source-language es --target he --model configured --model-config <luna config> [--pages] [--mirror auto|yes|no] [--notebook].
+Outputs (ignored): outputs/comics/torrezno-01 (v1, pages 1-33, comic.pdf; store holds one interrupted call with unknown outcome: settle before reuse), outputs/comics/torrezno-01-v2 (pages 10-13 with story context and mirroring).
+Open: user judges v2 quality; next options: per-page review/correction pass (literary lesson), full album run only on explicit approval (user wanted test runs only), web UI.
+Uncommitted, not ours: staged scholarly_translation/chapter_pipeline.py and tests/test_chapter_pipeline.py from the other owner — do not commit or revert. Untracked source PDF in repo root: do not commit.
+Next action: wait for the user's verdict on v2 pages 10-13.
+
+---
+Previous checkpoint (other owner):
 # Current state (2026-10-11T15:55:24.649211+00:00)
 
 Main code delivery ecf7c3d86dc08e83270d8517bcaa321e19b91c66, parent e035107 ROMAN-PAGES.
