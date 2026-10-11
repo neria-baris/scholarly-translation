@@ -329,6 +329,21 @@ class ConfiguredTests(TempCase):
 
 
 
+
+class BudgetTests(unittest.TestCase):
+    def test_rerun_with_a_higher_budget_raises_the_ceiling(self):
+        from scholarly_translation.runtime_controls import ControlStore, validate_store_path
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ControlStore(validate_store_path(Path(tmp) / "controls.sqlite3"), create=True)
+            try:
+                self.assertEqual(cp._settle_budget(store, "comic-x", 0.5), 0.5)       # no task yet
+                store.get_or_create_task("comic-x", cp.MAX_CALLS, 0.5, "v1", 4096)
+                self.assertEqual(cp._settle_budget(store, "comic-x", 5.0), 5.0)
+                self.assertEqual(store.status("comic-x")["hard_list_usd"], 5.0)
+                self.assertEqual(cp._settle_budget(store, "comic-x", 1.0), 5.0)       # never lowered
+            finally:
+                store.close()
+
 class SeparateRegionsTests(unittest.TestCase):
     def region(self, bbox, rows):
         return {"bbox": bbox, "interior": {"step": 2, "rows": rows} if rows else None}

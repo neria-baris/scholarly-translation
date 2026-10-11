@@ -529,6 +529,20 @@ def _write_json(path, data):
 
 # ---------------------------------------------------------------- run
 
+def _settle_budget(store, comic_id, budget_usd):
+    """A task's budget is fixed by its first call. A higher ``--budget-usd`` on a later run is
+    the user raising the ceiling (recorded as a user decision); a lower one keeps the stored
+    ceiling, which is returned."""
+    try:
+        stored = store.status(comic_id)["hard_list_usd"]
+    except RuntimeControlsError:
+        return budget_usd                      # no call yet: the first call fixes the policy
+    if budget_usd > stored:
+        store.user_raise_limits(comic_id, hard_list_usd=budget_usd)
+        return budget_usd
+    return stored
+
+
 def run_comic(input_path, out_dir, source_language, target_code, model="mock", model_config=None, budget_usd=1.0,
               pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None):
     """Translate a comic into ``out_dir`` and return the validated comic dict."""
@@ -570,6 +584,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
             if selected is not None:
                 selected = parse_pages(pages, len(sources))
             todo = [(i + 1, s) for i, s in enumerate(sources) if selected is None or (i + 1) in selected]
+            budget_usd = _settle_budget(store, comic_id, budget_usd)
             ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep)
             summaries = []
             for done, (number, (name, load)) in enumerate(todo, 1):
