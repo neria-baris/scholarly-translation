@@ -76,7 +76,7 @@ class ComicDetectTests(unittest.TestCase):
         again = comic_detect.detect_candidates(self.page.image)
         self.assertEqual(again, self.found)
         self.assertEqual(self.page.image.tobytes(), before)
-        self.assertEqual(comic_detect.DETECT_VERSION, "comic-detect@1")
+        self.assertEqual(comic_detect.DETECT_VERSION, "comic-detect@2")
 
     def test_blank_page_has_no_candidates(self):
         from PIL import Image
@@ -112,7 +112,10 @@ class SnapRegionTests(unittest.TestCase):
         comic_records.validate_candidate(c, width=self.page.image.width, height=self.page.image.height)
         self.assertIsNone(c["interior"])
         self.assertFalse(c["plain_background"])
-        self.assertGreaterEqual(fx.box_iou(c["bbox"], truth.text_bbox), 0.6)
+        # lettering fused with hatching cannot be tightened: the given box is kept, never grown
+        given = [x0 - 8, y0 - 8, x1 + 8, y1 + 8]
+        self.assertTrue(given[0] <= c["bbox"][0] <= x0 and given[1] <= c["bbox"][1] <= y0)
+        self.assertTrue(x1 <= c["bbox"][2] <= given[2] and y1 <= c["bbox"][3] <= given[3])
 
     def test_empty_art_and_clipping(self):
         width, height = self.page.image.size

@@ -112,7 +112,6 @@ class ParseRecognitionTests(unittest.TestCase):
             "regions not list": json.dumps({"regions": {}}),
             "mark out of range": answer(entry(3)),
             "mark zero": answer(entry(0)),
-            "duplicate mark": answer(entry(1), entry(1, "again")),
             "mark is bool": answer(entry(True)),
             "bad kind": answer(entry(1, kind="shout")),
             "bad gender": answer(entry(1, speaker_gender="robot")),
@@ -158,13 +157,44 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual([r["order"] for r in regions], [1, 2, 3])
         self.assertEqual([r["origin"] for r in regions], ["local", "model", "local"])
         self.assertEqual(regions[0]["bbox"], candidates[2]["bbox"])
-        self.assertEqual(snapped, [[100, 1000, 300, 1200]])      # 0..1000 grid scaled to the 1000x2000 page
+        # every region is measured; the model box is scaled from the 0..1000 grid to the 1000x2000 page
+        self.assertEqual(snapped, [candidates[2]["bbox"], [100, 1000, 300, 1200], candidates[0]["bbox"]])
         self.assertEqual(regions[1]["line_height"], 33.0)
         self.assertEqual(regions[1]["kind"], "narration")
         self.assertEqual(regions[0]["speaker"], "Dana")
         self.assertEqual(page["warnings"], ["unanswered_mark:2"])
         page["regions"] = regions
         records.validate_page(page)
+
+    def test_marks_list_joins_marks_and_model_box(self):
+        image = Image.new("RGB", (1000, 1000), "white")
+        page, candidates = make_comic_page(image, 3)
+        candidates[2] = candidate([0, 0, 900, 900])            # hatching mistaken for lettering
+        snapped = []
+
+        def snap(img, box):
+            snapped.append(box)
+            return candidate(box)
+        text = answer({"marks": [1, 2, 3], "box": [100, 90, 290, 170], "kind": "speech", "text": "One balloon",
+                       "speaker": None, "speaker_gender": "male", "addressee_gender": "unknown", "order": 1},
+                      {"marks": [], "box": [500, 500, 600, 550], "kind": "sfx", "text": "BANG",
+                       "speaker": None, "speaker_gender": "unknown", "addressee_gender": "unknown", "order": 2})
+        parsed = cm.parse_recognition(text, 3)
+        self.assertEqual(parsed["regions"][0]["marks"], [1, 2, 3])
+        regions = cm.reconcile(page, image, candidates, parsed, snap)
+        self.assertEqual(snapped[0], [100, 90, 290, 170])       # marks 1-2 and the model box; mark 3 ignored
+        self.assertEqual(regions[0]["warnings"], ["mark_ignored"])
+        self.assertEqual([r["origin"] for r in regions], ["local", "model"])
+        self.assertEqual(page["warnings"], [])
+        # one mark covering two balloons: both entries keep it, neither takes its geometry
+        shared = cm.parse_recognition(answer(
+            {"marks": [1], "box": [100, 90, 140, 170], "kind": "speech", "text": "A"},
+            {"marks": [1, 2], "box": [150, 90, 290, 170], "kind": "speech", "text": "B"}), 3)
+        snapped.clear()
+        cm.reconcile(page, image, candidates, shared, snap)
+        self.assertEqual(snapped, [[100, 90, 140, 170], [150, 90, 290, 170]])
+        with self.assertRaises(cm.ComicModelError):
+            cm.parse_recognition(answer({"marks": "1", "box": None, "kind": "speech", "text": "A"}), 2)
 
     def test_failed_snap_falls_back_to_the_box(self):
         image = Image.new("RGB", (500, 500), "white")

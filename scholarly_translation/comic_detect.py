@@ -17,7 +17,7 @@ from collections import Counter
 
 from PIL import Image, ImageChops, ImageFilter
 
-DETECT_VERSION = "comic-detect@1"
+DETECT_VERSION = "comic-detect@2"
 WORK_EDGE = 1200          # long edge of the analysis copy
 LIGHT = 200               # gray >= LIGHT is fill
 MAX_DARK = 110            # gray < min(Otsu, MAX_DARK) is ink
@@ -26,6 +26,10 @@ GLYPH_FILL = 0.10         # min ink area / bbox area of a glyph
 REGION_SHARE = 0.25       # max share of the page for a balloon/caption
 REGION_TEXT_RATIO = 60    # max region area / text bbox area
 TAIL_WIDTH = 0.5          # rows narrower than this share of the widest row end the interior
+ART_CLUSTER_SHARE = 0.03  # a "lettering on art" cluster larger than this share of the page is hatching
+SNAP_MARGIN = 0.012       # crop margin around a model box, share of the page's long edge
+SNAP_DARK = (60, 200)     # full-resolution ink threshold limits (Otsu of the crop between them)
+RING_LIGHT = 0.6          # share of light pixels in a thin ring around the lettering for a plain background
 _RUN = re.compile(b"\xff+")
 
 
@@ -371,28 +375,189 @@ def detect_candidates(image):
                                 0.95 if len(glyphs) >= 3 else 0.8))
     for cluster in _row_clusters(sorted(unassigned, key=lambda g: (g[1], g[0]))):
         box = an.orig_box(_union(cluster))
+        if (box[2] - box[0]) * (box[3] - box[1]) > ART_CLUSTER_SHARE * an.width * an.height:
+            continue  # dense hatching, not lettering; missed lettering is added by the model
         found.append(_candidate(an, cluster, None, an.ring_colour(box), 0.6))
     found.sort(key=lambda c: (c["bbox"][1], c["bbox"][0]))
     return found
 
 
-def snap_region(image, bbox):
-    """Candidate for a model-supplied (possibly loose) box: ink bbox plus the bounded light region."""
-    an = _Analysis(image)
-    x0, y0 = min(max(0, int(bbox[0])), an.width - 1), min(max(0, int(bbox[1])), an.height - 1)
-    x1, y1 = min(max(x0 + 1, int(bbox[2])), an.width), min(max(y0 + 1, int(bbox[3])), an.height)
-    inside = [g for g in an.glyphs
-              if x0 <= (g[0] + g[2]) / 2 * an.sx < x1 and y0 <= (g[1] + g[3]) / 2 * an.sy < y1]
+def _pitch(glyphs):
+    """Median distance between lettering lines (1.5x the line height for a single line)."""
+    lines = _group_lines(glyphs)
+    full = [line for line in lines if len(line[2]) >= 2]
+    if len(full) >= 2:
+        centres = [(line[0] + line[1]) / 2 for line in full]
+        return float(statistics.median(b - a for a, b in zip(centres, centres[1:])))
+    return 1.5 * max(line[1] - line[0] for line in lines)
+
+
+def _lettering(dark, box):
+    """``(core, grow)``: glyph components of the lettering block in ``box`` (crop
+    coordinates) and a function returning the block grown to neighbouring glyphs the box cut
+    off (used on plain backgrounds only). Components touching the crop edge (balloon
+    outlines, panel borders, long hatching) are never lettering."""
+    cw, ch = dark.size
+    _, stats = _label(_runs(dark), True)
+    parts = [tuple(st[:4]) for st in stats.values()
+             if st[0] > 0 and st[1] > 0 and st[2] < cw and st[3] < ch and st[4] >= 3]
+    inside = [g for g in parts if box[0] <= (g[0] + g[2]) / 2 < box[2] and box[1] <= (g[1] + g[3]) / 2 < box[3]]
     if not inside:
+        return [], None
+    height = statistics.median(g[3] - g[1] for g in inside)
+    inside = [g for g in inside if g[3] - g[1] <= 3 * height + 2]
+    if not inside:
+        return [], None
+    core = _main_text(inside)
+    # growth stays near the given box: the model's split between neighbouring balloons wins
+    near = 0.75 * height
+    reachable = [g for g in parts if box[0] - near <= (g[0] + g[2]) / 2 < box[2] + near
+                 and box[1] - near <= (g[1] + g[3]) / 2 < box[3] + near]
+    return core, (lambda: _grow(core, reachable, height))
+
+
+def _grow(core, parts, height):
+    kept = set(core)
+    others = [g for g in parts if g not in kept and g[3] - g[1] <= 2.5 * height + 2]
+    reach = 0.6 * height + 1
+    grown = True
+    while grown:
+        grown = False
+        block = _union(list(kept))
+        for g in others:
+            if g in kept:
+                continue
+            gap = max(block[0] - g[2], g[0] - block[2], block[1] - g[3], g[1] - block[3])
+            if gap <= reach:
+                kept.add(g)
+                grown = True
+    return sorted(kept, key=lambda g: (g[1], g[0]))
+
+
+def _letter_pitch(glyphs):
+    """Line pitch from the letters themselves: 1.5x the median height of the letter-sized
+    components (accents and specks, under 40% of the tallest, left out). Independent of how
+    the lines are spaced or whether they touch."""
+    heights = [g[3] - g[1] for g in glyphs]
+    tallest = max(heights)
+    letters = [h for h in heights if h >= 0.4 * tallest]
+    return 1.5 * statistics.median(letters)
+
+
+def _light_runs(row_bytes):
+    return [(m.start(), m.end()) for m in _RUN.finditer(row_bytes)]
+
+
+def _free_space(gray, bbox, line_height, light_level):
+    """Interior rows: per sampled row, the light run around the lettering, inside a window
+    around it. Rows above/below the lettering count while their run still spans at least half
+    its width (the balloon outline ends it); no closed outline is needed."""
+    width, height = gray.size
+    bw = bbox[2] - bbox[0]
+    mh, mv = int(round(max(0.3 * bw, 1.5 * line_height))), int(round(line_height))
+    window = (max(0, bbox[0] - mh), max(0, bbox[1] - mv), min(width, bbox[2] + mh), min(height, bbox[3] + mv))
+    light = gray.crop(window).point(lambda v: 255 if v >= light_level else 0)
+    # the lettering itself counts as free space (exact box: a margin could cross a panel border)
+    light.paste(255, (bbox[0] - window[0], bbox[1] - window[1], bbox[2] - window[0], bbox[3] - window[1]))
+    data, ww = light.tobytes(), light.width
+    step = max(2, int(round(line_height / 6)))
+    lx0, lx1 = bbox[0] - window[0], bbox[2] - window[0]
+
+    def span(y):
+        runs = _light_runs(data[(y - window[1]) * ww:(y - window[1] + 1) * ww])
+        best = max(runs, key=lambda r: min(r[1], lx1) - max(r[0], lx0), default=None)
+        if best is None or min(best[1], lx1) - max(best[0], lx0) < (lx1 - lx0) / 2:
+            return None
+        a, b = best
+        a, b = (a + 2 if a > 0 else a), (b - 2 if b < ww else b)
+        return [y, window[0] + a, window[0] + b] if b > a else None
+
+    first = bbox[1] - ((bbox[1] - window[1]) // step) * step
+    ys = list(range(first, window[3], step))
+    inner = [i for i, y in enumerate(ys) if bbox[1] <= y < bbox[3]]
+    if not inner:
+        inner = [min(range(len(ys)), key=lambda i: abs(ys[i] - bbox[1]))]
+    rows = {ys[i]: span(ys[i]) for i in inner}
+    sampled = set(ys)
+    # walk outwards one pixel row at a time so a thin outline between samples ends the interior
+    for direction, limit in ((-1, window[1] - 1), (1, window[3])):
+        y = (ys[inner[0]] if direction < 0 else ys[inner[-1]]) + direction
+        while y != limit:
+            row = span(y)
+            if row is None:
+                break
+            if y in sampled:
+                rows[y] = row
+            y += direction
+    out = [rows[y] for y in sorted(rows) if rows[y] is not None]
+    return {"step": step, "rows": out} if out else None
+
+
+def snap_region(image, bbox):
+    """Candidate for a model-supplied lettering box (possibly loose or a little off): the
+    bbox is tightened to the lettering's glyphs, the background is plain when the ring around
+    the lettering is mostly light, and a plain region's interior is the free light space
+    around the lettering (balloon outlines need not be closed)."""
+    gray = image.convert("L")
+    width, height = gray.size
+    x0, y0 = min(max(0, int(bbox[0])), width - 1), min(max(0, int(bbox[1])), height - 1)
+    x1, y1 = min(max(x0 + 1, int(bbox[2])), width), min(max(y0 + 1, int(bbox[3])), height)
+    margin = max(4, int(round(SNAP_MARGIN * max(width, height))))
+    crop_box = (max(0, x0 - margin), max(0, y0 - margin), min(width, x1 + margin), min(height, y1 + margin))
+    crop = gray.crop(crop_box)
+    threshold = max(SNAP_DARK[0], min(_otsu(crop.histogram()), SNAP_DARK[1]))
+    dark = crop.point(lambda v: 255 if v < threshold else 0)
+    glyphs, grow = _lettering(dark, (x0 - crop_box[0], y0 - crop_box[1], x1 - crop_box[0], y1 - crop_box[1]))
+    rgb = image.convert("RGB")
+    if not glyphs:
         box = [x0, y0, x1, y1]
-        flat = an.flat(box)
-        return {"bbox": box, "interior": None, "background": an.ring_colour(box), "plain_background": flat,
-                "line_height": float(max(1, (y1 - y0) // 2)), "confidence": 0.2}
-    votes = Counter(label for label in (an.glyph_label(g) for g in inside) if label is not None)
-    inside = _main_text(inside)
-    interior = None
-    if votes:
-        interior = an.interior(votes.most_common(1)[0][0], _union(inside), _step(an, inside))
-    if interior is not None:
-        return _candidate(an, inside, interior, an.fill_colour(interior), 0.9)
-    return _candidate(an, inside, None, an.ring_colour(an.orig_box(_union(inside))), 0.5)
+        ring = _ring(gray, rgb, box, max(3, (y1 - y0) // 4))
+        return {"bbox": box, "interior": None, "background": ring["colour"],
+                "plain_background": _flat(gray, box), "line_height": float(max(1, (y1 - y0) // 2)),
+                "confidence": 0.2}
+    def placed(parts):
+        box = _union(parts)
+        return [box[0] + crop_box[0], box[1] + crop_box[1], box[2] + crop_box[0], box[3] + crop_box[1]]
+    tight = placed(glyphs)
+    line_height = round(max(1.0, _letter_pitch(glyphs)), 1)
+    ring = _ring(gray, rgb, tight, max(2, int(round(0.2 * line_height))))
+    if ring["light_share"] >= RING_LIGHT:
+        grown = grow()
+        tight = placed(grown)
+        line_height = round(max(1.0, _letter_pitch(grown)), 1)
+        level = int((threshold + sum(ring["light_colour"]) / 3) / 2)
+        interior = _free_space(gray, tight, line_height, level)
+        if interior is not None:
+            return {"bbox": tight, "interior": interior, "background": ring["light_colour"],
+                    "plain_background": True, "line_height": line_height, "confidence": 0.9}
+    return {"bbox": tight, "interior": None, "background": ring["colour"], "plain_background": False,
+            "line_height": line_height, "confidence": 0.6}
+
+
+def _ring(gray, rgb, box, band):
+    """Pixels in a band around ``box``: median colour, median light colour, light share."""
+    width, height = gray.size
+    outer = (max(0, box[0] - band), max(0, box[1] - band), min(width, box[2] + band), min(height, box[3] + band))
+    stride = max(1, (outer[2] - outer[0]) // 120)
+    g, c = gray.load(), rgb.load()
+    samples = [(x, y) for y in range(outer[1], outer[3], stride) for x in range(outer[0], outer[2], stride)
+               if not (box[0] <= x < box[2] and box[1] <= y < box[3])]
+    if not samples:
+        return {"colour": [255, 255, 255], "light_colour": [255, 255, 255], "light_share": 0.0}
+    light = [p for p in samples if g[p] >= LIGHT]
+
+    def median(points):
+        if not points:
+            return [255, 255, 255]
+        return [int(statistics.median(c[p][k] for p in points)) for k in range(3)]
+    return {"colour": median(samples), "light_colour": median(light), "light_share": len(light) / len(samples)}
+
+
+def _flat(gray, box):
+    crop = gray.crop(tuple(box))
+    if crop.width < 2:
+        return False
+    edges = ImageChops.difference(crop.crop((1, 0, crop.width, crop.height)),
+                                  crop.crop((0, 0, crop.width - 1, crop.height)))
+    histogram = edges.histogram()
+    return sum(histogram[25:]) / max(1, sum(histogram)) < 0.03

@@ -6,7 +6,7 @@ call -> fit -> at most one shorten call -> re-fit -> render. Every model call go
 state in ``<out>/.state/``. Outputs: ``pages/NNN.png``, ``comic.cbz``, ``comic.pdf``,
 ``comic.json``, ``review.html`` and the untouched ``originals/NNN.png``.
 
-    python -m scholarly_translation.comic_pipeline INPUT --out DIR --source-language en|fr|ja
+    python -m scholarly_translation.comic_pipeline INPUT --out DIR --source-language en|es|fr|ja
         --target he [--model mock|configured --model-config PATH] [--budget-usd 1.0]
         [--pages 1-5,8] [--notebook PATH]
 """
@@ -190,7 +190,7 @@ class MockComicAdapter:
         text = str(prompt_text)
         if text.startswith("# Comic Text Recognition"):
             count = int(re.search(r"numbered them 1 to (\d+)", text).group(1))
-            body = {"regions": [{"mark": n, "box": None, "kind": "speech", "text": "[source %d]" % n,
+            body = {"regions": [{"marks": [n], "box": None, "kind": "speech", "text": "[source %d]" % n,
                                  "speaker": None, "speaker_gender": "unknown", "addressee_gender": "unknown",
                                  "order": n} for n in range(1, count + 1)],
                     "summary": "Mock page.", "characters": []}
@@ -324,6 +324,35 @@ def _cap(base, count, each):
 
 # ---------------------------------------------------------------- page processing
 
+def separate_regions(regions, gap=4):
+    """Keep each region's interior off the other regions' lettering, so touching balloons never
+    share space: a row level with another region's lettering is cut short of it when that
+    lettering lies beside this one, and dropped (outside this region's own lettering rows) when
+    it lies above or below."""
+    for region in regions:
+        interior = region["interior"]
+        if not interior:
+            continue
+        own, rows = region["bbox"], []
+        for y, x0, x1 in interior["rows"]:
+            keep = True
+            for other in regions:
+                box = other["bbox"]
+                if other is region or not box[1] - gap <= y < box[3] + gap:
+                    continue
+                if x1 <= box[0] - gap or x0 >= box[2] + gap:
+                    continue
+                if box[2] <= own[0]:
+                    x0 = max(x0, box[2] + gap)
+                elif box[0] >= own[2]:
+                    x1 = min(x1, box[0] - gap)
+                elif not own[1] <= y < own[3]:
+                    keep = False
+            if keep and x1 > x0:
+                rows.append([y, x0, x1])
+        region["interior"] = {"step": interior["step"], "rows": rows} if rows else None
+
+
 def _fit_region(stages, region, font, rtl, size):
     text = region["translation"]["text"]
     layout = stages.fit(region, text, font, rtl, size[1], size[0])
@@ -363,8 +392,9 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         parsed = ctx.call(
             RECOGNITION_STAGE, prompt, lambda result: comic_model.parse_recognition(result.text, len(candidates)),
             dict(base_deps, stage=comic_model.RECOGNITION_VERSION, marks=len(candidates)),
-            _cap(2048, len(candidates), 300))
+            _cap(8192, len(candidates), 400))
         page["regions"] = comic_model.reconcile(page, image, candidates, parsed, stages.snap_region)
+        separate_regions(page["regions"])
         page["summary"] = parsed["summary"]
         page["status"] = "recognised"
         update = records.new_notebook()
@@ -390,7 +420,7 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
             TRANSLATION_STAGE, prompt,
             lambda result: comic_model.parse_translation(result.text, ids, target_code, kinds),
             dict(base_deps, stage=comic_model.TRANSLATION_VERSION, typeset=stages.TYPESET_VERSION,
-                 regions=ids), _cap(2048, len(ids), 300))
+                 regions=ids), _cap(6144, len(ids), 400))
         for item, region in zip(answer["translations"], page["regions"]):
             region["translation"] = {"text": item["text"], "status": "ok", "note": item["note"]}
         merged, warnings = comic_model.merge_notebook(notebook, answer["notebook"])
@@ -413,7 +443,7 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
                     SHORTEN_STAGE, comic_model.shorten_prompt(image, page, items, target_code),
                     lambda result: comic_model.parse_shorten(result.text, over_ids, target_code, current, kinds),
                     dict(base_deps, stage=comic_model.SHORTEN_VERSION, typeset=stages.TYPESET_VERSION,
-                         regions=over_ids, current=current), _cap(1024, len(items), 200))
+                         regions=over_ids, current=current), _cap(4096, len(items), 300))
             except _FATAL:
                 raise
             except (chapter_pipeline.ChapterPipelineError, comic_model.ComicModelError, TranslationBudgetError):
@@ -610,7 +640,7 @@ def main(argv=None):
                                      description="Translate comic pages in place.")
     parser.add_argument("input", help="image, folder of images, .cbz/.zip or .pdf")
     parser.add_argument("--out", required=True, help="output folder")
-    parser.add_argument("--source-language", required=True, choices=("en", "fr", "ja"))
+    parser.add_argument("--source-language", required=True, choices=sorted(comic_model.LANGUAGE_NAMES))
     parser.add_argument("--target", required=True, help="target language code (he)")
     parser.add_argument("--model", choices=("mock", "configured"), default="mock")
     parser.add_argument("--model-config", help="model configuration JSON (for --model configured)")

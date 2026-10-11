@@ -366,17 +366,19 @@ def render_page(image, regions) -> Image.Image:
     """Erase the source lettering and draw the translations on a copy of ``image``."""
     out = image.convert("RGB").copy() if image.mode != "RGB" else image.copy()
     draw = ImageDraw.Draw(out)
-    for region in regions:
-        translation, layout = region.get("translation"), region.get("layout")
-        if not translation or not layout or translation.get("status") == "skipped":
-            continue
-        style, colour = layout["style"], tuple(region["background"])
-        rtl = layout.get("rtl", False)
-        font = _font(FONT_DIR / layout["font"], layout["font_size"])
-        if style == "bubble":
+    placed = [r for r in regions if r.get("translation") and r.get("layout")
+              and r["translation"].get("status") != "skipped"]
+    # erase every region first, so a neighbour's erase never cuts into text already drawn
+    for region in placed:
+        layout, colour = region["layout"], tuple(region["background"])
+        if layout["style"] == "bubble":
             _erase_bubble(draw, region, out.size)
-        elif style == "box":
+        elif layout["style"] == "box":
             draw.rounded_rectangle(layout["box"], radius=max(3, layout["font_size"] // 2), fill=colour)
+    for region in placed:
+        layout, colour = region["layout"], tuple(region["background"])
+        style, rtl = layout["style"], layout.get("rtl", False)
+        font = _font(FONT_DIR / layout["font"], layout["font_size"])
         for line in layout["lines"]:
             text = _visual(line["text"], rtl)
             if style == "subtitle":

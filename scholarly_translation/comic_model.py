@@ -22,13 +22,13 @@ PROMPT_DIR = Path(__file__).resolve().parent / "runtime_prompts"
 RECOGNITION_PROMPT = PROMPT_DIR / "14_comic_recognition.md"
 TRANSLATION_PROMPT = PROMPT_DIR / "15_comic_translation.md"
 SHORTEN_PROMPT = PROMPT_DIR / "16_comic_shorten.md"
-RECOGNITION_VERSION = "comic-recognition@1"
+RECOGNITION_VERSION = "comic-recognition@2"
 TRANSLATION_VERSION = "comic-translation@1"
 SHORTEN_VERSION = "comic-shorten@1"
 
 MARKED_LONG_EDGE = 1600
 LABEL_FONT = Path(__file__).resolve().parent / "assets" / "fonts" / "notosans" / "NotoSans-Regular.ttf"
-LANGUAGE_NAMES = {"en": "English", "fr": "French", "ja": "Japanese"}
+LANGUAGE_NAMES = {"en": "English", "fr": "French", "es": "Spanish", "ja": "Japanese"}
 RIGHT_TO_LEFT_SOURCES = ("ja",)
 PREVIOUS_SUMMARIES = 2
 SOURCE_HEBREW_LIMIT = 0.5      # a recognised text with more Hebrew letters was translated, not transcribed
@@ -193,22 +193,27 @@ def parse_recognition(text, mark_count):
     entries = data.get("regions")
     if not isinstance(entries, list):
         _fail("recognition: 'regions' must be a list")
-    seen, regions = set(), []
+    regions = []
     for i, entry in enumerate(entries):
         where = "regions[%d]" % i
         if not isinstance(entry, dict):
             _fail("%s: expected an object" % where)
-        mark = entry.get("mark")
-        if mark is not None:
+        if "marks" in entry:
+            marks = entry["marks"]
+            if marks is None:
+                marks = []
+            if not isinstance(marks, list):
+                _fail("%s.marks: expected a list of mark numbers" % where)
+        else:  # recognition@1 answers: one "mark" or null
+            marks = [] if entry.get("mark") is None else [entry.get("mark")]
+        for mark in marks:
             if not _int(mark) or not 1 <= mark <= mark_count:
-                _fail("%s.mark: %r is not one of the %d marks" % (where, mark, mark_count))
-            if mark in seen:
-                _fail("%s.mark: mark %d answered twice" % (where, mark))
-            seen.add(mark)
+                _fail("%s.marks: %r is not one of the %d marks" % (where, mark, mark_count))
+        marks = sorted(set(marks))   # one mark may cover the lettering of two balloons
         box = entry.get("box")
         if box is None:
-            if mark is None:
-                _fail("%s: a region without a mark needs a box" % where)
+            if not marks:
+                _fail("%s: a region without marks needs a box" % where)
         else:
             box = _norm_box(box, where)
         kind = entry.get("kind")
@@ -227,7 +232,7 @@ def parse_recognition(text, mark_count):
         order = entry.get("order")
         if order is not None and not _int(order):
             _fail("%s.order: expected an integer" % where)
-        regions.append({"mark": mark, "box": box, "kind": kind, "text": source, "speaker": speaker,
+        regions.append({"marks": marks, "box": box, "kind": kind, "text": source, "speaker": speaker,
                         "speaker_gender": _gender(entry, "speaker_gender", where),
                         "addressee_gender": _gender(entry, "addressee_gender", where),
                         "order": order, "_position": i})
@@ -258,16 +263,26 @@ def _pixel_box(box, width, height):
     return [x0, y0, x1, y1]
 
 
+def _area(box):
+    return (box[2] - box[0]) * (box[3] - box[1])
+
+
 def reconcile(page, image, candidates, parsed, snap):
     """Regions of a page from a validated recognition answer.
 
-    Marked regions keep the local candidate geometry (``origin`` local); boxes the model
-    added are snapped to a balloon with ``snap(image, pixel_box)`` (``origin`` model).
-    Ids and ``order`` follow the model's reading order. A mark the model did not answer is
-    dropped visibly: ``unanswered_mark:N`` is appended to ``page["warnings"]``.
+    Every region is measured with ``snap(image, pixel_box)``. The box is the model's
+    lettering box joined with the marks it lists (a mark far larger than the model's box is
+    art and is ignored); a region without a model box uses its marks. ``origin`` is local
+    when marks contributed, else model. Ids and ``order`` follow the model's reading order. A
+    mark the model did not answer is dropped visibly: ``unanswered_mark:N`` in
+    ``page["warnings"]``.
     """
     width, height = image.size
-    answered = {r["mark"] for r in parsed["regions"] if r["mark"] is not None}
+    uses = {}
+    for r in parsed["regions"]:
+        for mark in r["marks"]:
+            uses[mark] = uses.get(mark, 0) + 1
+    answered = set(uses)
     for number in range(1, len(candidates) + 1):
         warning = "unanswered_mark:%d" % number
         if number not in answered and warning not in page["warnings"]:
@@ -275,19 +290,26 @@ def reconcile(page, image, candidates, parsed, snap):
     result = []
     for number, entry in enumerate(parsed["regions"], 1):
         warnings = []
-        if entry["mark"] is not None:
-            candidate, origin = candidates[entry["mark"] - 1], "local"
-        else:
-            pixels = _pixel_box(entry["box"], width, height)
-            origin = "model"
-            try:
-                candidate = snap(image, pixels)
-                records.validate_candidate(candidate, "snap", width, height)
-            except Exception:
-                warnings.append("snap_failed")
-                candidate = {"bbox": pixels, "interior": None, "background": [255, 255, 255],
-                             "plain_background": False, "line_height": max(1.0, (pixels[3] - pixels[1]) / 2),
-                             "confidence": 0.0}
+        model_box = _pixel_box(entry["box"], width, height) if entry["box"] is not None else None
+        boxes = [candidates[m - 1]["bbox"] for m in entry["marks"]]
+        if model_box is not None:
+            # a mark shared with another entry or far larger than the lettering adds no geometry
+            boxes = [candidates[m - 1]["bbox"] for m in entry["marks"]
+                     if uses[m] == 1 and _area(candidates[m - 1]["bbox"]) <= 3 * _area(model_box)]
+            if len(boxes) < len(entry["marks"]):
+                warnings.append("mark_ignored")
+            boxes.append(model_box)
+        pixels = [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes),
+                  max(b[3] for b in boxes)]
+        origin = "local" if len(boxes) > (model_box is not None) else "model"
+        try:
+            candidate = snap(image, pixels)
+            records.validate_candidate(candidate, "snap", width, height)
+        except Exception:
+            warnings.append("snap_failed")
+            candidate = {"bbox": pixels, "interior": None, "background": [255, 255, 255],
+                         "plain_background": False, "line_height": max(1.0, (pixels[3] - pixels[1]) / 2),
+                         "confidence": 0.0}
         result.append(records.new_region(
             candidate, page["index"], number, order=number, kind=entry["kind"], source_text=entry["text"],
             speaker=entry["speaker"], speaker_gender=entry["speaker_gender"],

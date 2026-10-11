@@ -328,5 +328,25 @@ class ConfiguredTests(TempCase):
         self.assertEqual(model.calls, [])
 
 
+
+class SeparateRegionsTests(unittest.TestCase):
+    def region(self, bbox, rows):
+        return {"bbox": bbox, "interior": {"step": 2, "rows": rows} if rows else None}
+
+    def test_touching_balloons_do_not_share_space(self):
+        left = self.region([100, 100, 200, 140], [[y, 60, 400] for y in range(80, 170, 2)])
+        right = self.region([260, 120, 380, 160], [[y, 60, 400] for y in range(100, 190, 2)])
+        above = self.region([120, 40, 180, 60], None)
+        cp.separate_regions([left, right, above])
+        for y, x0, x1 in left["interior"]["rows"]:
+            if 116 <= y < 164:                   # level with the right balloon's lettering: cut short of it
+                self.assertLessEqual(x1, 256)
+            self.assertFalse(36 <= y < 64)       # rows level with the lettering above are dropped
+        for y, x0, x1 in right["interior"]["rows"]:
+            if 96 <= y < 144:
+                self.assertGreaterEqual(x0, 204)
+        self.assertTrue(any(100 <= y < 140 for y, _, _ in left["interior"]["rows"]))
+        self.assertIsNone(above["interior"])
+
 if __name__ == "__main__":
     unittest.main()
