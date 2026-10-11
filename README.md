@@ -53,8 +53,8 @@ for downloading a result. "Auto" with no model configured is an explicit,
 free, non-network UI demo (mock placeholder text), not a translation. Select
 one of five bundled Hebrew PDF fonts before translation or change the download
 font afterwards: rerendering saved text makes no model call. See
-[the Hebrew UI guide](UI_README_HE.md) for setup, limits and storage, and
-[INSTALL_HE.md](INSTALL_HE.md) for first-time setup with no command line.
+[the Hebrew UI guide](docs/user/UI_README_HE.md) for setup, limits and storage, and
+[docs/user/INSTALL_HE.md](docs/user/INSTALL_HE.md) for first-time setup with no command line.
 If PowerShell blocks scripts, use the VBS launcher or
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1`;
 this applies only to that process, without changing machine policy.
@@ -85,7 +85,7 @@ OpenAI and Anthropic usage is normalized, including observed cache reads/writes.
 Other models use explicit manual rates or a labelled price assumption, never an
 official arbitrary-provider quote. Local `tiktoken`/byte sizing reports its method
 and uncertainty; the current GPT-6/Claude mappings remain estimates. See
-[token and cost notes](MODEL_COSTS_HE.md).
+[token and cost notes](docs/user/MODEL_COSTS_HE.md).
 
 `work_journal.py` persists each step's raw response before parsing/accounting;
 received/completed work resumes without another request. An uncertain dispatch

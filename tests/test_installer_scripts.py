@@ -166,7 +166,7 @@ class InstallBatAndDocTests(unittest.TestCase):
         self.assertIn('-File "%~dp0install.ps1"', text)
 
     def test_install_doc_describes_automatic_python(self):
-        text = _read("INSTALL_HE.md")
+        text = _read("docs/user/INSTALL_HE.md")
         self.assertIn("winget", text)
         self.assertIn("python.org", text)
         self.assertIn("אינטרנט", text)

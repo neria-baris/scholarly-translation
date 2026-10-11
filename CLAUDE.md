@@ -5,15 +5,15 @@ directly in the current session (Claude Code, Codex/Sol, or another). When the
 user writes to Claude Code, Claude holds the conductor role — contracts,
 verification, integration, audit and routine Git — with no handoff required.
 Delegated builders are scoped subagents; builders never merge. The role mapping
-is defined in `DEVELOPMENT_WORKFLOW.md` ("Ownership and progression").
+is defined in `docs/governance/DEVELOPMENT_WORKFLOW.md` ("Ownership and progression").
 
 Read in order before substantial work:
 1. `AGENTS.md`
-2. `DEVELOPMENT_WORKFLOW.md`
-3. `policy_astra_conductor_claude_builder_he(1).md`
-4. `prompt_codex_cli_astra_conductor_translation_build_he.md`
-5. `ARCHITECTURE.md`
-6. `scholarly_translation_model_strategy_he(1).md`
+2. `docs/governance/DEVELOPMENT_WORKFLOW.md`
+3. `docs/governance/policy_astra_conductor_claude_builder_he.md`
+4. `docs/governance/prompt_codex_cli_astra_conductor_translation_build_he.md`
+5. `docs/architecture/ARCHITECTURE.md`
+6. `docs/governance/scholarly_translation_model_strategy_he.md`
 7. `audit/current_state.md`
 8. `audit/claude_integration_conductor.md` (authoritative remaining D/X/F/G prompts).
 
@@ -24,7 +24,7 @@ with Git, then continue its exact next action. Git governs any discrepancy.
 Preserve valid running worktrees/delegated tasks instead of restarting them,
 including work started by a previous primary agent.
 
-Use delegated builders/worktrees under the limits in `DEVELOPMENT_WORKFLOW.md`:
+Use delegated builders/worktrees under the limits in `docs/governance/DEVELOPMENT_WORKFLOW.md`:
 any number of independent writers (no fixed cap), checked common base, separate
 ownership, tests and sequential integration; no recursive delegation. Escalation
 may go to Astra or Fable under the same written controls. Use the existing audit

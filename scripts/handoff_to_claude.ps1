@@ -4,7 +4,7 @@ param([switch]$ValidateOnly)
 $ErrorActionPreference = 'Stop'
 # Resolve from the helper's location, never the caller's current directory.
 $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$requiredFiles = @('AGENTS.md', 'DEVELOPMENT_WORKFLOW.md', 'CLAUDE.md',
+$requiredFiles = @('AGENTS.md', 'docs/governance/DEVELOPMENT_WORKFLOW.md', 'CLAUDE.md',
     'audit/current_state.md', 'audit/claude_integration_conductor.md')
 foreach ($relativePath in $requiredFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot $relativePath) -PathType Leaf)) {

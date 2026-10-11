@@ -20,16 +20,16 @@
 
 ## איך להשתמש בחבילה
 
-1. מסור למנצח את [00_conductor.md](prompts/language_learning/00_conductor.md).
-2. המנצח קורא את [החוזה המשותף](prompts/language_learning/01_shared_contract.md),
+1. מסור למנצח את [00_conductor.md](00_conductor.md).
+2. המנצח קורא את [החוזה המשותף](01_shared_contract.md),
    בודק את הממשקים הקיימים, מקבע bootstrap עובד ושומר בסיס משותף.
 3. מאותו בסיס אפשר למסור במקביל לשלושה בונים, כל אחד ב-worktree וענף נפרדים:
-   - [A: מצב למידה, מאגר ומתכנן](prompts/language_learning/02_builder_state.md).
-   - [B: EPUB וחיבור לספרייה](prompts/language_learning/03_builder_ingestion.md).
-   - [C: Luna, אימות ורינדור](prompts/language_learning/04_builder_generation.md).
+   - [A: מצב למידה, מאגר ומתכנן](02_builder_state.md).
+   - [B: EPUB וחיבור לספרייה](03_builder_ingestion.md).
+   - [C: Luna, אימות ורינדור](04_builder_generation.md).
 4. המנצח משלב A → B → C עם בדיקות בכל שילוב; אחריהם מופעל
-   [D: חלונית וממשוק](prompts/language_learning/05_builder_ui.md) באופן סדרתי.
-5. [פרומפט זמן הריצה](prompts/language_learning/06_runtime_generation.md)
+   [D: חלונית וממשוק](05_builder_ui.md) באופן סדרתי.
+5. [פרומפט זמן הריצה](06_runtime_generation.md)
    משמש את C להכנת תוכן. הוא אינו פרומפט לבונה קוד.
 
 המשתמש אישר בשיחה זו יותר משני סוכנים עבור עבודה זו. החבילה קובעת עד שלושה
@@ -44,7 +44,7 @@
 - בגרסה הראשונה קורא מקומי אחד, מסלול נפרד לכל שפה, וספר פעיל אחד לכל מסלול.
   אפשר לייבא כמה ספרים לתור; מכינים את הבא רק אחרי **קראתי** על הקודם.
 - המשתמש בחר רשימות לצרפתית, גרמנית, ספרדית, יידיש ואיטלקית.
-  [מצורפות 500 מילים בכל שפה](prompts/language_learning/wordlists/README_HE.md),
+  [מצורפות 500 מילים בכל שפה](wordlists/README_HE.md),
   ברשימות קריאות וב־JSON עם מקורות ורישיונות. הן מועמדות לפי שכיחות, לא קטלוג
   משמעויות/דקדוק מוכן. שפת החתך הראשון המוצעת היא צרפתית, הראשונה ברשימה;
   זו הנחת סדר ביצוע, לא בחירת פיילוט מפורשת. הציגו תמיכה רק לאחר קטלוג עובד.

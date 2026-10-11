@@ -19,11 +19,11 @@
 ## חבילת מסמכי הבנייה המקורית
 
 התיאור ההיסטורי להלן מתייחס לחבילת הפרומפטים המקורית.
-המאגר הנוכחי מכיל גם את קוד המוצר; בקרות הפיתוח העדכניות נמצאות ב־DEVELOPMENT_WORKFLOW.md.
+המאגר הנוכחי מכיל גם את קוד המוצר; בקרות הפיתוח העדכניות נמצאות ב־`docs/governance/DEVELOPMENT_WORKFLOW.md`.
 
-1. `prompt_codex_cli_astra_conductor_translation_build_he.md` — הפרומפט המרכזי להפעלת Astra ב־Codex CLI, עם שערי בנייה קטנים, חיבור Claude Code, ניתוב מודלים לפי עלות וחריג מקביליות מבוקר.
-2. `policy_astra_conductor_claude_builder_he(1).md` — סמכויות, תקציבים, ביקורת, הרשאות ו־Git worktrees.
-3. `scholarly_translation_model_strategy_he(1).md` — מדיניות מודלים לתרגום, ניסויים ומדידת איכות.
+1. `docs/governance/prompt_codex_cli_astra_conductor_translation_build_he.md` — הפרומפט המרכזי להפעלת Astra ב־Codex CLI, עם שערי בנייה קטנים, חיבור Claude Code, ניתוב מודלים לפי עלות וחריג מקביליות מבוקר.
+2. `docs/governance/policy_astra_conductor_claude_builder_he.md` — סמכויות, תקציבים, ביקורת, הרשאות ו־Git worktrees.
+3. `docs/governance/scholarly_translation_model_strategy_he.md` — מדיניות מודלים לתרגום, ניסויים ומדידת איכות.
 
 פרוס את ארבעת הקבצים בשורש מאגר Git מקומי. מתוך השורש הרץ `codex -m gpt-6-astra`, והורה לו לקרוא את קובץ הפרומפט המרכזי ואת שני מסמכי היסוד ולהתחיל בשער 0 בלבד. ה־ZIP עצמו הוא חבילת מסמכים להורדה; ZIP של נתוני מקור, אם יש, ייכנס בנפרד ל־`imports/` ולא ל־Git.
 

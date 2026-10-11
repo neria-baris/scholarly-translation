@@ -14,7 +14,7 @@ Updated: 2026-09-29T09:24:51.806127+00:00
 
 ## Live evidence
 
-Exact invocation, exit status, model usage and independent comparison: [run history](audit/run_history.md). Machine-readable selected evidence: [20260929T092338Z-claude-verification.json](audit/raw/20260929T092338Z-claude-verification.json).
+Exact invocation, exit status, model usage and independent comparison: [run history](../../audit/run_history.md). Machine-readable selected evidence: [20260929T092338Z-claude-verification.json](../../audit/raw/20260929T092338Z-claude-verification.json).
 
 Returned heading:
 
@@ -24,7 +24,7 @@ Returned heading:
 
 ## Prior results and scope
 
-The earlier FIX decision and full report are preserved in [gate history](audit/gate_history.md) and [20260929T092338Z-gate0-prior.md](audit/raw/20260929T092338Z-gate0-prior.md). Prior environment checks remain evidence; the live-access gap is now closed. The user explicitly removed sample PDFs as a Gate 0 acceptance condition. PDFs may be supplied before a later gate needs them.
+The earlier FIX decision and full report are preserved in [gate history](../../audit/gate_history.md) and [20260929T092338Z-gate0-prior.md](../../audit/raw/20260929T092338Z-gate0-prior.md). Prior environment checks remain evidence; the live-access gap is now closed. The user explicitly removed sample PDFs as a Gate 0 acceptance condition. PDFs may be supplied before a later gate needs them.
 
 Both policy documents and the launch prompt were read in the preceding Gate 0 run. No product code was changed. The conductor instructions now include the missing standing audit/Git rules. A fresh remote check and fetch verified origin/main at the initial bootstrap baseline before committing.
 

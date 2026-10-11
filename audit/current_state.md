@@ -1,6 +1,8 @@
 # Current state — COMIC on real pages (Claude Code session); other owner's checkpoint below
 Updated: 2026-10-11. Claude Code primary agent (conductor) for the comic work.
 
+Folder reorganization (user request, 2026-10-11, separate Claude Code session; see run_history REORG): root docs moved to docs/user, docs/architecture, docs/governance (the two "(1)" names dropped), docs/history/GATE_0.md; LANGUAGE_LEARNING_PROMPTS_HE.md -> prompts/language_learning/; tools/build_book_sprite.py -> scripts/. CLAUDE.md read order, AGENTS.md, README, handoff script and installer test updated. Ignored outputs/ stale gate folders/scripts/tmp moved to outputs/archive (README.txt maps them). Source comic PDF intentionally left in repo root while a comic_pipeline process is still running on it; move to inputs/comics/ afterwards.
+
 Comic commits on main (not pushed): 839f016, f369db0, 615b3f6, 255138a, 87b5813 (see run_history). CLI: python -m scholarly_translation.comic_pipeline INPUT --out DIR --source-language es --target he --model configured --model-config <luna config> [--pages] [--mirror auto|yes|no] [--notebook].
 Outputs (ignored): outputs/comics/torrezno-01 (v1, pages 1-33, comic.pdf; store holds one interrupted call with unknown outcome: settle before reuse), outputs/comics/torrezno-01-v2 (pages 10-13 with story context and mirroring).
 Open: user judges v2 quality; next options: per-page review/correction pass (literary lesson), full album run only on explicit approval (user wanted test runs only), web UI.

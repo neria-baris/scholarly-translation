@@ -113,7 +113,7 @@ Sol מחזיק בחוזים, אינטגרציה, בדיקות, audit ו־Git; Cl
 
 ## מקורות והנחות
 
-- [בקרות הפיתוח](DEVELOPMENT_WORKFLOW.md), [הארכיטקטורה](ARCHITECTURE.md) ו־[חוזה האינטגרציה הקיים](audit/claude_integration_conductor.md).
+- [בקרות הפיתוח](../governance/DEVELOPMENT_WORKFLOW.md), [הארכיטקטורה](ARCHITECTURE.md) ו־[חוזה האינטגרציה הקיים](../../audit/claude_integration_conductor.md).
 - [ספירת טוקנים של Anthropic](https://platform.claude.com/docs/en/build-with-claude/token-counting): ספירה מול המודל והבקשה הרלוונטיים.
 - [מטמון Anthropic](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) ו־[מטמון OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching): קידומת תואמת, נקודות מטמון, מדידת שימוש ופקיעה.
 - [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol): התאמת מאפייני המודל ופרמטרי החשיבה; גבולות ספק אינם גודל עבודה מומלץ.
