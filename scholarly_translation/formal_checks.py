@@ -33,6 +33,9 @@ _URL_RE = re.compile(r'^(?:[a-z][a-z0-9+.-]*://|www\.)\S+$', re.IGNORECASE)
 _EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[a-z]{2,}$', re.IGNORECASE)
 _DOMAIN_RE = re.compile(r'^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:/\S*)?$', re.IGNORECASE)
 _TOKEN_EDGE = '()[]{}<>"\'.,;:!?‘’“”'
+# A Roman numeral in one case (page numbers ii, xiv; parts IV): a number, not a word.
+_ROMAN_RE = re.compile(r'^M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})$')
+_ROMAN_WORDS = {"mix"}
 
 
 _MATH_CHARS = set("=+*/^_<>|\\") | set(
@@ -57,13 +60,17 @@ def _is_math_token(token):
 def has_translatable_words(text):
     """True when ``text`` contains a word a translator should render in Hebrew.
     URLs, e-mail addresses, domain names, tokens containing a digit (ISBNs,
-    dates, codes), letterless tokens and mathematical tokens (single-letter
-    variables, operators, Greek, super/subscripts, function names) are not."""
+    dates, codes), Roman numerals, letterless tokens and mathematical tokens
+    (single-letter variables, operators, Greek, super/subscripts, function
+    names) are not."""
     for token in text.split():
         token = token.strip(_TOKEN_EDGE)
         if not any(ch.isalpha() for ch in token):
             continue
         if any(ch.isdigit() for ch in token):
+            continue
+        if (token in (token.lower(), token.upper()) and _ROMAN_RE.match(token.upper())
+                and token.lower() not in _ROMAN_WORDS):
             continue
         if _URL_RE.match(token) or _EMAIL_RE.match(token) or _DOMAIN_RE.match(token):
             continue

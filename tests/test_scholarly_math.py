@@ -155,6 +155,14 @@ class MathTextTests(unittest.TestCase):
         raw = json.dumps([{"unit_id": "u1", "translation": "E = mc²"}])
         self.assertEqual(pipeline.parse_batch_translation_response(raw, ["u1"], {"u1": "E = mc²"})["u1"]["translation"], "E = mc²")
 
+    def test_roman_page_numbers_have_nothing_to_translate(self):
+        for marker in ("ii", "viii", "xiv", "XLII", "(iv)", "xii."):
+            self.assertFalse(has_translatable_words(marker), marker)
+        for prose in ("mix", "Mix well", "Did", "civil", "Ix"):
+            self.assertTrue(has_translatable_words(prose), prose)
+        raw = json.dumps([{"unit_id": "u1", "translation": "viii"}])
+        self.assertEqual(pipeline.parse_batch_translation_response(raw, ["u1"], {"u1": "viii"})["u1"]["translation"], "viii")
+
     def test_unicode_display_formulas_are_formula_nodes(self):
         for line in ("E = mc²", "∑ᵢ αᵢ ≤ √x", "x ∈ ℝ, x > 0", "a = b + 2"):
             self.assertEqual(classify_line(line)[0], "formula", line)

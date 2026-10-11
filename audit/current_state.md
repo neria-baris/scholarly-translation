@@ -1,3 +1,19 @@
+# Current state — ROMAN-PAGES fix on main (not pushed); LEARN-PARALLEL uncommitted in the working tree
+Updated: 2026-10-11. Claude Code primary agent (conductor), user request: chapter-translate failed "translation response target is not Hebrew".
+
+Cause: EPUB page-number markers are separate units; Roman numerals (ii, iii, iv, viii, ix) counted as translatable words, so the model's correct passthrough answer was rejected. Not caused by REVIEW-SUGGESTIONS.
+Fix: formal_checks.has_translatable_words treats a single-case Roman numeral as a number ("mix" stays a word); test in tests/test_scholarly_math.py. The preserved response of job 4c96b48b3c9c15e369152c2855a0d40d (288 items) passes the new validator offline, so Resume re-validates it without a new provider call.
+
+Verification: scholarly_math, target_languages, chapter_pipeline, formal, draft and structure suites OK. Full suite 1487: 2 failures in learning tests, which belong to Codex's uncommitted LEARN-PARALLEL work (test_learning_store passes on HEAD). Runtime provider calls 0.
+
+Concurrent work: Codex LEARN-PARALLEL (learning_*, web_ui.py, learning tests, audit logs, new contracts/files) is uncommitted in this same working tree and was not staged. Its own checkpoint is in the working copy of this file.
+
+Active delegated work: none.
+
+Next action: user restarts the web UI and clicks Resume on the failed book; Codex (or the conductor) reviews and commits LEARN-PARALLEL on top of this commit; push main when the user approves.
+
+---
+Previous checkpoint:
 # Current state — REVIEW-SUGGESTIONS on main (not pushed)
 Updated: 2026-10-10. Claude Code primary agent (conductor), user request: apply review suggestions automatically (also in finished books) and avoid over-literal translation.
 
@@ -15,24 +31,3 @@ Open:
 Active delegated work: none.
 
 Next action: restart the web UI; the user opens each finished book and clicks the suggestions button, then Resume; push main when the user approves.
-
----
-Previous checkpoint:
-# Current state — COMIC engine integrated on main (not pushed)
-Updated: 2026-10-09. Claude Code primary agent (conductor), user request: comic translation.
-
-Main: ed223c0 COMIC-C on e0b0658 COMIC-A, 0fcff44 COMIC-B, cd7257f COMIC-0, 1ecc6a1 SINGLE-INSTANCE. Not pushed (origin/main = 7a06f80). Contract audit/contracts/comic_translation.md.
-
-Usable now: `python -m scholarly_translation.comic_pipeline INPUT --out DIR --source-language en|fr|ja --target he [--model mock|configured --model-config PATH] [--budget-usd 1.0] [--pages 1-5] [--notebook PATH]`. Inputs: image, folder, CBZ/ZIP, PDF. Outputs: pages/*.png, comic.cbz, comic.pdf, comic.json, review.html.
-
-Verification: full offline suite 1481 tests; 3 failures fixed and rerun. Runtime provider calls 0.
-
-Open / blocked:
-- Real-comic quality BLOCKED: needs a few real pages from the user and approval of a paid configured run (cost per page ~2 vision calls).
-- Not yet done: web UI integration (next step), comic-style Hebrew font (would need a download), screentone/colour/vertical-Japanese detection limits (model boxes + snap cover part of it).
-- Agent worktrees of the three builders remain (.claude/worktrees/agent-ac5d8c…, agent-a940f7…, agent-a07f20…), contents integrated; safe to remove after the user confirms.
-- From SINGLE-INSTANCE: stop old web_ui servers, start one, resume learning job session-f928b03a.
-
-Active delegated work: none.
-
-Next action: user supplies sample comic pages and approves a small paid run (or asks for UI integration); push main when the user approves.
