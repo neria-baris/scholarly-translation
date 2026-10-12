@@ -1,11 +1,11 @@
 # Current state — COMIC on real pages (Claude Code session); other owner's checkpoint below
 Updated: 2026-10-12. Claude Code primary agent (conductor) for the comic work.
 
-Comic code under scholarly_translation/comics/ (TOPIC-LAYOUT by the other owner). Latest comic commits: 572fedf (literary review mechanism) + follow-up; earlier 839f016..e77cf0c. Not pushed. CLI: python -m scholarly_translation.comics.pipeline INPUT --out DIR --source-language es --target he --translator openai:gpt-6-luna:medium --reviewer openai:gpt-6-luna:medium [--review-unit panel|page|pages:N] [--recheck on|off] [--pages] [--mirror] [--notebook].
-Outputs (ignored): outputs/comics/rev-base, rev-panel, rev-page, rev-pages-2 (pages 6-7, 11, 13; review-unit comparison), earlier torrezno-01(-v2,-v3).
-Open: user picks a review unit (page = balance); recheck findings are recorded only (a retranslation that drops content is not fixed); L-shaped prose paragraphs set small; full album only on explicit approval.
-Uncommitted, not ours: staged translate/chapter_pipeline.py + tests/translate/test_chapter_pipeline.py (other owner) — do not commit or revert. Untracked source PDF in repo root: do not commit.
-Next action: wait for the user's choice of review unit and verdict on rev-page.
+Comic code: scholarly_translation/comics/ (pipeline, model, review, edit, detect, typeset, records). Latest commits up to cf9ac94 + receipt. Not pushed. CLI adds --review-unit, --recheck, --edit-art-text (alias --edit-signs), --edit-budget-usd, --edit-quality.
+Best current output: outputs/comics/torrezno-01-v4 (pages 10-13, all features; comic.pdf, review.html); signs-only check: outputs/comics/torrezno-01-v3/signs-test/013.png.
+Open: recogniser box accuracy in crowded panels (Luna medium) misplaces some regions (art edits then land in the wrong place); tiny adjacent balloons overflow into each other; leftover lettering touching outlines. Options for the user: stronger recognition model (gpt-6.1-sol) or a per-page placement-verification call. Full album only on explicit approval.
+Uncommitted, not ours: staged translate/chapter_pipeline.py + tests/translate/test_chapter_pipeline.py (other owner). Untracked source PDF in repo root: do not commit.
+Next action: user chooses how to fix placement (stronger recogniser vs placement check).
 
 ---
 Previous checkpoint (other owner):
