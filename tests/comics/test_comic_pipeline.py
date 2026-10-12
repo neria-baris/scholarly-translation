@@ -484,3 +484,20 @@ class SeparateRegionsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RecognizerAndPlacementTests(unittest.TestCase):
+    def test_recognizer_role_in_configuration(self):
+        configuration = cp.catalogue_configuration("openai:gpt-6-luna:medium", None, "openai:gpt-6.1-sol:high")
+        self.assertEqual(configuration.models["comic_recognizer"].model, "gpt-6.1-sol")
+        self.assertEqual(configuration.models["translator"].model, "gpt-6-luna")
+
+    def test_parse_placement(self):
+        from scholarly_translation.comics import model as cm
+        good = json.dumps({"regions": [{"number": 1, "ok": True}, {"number": 2, "ok": False, "box": [1, 2, 30, 40]}]})
+        self.assertEqual(cm.parse_placement(good, [1, 2]), {1: None, 2: [1, 2, 30, 40]})
+        for bad in (json.dumps({"regions": [{"number": 1, "ok": True}]}),
+                    json.dumps({"regions": [{"number": 1, "ok": False}, {"number": 2, "ok": True}]}),
+                    json.dumps({"regions": [{"number": 1, "ok": "yes"}, {"number": 2, "ok": True}]})):
+            with self.assertRaises(cm.ComicModelError):
+                cm.parse_placement(bad, [1, 2])

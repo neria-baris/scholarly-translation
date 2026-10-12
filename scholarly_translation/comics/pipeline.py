@@ -42,10 +42,11 @@ from ..translate.translation import TranslationBudgetError
 from ..core.work_journal import WorkJournal
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
-ROLE, REVIEW_ROLE = "translator", "semantic_reviewer"
+ROLE, REVIEW_ROLE, RECOGNIZER_ROLE = "translator", "semantic_reviewer", "comic_recognizer"
 RECOGNITION_STAGE, TRANSLATION_STAGE, SHORTEN_STAGE = "comic-recognition", "comic-translation", "comic-shorten"
 REVIEW_STAGE, CORRECTION_STAGE, REREAD_STAGE = "comic-review", "comic-correction", "comic-reread"
 LOCATE_STAGE = "comic-sign-locate"
+PLACEMENT_STAGE = "comic-placement"
 MAX_CALLS = 20000                 # task call ceiling (fixed per task; the budget is the real limit)
 DEFAULT_OUTPUT_TOKENS = 16384
 PDF_RENDER_SCALE = 2.0
@@ -270,6 +271,9 @@ class _Context:
         self.review = review
         self.review_unit, self.recheck = review_unit, recheck
         self.editor = None
+        self.placement_check = False
+        # reading the page (recognition, re-reading, sign location, placement) may use its own model
+        self.recognizer_role = RECOGNIZER_ROLE if RECOGNIZER_ROLE in configuration.models else ROLE
         comic_review.parse_scope(review_unit)
         self.review_role = REVIEW_ROLE if REVIEW_ROLE in configuration.models else ROLE
 
@@ -346,6 +350,40 @@ def _cap(base, count, each):
 
 
 # ---------------------------------------------------------------- page processing
+
+def check_placement(ctx, stages, page, image, base_deps):
+    """One vision call per page: does each region's frame enclose its own lettering? A region
+    reported misplaced is re-measured at the corrected box (warning ``placement_fixed``); a
+    failed check changes nothing (warning ``placement_check_failed``)."""
+    numbers = [r["order"] for r in page["regions"]]
+    try:
+        verdict = ctx.call(
+            PLACEMENT_STAGE, comic_model.placement_prompt(image, page),
+            lambda result: comic_model.parse_placement(result.text, numbers),
+            dict(base_deps, stage=comic_model.PLACEMENT_VERSION,
+                 regions=[[r["order"], r["source_text"], r["bbox"]] for r in page["regions"]]),
+            _cap(2048, len(numbers), 80), role=ctx.recognizer_role)
+    except _FATAL:
+        raise
+    except (chapter_pipeline.ChapterPipelineError, comic_model.ComicModelError, TranslationBudgetError):
+        page["warnings"].append("placement_check_failed")
+        return
+    width, height = image.size
+    for region in page["regions"]:
+        box = verdict.get(region["order"])
+        if box is None:
+            continue
+        pixels = comic_model._pixel_box(box, width, height)
+        try:
+            candidate = stages.snap_region(image, pixels)
+            records.validate_candidate(candidate, "snap", width, height)
+        except Exception:
+            region["warnings"].append("placement_snap_failed")
+            continue
+        region.update({key: candidate.get(key) for key in ("bbox", "interior", "background", "plain_background",
+                                                            "line_height", "confidence", "balloon")})
+        region["warnings"].append("placement_fixed")
+
 
 def drop_duplicate_boxes(page, limit=0.5):
     """A region whose box almost coincides with an earlier region's (the recogniser placed two
@@ -532,8 +570,10 @@ def prepare_page(ctx, stages, number, name, image, raw, source_language, target_
         parsed = ctx.call(
             RECOGNITION_STAGE, prompt, lambda result: comic_model.parse_recognition(result.text, len(candidates)),
             dict(base_deps, stage=comic_model.RECOGNITION_VERSION, marks=len(candidates)),
-            _cap(8192, len(candidates), 400))
+            _cap(8192, len(candidates), 400), role=ctx.recognizer_role)
         page["regions"] = comic_model.reconcile(page, image, candidates, parsed, stages.snap_region)
+        if ctx.placement_check and page["regions"]:
+            check_placement(ctx, stages, page, image, base_deps)
         apply_kinds(page["regions"])
         drop_duplicate_boxes(page)
         separate_regions(page["regions"])
@@ -700,7 +740,7 @@ def _reread(ctx, stages, unit, images, by_label, rereads, notebook, source_langu
         REREAD_STAGE, comic_review.reread_prompt(items, images, rereads, source_language),
         lambda result: comic_review.parse_reread(result.text, names),
         dict(_unit_deps(unit, stages, source_language, target_code, comic_review.REREAD_VERSION), reread=names),
-        _cap(2048, len(names), 300))
+        _cap(2048, len(names), 300), role=ctx.recognizer_role)
     by_page = {}
     for name in names:
         page, region = by_label[name]
@@ -726,7 +766,8 @@ def _locator(ctx, page):
         try:
             return ctx.call(LOCATE_STAGE, prompt, lambda result: _quad(result.text),
                             {"stage": "comic-sign-locate@1", "page": page["index"], "image": page["image_sha256"],
-                             "region": region["region_id"], "box": list(box), "source": source}, 2048)
+                             "region": region["region_id"], "box": list(box), "source": source}, 2048,
+                            role=ctx.recognizer_role)
         except _FATAL:
             raise
         except (chapter_pipeline.ChapterPipelineError, comic_model.ComicModelError, TranslationBudgetError) as exc:
@@ -901,7 +942,8 @@ def _settle_budget(store, comic_id, budget_usd):
 def run_comic(input_path, out_dir, source_language, target_code, model="mock", model_config=None, budget_usd=1.0,
               pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None,
               mirror="auto", review=True, configuration=None, review_unit="page", recheck=True,
-              edit_art_text=False, edit_budget_usd=1.0, edit_quality="medium", edit_client=None):
+              edit_art_text=False, edit_budget_usd=1.0, edit_quality="medium", edit_client=None,
+              placement_check=False):
     """Translate a comic into ``out_dir`` and return the validated comic dict."""
     if model not in ("mock", "configured"):
         raise ComicPipelineError("model must be mock or configured")
@@ -946,6 +988,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
             budget_usd = _settle_budget(store, comic_id, budget_usd)
             ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review,
                            review_unit, recheck)
+            ctx.placement_check = placement_check
             if edit_art_text:
                 ctx.editor = comic_edit.SignEditor(out / ".state", edit_client or _openai_image_client(),
                                                    edit_budget_usd, edit_quality)
@@ -1052,15 +1095,27 @@ def _catalogue_selection(spec):
     return selection
 
 
-def catalogue_configuration(translator, reviewer=None):
+def catalogue_configuration(translator, reviewer=None, recognizer=None):
     """Model configuration from catalogue specs, built the way the web UI builds it (keys come
-    from the provider's environment variable or the saved key store)."""
+    from the provider's environment variable or the saved key store). ``recognizer`` adds the
+    comic_recognizer role (reading the page) with its own model."""
     from ..models.settings import ModelSettingsError, build_configuration
     roles = {"translator": _catalogue_selection(translator)}
     if reviewer:
         roles["semantic_reviewer"] = _catalogue_selection(reviewer)
     try:
-        return build_configuration(roles)
+        configuration = build_configuration(roles)
+        if not recognizer:
+            return configuration
+        reading = build_configuration({"translator": _catalogue_selection(recognizer)}).to_dict()
+        merged = configuration.to_dict()
+        model = reading["models"]["translator"]
+        provider_id = model["provider"]
+        if provider_id in merged["providers"] and merged["providers"][provider_id] != reading["providers"][provider_id]:
+            provider_id += "-recognizer"
+        merged["providers"][provider_id] = reading["providers"][model["provider"]]
+        merged["models"][RECOGNIZER_ROLE] = dict(model, provider=provider_id)
+        return ModelConfiguration.from_dict(merged)
     except ModelSettingsError as exc:
         raise ComicPipelineError(str(exc)) from None
 
@@ -1080,6 +1135,10 @@ def main(argv=None):
     parser.add_argument("--translator", help="catalogue model for recognition and translation, "
                                              "PROVIDER:MODEL[:REASONING], e.g. openai:gpt-6.1-sol:high")
     parser.add_argument("--reviewer", help="catalogue model for the review pass (default: the translator)")
+    parser.add_argument("--recognizer", help="catalogue model for reading the page (recognition, re-reading, "
+                                             "placement; default: the translator)")
+    parser.add_argument("--placement-check", choices=("on", "off"), default="off",
+                        help="one vision call per page verifying that each region's box holds its lettering")
     parser.add_argument("--review", choices=("on", "off"), default="on",
                         help="independent review (literary mechanism) whose findings are applied automatically")
     parser.add_argument("--review-unit", default="page",
@@ -1097,12 +1156,13 @@ def main(argv=None):
     try:
         configuration = None
         if args.translator:
-            configuration = catalogue_configuration(args.translator, args.reviewer)
+            configuration = catalogue_configuration(args.translator, args.reviewer, args.recognizer)
             args.model = "configured"
         comic = run_comic(args.input, args.out, args.source_language, args.target, args.model, args.model_config,
                           args.budget_usd, args.pages, args.notebook, mirror=args.mirror,
                           review=args.review == "on", configuration=configuration, review_unit=args.review_unit,
                           recheck=args.recheck == "on", edit_art_text=args.edit_art_text == "on",
+                          placement_check=args.placement_check == "on",
                           edit_budget_usd=args.edit_budget_usd, edit_quality=args.edit_quality,
                           progress=lambda done, total, page_id: _safe_print("%s done (%d/%d)" % (page_id, done, total)))
     except (ComicPipelineError, ModelConfigError, OpenAIConfigurationError, RuntimeControlsError) as exc:

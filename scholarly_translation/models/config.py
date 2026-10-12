@@ -20,6 +20,7 @@ ROLES = (
     "chapter_qa",
     "candidate_evaluator",
     "context_state_builder",
+    "comic_recognizer",        # comics: reading lettering and its place on the page (optional)
 )
 PROVIDER_TYPES = {"mock", "openai", "anthropic", "deepseek", "openai_compatible"}
 _ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{1,127}$")

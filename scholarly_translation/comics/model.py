@@ -22,6 +22,8 @@ PROMPT_DIR = Path(__file__).resolve().parents[1] / "runtime_prompts"
 RECOGNITION_PROMPT = PROMPT_DIR / "14_comic_recognition.md"
 TRANSLATION_PROMPT = PROMPT_DIR / "15_comic_translation.md"
 SHORTEN_PROMPT = PROMPT_DIR / "16_comic_shorten.md"
+PLACEMENT_PROMPT = PROMPT_DIR / "20_comic_placement.md"
+PLACEMENT_VERSION = "comic-placement@1"
 RECOGNITION_VERSION = "comic-recognition@3"
 TRANSLATION_VERSION = "comic-translation@2"
 SHORTEN_VERSION = "comic-shorten@1"
@@ -479,6 +481,36 @@ def parse_translation(text, region_ids, target_code, kinds=None, sources=None):
         _fail("translation: 'story' must be a string")
     notebook["story"] = story.strip()
     return {"translations": translations, "notebook": notebook, "summary": summary.strip()}
+
+
+def placement_prompt(image, page):
+    """Vision prompt checking that each region's frame encloses its own lettering."""
+    regions = page["regions"]
+    rows = [{"number": r["order"], "kind": r["kind"], "lettering": r["source_text"]} for r in regions]
+    text = _fill(_template(PLACEMENT_PROMPT), REGIONS="\n".join(_json(row) for row in rows))
+    return ImagePrompt(text, marked_page_image(image, regions, [r["order"] for r in regions]), "image/jpeg")
+
+
+def parse_placement(text, numbers):
+    """Validator: every number once; a wrong placement carries a corrected 0..1000 box.
+    Returns {number: None (ok) or box}."""
+    data = _object(text, "placement")
+    entries = data.get("regions")
+    if not isinstance(entries, list):
+        _fail("placement: 'regions' must be a list")
+    found = {}
+    for i, entry in enumerate(entries):
+        where = "regions[%d]" % i
+        if not isinstance(entry, dict) or entry.get("number") not in numbers or entry["number"] in found:
+            _fail("%s: unknown, missing or repeated number" % where)
+        ok = entry.get("ok")
+        if not isinstance(ok, bool):
+            _fail("%s.ok: expected true or false" % where)
+        found[entry["number"]] = None if ok else _norm_box(entry.get("box"), where)
+    missing = [n for n in numbers if n not in found]
+    if missing:
+        _fail("placement: missing numbers %s" % missing)
+    return found
 
 
 def shorten_prompt(image, page, overflowing, target_code):
