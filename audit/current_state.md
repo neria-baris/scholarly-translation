@@ -1,13 +1,11 @@
 # Current state — COMIC on real pages (Claude Code session); other owner's checkpoint below
 Updated: 2026-10-12. Claude Code primary agent (conductor) for the comic work.
 
-Comic commits on main (not pushed): 839f016, f369db0, 615b3f6, 255138a, 87b5813, 1fe299c, e77cf0c (see run_history). CLI: python -m scholarly_translation.comics.pipeline INPUT --out DIR --source-language es --target he --translator openai:gpt-6-luna:medium --reviewer openai:gpt-6-luna:medium [--pages] [--mirror auto|yes|no] [--review on|off] [--notebook].
-Outputs (ignored): outputs/comics/torrezno-01 (v1, pages 1-33; store has one interrupted call with unknown outcome), -v2 (pages 10-13, story context), -v3 (pages 10-13, shape + review, Luna medium; current best).
-Open: user judges v3; known gaps: lettering the recognition box misses stays (mirrored), tiny text in squeezed neighbours, partial sfx restore, review trusts wrong transcriptions. Full album only on explicit user approval (user wants test runs).
-Uncommitted, not ours: staged scholarly_translation/translate/chapter_pipeline.py and tests/translate/test_chapter_pipeline.py (other owner; moved by TOPIC-LAYOUT) — do not commit or revert. Untracked source PDF in repo root: do not commit.
-Next action: wait for the user's verdict on v3 pages 10-13.
-
-TOPIC-LAYOUT merged 2026-10-12 (separate Claude Code session, user-approved; contract audit/contracts/topic_layout.md): main fast-forwarded to 931fdf9. Package is now scholarly_translation/{core,sources,models,budget,translate,review,export,comics,learning,ui} with tests mirrored; see docs/architecture/ARCHITECTURE.md "Package layout". Entry points: web UI `-m scholarly_translation.ui.web_ui`, comics `-m scholarly_translation.comics.pipeline` (CLI line above updated). Full suite 1525 OK before merge. Web UI was stopped for the merge and restarted via run-ui.ps1 (pages 200). The other owner's staged patch was carried to scholarly_translation/translate/chapter_pipeline.py and tests/translate/test_chapter_pipeline.py, still staged and uncommitted (its focused tests pass). Old open branches/worktrees use the old flat paths: rebase them onto main before merging; chore/package-layout is superseded.
+Comic code under scholarly_translation/comics/ (TOPIC-LAYOUT by the other owner). Latest comic commits: 572fedf (literary review mechanism) + follow-up; earlier 839f016..e77cf0c. Not pushed. CLI: python -m scholarly_translation.comics.pipeline INPUT --out DIR --source-language es --target he --translator openai:gpt-6-luna:medium --reviewer openai:gpt-6-luna:medium [--review-unit panel|page|pages:N] [--recheck on|off] [--pages] [--mirror] [--notebook].
+Outputs (ignored): outputs/comics/rev-base, rev-panel, rev-page, rev-pages-2 (pages 6-7, 11, 13; review-unit comparison), earlier torrezno-01(-v2,-v3).
+Open: user picks a review unit (page = balance); recheck findings are recorded only (a retranslation that drops content is not fixed); L-shaped prose paragraphs set small; full album only on explicit approval.
+Uncommitted, not ours: staged translate/chapter_pipeline.py + tests/translate/test_chapter_pipeline.py (other owner) — do not commit or revert. Untracked source PDF in repo root: do not commit.
+Next action: wait for the user's choice of review unit and verdict on rev-page.
 
 ---
 Previous checkpoint (other owner):
