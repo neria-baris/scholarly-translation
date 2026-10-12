@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 from reportlab.pdfgen import canvas
 
 from scholarly_translation.comics import pipeline as cp
@@ -529,3 +529,43 @@ class RecognizerFallbackTests(unittest.TestCase):
         self.assertEqual(comic["pages"][0]["status"], "rendered")
         self.assertEqual(calls[:2], ["fake-sol", "fake-sol"])
         self.assertNotIn("fake-sol", calls[2:])
+
+
+class KeepOriginalTests(unittest.TestCase):
+    def test_parse_keep_only_for_scene_lettering(self):
+        from scholarly_translation.comics import model as cm
+        text = json.dumps({"translations": [{"id": "a", "text": "בר דנוור", "note": "", "keep": True},
+                                            {"id": "b", "text": "שלום לך", "note": "", "keep": True}],
+                           "notebook": {}, "summary": ""}, ensure_ascii=False)
+        parsed = cm.parse_translation(text, ["a", "b"], "he", {"a": "sign", "b": "speech"})
+        self.assertEqual([t["keep"] for t in parsed["translations"]], [True, False])
+
+    def region(self, bbox):
+        return {"region_id": "p001-r01", "kind": "sign", "bbox": bbox, "source_text": "BAR", "warnings": [],
+                "translation": {"text": "בר", "status": "ok", "note": "", "keep_original": True},
+                "layout": {"style": "box", "lines": [], "overflow": False, "box": bbox, "font_size": 12}}
+
+    def test_flat_kept_lettering_is_pasted_unmirrored(self):
+        image = Image.new("RGB", (100, 50), "white")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([10, 10, 14, 19], fill=(0, 0, 0))            # left part of the lettering
+        base = ImageOps.mirror(image)
+        region = self.region([10, 10, 30, 20])
+        self.assertEqual(cp.keep_original(base, image, region, True), "kept")
+        self.assertEqual(base.getpixel((71, 15)), (0, 0, 0))          # unflipped: left part stays left
+        self.assertTrue(region["edited"])
+
+    def test_slanted_kept_lettering_goes_to_the_image_model(self):
+        image = Image.new("RGB", (300, 200), "white")
+        draw = ImageDraw.Draw(image)
+        for i in range(6):
+            draw.rectangle([105 + i * 18, 128 - i * 5, 115 + i * 18, 138 - i * 5], fill=(0, 0, 0))
+        calls = []
+
+        class Editor:
+            def edit(self, base, region, text, language, rtl, locate=None):
+                calls.append((text, language, rtl))
+                return "redraw"
+        method = cp.keep_original(ImageOps.mirror(image), image, self.region([100, 95, 220, 145]), True, Editor(), "es")
+        self.assertEqual(method, "kept-relettered")
+        self.assertEqual(calls, [("BAR", "Spanish", False)])

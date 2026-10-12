@@ -42,6 +42,7 @@ How to translate:
 - A sentence that runs over several balloons stays one sentence: continue it naturally across those regions, keeping the "..." where the original has them.
 - Aim for "max_chars"; natural, clear wording comes first and may run up to a quarter longer (the lettering will be set smaller). Never cut meaning to save characters.
 - A sound effect (kind sfx) gets a short {{T:TARGET}} sound word of the same feel, or the original sound written in {{T:TARGET}} letters.
+- Lettering that is part of the scene (kind sign or other: shop signs, banners, labels, screens): set "keep": true when it is a proper name (a bar, shop, team, brand, street, ship) or a word a {{T:TARGET}} reader understands as it stands (BAR, TAXI, HOTEL, POLICE, STOP); it then stays in the original lettering on the page, and "text" still gives its {{T:TARGET}} meaning for the editor. Set "keep": false when its meaning matters to the scene (a notice, a joke, a warning, a label the reader must understand); it is then re-lettered in {{T:TARGET}}. Balloons, captions and sound effects never take "keep".
 - Translate every region, each exactly once, using the given "id". Do not merge, split, reorder or add regions. A short remark for the editor may go in "note", never inside the text.
 
 Also return:
@@ -50,4 +51,4 @@ Also return:
 - "summary": one or two sentences in English about what happens on this page.
 
 Output ONLY one JSON object, no commentary and no code fences:
-{"translations": [{"id": "...", "text": "...", "note": ""}], "notebook": {"characters": [{"name": "source name", "target_name": "...", "gender": "male|female|mixed|unknown", "note": ""}], "terms": [{"source": "...", "target": "..."}]}, "story": "...", "summary": "..."}
+{"translations": [{"id": "...", "text": "...", "note": "", "keep": false}], "notebook": {"characters": [{"name": "source name", "target_name": "...", "gender": "male|female|mixed|unknown", "note": ""}], "terms": [{"source": "...", "target": "..."}]}, "story": "...", "summary": "..."}

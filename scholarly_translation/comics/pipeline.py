@@ -586,10 +586,38 @@ def is_art_text(region):
     """Lettering that belongs to the artwork rather than to a plain balloon or caption: sound
     effects, signs, labels, screens and any text set on art (a backing box or a subtitle)."""
     layout = region.get("layout") or {}
-    return region["kind"] in ("sfx", "sign") or layout.get("style") in ("box", "subtitle")
+    return region.get("kind") in ("sfx", "sign") or layout.get("style") in ("box", "subtitle")
 
 
-def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None):
+KEEP_FLAT_DEGREES = 6.0   # kept lettering slanted less than this is restored by pasting the original
+
+
+def keep_original(base, image, region, mirror, editor=None, source_language=None):
+    """Lettering the translator chose to keep (a name, a word readable as it stands) stays in
+    the original. On a mirrored page it must read the right way: flat lettering is restored by
+    pasting the unmirrored original at its mirrored place (free); slanted lettering, whose
+    perspective would turn the wrong way, is re-lettered with the same original text by the
+    image model when one is available. Returns the method."""
+    region["edited"] = True
+    if not mirror:
+        return "kept"
+    width, height = image.size
+    angle = abs(comic_edit.lettering_geometry(image, region)["angle"])
+    if angle > KEEP_FLAT_DEGREES and editor is not None:
+        target = records.mirror_region(region, width)
+        try:
+            editor.edit(base, dict(target, kind="sign"), region["source_text"],
+                        comic_model.LANGUAGE_NAMES.get(source_language, "the original language"), False)
+            return "kept-relettered"
+        except comic_edit.SignEditError as exc:
+            region["warnings"].append("keep_edit_failed: %s" % exc)
+    x0, y0, x1, y1 = region["bbox"]
+    box = (max(0, x0 - 3), max(0, y0 - 3), min(width, x1 + 3), min(height, y1 + 3))
+    base.paste(image.crop(box), (width - box[2], box[1]))
+    return "kept"
+
+
+def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None, source_language=None):
     """Output page. Mirrored: the page is flipped, sound effects left in the art are put back
     unflipped (readable) at their mirrored place, and the mirrored regions are rendered. With an
     ``editor``, every piece of lettering in the art (sound effects, signs, labels, text on art) is
@@ -616,6 +644,9 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None)
         for region in placed:
             if not is_art_text(region) or not region.get("translation"):
                 continue
+            if region["translation"].get("keep_original"):
+                region["edit_method"] = keep_original(base, image, region, mirror, editor, source_language)
+                continue
             target = records.mirror_region(region, width) if mirror else region
             try:
                 method = editor.edit(base, target, region["translation"]["text"], pack.name if pack else "Hebrew",
@@ -625,6 +656,10 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None)
                 region["edited"], region["edit_method"] = True, method
             except comic_edit.SignEditError as exc:
                 region["warnings"].append("sign_edit_failed: %s" % exc)
+    if editor is None:
+        for region in placed:
+            if is_art_text(region) and (region.get("translation") or {}).get("keep_original"):
+                region["edit_method"] = keep_original(base, image, region, mirror, None, source_language)
     shown = [records.mirror_region(r, width) for r in regions] if mirror else regions   # with "edited" flags
     if editor is not None and getattr(stages, "erase_balloons", None) is not None:
         return stages.render_page(base, shown, erase=False)
@@ -689,6 +724,8 @@ def prepare_page(ctx, stages, number, name, image, raw, source_language, target_
                             dialogue, base_deps)
         for item, region in zip(answer["translations"], page["regions"]):
             region["translation"] = {"text": item["text"], "status": "ok", "note": item["note"]}
+            if item.get("keep"):
+                region["translation"]["keep_original"] = True
         _merge(notebook, answer["notebook"], page)
         page["summary"] = answer["summary"] or page["summary"]
         page["status"] = "translated"
@@ -916,7 +953,8 @@ def finish_page(ctx, stages, page, image, source_language, target_code, mirror=F
                 for region in over:
                     region["translation"]["text"] = shorter[region["region_id"]]
                     _fit_region(stages, region, font, pack.rtl, image.size, mirror)
-        rendered = _render(stages, image, page["regions"], mirror, ctx.editor, pack, _locator(ctx, page))
+        rendered = _render(stages, image, page["regions"], mirror, ctx.editor, pack, _locator(ctx, page),
+                           source_language)
         page["mirrored"] = mirror
         page["status"] = "rendered"
         return rendered
