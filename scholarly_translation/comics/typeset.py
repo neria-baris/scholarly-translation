@@ -97,6 +97,9 @@ class _Area:
         lo = max(0, bisect.bisect_right(self.ys, y0) - 1)
         hi = min(len(self.ys) - 1, bisect.bisect_left(self.ys, y1))
         rows = self.rows[lo:hi + 1]
+        # a hole in the rows (rows dropped next to another region) is an obstacle, never bridged
+        if any(b[0] - a[0] > 1.5 * self.step for a, b in zip(rows, rows[1:])):
+            return None
         x0, x1 = max(r[1] for r in rows), min(r[2] for r in rows)
         return (x0, x1) if x1 > x0 else None
 
@@ -384,7 +387,7 @@ def _erase_ink(image, region):
     image.paste(tuple(region["background"]), box, mask)
 
 
-def _erase_balloon(image, region):
+def _erase_balloon(image, region, protected=()):
     """Erase ALL lettering inside the balloon's free light area, whether or not it was part of
     the lettering box or got a translation: every dark component that lies wholly inside the
     area (and does not touch the crop edge) is painted with the background. Outlines, tails and
@@ -417,6 +420,10 @@ def _erase_balloon(image, region):
             if not inside_px[a, y] or not inside_px[b - 1, y]:
                 outside.add(root)
     keep = {root for root, st in stats.items() if st[0] == 0 or st[1] == 0 or st[2] >= cw or st[3] >= ch}
+    for root, st in stats.items():           # ink of protected art lettering stays
+        gx0, gy0, gx1, gy1 = st[0] + box[0], st[1] + box[1], st[2] + box[0], st[3] + box[1]
+        if any(gx0 < p[2] and gx1 > p[0] and gy0 < p[3] and gy1 > p[1] for p in protected):
+            keep.add(root)
     erase = set(stats) - outside - keep
     if not erase:
         return
@@ -449,18 +456,29 @@ def _erase_bubble(draw, region, size):
             draw.line([(a, y), (b - 1, y)], fill=colour)
 
 
-def render_page(image, regions) -> Image.Image:
-    """Erase the source lettering and draw the translations on a copy of ``image``."""
+def erase_balloons(image, regions):
+    """Erase every balloon's lettering in place (independent of the translation). Lettering
+    that belongs to the art (signs, sound effects, text on art) is protected: a balloon whose
+    area reaches it never erases it."""
+    art = [r for r in regions if r.get("kind") in ("sfx", "sign") or not r.get("plain_background")]
+    protected = [r["bbox"] for r in art]
+    for region in regions:
+        if region in art:
+            continue
+        _erase_balloon(image, region, protected)
+
+
+def render_page(image, regions, erase=True) -> Image.Image:
+    """Erase the source lettering and draw the translations on a copy of ``image``
+    (``erase=False`` when the balloons were already erased, e.g. before art edits)."""
     out = image.convert("RGB").copy() if image.mode != "RGB" else image.copy()
     draw = ImageDraw.Draw(out)
     placed = [r for r in regions if r.get("translation") and r.get("layout")
               and r["translation"].get("status") != "skipped"]
     # Erase first, independent of the translation: every balloon's lettering goes, also where no
     # translation could be placed, so no original text is left behind or cut into new text.
-    for region in regions:
-        if region.get("kind") in ("sfx", "sign") or not region.get("plain_background"):
-            continue
-        _erase_balloon(out, region)
+    if erase:
+        erase_balloons(out, regions)
     for region in placed:
         layout, colour = region["layout"], tuple(region["background"])
         if layout["style"] == "box" and not region.get("edited"):

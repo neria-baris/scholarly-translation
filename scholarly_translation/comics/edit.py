@@ -148,7 +148,7 @@ class SignEditor:
         # 1. The smallest local change: regenerate only a tight crop around the sign, paste it whole.
         tbox, tcrop, tprompt, tsize = local_request(image, region, text, language_name, rtl)
         local = self._request(region, tcrop, None, tprompt, tsize, "local")
-        if edge_change(tcrop, local) <= EDGE_LIMIT:
+        if edge_change(tcrop, local) <= EDGE_LIMIT and lettering_present(tcrop, local):
             _paste_whole(image, tbox, local)
             region["edit_method"] = "local"
             return "local"
@@ -530,3 +530,19 @@ def _paste_whole(image, box, result_png):
     alpha = Image.new("L", (w, h), 0)
     ImageDraw.Draw(alpha).rectangle([fade, fade, w - fade - 1, h - fade - 1], fill=255)
     image.paste(patch, box[:2], alpha.filter(ImageFilter.GaussianBlur(fade / 2)))
+
+
+def _ink_share(image, threshold=110):
+    data = image.convert("L").getdata()
+    return sum(1 for v in data if v < threshold) / max(1, len(data))
+
+
+def lettering_present(crop_png, result_png, keep=0.35):
+    """The regenerated crop still carries lettering: the ink in its centre is at least ``keep``
+    of the original's (a model that only cleaned the surface left it blank)."""
+    crop = Image.open(io.BytesIO(crop_png)).convert("L")
+    result = Image.open(io.BytesIO(result_png)).convert("L").resize(crop.size, Image.LANCZOS)
+    w, h = crop.size
+    centre = (w // 5, h // 5, w - w // 5, h - h // 5)
+    before = _ink_share(crop.crop(centre))
+    return before == 0 or _ink_share(result.crop(centre)) >= keep * before

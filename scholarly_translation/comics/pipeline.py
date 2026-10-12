@@ -76,6 +76,7 @@ def default_stages():
         DETECT_VERSION=comic_detect.DETECT_VERSION, TYPESET_VERSION=comic_typeset.TYPESET_VERSION,
         detect_candidates=comic_detect.detect_candidates, snap_region=comic_detect.snap_region,
         font_for=comic_typeset.font_for, min_font_px=comic_typeset.min_font_px,
+        erase_balloons=comic_typeset.erase_balloons,
         capacity=comic_typeset.capacity, fit=comic_typeset.fit, render_page=comic_typeset.render_page)
 
 
@@ -439,6 +440,8 @@ def separate_regions(regions, gap=4, key="interior"):
                     x0 = max(x0, box[2] + gap)
                 elif box[0] >= own[2]:
                     x1 = min(x1, box[0] - gap)
+                elif box is other["bbox"] and _contains(own, box):
+                    keep = False                     # another region inside this one's box: keep off it
                 elif (box[0] + box[2]) / 2 < (own[0] + own[2]) / 2 and box[2] + gap < x1:
                     x0 = max(x0, box[2] + gap)      # overlapping lettering (L-shaped): yield its side
                 elif (box[0] + box[2]) / 2 >= (own[0] + own[2]) / 2 and box[0] - gap > x0:
@@ -448,6 +451,10 @@ def separate_regions(regions, gap=4, key="interior"):
             if keep and x1 > x0:
                 rows.append([y, x0, x1])
         region[key] = {"step": interior["step"], "rows": rows} if rows else None
+
+
+def _contains(outer, inner):
+    return outer[0] <= inner[0] and outer[1] <= inner[1] and outer[2] >= inner[2] and outer[3] >= inner[3]
 
 
 def _area_boxes(region):
@@ -521,7 +528,13 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None)
                 x0, y0, x1, y1 = region["bbox"]
                 box = (max(0, x0 - 2), max(0, y0 - 2), min(width, x1 + 2), min(height, y1 + 2))
                 base.paste(image.crop(box), (width - box[2], box[1]))
+    shown = [records.mirror_region(r, width) for r in regions] if mirror else regions
     if editor is not None:
+        # balloons are erased BEFORE the art is re-lettered, so a balloon's erase can never wipe
+        # out new lettering an image edit just drew next to it
+        erase = getattr(stages, "erase_balloons", None)
+        if erase is not None:
+            erase(base, shown)
         for region in placed:
             if not is_art_text(region) or not region.get("translation"):
                 continue
@@ -534,7 +547,9 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None)
                 region["edited"], region["edit_method"] = True, method
             except comic_edit.SignEditError as exc:
                 region["warnings"].append("sign_edit_failed: %s" % exc)
-    shown = [records.mirror_region(r, width) for r in regions] if mirror else regions
+    shown = [records.mirror_region(r, width) for r in regions] if mirror else regions   # with "edited" flags
+    if editor is not None and getattr(stages, "erase_balloons", None) is not None:
+        return stages.render_page(base, shown, erase=False)
     return stages.render_page(base, shown)
 
 
