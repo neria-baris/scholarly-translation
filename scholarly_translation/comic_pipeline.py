@@ -324,6 +324,14 @@ def _cap(base, count, each):
 
 # ---------------------------------------------------------------- page processing
 
+def apply_kinds(regions):
+    """Lettering on an object (kind sign) is set on a backing patch, never as a balloon: the
+    art around it must not be erased. Balloons keep the measured shape."""
+    for region in regions:
+        if region["kind"] == "sign":
+            region["plain_background"], region["interior"] = False, None
+
+
 def separate_regions(regions, gap=4):
     """Keep each region's interior off the other regions' lettering, so touching balloons never
     share space: a row level with another region's lettering is cut short of it when that
@@ -346,7 +354,11 @@ def separate_regions(regions, gap=4):
                     x0 = max(x0, box[2] + gap)
                 elif box[0] >= own[2]:
                     x1 = min(x1, box[0] - gap)
-                elif not own[1] <= y < own[3]:
+                elif (box[0] + box[2]) / 2 < (own[0] + own[2]) / 2 and box[2] + gap < x1:
+                    x0 = max(x0, box[2] + gap)      # overlapping lettering (L-shaped): yield its side
+                elif (box[0] + box[2]) / 2 >= (own[0] + own[2]) / 2 and box[0] - gap > x0:
+                    x1 = min(x1, box[0] - gap)
+                else:
                     keep = False
             if keep and x1 > x0:
                 rows.append([y, x0, x1])
@@ -426,6 +438,7 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
             dict(base_deps, stage=comic_model.RECOGNITION_VERSION, marks=len(candidates)),
             _cap(8192, len(candidates), 400))
         page["regions"] = comic_model.reconcile(page, image, candidates, parsed, stages.snap_region)
+        apply_kinds(page["regions"])
         separate_regions(page["regions"])
         page["summary"] = parsed["summary"]
         page["panels"] = parsed.get("panels", [])

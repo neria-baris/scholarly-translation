@@ -14,12 +14,12 @@ import functools
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from . import target_languages
 from .export_common import reorder_bidi_line
 
-TYPESET_VERSION = "comic-typeset@1"
+TYPESET_VERSION = "comic-typeset@2"
 FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
 HEBREW_FONT = FONT_DIR / "culmus" / "HadasimCLM-Bold.ttf"
 LATIN_FONT = FONT_DIR / "notosans" / "NotoSans-Regular.ttf"
@@ -106,7 +106,7 @@ def _avail(span):
 
 # ---------------------------------------------------------------- wrapping
 
-def _wrap(text, font, rtl, avail):
+def _wrap(text, font, rtl, avail, split=True):
     """Greedy word wrap on logical text; ``avail(i)`` is line i's width or None (fail)."""
     lines = []
 
@@ -133,7 +133,9 @@ def _wrap(text, font, rtl, avail):
                     lines.append(current)
                     current = ""
                     continue
-                # the word alone does not fit: split by characters
+                # the word alone does not fit: split by characters (only where allowed)
+                if not split:
+                    return None
                 cut = len(word)
                 while cut > 1 and _width(font, word[:cut], rtl) > lim:
                     cut -= 1
@@ -186,7 +188,7 @@ def _try_block(area, text, font, rtl, lh, cy, strict=True):
             spans[i] = span
             return _avail(span)
 
-        lines = _wrap(text, font, rtl, avail)
+        lines = _wrap(text, font, rtl, avail, split=False)   # a balloon never breaks a word
         if lines is not None and len(lines) == n:
             xcs = [(spans[i][0] + spans[i][1]) / 2 for i in range(n)]
             return _make_lines(lines, font, rtl, [top + i * lh for i in range(n)], xcs)
@@ -215,9 +217,10 @@ def _fit_bubble(region, text, font_path, rtl, page_height):
         def avail(i, top=top, spans=spans):
             span = area.span(top + i * lh, top + (i + 1) * lh, False)
             spans[i] = span
-            return _avail(span) or max(lo, 1)
+            # never narrower than the lettering block itself, so words are not broken
+            return max(_avail(span) or 0, region["bbox"][2] - region["bbox"][0], lo)
 
-        lines = _wrap(text, font, rtl, avail) or []
+        lines = _wrap(text, font, rtl, avail, split=False) or _wrap(text, font, rtl, avail) or []
         if len(lines) == n or not lines:
             break
         n = len(lines)
@@ -271,8 +274,11 @@ def _fit_box(region, text, font_path, rtl, page_height, page_width):
     for l in placed:
         l["x"] += shift
     text_box = _bounds(placed, lh, pad)
-    box = [min(text_box[0], bbox[0] - pad), min(text_box[1], bbox[1] - pad),
-           max(text_box[2], bbox[2] + pad), max(text_box[3], bbox[3] + pad)]
+    if region.get("confidence", 1.0) < 0.3:
+        box = list(text_box)        # no lettering was found in a model box: never stretch over it
+    else:
+        box = [min(text_box[0], bbox[0] - pad), min(text_box[1], bbox[1] - pad),
+               max(text_box[2], bbox[2] + pad), max(text_box[3], bbox[3] + pad)]
     box = [max(0, box[0]), max(0, box[1]), min(page_width, box[2]) if page_width else box[2],
            min(page_height, box[3])]
     return _layout("box", size, lh, placed, box, overflow, font_path, rtl)
@@ -343,6 +349,36 @@ def _luminance(color):
     return 0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2]
 
 
+def _erase_ink(image, region):
+    """Erase only the lettering's ink: dark components inside the lettering box (grown a few
+    pixels) that do not touch its edge are painted with the background, slightly dilated for
+    anti-aliasing. Balloon outlines, tails and art cross the edge and stay untouched, so the
+    balloon keeps its exact shape; no rectangle is ever filled."""
+    from .comic_detect import _label, _otsu, _runs
+    width, height = image.size
+    x0, y0, x1, y1 = region["bbox"]
+    box = (max(0, x0 - ERASE_GROW), max(0, y0 - ERASE_GROW), min(width, x1 + ERASE_GROW),
+           min(height, y1 + ERASE_GROW))
+    crop = image.crop(box).convert("L")
+    background = _luminance(region["background"])
+    threshold = min(_otsu(crop.histogram()), int(background) - 30)
+    dark = crop.point(lambda v: 255 if v < threshold else 0)
+    rows = _runs(dark)
+    ids, stats = _label(rows, True)
+    cw, ch = crop.size
+    inner = {root for root, st in stats.items() if st[0] > 0 and st[1] > 0 and st[2] < cw and st[3] < ch}
+    if not inner:
+        return
+    mask = Image.new("L", crop.size, 0)
+    draw = ImageDraw.Draw(mask)
+    for y, (runs, row_ids) in enumerate(zip(rows, ids)):
+        for (a, b), root in zip(runs, row_ids):
+            if root in inner:
+                draw.line([(a, y), (b - 1, y)], fill=255)
+    mask = mask.filter(ImageFilter.MaxFilter(5))
+    image.paste(tuple(region["background"]), box, mask)
+
+
 def _erase_bubble(draw, region, size):
     width, height = size
     x0, y0, x1, y1 = region["bbox"]
@@ -372,7 +408,7 @@ def render_page(image, regions) -> Image.Image:
     for region in placed:
         layout, colour = region["layout"], tuple(region["background"])
         if layout["style"] == "bubble":
-            _erase_bubble(draw, region, out.size)
+            _erase_ink(out, region)
         elif layout["style"] == "box":
             draw.rounded_rectangle(layout["box"], radius=max(3, layout["font_size"] // 2), fill=colour)
     for region in placed:

@@ -17,7 +17,7 @@ from collections import Counter
 
 from PIL import Image, ImageChops, ImageFilter
 
-DETECT_VERSION = "comic-detect@2"
+DETECT_VERSION = "comic-detect@3"
 WORK_EDGE = 1200          # long edge of the analysis copy
 LIGHT = 200               # gray >= LIGHT is fill
 MAX_DARK = 110            # gray < min(Otsu, MAX_DARK) is ink
@@ -30,6 +30,7 @@ ART_CLUSTER_SHARE = 0.03  # a "lettering on art" cluster larger than this share 
 SNAP_MARGIN = 0.012       # crop margin around a model box, share of the page's long edge
 SNAP_DARK = (60, 200)     # full-resolution ink threshold limits (Otsu of the crop between them)
 RING_LIGHT = 0.6          # share of light pixels in a thin ring around the lettering for a plain background
+RING_BALLOON = 0.35       # lower share still taken as a balloon with a busy or jagged edge (ink-only erase)
 _RUN = re.compile(b"\xff+")
 
 
@@ -409,10 +410,11 @@ def _lettering(dark, box):
     if not inside:
         return [], None
     core = _main_text(inside)
-    # growth stays near the given box: the model's split between neighbouring balloons wins
-    near = 0.75 * height
+    # growth stays near the given box sideways (the model's split between neighbouring balloons
+    # wins) but may follow stacked lines a model box cut off at its top or bottom
+    near, stacked = 0.75 * height, 2.5 * height
     reachable = [g for g in parts if box[0] - near <= (g[0] + g[2]) / 2 < box[2] + near
-                 and box[1] - near <= (g[1] + g[3]) / 2 < box[3] + near]
+                 and box[1] - stacked <= (g[1] + g[3]) / 2 < box[3] + stacked]
     return core, (lambda: _grow(core, reachable, height))
 
 
@@ -493,6 +495,26 @@ def _free_space(gray, bbox, line_height, light_level):
     return {"step": step, "rows": out} if out else None
 
 
+def _shaped(interior, lines, line_height):
+    """Interior rows narrowed to the SHAPE of the original lettering: each sampled row keeps
+    the free span only within the nearest lettering line's extent (plus a margin), and rows
+    more than half a line above or below the lettering are dropped. The letterer already fit
+    the text to the balloon (oval, diamond, tail), so the translation follows that shape and
+    never reaches an open outline. ``lines``: [(y0, y1, x0, x1)] in page coordinates."""
+    margin = max(4, int(round(0.8 * line_height)))
+    reach = 0.8 * line_height
+    top, bottom = lines[0][0], lines[-1][1]
+    rows = []
+    for y, a, b in interior["rows"]:
+        if y < top - reach or y > bottom + reach:
+            continue
+        near = min(lines, key=lambda line: 0 if line[0] <= y < line[1] else min(abs(y - line[0]), abs(y - line[1])))
+        a, b = max(a, near[2] - margin), min(b, near[3] + margin)
+        if b > a:
+            rows.append([y, a, b])
+    return {"step": interior["step"], "rows": rows} if rows else None
+
+
 def snap_region(image, bbox):
     """Candidate for a model-supplied lettering box (possibly loose or a little off): the
     bbox is tightened to the lettering's glyphs, the background is plain when the ring around
@@ -521,12 +543,16 @@ def snap_region(image, bbox):
     tight = placed(glyphs)
     line_height = round(max(1.0, _letter_pitch(glyphs)), 1)
     ring = _ring(gray, rgb, tight, max(2, int(round(0.2 * line_height))))
-    if ring["light_share"] >= RING_LIGHT:
+    if ring["light_share"] >= RING_BALLOON:
         grown = grow()
         tight = placed(grown)
         line_height = round(max(1.0, _letter_pitch(grown)), 1)
         level = int((threshold + sum(ring["light_colour"]) / 3) / 2)
         interior = _free_space(gray, tight, line_height, level)
+        if interior is not None:
+            lines = [(line[0] + crop_box[1], line[1] + crop_box[1], min(g[0] for g in line[2]) + crop_box[0],
+                      max(g[2] for g in line[2]) + crop_box[0]) for line in _group_lines(grown)]
+            interior = _shaped(interior, lines, line_height)
         if interior is not None:
             return {"bbox": tight, "interior": interior, "background": ring["light_colour"],
                     "plain_background": True, "line_height": line_height, "confidence": 0.9}
