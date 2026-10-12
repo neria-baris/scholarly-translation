@@ -148,7 +148,7 @@ class SignEditor:
         # 1. The smallest local change: regenerate only a tight crop around the sign, paste it whole.
         tbox, tcrop, tprompt, tsize = local_request(image, region, text, language_name, rtl)
         local = self._request(region, tcrop, None, tprompt, tsize, "local")
-        if edge_change(tcrop, local) <= EDGE_LIMIT and lettering_present(tcrop, local):
+        if edge_change(tcrop, local) <= EDGE_LIMIT and lettering_present(tcrop, local) and no_new_patch(tcrop, local):
             _paste_whole(image, tbox, local)
             region["edit_method"] = "local"
             return "local"
@@ -546,3 +546,17 @@ def lettering_present(crop_png, result_png, keep=0.35):
     centre = (w // 5, h // 5, w - w // 5, h - h // 5)
     before = _ink_share(crop.crop(centre))
     return before == 0 or _ink_share(result.crop(centre)) >= keep * before
+
+
+def no_new_patch(crop_png, result_png, limit=0.30):
+    """The edit did not paint a flat backing patch over the art: the share of near-white pixels
+    in the centre grows by at most ``limit``."""
+    crop = Image.open(io.BytesIO(crop_png)).convert("L")
+    result = Image.open(io.BytesIO(result_png)).convert("L").resize(crop.size, Image.LANCZOS)
+    w, h = crop.size
+    centre = (w // 6, h // 6, w - w // 6, h - h // 6)
+
+    def white(image):
+        data = image.crop(centre).getdata()
+        return sum(1 for v in data if v >= 235) / max(1, len(data))
+    return white(result) - white(crop) <= limit

@@ -88,7 +88,7 @@ class TypesetTests(unittest.TestCase):
         region = _region(self.balloon)
         layout = ts.fit(region, "blah " * 200, self.latin, False, self.h)
         self.assertTrue(layout["overflow"])
-        self.assertEqual(layout["font_size"], ts.min_font_px(self.h))
+        self.assertEqual(layout["font_size"], max(9, int(ts.min_font_px(self.h) * 0.75)))   # a little below the minimum
         self.assertTrue(layout["lines"])
         cr.validate_region(dict(region, layout=layout))
 

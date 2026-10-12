@@ -203,18 +203,20 @@ def _try_block(area, text, font, rtl, lh, cy, strict=True):
     return None
 
 
-def _fit_bubble(region, text, font_path, rtl, page_height):
+def _fit_bubble(region, text, font_path, rtl, page_height, page_width=None):
     area = _Area(region)
     lo, hi = min_font_px(page_height), _max_size(region, page_height, font_path)
+    floor = max(9, int(lo * 0.75))     # a little below the usual minimum before giving up on the balloon
     src_cy = (region["bbox"][1] + region["bbox"][3]) / 2
-    for size in range(hi, lo - 1, -1):
+    for size in range(hi, floor - 1, -1):
         font = _font(font_path, size)
         lh = _line_height(font)
         for cy in (src_cy, area.cy):
             lines = _try_block(area, text, font, rtl, lh, cy)
             if lines:
                 return _layout("bubble", size, lh, lines, _bounds(lines, lh), False, font_path, rtl)
-    # nothing fits: minimum size, centred in the area, overflow reported
+    # nothing fits: smallest size, centred in the area, kept on the page, overflow reported
+    lo = floor
     font = _font(font_path, lo)
     lh = _line_height(font)
     n = 1
@@ -239,7 +241,11 @@ def _fit_bubble(region, text, font_path, rtl, page_height):
     for i in range(n):
         span = area.span(top + i * lh, top + (i + 1) * lh, False)
         xcs.append((span[0] + span[1]) / 2 if span else (region["bbox"][0] + region["bbox"][2]) / 2)
+    top = max(2, min(top, page_height - 2 - n * lh))
     lines = _make_lines(lines, font, rtl, [top + i * lh for i in range(n)], xcs)
+    if page_width:
+        for line in lines:
+            line["x"] = max(2, min(line["x"], page_width - 2 - line["width"]))
     return _layout("bubble", lo, lh, lines, _bounds(lines, lh), True, font_path, rtl)
 
 
@@ -330,7 +336,7 @@ def fit(region, text, font_path, rtl, page_height, page_width=None) -> dict:
     if region.get("kind") == "sfx":
         return _fit_subtitle(region, text, font_path, rtl, page_height, page_width)
     if region.get("plain_background"):
-        return _fit_bubble(region, text, font_path, rtl, page_height)
+        return _fit_bubble(region, text, font_path, rtl, page_height, page_width)
     return _fit_box(region, text, font_path, rtl, page_height, page_width)
 
 
@@ -406,6 +412,8 @@ def _erase_balloon(image, region, protected=()):
     for i, (y, a, b) in enumerate(rows):
         y_end = rows[i + 1][0] if i + 1 < len(rows) else y + step
         mark.rectangle([a - box[0], y - box[1], b - 1 - box[0], y_end - 1 - box[1]], fill=255)
+    # a little wider than the area: letters ending right at a trimmed span end are still inside
+    inside = inside.filter(ImageFilter.MaxFilter(7))
     inside_px = inside.load()
     crop = image.crop(box).convert("L")
     background = _luminance(region["background"])

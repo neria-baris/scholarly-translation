@@ -524,7 +524,9 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None)
     base = ImageOps.mirror(image) if mirror else image.copy()
     if mirror:
         for region in placed:
-            if region["layout"]["style"] == "subtitle":
+            # an unflipped sound effect is pasted back only when it stays as drawn; one that an
+            # image model re-letters is edited on the mirrored art (a pasted patch leaves a seam)
+            if region["layout"]["style"] == "subtitle" and editor is None:
                 x0, y0, x1, y1 = region["bbox"]
                 box = (max(0, x0 - 2), max(0, y0 - 2), min(width, x1 + 2), min(height, y1 + 2))
                 base.paste(image.crop(box), (width - box[2], box[1]))
