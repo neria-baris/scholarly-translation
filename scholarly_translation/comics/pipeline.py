@@ -45,6 +45,7 @@ IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 ROLE, REVIEW_ROLE = "translator", "semantic_reviewer"
 RECOGNITION_STAGE, TRANSLATION_STAGE, SHORTEN_STAGE = "comic-recognition", "comic-translation", "comic-shorten"
 REVIEW_STAGE, CORRECTION_STAGE, REREAD_STAGE = "comic-review", "comic-correction", "comic-reread"
+LOCATE_STAGE = "comic-sign-locate"
 MAX_CALLS = 20000                 # task call ceiling (fixed per task; the budget is the real limit)
 DEFAULT_OUTPUT_TOKENS = 16384
 PDF_RENDER_SCALE = 2.0
@@ -439,7 +440,7 @@ def _fit_region(stages, region, font, rtl, size, mirror=False):
         region["translation"]["status"] = "ok"
 
 
-def _render(stages, image, regions, mirror, editor=None, pack=None):
+def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None):
     """Output page. Mirrored: the page is flipped, sound effects left in the art are put back
     unflipped (readable) at their mirrored place, and the mirrored regions are rendered. With an
     ``editor``, signs are re-lettered in the art by an image model (on the output page, so the
@@ -459,9 +460,11 @@ def _render(stages, image, regions, mirror, editor=None, pack=None):
                 continue
             target = records.mirror_region(region, width) if mirror else region
             try:
-                editor.edit(base, target, region["translation"]["text"], pack.name if pack else "Hebrew",
-                            pack.rtl if pack else True)
-                region["edited"] = True
+                method = editor.edit(base, target, region["translation"]["text"], pack.name if pack else "Hebrew",
+                                     pack.rtl if pack else True,
+                                     (lambda img, reg, src=region["source_text"]: locate(img, reg, src)) if locate
+                                     else None)
+                region["edited"], region["edit_method"] = True, method
             except comic_edit.SignEditError as exc:
                 region["warnings"].append("sign_edit_failed: %s" % exc)
     shown = [records.mirror_region(r, width) for r in regions] if mirror else regions
@@ -685,6 +688,29 @@ def _reread(ctx, stages, unit, images, by_label, rereads, notebook, source_langu
             record["applied"].append(dict(rereads[comic_review.label(region)], method="reread"))
 
 
+def _locator(ctx, page):
+    """Sign locator for the editor's fallback: a journaled vision call returning the lettering's
+    quadrilateral on the editor's crop (a failure becomes a SignEditError: backing patch)."""
+    def locate(image, region, source):
+        box, prompt = comic_edit.quad_prompt(image, region, source)
+        try:
+            return ctx.call(LOCATE_STAGE, prompt, lambda result: _quad(result.text),
+                            {"stage": "comic-sign-locate@1", "page": page["index"], "image": page["image_sha256"],
+                             "region": region["region_id"], "box": list(box), "source": source}, 2048)
+        except _FATAL:
+            raise
+        except (chapter_pipeline.ChapterPipelineError, comic_model.ComicModelError, TranslationBudgetError) as exc:
+            raise comic_edit.SignEditError("the sign could not be located (%s)" % type(exc).__name__) from None
+    return locate
+
+
+def _quad(text):
+    try:
+        return comic_edit.parse_quad(text)
+    except comic_edit.SignEditError as exc:
+        raise comic_model.ComicModelError(str(exc)) from None
+
+
 def finish_page(ctx, stages, page, image, source_language, target_code, mirror=False):
     """Typesetting (at most one shorten call) and rendering; returns the output image (the
     original, unmirrored, for a failed page)."""
@@ -722,7 +748,7 @@ def finish_page(ctx, stages, page, image, source_language, target_code, mirror=F
                 for region in over:
                     region["translation"]["text"] = shorter[region["region_id"]]
                     _fit_region(stages, region, font, pack.rtl, image.size, mirror)
-        rendered = _render(stages, image, page["regions"], mirror, ctx.editor, pack)
+        rendered = _render(stages, image, page["regions"], mirror, ctx.editor, pack, _locator(ctx, page))
         page["mirrored"] = mirror
         page["status"] = "rendered"
         return rendered
