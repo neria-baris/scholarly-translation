@@ -5,6 +5,7 @@ from pathlib import Path
 from scholarly_translation import __main__ as cli
 from scholarly_translation.sources.pdf_extract import (
     ExtractionError,
+    _line_box,
     extract_pdf,
     render_pages,
     write_comparison_html,
@@ -244,6 +245,20 @@ class ExtractPdfTests(unittest.TestCase):
                 height=100.0,
                 source_text="hi",
             )
+
+    def test_degenerate_line_boxes_become_valid_page_evidence(self):
+        # An unmapped glyph ("(cid:91)") came back with x0 == x1 and rejected a whole paper.
+        cases = [
+            {"x0": 311.37, "top": 145.94, "x1": 311.37, "bottom": 154.91},
+            {"x0": 612.0, "top": 10.0, "x1": 612.0, "bottom": 20.0},
+            {"x0": -3.0, "top": 50.0, "x1": 40.0, "bottom": 50.0},
+            {"x0": 600.0, "top": 780.0, "x1": 640.0, "bottom": 800.0},
+        ]
+        for line in cases:
+            x0, top, x1, bottom = _line_box(line, 612.0, 792.0)
+            self.assertTrue(0 <= x0 < x1 <= 612.0 and 0 <= top < bottom <= 792.0, (line, x0, top, x1, bottom))
+        self.assertEqual(_line_box({"x0": 72.0, "top": 90.0, "x1": 300.0, "bottom": 102.0}, 612.0, 792.0),
+                         (72.0, 90.0, 300.0, 102.0))
 
     def test_render_pages_and_comparison_html(self):
         with tempfile.TemporaryDirectory() as tmp:

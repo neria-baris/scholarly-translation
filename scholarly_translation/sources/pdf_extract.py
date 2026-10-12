@@ -36,6 +36,31 @@ def _extract_page_lines(page) -> List[dict]:
     return sorted(lines, key=lambda ln: (round(ln["top"], 2), round(ln["x0"], 2)))
 
 
+MIN_BOX_EXTENT = 0.01
+
+
+def _span(low: float, high: float, limit: float) -> tuple:
+    """Clamp a 1-D extent into [0, limit] and give it a positive length.
+
+    Unmapped glyphs (pdfplumber's "(cid:N)") can come back with zero width, and
+    stray marks can sit slightly off the page; source evidence requires a box
+    strictly inside the page, so one such glyph must not reject the document.
+    """
+    low = min(max(low, 0.0), limit)
+    high = min(max(high, 0.0), limit)
+    if high - low >= MIN_BOX_EXTENT:
+        return low, high
+    extent = min(MIN_BOX_EXTENT, limit)
+    low = min(low, limit - extent)
+    return low, low + extent
+
+
+def _line_box(line: dict, width: float, height: float) -> tuple:
+    x0, x1 = _span(float(line["x0"]), float(line["x1"]), width)
+    top, bottom = _span(float(line["top"]), float(line["bottom"]), height)
+    return x0, top, x1, bottom
+
+
 def extract_pdf(path, language: str, document_version: int = 1) -> Document:
     """Extract a digital PDF into a Document. Raises ExtractionError on invalid input."""
     path = Path(path)
@@ -65,6 +90,7 @@ def extract_pdf(path, language: str, document_version: int = 1) -> Document:
             for page_number, pdf_page in enumerate(pdf_pages, start=1):
                 page_id = deterministic_id(document_id, "page", str(page_number))
                 lines = _extract_page_lines(pdf_page)
+                page_width, page_height = float(pdf_page.width), float(pdf_page.height)
 
                 source_text_parts = []
                 segments = []
@@ -87,7 +113,7 @@ def extract_pdf(path, language: str, document_version: int = 1) -> Document:
                             text=text,
                             source_char_start=start,
                             source_char_end=end,
-                            bbox=(line["x0"], line["top"], line["x1"], line["bottom"]),
+                            bbox=_line_box(line, page_width, page_height),
                         )
                     )
                 source_text = "".join(source_text_parts)
@@ -100,8 +126,8 @@ def extract_pdf(path, language: str, document_version: int = 1) -> Document:
                         document_id=document_id,
                         page_number=page_number,
                         segments=segments,
-                        width=float(pdf_page.width),
-                        height=float(pdf_page.height),
+                        width=page_width,
+                        height=page_height,
                         source_text=source_text,
                     )
                 )
