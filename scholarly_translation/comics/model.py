@@ -315,12 +315,18 @@ def reconcile(page, image, candidates, parsed, snap):
         boxes = [candidates[m - 1]["bbox"] for m in entry["marks"]]
         if model_box is not None:
             # a mark shared with another entry or far larger than the lettering adds no geometry
-            boxes = [candidates[m - 1]["bbox"] for m in entry["marks"]
-                     if uses[m] == 1 and _area(candidates[m - 1]["bbox"]) <= 3 * _area(model_box)
-                     and _near(candidates[m - 1]["bbox"], model_box)]
-            if len(boxes) < len(entry["marks"]):
-                warnings.append("mark_ignored")
-            boxes.append(model_box)
+            sized = [candidates[m - 1]["bbox"] for m in entry["marks"]
+                     if uses[m] == 1 and _area(candidates[m - 1]["bbox"]) <= 3 * _area(model_box)]
+            boxes = [b for b in sized if _near(b, model_box)]
+            if sized and not boxes:
+                # None of its own marks is near the model's box: the marks are measured from the
+                # ink, the box is the model's estimate, so the marks give the place.
+                boxes = sized
+                warnings.append("box_from_marks")
+            else:
+                if len(boxes) < len(entry["marks"]):
+                    warnings.append("mark_ignored")
+                boxes.append(model_box)
         pixels = [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes),
                   max(b[3] for b in boxes)]
         origin = "local" if len(boxes) > (model_box is not None) else "model"

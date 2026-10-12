@@ -198,6 +198,20 @@ class ReconcileTests(unittest.TestCase):
         with self.assertRaises(cm.ComicModelError):
             cm.parse_recognition(answer({"marks": "1", "box": None, "kind": "speech", "text": "A"}), 2)
 
+    def test_marks_win_over_a_misplaced_model_box(self):
+        image = Image.new("RGB", (1000, 2000), "white")
+        page, candidates = make_comic_page(image, 2)          # marks near y 100-160
+        snapped = []
+
+        def snap(img, box):
+            snapped.append(box)
+            return candidate(box)
+        text = answer({"marks": [1], "box": [100, 500, 200, 550], "kind": "speech", "text": "Far box",
+                       "speaker": None, "speaker_gender": "unknown", "addressee_gender": "unknown", "order": 1})
+        regions = cm.reconcile(page, image, candidates, cm.parse_recognition(text, 2), snap)
+        self.assertEqual(snapped[0], candidates[0]["bbox"])
+        self.assertIn("box_from_marks", regions[0]["warnings"])
+
     def test_failed_snap_falls_back_to_the_box(self):
         image = Image.new("RGB", (500, 500), "white")
         page, candidates = make_comic_page(image, 0)
