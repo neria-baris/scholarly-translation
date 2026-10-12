@@ -211,7 +211,9 @@ def _fit_bubble(region, text, font_path, rtl, page_height, page_width=None):
     for size in range(hi, floor - 1, -1):
         font = _font(font_path, size)
         lh = _line_height(font)
-        for cy in (src_cy, area.cy):
+        sweep = range(int(area.top + lh / 2), int(area.bottom - lh / 2) + 1, max(2, lh // 3))
+        centres = [src_cy, area.cy] + sorted(sweep, key=lambda y: abs(y - src_cy))
+        for cy in centres:
             lines = _try_block(area, text, font, rtl, lh, cy)
             if lines:
                 return _layout("bubble", size, lh, lines, _bounds(lines, lh), False, font_path, rtl)

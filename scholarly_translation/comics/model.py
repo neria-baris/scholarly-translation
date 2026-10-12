@@ -345,6 +345,7 @@ def reconcile(page, image, candidates, parsed, snap):
             speaker=entry["speaker"], speaker_gender=entry["speaker_gender"],
             addressee_gender=entry["addressee_gender"], origin=origin, warnings=warnings,
             panel=entry.get("panel")))
+        result[-1]["source_box"] = model_box or pixels      # where the recogniser put this text
     return result
 
 

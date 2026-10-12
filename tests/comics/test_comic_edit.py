@@ -163,3 +163,14 @@ class ArtTextSelectionTests(unittest.TestCase):
         self.assertEqual(edited, ["b", "c", "d"])
         self.assertTrue(all(r.get("edited") for r in regions[1:]))
         self.assertFalse(regions[0].get("edited"))
+
+
+class SignRouteTests(unittest.TestCase):
+    def test_a_sign_skips_local_regeneration(self):
+        client = SimpleNamespace(images=FakeImages())
+        with tempfile.TemporaryDirectory() as tmp:
+            editor = edit.SignEditor(Path(tmp), client)
+            image = Image.new("RGB", (800, 600), (240, 240, 240))
+            method = editor.edit(image, {"region_id": "p001-r01", "kind": "sign", "bbox": [300, 200, 420, 240]}, "בר")
+        self.assertEqual(method, "redraw")
+        self.assertIn("mask", client.images.calls[0])

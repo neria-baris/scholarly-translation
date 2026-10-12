@@ -145,13 +145,17 @@ class SignEditor:
         "clean+letter"). The model's redraw is kept only when it left the composition alone
         outside the mask; otherwise the model only cleans the surface and the text is lettered
         locally along the original lettering's measured angle."""
-        # 1. The smallest local change: regenerate only a tight crop around the sign, paste it whole.
-        tbox, tcrop, tprompt, tsize = local_request(image, region, text, language_name, rtl)
-        local = self._request(region, tcrop, None, tprompt, tsize, "local")
-        if edge_change(tcrop, local) <= EDGE_LIMIT and lettering_present(tcrop, local) and no_new_patch(tcrop, local):
-            _paste_whole(image, tbox, local)
-            region["edit_method"] = "local"
-            return "local"
+        # 1. The smallest local change: regenerate only a tight crop around the lettering, paste it
+        # whole. Not for signs: on a sign the tight crop lost the surface (a flat patch), while a
+        # masked redraw with context, or locate/clean/letter, kept it a sign.
+        if region.get("kind") != "sign":
+            tbox, tcrop, tprompt, tsize = local_request(image, region, text, language_name, rtl)
+            local = self._request(region, tcrop, None, tprompt, tsize, "local")
+            if (edge_change(tcrop, local) <= EDGE_LIMIT and lettering_present(tcrop, local)
+                    and no_new_patch(tcrop, local)):
+                _paste_whole(image, tbox, local)
+                region["edit_method"] = "local"
+                return "local"
         # 2. A masked redraw on a wider crop, kept only if the picture outside the mask is intact.
         box, crop_png, mask_png, prompt, size = edit_request(image, region, text, language_name, rtl)
         result = self._request(region, crop_png, mask_png, prompt, size, "redraw")

@@ -415,42 +415,110 @@ def apply_kinds(regions):
             region["plain_background"], region["interior"] = False, None
 
 
+def resolve_shared_words(regions):
+    """A word claimed by several regions (a region's lettering grew into a neighbour's) belongs
+    to the region whose recognised box (``source_box``) holds it deepest, else to the smallest
+    region; the others drop it and their lettering box is rebuilt from the words they keep."""
+    def area(b):
+        return max(1, (b[2] - b[0]) * (b[3] - b[1]))
+
+    def overlaps(w, other):
+        ix = max(0, min(w[2], other[2]) - max(w[0], other[0]))
+        iy = max(0, min(w[3], other[3]) - max(w[1], other[1]))
+        return ix * iy >= 0.5 * min(area(w), area(other))
+
+    def depth(box, w):
+        if not box:
+            return -1
+        cx, cy = (w[0] + w[2]) / 2, (w[1] + w[3]) / 2
+        return min(cx - box[0], box[2] - cx, cy - box[1], box[3] - cy)
+    for region in regions:
+        words = region.get("words")
+        if not words:
+            continue
+        box, margin = region.get("source_box"), float(region.get("line_height") or 0)
+        if box:   # a word far outside where the recogniser put this text is a neighbour's fragment
+            near = [w for w in words if box[0] - margin <= (w[0] + w[2]) / 2 <= box[2] + margin
+                    and box[1] - margin <= (w[1] + w[3]) / 2 <= box[3] + margin]
+            words = near or words
+        kept = []
+        for w in words:
+            rivals = [r for r in regions if r is not region and any(overlaps(w, o) for o in r.get("words") or [])]
+            if not rivals:
+                kept.append(w)
+                continue
+            contenders = [region] + rivals
+            owner = max(contenders, key=lambda r: (depth(r.get("source_box"), w) > 0, depth(r.get("source_box"), w),
+                                                  -area(r["bbox"])))
+            if owner is region:
+                kept.append(w)
+        region["_kept"] = kept
+    for region in regions:
+        kept = region.pop("_kept", None)
+        if kept is None or len(kept) == len(region["words"]) and kept == region["words"]:
+            continue
+        if not kept:
+            region["words"] = []
+            continue
+        region["words"] = kept
+        box = [min(w[0] for w in kept), min(w[1] for w in kept), max(w[2] for w in kept), max(w[3] for w in kept)]
+        if area(box) >= 0.25 * area(region["bbox"]):        # never shrink to a speck
+            region["bbox"] = box
+
+
 def separate_regions(regions, gap=4, key="interior"):
-    """Keep each region's text area (``key``) off the other regions, so touching balloons never
-    share space: a row level with another region's lettering or text area is cut short of it
-    when that region lies beside this one, and dropped (outside this region's own lettering
-    rows) when it lies above or below."""
-    others_rows = {id(r): _area_boxes(r) for r in regions}
+    """Split the space between neighbouring regions by their actual lettering: a point of a
+    region's text area (``key``) is kept only when it is at least as close to this region's
+    words as to any other region's words (minus ``gap``). Bounding boxes of slanted or L-shaped
+    lettering overlap; the words do not, so a small balloon next to a big one keeps its room.
+    Of a row, the run nearest this region's own lettering is kept."""
+    words = {id(r): r.get("words") or [r["bbox"]] for r in regions}
     for region in regions:
         interior = region.get(key)
         if not interior:
             continue
-        own, rows = region["bbox"], []
+        own = words[id(region)]
+        others = [(other, words[id(other)]) for other in regions if other is not region]
+        if not others:
+            continue
+        rows = []
         for y, x0, x1 in interior["rows"]:
-            keep = True
-            for other in regions:
-                if other is region:
-                    continue
-                box = next((b for b in others_rows[id(other)] if b[1] - gap <= y < b[3] + gap), None)
-                if box is None:
-                    continue
-                if x1 <= box[0] - gap or x0 >= box[2] + gap:
-                    continue
-                if box[2] <= own[0]:
-                    x0 = max(x0, box[2] + gap)
-                elif box[0] >= own[2]:
-                    x1 = min(x1, box[0] - gap)
-                elif box is other["bbox"] and _contains(own, box):
-                    keep = False                     # another region inside this one's box: keep off it
-                elif (box[0] + box[2]) / 2 < (own[0] + own[2]) / 2 and box[2] + gap < x1:
-                    x0 = max(x0, box[2] + gap)      # overlapping lettering (L-shaped): yield its side
-                elif (box[0] + box[2]) / 2 >= (own[0] + own[2]) / 2 and box[0] - gap > x0:
-                    x1 = min(x1, box[0] - gap)
-                else:
-                    keep = False
-            if keep and x1 > x0:
+            near = [w for _, ws in others for w in ws if _gap_y(w, y) <= 4 * max(8, w[3] - w[1])]
+            if not near:
                 rows.append([y, x0, x1])
+                continue
+            step = max(1, (x1 - x0) // 120)
+            runs, start = [], None
+            for x in range(x0, x1 + step, step):
+                inside = x < x1 and _dist(own, x, y) <= _dist(near, x, y) - gap
+                if inside and start is None:
+                    start = x
+                elif not inside and start is not None:
+                    runs.append((start, min(x, x1)))
+                    start = None
+            if not runs:
+                continue
+            centre = min(own, key=lambda w: _gap_y(w, y))
+            cx = (centre[0] + centre[2]) / 2
+            best = min(runs, key=lambda r: 0 if r[0] <= cx < r[1] else min(abs(cx - r[0]), abs(cx - r[1])))
+            if best[1] > best[0]:
+                rows.append([y, best[0], best[1]])
         region[key] = {"step": interior["step"], "rows": rows} if rows else None
+
+
+def _gap_y(box, y):
+    return max(box[1] - y, 0, y - box[3])
+
+
+def _dist(boxes, x, y):
+    best = None
+    for b in boxes:
+        dx = max(b[0] - x, 0, x - b[2])
+        dy = max(b[1] - y, 0, y - b[3])
+        d = (dx * dx + dy * dy) ** 0.5
+        if best is None or d < best:
+            best = d
+    return best if best is not None else float("inf")
 
 
 def _contains(outer, inner):
@@ -593,6 +661,7 @@ def prepare_page(ctx, stages, number, name, image, raw, source_language, target_
             check_placement(ctx, stages, page, image, base_deps)
         apply_kinds(page["regions"])
         drop_duplicate_boxes(page)
+        resolve_shared_words(page["regions"])
         separate_regions(page["regions"])
         make_room(page["regions"])
         page["summary"] = parsed["summary"]

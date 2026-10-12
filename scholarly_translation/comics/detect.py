@@ -17,7 +17,7 @@ from collections import Counter
 
 from PIL import Image, ImageChops, ImageFilter
 
-DETECT_VERSION = "comic-detect@4"
+DETECT_VERSION = "comic-detect@5"
 WORK_EDGE = 1200          # long edge of the analysis copy
 LIGHT = 200               # gray >= LIGHT is fill
 MAX_DARK = 110            # gray < min(Otsu, MAX_DARK) is ink
@@ -454,6 +454,44 @@ def _letter_pitch(glyphs):
     return pitch
 
 
+def _words(glyphs, offset):
+    """Word boxes (page coordinates) of the lettering: glyphs joined when they overlap
+    vertically by half their height and are less than ~0.6 letter heights apart. Follows
+    slanted and L-shaped lettering far more closely than one bounding box."""
+    import statistics
+    if not glyphs:
+        return []
+    height = statistics.median(g[3] - g[1] for g in glyphs)
+    parent = list(range(len(glyphs)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    for i, a in enumerate(glyphs):
+        for j in range(i + 1, len(glyphs)):
+            b = glyphs[j]
+            overlap = min(a[3], b[3]) - max(a[1], b[1])
+            gap = max(a[0], b[0]) - min(a[2], b[2])
+            centres = abs((a[1] + a[3]) - (b[1] + b[3])) / 2
+            if (overlap >= 0.5 * min(a[3] - a[1], b[3] - b[1], height) and gap <= 0.6 * height
+                    and centres <= 0.45 * height):          # same line, also when slanted
+                parent[find(j)] = find(i)
+    groups = {}
+    for i, g in enumerate(glyphs):
+        groups.setdefault(find(i), []).append(g)
+    return [[min(g[0] for g in m) + offset[0], min(g[1] for g in m) + offset[1],
+             max(g[2] for g in m) + offset[0], max(g[3] for g in m) + offset[1]] for m in groups.values()]
+
+
+def _letter_words(words, line_height):
+    """Words of letter height only: chains of outline strokes (a jagged balloon edge) are far
+    taller than a line, specks of hatching far smaller."""
+    kept = [w for w in words if 0.3 * line_height <= w[3] - w[1] <= 2.2 * line_height]
+    return kept or words
+
+
 def _light_runs(row_bytes):
     return [(m.start(), m.end()) for m in _RUN.finditer(row_bytes)]
 
@@ -565,7 +603,7 @@ def snap_region(image, bbox):
         if interior is not None:
             return {"bbox": tight, "interior": interior, "background": ring["light_colour"],
                     "plain_background": True, "line_height": line_height, "confidence": 0.9,
-                    "balloon": balloon}
+                    "balloon": balloon, "words": _letter_words(_words(grown, crop_box), line_height)}
     return {"bbox": tight, "interior": None, "background": ring["colour"], "plain_background": False,
             "line_height": line_height, "confidence": 0.6}
 
