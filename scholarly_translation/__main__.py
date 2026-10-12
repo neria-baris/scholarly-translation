@@ -9,10 +9,10 @@ import time
 import uuid
 from pathlib import Path
 
-from .provider import ConfigValidationError, ProviderConfig, UnsupportedProviderError, build_adapter
-from .records import Document, Page, RecordValidationError, Segment
-from .store import deterministic_id, load_document, save_document
-from .usage import UsageEvent, append_usage
+from .models.provider import ConfigValidationError, ProviderConfig, UnsupportedProviderError, build_adapter
+from .core.records import Document, Page, RecordValidationError, Segment
+from .core.store import deterministic_id, load_document, save_document
+from .budget.usage import UsageEvent, append_usage
 
 
 def _ensure_utf8_stdio() -> None:
@@ -170,7 +170,7 @@ def cmd_inspect(document_path: str) -> int:
 
 def cmd_extract_pdf(input_path: str, language: str, output_dir: str) -> int:
     try:
-        from .pdf_extract import ExtractionError, extract_pdf, render_pages, write_comparison_html
+        from .sources.pdf_extract import ExtractionError, extract_pdf, render_pages, write_comparison_html
     except ImportError:
         print("PDF dependencies unavailable; install requirements.txt in a local venv.", file=sys.stderr)
         return 1
@@ -209,7 +209,7 @@ def cmd_ocr_pdf(
     timeout: float = 30.0,
 ) -> int:
     try:
-        from .ocr import OCRInputError, run_ocr
+        from .sources.ocr import OCRInputError, run_ocr
     except ImportError:
         print("OCR dependencies unavailable; install requirements.txt in a local venv.", file=sys.stderr)
         return 1
@@ -252,7 +252,7 @@ def cmd_ocr_pdf(
 
 def _load_structure_json(path):
     """Strict JSON for source decisions and derived structure consumers."""
-    from .source_reading import StructureError
+    from .core.source_reading import StructureError
 
     def unique(pairs):
         result = {}
@@ -280,8 +280,8 @@ def cmd_structure(
     boundaries_path: str = None,
     previous_path: str = None,
 ) -> int:
-    from .segmentation import build_structure
-    from .source_reading import StructureError
+    from .core.segmentation import build_structure
+    from .core.source_reading import StructureError
 
     try:
         document = Document.from_dict(_load_structure_json(document_path))
@@ -332,8 +332,8 @@ def cmd_structure(
 
 
 def cmd_inspect_structure(structure_path: str) -> int:
-    from .segmentation import validate_structure
-    from .source_reading import StructureError
+    from .core.segmentation import validate_structure
+    from .core.source_reading import StructureError
 
     try:
         data = _load_structure_json(structure_path)
@@ -372,12 +372,12 @@ def cmd_terminology(
     memory_path: str = None,
     action_path: str = None,
 ) -> int:
-    from .glossary import GlossaryError, new_store as new_glossary_store
-    from .glossary import propose_rule, resolve_applicable, review_rule, validate_glossary
-    from .segmentation import validate_structure
-    from .source_reading import StructureError
-    from .translation_memory import MemoryError, new_store as new_memory_store
-    from .translation_memory import remember, validate_memory
+    from .translate.glossary import GlossaryError, new_store as new_glossary_store
+    from .translate.glossary import propose_rule, resolve_applicable, review_rule, validate_glossary
+    from .core.segmentation import validate_structure
+    from .core.source_reading import StructureError
+    from .translate.translation_memory import MemoryError, new_store as new_memory_store
+    from .translate.translation_memory import remember, validate_memory
 
     try:
         structure = _load_structure_json(structure_path)
@@ -506,7 +506,7 @@ PROBE_MODELS = {"mock": "mock-diagnostic-1", "openai": "gpt-6-luna"}
 
 
 def cmd_probe_provider(provider: str, output_dir: str) -> int:
-    from .model_adapter import (
+    from .models.adapter import (
         DiagnosticRequest,
         OpenAIConfigurationError,
         RequestValidationError,
@@ -591,13 +591,13 @@ def _open_runtime_controls(
     Omitted path uses the ignored default store. Mock dispatches are recorded
     as synthetic and non-billed; their usage is never a paid-provider charge.
     """
-    from .model_adapter import OPENAI_MAX_OUTPUT_TOKENS, PRICING_VERSION
-    from .runtime_controls import ControlStore, PersistentBudget, RuntimeCache, RuntimeControlsError, validate_store_path, DEFAULT_CONTROL_STORE
+    from .models.adapter import OPENAI_MAX_OUTPUT_TOKENS, PRICING_VERSION
+    from .budget.runtime_controls import ControlStore, PersistentBudget, RuntimeCache, RuntimeControlsError, validate_store_path, DEFAULT_CONTROL_STORE
 
     control_store_path = DEFAULT_CONTROL_STORE if control_store_path is None else control_store_path
     resolved = validate_store_path(control_store_path, protected_paths=protected_paths)
     resolved_task_id = document_id if task_id is None else task_id
-    from .runtime_controls import _identifier
+    from .budget.runtime_controls import _identifier
     if not _identifier(resolved_task_id) or not ControlStore._valid_policy(max_calls, hard_list_usd, PRICING_VERSION, OPENAI_MAX_OUTPUT_TOKENS):
         raise RuntimeControlsError("invalid task identity or control policy")
     control_store = ControlStore(resolved, create=True)
@@ -618,16 +618,16 @@ def cmd_translate_unit(
     control_store: str = None, task_id: str = None, max_calls: int = 3, hard_list_usd: float = 0.01,
     model_config_path: str = None,
 ) -> int:
-    from .glossary import GlossaryError, validate_glossary
-    from .model_adapter import OpenAIConfigurationError, RequestValidationError
-    from .runtime_controls import RuntimeControlsError
-    from .segmentation import validate_structure
-    from .source_reading import StructureError
-    from .translation import (
+    from .translate.glossary import GlossaryError, validate_glossary
+    from .models.adapter import OpenAIConfigurationError, RequestValidationError
+    from .budget.runtime_controls import RuntimeControlsError
+    from .core.segmentation import validate_structure
+    from .core.source_reading import StructureError
+    from .translate.translation import (
         TranslationRequestError, build_translation_request,
         build_translation_request_for_role, run_translation,
     )
-    from .model_config import ModelConfigError, load_model_configuration
+    from .models.config import ModelConfigError, load_model_configuration
 
     try:
         structure = _load_structure_json(structure_path)
@@ -750,17 +750,17 @@ def cmd_semantic_review(
     control_store: str = None, task_id: str = None, max_calls: int = 3, hard_list_usd: float = 0.01,
     model_config_path: str = None,
 ) -> int:
-    from .glossary import GlossaryError, validate_glossary
-    from .model_adapter import OpenAIConfigurationError
-    from .runtime_controls import RuntimeControlsError
-    from .segmentation import validate_structure
-    from .semantic_review import (
+    from .translate.glossary import GlossaryError, validate_glossary
+    from .models.adapter import OpenAIConfigurationError
+    from .budget.runtime_controls import RuntimeControlsError
+    from .core.segmentation import validate_structure
+    from .review.semantic_review import (
         SEMANTIC_REVIEW_MODELS, SemanticReviewRequestError,
         build_semantic_review_request, build_semantic_review_request_for_role,
         run_semantic_review,
     )
-    from .model_config import ModelConfigError, load_model_configuration
-    from .source_reading import StructureError
+    from .models.config import ModelConfigError, load_model_configuration
+    from .core.source_reading import StructureError
 
     try:
         structure = _load_structure_json(structure_path)
@@ -915,10 +915,10 @@ def _protect_output(out_path, extra_inputs, structure=None):
 def cmd_human_review_render(
     structure_path: str, glossary_path: str, draft_path: str, review_path: str, output_dir: str,
 ) -> int:
-    from .glossary import GlossaryError, validate_glossary
-    from .human_review import HumanReviewRequestError, render_review_page, resolve_review_unit
-    from .segmentation import validate_structure
-    from .source_reading import StructureError
+    from .translate.glossary import GlossaryError, validate_glossary
+    from .review.human_review import HumanReviewRequestError, render_review_page, resolve_review_unit
+    from .core.segmentation import validate_structure
+    from .core.source_reading import StructureError
 
     try:
         structure = _load_structure_json(structure_path)
@@ -972,10 +972,10 @@ def cmd_human_review_decide(
     structure_path: str, glossary_path: str, draft_path: str, review_path: str,
     decision_path: str, previous_path: str, output_dir: str,
 ) -> int:
-    from .glossary import GlossaryError, validate_glossary
-    from .human_review import HumanReviewRequestError, resolve_review_unit, run_human_review
-    from .segmentation import validate_structure
-    from .source_reading import StructureError
+    from .translate.glossary import GlossaryError, validate_glossary
+    from .review.human_review import HumanReviewRequestError, resolve_review_unit, run_human_review
+    from .core.segmentation import validate_structure
+    from .core.source_reading import StructureError
 
     try:
         structure = _load_structure_json(structure_path)
@@ -1013,7 +1013,7 @@ def cmd_human_review_decide(
         print(problem, file=sys.stderr)
         return 1
 
-    from .source_reading import fingerprint
+    from .core.source_reading import fingerprint
     decision_key = fingerprint({
         "unit_id": record["unit_id"], "draft_hash": record["draft_hash"],
         "review_cache_key": record["review_cache_key"], "decision": decision,
@@ -1042,10 +1042,10 @@ def cmd_human_review_export(
     structure_path: str, glossary_path: str, draft_path: str, review_path: str,
     record_path: str, output_dir: str,
 ) -> int:
-    from .glossary import GlossaryError, validate_glossary
-    from .human_review import HumanReviewRequestError, export_bilingual_html, latest_decision, resolve_review_unit
-    from .segmentation import validate_structure
-    from .source_reading import StructureError
+    from .translate.glossary import GlossaryError, validate_glossary
+    from .review.human_review import HumanReviewRequestError, export_bilingual_html, latest_decision, resolve_review_unit
+    from .core.segmentation import validate_structure
+    from .core.source_reading import StructureError
 
     try:
         structure = _load_structure_json(structure_path)
@@ -1106,8 +1106,8 @@ def cmd_human_review_export(
 
 
 def cmd_evaluate_pilot(manifest_path: str, output_dir: str) -> int:
-    from .evaluation import EvaluationError, build_report
-    from .source_reading import StructureError
+    from .review.evaluation import EvaluationError, build_report
+    from .core.source_reading import StructureError
 
     try:
         manifest = _load_structure_json(manifest_path)
@@ -1146,7 +1146,7 @@ def cmd_evaluate_pilot(manifest_path: str, output_dir: str) -> int:
 
 
 def cmd_runtime_status(control_store_path: str, task_id: str) -> int:
-    from .runtime_controls import ControlStore, RuntimeControlsError, validate_store_path
+    from .budget.runtime_controls import ControlStore, RuntimeControlsError, validate_store_path
 
     try:
         store = ControlStore(validate_store_path(control_store_path), create=False)

@@ -37,7 +37,7 @@ foreach ($candidate in $candidates) {
     if ($ok) {
         Push-Location $projectRoot
         try {
-            & $exe @prefixArgs -B -m scholarly_translation.web_ui
+            & $exe @prefixArgs -B -m scholarly_translation.ui.web_ui
             exit $LASTEXITCODE
         } finally {
             Pop-Location

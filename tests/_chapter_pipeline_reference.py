@@ -4,18 +4,20 @@ import json
 import math
 import re
 from dataclasses import dataclass, replace
-from scholarly_translation import context_strategy, document_state as document_state_module, review_qa as rq
-from scholarly_translation.formal_checks import run_formal_checks
-from scholarly_translation.semantic_review import detect_risk_triggers as semantic_risks
-from scholarly_translation.glossary import resolve_applicable, validate_glossary
-from scholarly_translation.model_adapter import CacheablePrompt, TextGenerationResult, build_translation_adapter, OpenAIConfigurationError
-from scholarly_translation.model_config import ModelConfiguration, ModelConfigError
-from scholarly_translation.runtime_controls import PersistentBudget, RuntimeCache, RuntimeControlsError
-from scholarly_translation.source_reading import fingerprint
-from scholarly_translation.token_counting import count_tokens
-from scholarly_translation.model_catalog import estimate_cost, CATALOG_VERSION
-from scholarly_translation.translation_profiles import style_profile_text, SUPPORTED_PROFILE_IDS, PROMPT_VERSIONS, CONFIG_VERSIONS
-from scholarly_translation.work_journal import WorkJournal, step_identity
+from scholarly_translation.translate import context_strategy
+from scholarly_translation.core import document_state as document_state_module
+from scholarly_translation.review import review_qa as rq
+from scholarly_translation.core.formal_checks import run_formal_checks
+from scholarly_translation.review.semantic_review import detect_risk_triggers as semantic_risks
+from scholarly_translation.translate.glossary import resolve_applicable, validate_glossary
+from scholarly_translation.models.adapter import CacheablePrompt, TextGenerationResult, build_translation_adapter, OpenAIConfigurationError
+from scholarly_translation.models.config import ModelConfiguration, ModelConfigError
+from scholarly_translation.budget.runtime_controls import PersistentBudget, RuntimeCache, RuntimeControlsError
+from scholarly_translation.core.source_reading import fingerprint
+from scholarly_translation.budget.token_counting import count_tokens
+from scholarly_translation.models.catalog import estimate_cost, CATALOG_VERSION
+from scholarly_translation.translate.translation_profiles import style_profile_text, SUPPORTED_PROFILE_IDS, PROMPT_VERSIONS, CONFIG_VERSIONS
+from scholarly_translation.core.work_journal import WorkJournal, step_identity
 
 HEBREW_EXPANSION_HYPOTHESIS = 1.35
 MAX_ATTEMPTS_PER_QA_GROUP = 3
@@ -87,7 +89,7 @@ def _resolve_required_roles(configuration, quality):
     try:
         names = ['translator'] + ([] if quality == 'fast' else ['semantic_reviewer', 'chapter_qa'])
         roles = {name: configuration.resolve(name) for name in names}
-        from scholarly_translation.model_catalog import resolve
+        from scholarly_translation.models.catalog import resolve
         for selection, definition in roles.values():
             known = resolve(definition.provider_type, selection.model)
             if known:
@@ -99,7 +101,7 @@ def _resolve_required_roles(configuration, quality):
         raise ChapterPipelineError('all required translator and QA roles must be configured') from None
 
 # Planning placeholders share the planner's byte-identical, tokenizer-linear shape.
-from scholarly_translation.chapter_pipeline import _filler
+from scholarly_translation.translate.chapter_pipeline import _filler
 
 def _synthetic_target(source):
     return _filler('א', max(math.ceil(len(source) * HEBREW_EXPANSION_HYPOTHESIS), 1))
@@ -510,7 +512,7 @@ def _issue_unit(issue, records):
     return candidates[0] if len(candidates) == 1 else None
 
 def execute_document_chapters(job, structure, glossary, units, configuration, store, folder, persist, adapter_factory=None):
-    from scholarly_translation.document_draft import DocumentJobs
+    from scholarly_translation.translate.document_draft import DocumentJobs
     groups = DocumentJobs._chapter_groups(None, structure, units)
     job_id, quality, profile = job['job_id'], job['settings']['quality'], job['settings']['profile']
     hard, max_calls = job['settings']['budget_usd'], len(units)*8+16

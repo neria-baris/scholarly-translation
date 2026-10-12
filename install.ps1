@@ -380,7 +380,7 @@ function Run-Install {
         Set-Progress 80
 
         Write-Log 'Verifying the installation...'
-        $verifyCode = "import sys; assert sys.version_info >= (3, 10); import $($verifyModules -join ', '); from scholarly_translation.learning_install_check import verify_learning_assets; verify_learning_assets(); print('ok')"
+        $verifyCode = "import sys; assert sys.version_info >= (3, 10); import $($verifyModules -join ', '); from scholarly_translation.learning.install_check import verify_learning_assets; verify_learning_assets(); print('ok')"
         $code = Invoke-ProcessWithUi -FilePath $venvPython -Arguments @('-B', '-c', $verifyCode)
         if ($code -ne 0) { throw 'Verification failed (see log above).' }
         Set-Progress 90

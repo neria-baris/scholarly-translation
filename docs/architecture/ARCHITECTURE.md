@@ -170,7 +170,7 @@ approval. A valid schema is not semantic correctness.
 Document structure (`segmentation.build_structure`/`validate_structure`) now
 defaults to logical nodes and bounded semantic units (schema 2) instead of
 one unit per visual line; schema-1 artifacts remain readable and may seed a
-fresh schema-2 lineage. See `scholarly_translation/STRUCTURE_SCHEMA.md` for
+fresh schema-2 lineage. See `scholarly_translation/core/STRUCTURE_SCHEMA.md` for
 the full field shapes, classification heuristics and known limitations.
 
 Gate 4 must test both a digital page and an OCR page reaching a source-linked
@@ -184,6 +184,28 @@ first implemented profile; Gate 12 adds literary as the second and, as of
 this writing, final planned profile_id (see "Translation profile decision"
 above).
 
+## Package layout (2026-10-12)
+
+`scholarly_translation/` is grouped by topic and role; a module's folder says what it is for.
+
+| Folder | Role |
+|---|---|
+| `core/` | Shared data spine: records, store, source reading, structure/segmentation, document state, formal checks, work journal, target-language packs |
+| `sources/` | Reading inputs: PDF, OCR, scanned OCR, EPUB extraction/archive |
+| `models/` | Provider adapters, model catalog/config/settings, API key store |
+| `budget/` | Cost and limits: runtime controls (budget/cache), usage, token counting, reasoning budget |
+| `translate/` | Translation flow: document draft jobs, chapter pipeline, job blocks, context, glossary/names/notebook, profiles, memory |
+| `review/` | Quality: unit/chapter review, semantic and cross-chapter QA, salvage, output checks, human review, evaluation |
+| `export/` | PDF/EPUB/HTML output and shared typography |
+| `comics/` | Comic detection, model calls, records, typesetting and pipeline |
+| `learning/` | Language learning service, state/store, catalog (`data/`), generation/lessons/dictionary, import/export; its runtime prompts live in `learning/prompts/` |
+| `ui/` | Local web server, desktop launcher glue and all HTML/JS/CSS pages |
+
+`__main__.py` (CLI), `assets/` (fonts, tessdata, sprite) and `runtime_prompts/` (translation, review,
+OCR and comic prompts) stay at the package root. Tests mirror these folders under `tests/`; shared
+fixtures stay in `tests/`. Entry points: `python -m scholarly_translation`, web UI
+`python -m scholarly_translation.ui.web_ui`, comics `python -m scholarly_translation.comics.pipeline`.
+
 ## User-directed simple document flow (2026-10-04)
 
 The user explicitly requested PDF/EPUB upload, automatic translation/download
@@ -192,9 +214,9 @@ and optional review. This independent UI extension, scoped by
 prior Gate-specific deferrals above remain historical descriptions of those
 Gates. It introduces no literary profile, glossary approval shortcut or OCR.
 
-`document_draft.py` owns bounded embedded-text PDF/EPUB-spine extraction,
+`translate/document_draft.py` owns bounded embedded-text PDF/EPUB-spine extraction,
 source spans/hash, model/effort requests, durable Gate-11 reservations/cache,
-job progress/recovery and optional edited revisions. `web_ui.py` exposes these
+job progress/recovery and optional edited revisions. `ui/web_ui.py` exposes these
 through token/origin-guarded loopback endpoints; `ui.html/css/js` present upload,
 secondary settings, results/download and optional source/target editing.
 
@@ -212,7 +234,7 @@ the user-approved `AUTOMATION_WORK_PLAN_HE.md` without changing scholarly
 approval boundaries. New UI real jobs opt into chapter automation; existing
 saved/library jobs retain their legacy path. Both use canonical source units.
 
-`chapter_pipeline.py` plans complete prompts for each independently configured
+`translate/chapter_pipeline.py` plans complete prompts for each independently configured
 role: source, expected Hebrew, instructions, state, output and envelope. Whole
 chapters are preferred when they fit; otherwise adjacent semantic units are
 batched with explicit source coverage. Actual Hebrew is counted before QA;
@@ -227,14 +249,14 @@ and focused recheck is allowed; failed, ambiguous and retained minor findings
 remain visible as draft exceptions. Provisional cross-chapter state never grants
 glossary or source approval.
 
-`work_journal.py` schema2 persists dispatch/reservation identity, received raw
+`core/work_journal.py` schema2 persists dispatch/reservation identity, received raw
 result before accounting/parsing, validation and completion. Received raw can
 reconcile its original ledger event exactly once and then replay locally;
 unknown dispatch blocks new automatic requests. Pause/resume uses saved source,
 configuration, units and state. UI credentials are per-session memory snapshots,
 injected per-job into resolved adapters; restart requires renewed credentials
 unless the user opted in to "remember on this computer", which keeps the key in
-the Windows Credential Manager (`key_store.py`, current user) and reloads it at
+the Windows Credential Manager (`models/key_store.py`, current user) and reloads it at
 server start. Keys never enter persisted settings, job, journal, response,
 project files or browser storage.
 

@@ -1,9 +1,9 @@
 """Synthetic long-document builders for planner tests (no files, no network)."""
 import random
 
-from scholarly_translation import segmentation
-from scholarly_translation.records import Document, Page, Segment
-from scholarly_translation.model_config import ModelConfiguration
+from scholarly_translation.core import segmentation
+from scholarly_translation.core.records import Document, Page, Segment
+from scholarly_translation.models.config import ModelConfiguration
 
 _WORDS = ("the scholar argued that river stone harvest memory winter letter bridge quiet "
           "lantern market crossing silver ledger orchard tower archive voice season").split()

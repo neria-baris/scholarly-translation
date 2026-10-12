@@ -4,7 +4,7 @@
 ' with Ctrl+C); closing that window stops the server.
 '
 ' This file only launches run-ui.ps1 -- it adds no logic of its own, so
-' there is one place (run-ui.ps1 / scholarly_translation/web_ui.py) that
+' there is one place (run-ui.ps1 / scholarly_translation/ui/web_ui.py) that
 ' decides how the server actually starts and opens the browser.
 
 Set fso = CreateObject("Scripting.FileSystemObject")
