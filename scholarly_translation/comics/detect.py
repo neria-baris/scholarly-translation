@@ -17,7 +17,7 @@ from collections import Counter
 
 from PIL import Image, ImageChops, ImageFilter
 
-DETECT_VERSION = "comic-detect@3"
+DETECT_VERSION = "comic-detect@4"
 WORK_EDGE = 1200          # long edge of the analysis copy
 LIGHT = 200               # gray >= LIGHT is fill
 MAX_DARK = 110            # gray < min(Otsu, MAX_DARK) is ink
@@ -557,13 +557,15 @@ def snap_region(image, bbox):
         line_height = round(max(1.0, _letter_pitch(grown)), 1)
         level = int((threshold + sum(ring["light_colour"]) / 3) / 2)
         interior = _free_space(gray, tight, line_height, level)
+        balloon = interior          # the whole free light area: what is erased, and room for overflow
         if interior is not None:
             lines = [(line[0] + crop_box[1], line[1] + crop_box[1], min(g[0] for g in line[2]) + crop_box[0],
                       max(g[2] for g in line[2]) + crop_box[0]) for line in _group_lines(grown)]
             interior = _shaped(interior, lines, line_height)
         if interior is not None:
             return {"bbox": tight, "interior": interior, "background": ring["light_colour"],
-                    "plain_background": True, "line_height": line_height, "confidence": 0.9}
+                    "plain_background": True, "line_height": line_height, "confidence": 0.9,
+                    "balloon": balloon}
     return {"bbox": tight, "interior": None, "background": ring["colour"], "plain_background": False,
             "line_height": line_height, "confidence": 0.6}
 

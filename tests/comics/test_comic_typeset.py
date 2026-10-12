@@ -154,13 +154,16 @@ class TypesetTests(unittest.TestCase):
         for x in (x0 + 1, x0 + 2, x1 - 3, x1 - 2):
             self.assertEqual(out.getpixel((x, mid)), self.image.getpixel((x, mid)))
 
-    def test_skipped_and_missing_untouched(self):
+    def test_lettering_erased_even_without_a_translation(self):
+        # Erasing is independent of the translation: the source lettering goes, no new text is drawn.
         region = _region(self.balloon)
         layout = ts.fit(region, "Hi", self.latin, False, self.h)
         skipped = dict(region, layout=layout, translation={"text": "Hi", "status": "skipped", "note": ""})
-        nolayout = dict(region, layout=None, translation={"text": "Hi", "status": "ok", "note": ""})
-        out = ts.render_page(self.image, [skipped, nolayout])
-        self.assertEqual(out.tobytes(), self.image.tobytes())
+        out = ts.render_page(self.image, [skipped])
+        x0, y0, x1, y1 = self.balloon.text_bbox
+        self.assertGreater(min(out.crop((x0, y0, x1, y1)).convert("L").getdata()), 200)   # nothing dark left
+        outside = (x0 - 60, y0 - 60, x0 - 40, y0 - 40)
+        self.assertEqual(out.crop(outside).tobytes(), self.image.crop(outside).tobytes())
 
     def test_box_style_on_art(self):
         sign = self.page.truth("sign")[0]

@@ -31,6 +31,7 @@ from PIL import Image, ImageOps
 from ..translate import chapter_pipeline
 from . import model as comic_model
 from . import review as comic_review
+from . import edit as comic_edit
 from ..core import target_languages
 from . import records
 from ..translate.job_blocks import AUTO_ACCEPT_BELOW_USD, AUTO_ACCEPT_MAX_STREAK, AUTO_RETRY_DELAYS
@@ -267,6 +268,7 @@ class _Context:
         self.replays = 0
         self.review = review
         self.review_unit, self.recheck = review_unit, recheck
+        self.editor = None
         comic_review.parse_scope(review_unit)
         self.review_role = REVIEW_ROLE if REVIEW_ROLE in configuration.models else ROLE
 
@@ -352,21 +354,24 @@ def apply_kinds(regions):
             region["plain_background"], region["interior"] = False, None
 
 
-def separate_regions(regions, gap=4):
-    """Keep each region's interior off the other regions' lettering, so touching balloons never
-    share space: a row level with another region's lettering is cut short of it when that
-    lettering lies beside this one, and dropped (outside this region's own lettering rows) when
-    it lies above or below."""
+def separate_regions(regions, gap=4, key="interior"):
+    """Keep each region's text area (``key``) off the other regions, so touching balloons never
+    share space: a row level with another region's lettering or text area is cut short of it
+    when that region lies beside this one, and dropped (outside this region's own lettering
+    rows) when it lies above or below."""
+    others_rows = {id(r): _area_boxes(r) for r in regions}
     for region in regions:
-        interior = region["interior"]
+        interior = region.get(key)
         if not interior:
             continue
         own, rows = region["bbox"], []
         for y, x0, x1 in interior["rows"]:
             keep = True
             for other in regions:
-                box = other["bbox"]
-                if other is region or not box[1] - gap <= y < box[3] + gap:
+                if other is region:
+                    continue
+                box = next((b for b in others_rows[id(other)] if b[1] - gap <= y < b[3] + gap), None)
+                if box is None:
                     continue
                 if x1 <= box[0] - gap or x0 >= box[2] + gap:
                     continue
@@ -382,7 +387,26 @@ def separate_regions(regions, gap=4):
                     keep = False
             if keep and x1 > x0:
                 rows.append([y, x0, x1])
-        region["interior"] = {"step": interior["step"], "rows": rows} if rows else None
+        region[key] = {"step": interior["step"], "rows": rows} if rows else None
+
+
+def _area_boxes(region):
+    """Boxes a region occupies: its lettering box and each row of its text area."""
+    boxes = [region["bbox"]]
+    interior = region.get("interior")
+    if interior:
+        step = interior["step"]
+        boxes += [[a, y, b, y + step] for y, a, b in interior["rows"]]
+    return boxes
+
+
+def make_room(regions):
+    """``room``: the whole balloon area, kept off the neighbours, for text that does not fit
+    the lettering shape."""
+    for region in regions:
+        if region.get("balloon"):
+            region["room"] = {"step": region["balloon"]["step"], "rows": [list(r) for r in region["balloon"]["rows"]]}
+    separate_regions(regions, key="room")
 
 
 def should_mirror(mirror, source_language, target_code):
@@ -402,6 +426,10 @@ def _fit_region(stages, region, font, rtl, size, mirror=False):
     text = region["translation"]["text"]
     target = records.mirror_region(region, size[0]) if mirror else region
     layout = stages.fit(target, text, font, rtl, size[1], size[0])
+    if layout.get("overflow") and target.get("room"):      # use the whole balloon before shrinking further
+        roomy = stages.fit(dict(target, interior=target["room"]), text, font, rtl, size[1], size[0])
+        if not roomy.get("overflow") or roomy["font_size"] > layout["font_size"]:
+            layout = roomy
     region["layout"] = layout
     region["warnings"] = [w for w in region["warnings"] if w != "overflow"]
     if layout.get("overflow"):
@@ -411,20 +439,33 @@ def _fit_region(stages, region, font, rtl, size, mirror=False):
         region["translation"]["status"] = "ok"
 
 
-def _render(stages, image, regions, mirror):
+def _render(stages, image, regions, mirror, editor=None, pack=None):
     """Output page. Mirrored: the page is flipped, sound effects left in the art are put back
-    unflipped (readable) at their mirrored place, and the mirrored regions are rendered."""
+    unflipped (readable) at their mirrored place, and the mirrored regions are rendered. With an
+    ``editor``, signs are re-lettered in the art by an image model (on the output page, so the
+    new text reads correctly); a sign whose edit fails keeps the backing patch."""
     placed = [r for r in regions if r["layout"] is not None]
-    if not mirror:
-        return stages.render_page(image, placed)
     width, height = image.size
-    base = ImageOps.mirror(image)
-    for region in placed:
-        if region["layout"]["style"] == "subtitle":
-            x0, y0, x1, y1 = region["bbox"]
-            box = (max(0, x0 - 2), max(0, y0 - 2), min(width, x1 + 2), min(height, y1 + 2))
-            base.paste(image.crop(box), (width - box[2], box[1]))
-    return stages.render_page(base, [records.mirror_region(r, width) for r in placed])
+    base = ImageOps.mirror(image) if mirror else image.copy()
+    if mirror:
+        for region in placed:
+            if region["layout"]["style"] == "subtitle":
+                x0, y0, x1, y1 = region["bbox"]
+                box = (max(0, x0 - 2), max(0, y0 - 2), min(width, x1 + 2), min(height, y1 + 2))
+                base.paste(image.crop(box), (width - box[2], box[1]))
+    if editor is not None:
+        for region in placed:
+            if region["kind"] != "sign" or not region.get("translation"):
+                continue
+            target = records.mirror_region(region, width) if mirror else region
+            try:
+                editor.edit(base, target, region["translation"]["text"], pack.name if pack else "Hebrew",
+                            pack.rtl if pack else True)
+                region["edited"] = True
+            except comic_edit.SignEditError as exc:
+                region["warnings"].append("sign_edit_failed: %s" % exc)
+    shown = [records.mirror_region(r, width) for r in regions] if mirror else regions
+    return stages.render_page(base, shown)
 
 
 def _failed(page, exc):
@@ -463,6 +504,7 @@ def prepare_page(ctx, stages, number, name, image, raw, source_language, target_
         page["regions"] = comic_model.reconcile(page, image, candidates, parsed, stages.snap_region)
         apply_kinds(page["regions"])
         separate_regions(page["regions"])
+        make_room(page["regions"])
         page["summary"] = parsed["summary"]
         page["panels"] = parsed.get("panels", [])
         page["status"] = "recognised"
@@ -680,7 +722,7 @@ def finish_page(ctx, stages, page, image, source_language, target_code, mirror=F
                 for region in over:
                     region["translation"]["text"] = shorter[region["region_id"]]
                     _fit_region(stages, region, font, pack.rtl, image.size, mirror)
-        rendered = _render(stages, image, page["regions"], mirror)
+        rendered = _render(stages, image, page["regions"], mirror, ctx.editor, pack)
         page["mirrored"] = mirror
         page["status"] = "rendered"
         return rendered
@@ -799,7 +841,8 @@ def _settle_budget(store, comic_id, budget_usd):
 
 def run_comic(input_path, out_dir, source_language, target_code, model="mock", model_config=None, budget_usd=1.0,
               pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None,
-              mirror="auto", review=True, configuration=None, review_unit="page", recheck=True):
+              mirror="auto", review=True, configuration=None, review_unit="page", recheck=True,
+              edit_signs=False, edit_budget_usd=1.0, edit_quality="medium", edit_client=None):
     """Translate a comic into ``out_dir`` and return the validated comic dict."""
     if model not in ("mock", "configured"):
         raise ComicPipelineError("model must be mock or configured")
@@ -844,6 +887,9 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
             budget_usd = _settle_budget(store, comic_id, budget_usd)
             ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review,
                            review_unit, recheck)
+            if edit_signs:
+                ctx.editor = comic_edit.SignEditor(out / ".state", edit_client or _openai_image_client(),
+                                                   edit_budget_usd, edit_quality)
             summaries, dialogue = [], []
             group_size = comic_review.parse_scope(review_unit)[1] if review else 1
             results, group = [], []
@@ -924,6 +970,19 @@ def summarize(comic, out_dir):
     return "\n".join(lines)
 
 
+def _openai_image_client():
+    """OpenAI client for image edits; the key comes from OPENAI_API_KEY or the saved key store."""
+    import openai
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        from ..models.key_store import default_key_store
+        store = default_key_store()
+        key = (store.load_all() if store is not None else {}).get("openai")
+    if not key:
+        raise ComicPipelineError("sign editing needs an OpenAI key (OPENAI_API_KEY or the saved key)")
+    return openai.OpenAI(api_key=key, max_retries=0, timeout=comic_edit.EDIT_TIMEOUT_SECONDS)
+
+
 def _catalogue_selection(spec):
     parts = (spec or "").split(":")
     if len(parts) not in (2, 3) or not all(parts):
@@ -968,6 +1027,10 @@ def main(argv=None):
                         help="how much one review call covers: panel, page or pages:N (default page)")
     parser.add_argument("--recheck", choices=("on", "off"), default="on",
                         help="focused recheck of corrected regions (findings recorded, not applied)")
+    parser.add_argument("--edit-signs", choices=("on", "off"), default="off",
+                        help="re-letter signs in the artwork with an image model (paid, cached)")
+    parser.add_argument("--edit-budget-usd", type=float, default=1.0, help="ceiling for sign edits")
+    parser.add_argument("--edit-quality", choices=("low", "medium", "high"), default="medium")
     parser.add_argument("--mirror", choices=("auto", "yes", "no"), default="auto",
                         help="mirror pages so the panels read right to left (auto: LTR comic into an RTL language)")
     args = parser.parse_args(argv)
@@ -979,7 +1042,8 @@ def main(argv=None):
         comic = run_comic(args.input, args.out, args.source_language, args.target, args.model, args.model_config,
                           args.budget_usd, args.pages, args.notebook, mirror=args.mirror,
                           review=args.review == "on", configuration=configuration, review_unit=args.review_unit,
-                          recheck=args.recheck == "on",
+                          recheck=args.recheck == "on", edit_signs=args.edit_signs == "on",
+                          edit_budget_usd=args.edit_budget_usd, edit_quality=args.edit_quality,
                           progress=lambda done, total, page_id: _safe_print("%s done (%d/%d)" % (page_id, done, total)))
     except (ComicPipelineError, ModelConfigError, OpenAIConfigurationError, RuntimeControlsError) as exc:
         _safe_print("error: %s" % exc)

@@ -111,6 +111,7 @@ def new_region(candidate, page_index, number, **fields):
         "kind": "speech", "source_text": "", "speaker": None,
         "speaker_gender": "unknown", "addressee_gender": "unknown", "origin": "local",
         "warnings": [], "translation": None, "layout": None, "panel": None,
+        "balloon": candidate.get("balloon"),
     }
     unknown = set(fields) - set(region)
     if unknown:
@@ -125,10 +126,10 @@ def mirror_region(region, width):
     mirrored = dict(region)
     x0, y0, x1, y1 = region["bbox"]
     mirrored["bbox"] = [width - x1, y0, width - x0, y1]
-    interior = region.get("interior")
-    if interior:
-        mirrored["interior"] = {"step": interior["step"],
-                                "rows": [[y, width - b, width - a] for y, a, b in interior["rows"]]}
+    for key in ("interior", "balloon", "room"):
+        area = region.get(key)
+        if area:
+            mirrored[key] = {"step": area["step"], "rows": [[y, width - b, width - a] for y, a, b in area["rows"]]}
     return mirrored
 
 

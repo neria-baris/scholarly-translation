@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from ..core import target_languages
 from ..export.common import reorder_bidi_line
 
-TYPESET_VERSION = "comic-typeset@2"
+TYPESET_VERSION = "comic-typeset@3"
 FONT_DIR = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 HEBREW_FONT = FONT_DIR / "culmus" / "HadasimCLM-Bold.ttf"
 LATIN_FONT = FONT_DIR / "notosans" / "NotoSans-Regular.ttf"
@@ -384,6 +384,52 @@ def _erase_ink(image, region):
     image.paste(tuple(region["background"]), box, mask)
 
 
+def _erase_balloon(image, region):
+    """Erase ALL lettering inside the balloon's free light area, whether or not it was part of
+    the lettering box or got a translation: every dark component that lies wholly inside the
+    area (and does not touch the crop edge) is painted with the background. Outlines, tails and
+    art reach outside the area and stay."""
+    from .detect import _label, _otsu, _runs
+    area = region.get("balloon")
+    if not area:
+        _erase_ink(image, region)
+        return
+    width, height = image.size
+    rows, step = area["rows"], area["step"]
+    box = (max(0, min(r[1] for r in rows) - 2), max(0, rows[0][0] - step), min(width, max(r[2] for r in rows) + 2),
+           min(height, rows[-1][0] + step + 1))
+    inside = Image.new("L", (box[2] - box[0], box[3] - box[1]), 0)
+    mark = ImageDraw.Draw(inside)
+    for i, (y, a, b) in enumerate(rows):
+        y_end = rows[i + 1][0] if i + 1 < len(rows) else y + step
+        mark.rectangle([a - box[0], y - box[1], b - 1 - box[0], y_end - 1 - box[1]], fill=255)
+    inside_px = inside.load()
+    crop = image.crop(box).convert("L")
+    background = _luminance(region["background"])
+    threshold = min(_otsu(crop.histogram()), int(background) - 30)
+    dark = crop.point(lambda v: 255 if v < threshold else 0)
+    runs = _runs(dark)
+    ids, stats = _label(runs, True)
+    cw, ch = crop.size
+    outside = set()
+    for y, (row, row_ids) in enumerate(zip(runs, ids)):
+        for (a, b), root in zip(row, row_ids):
+            if not inside_px[a, y] or not inside_px[b - 1, y]:
+                outside.add(root)
+    keep = {root for root, st in stats.items() if st[0] == 0 or st[1] == 0 or st[2] >= cw or st[3] >= ch}
+    erase = set(stats) - outside - keep
+    if not erase:
+        return
+    mask = Image.new("L", crop.size, 0)
+    draw = ImageDraw.Draw(mask)
+    for y, (row, row_ids) in enumerate(zip(runs, ids)):
+        for (a, b), root in zip(row, row_ids):
+            if root in erase:
+                draw.line([(a, y), (b - 1, y)], fill=255)
+    mask = mask.filter(ImageFilter.MaxFilter(5))
+    image.paste(tuple(region["background"]), box, mask)
+
+
 def _erase_bubble(draw, region, size):
     width, height = size
     x0, y0, x1, y1 = region["bbox"]
@@ -409,14 +455,19 @@ def render_page(image, regions) -> Image.Image:
     draw = ImageDraw.Draw(out)
     placed = [r for r in regions if r.get("translation") and r.get("layout")
               and r["translation"].get("status") != "skipped"]
-    # erase every region first, so a neighbour's erase never cuts into text already drawn
+    # Erase first, independent of the translation: every balloon's lettering goes, also where no
+    # translation could be placed, so no original text is left behind or cut into new text.
+    for region in regions:
+        if region.get("kind") in ("sfx", "sign") or not region.get("plain_background"):
+            continue
+        _erase_balloon(out, region)
     for region in placed:
         layout, colour = region["layout"], tuple(region["background"])
-        if layout["style"] == "bubble":
-            _erase_ink(out, region)
-        elif layout["style"] == "box":
+        if layout["style"] == "box" and not region.get("edited"):
             draw.rounded_rectangle(layout["box"], radius=max(3, layout["font_size"] // 2), fill=colour)
     for region in placed:
+        if region.get("edited"):
+            continue                 # an image model already lettered it into the art
         layout, colour = region["layout"], tuple(region["background"])
         style, rtl = layout["style"], layout.get("rtl", False)
         font = _font(FONT_DIR / layout["font"], layout["font_size"])
