@@ -36,7 +36,7 @@ Check every region for these issue categories:
 - completeness (a region whose text is not fully rendered; reported, not corrected);
 - source_reading (comic only: the transcription in "source" does not match what the picture shows: a misread or missing word, a word marked [?] that is legible, lettering of another balloon mixed in). Put what the image actually shows in "source_span" and your reading of the whole region's lettering in "suggested_correction"; such an issue triggers a fresh reading of the lettering, not a translation change.
 
-Do not flag harmless {{T:TARGET}} stylistic variation, and do not nitpick style. Classify each real issue as:
+An exclamation, oath, curse or idiom rendered by a natural {{T:TARGET}} equivalent of the same force is correct, not a mistranslation (an oath by the Virgin or a saint becomes an everyday {{T:TARGET}} exclamation); flag the literal rendering instead. Do not flag harmless {{T:TARGET}} stylistic variation, and do not nitpick style. Classify each real issue as:
 - CRITICAL: changes the event, statement, speaker or joke materially;
 - MAJOR: significant loss, addition, interpretive, terminology or readability problem;
 - MINOR: limited but real problem.

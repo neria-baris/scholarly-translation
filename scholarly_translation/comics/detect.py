@@ -443,7 +443,15 @@ def _letter_pitch(glyphs):
     heights = [g[3] - g[1] for g in glyphs]
     tallest = max(heights)
     letters = [h for h in heights if h >= 0.4 * tallest]
-    return 1.5 * statistics.median(letters)
+    pitch = 1.5 * statistics.median(letters)
+    # Lower-case prose: letter height is the x-height and underestimates the pitch. With at
+    # least three clear lines the measured line distance is used when it stays plausible.
+    lines = [line for line in _group_lines(glyphs) if len(line[2]) >= 3]
+    if len(lines) >= 3:
+        measured = _pitch(glyphs)
+        if pitch < measured <= 2.2 * pitch:
+            return measured
+    return pitch
 
 
 def _light_runs(row_bytes):

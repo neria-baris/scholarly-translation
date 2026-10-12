@@ -45,7 +45,12 @@ def _line_height(font):
     return ascent + descent
 
 
+_GLYPH_FALLBACKS = {"…": "..."}   # the Hebrew font has no ellipsis glyph
+
+
 def _visual(text, rtl):
+    for char, plain in _GLYPH_FALLBACKS.items():
+        text = text.replace(char, plain)
     return reorder_bidi_line(text, rtl_paragraph=True) if rtl else text
 
 
