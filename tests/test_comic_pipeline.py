@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import tempfile
 import unittest
 import zipfile
@@ -68,15 +69,17 @@ def stub_stages(limit=1000, calls=None):
 class FakeConfigured:
     """A 'real' provider stand-in: metered completed results, valid JSON derived from the prompt."""
 
-    def __init__(self, bad_recognitions=0, transport_failures=0, translation_text=None):
+    def __init__(self, bad_recognitions=0, transport_failures=0, translation_text=None, review_fix=None):
         self.mock = cp.MockComicAdapter()
         self.calls = []
         self.bad_recognitions, self.transport_failures = bad_recognitions, transport_failures
         self.translation_text = translation_text
+        self.review_fix = review_fix
 
     def kind(self, text):
         return ("recognition" if text.startswith("# Comic Text Recognition")
-                else "shorten" if text.startswith("# Comic Shortening") else "translation")
+                else "shorten" if text.startswith("# Comic Shortening")
+                else "review" if text.startswith("# Comic Translation Review") else "translation")
 
     def generate(self, prompt, model):
         kind = self.kind(str(prompt))
@@ -91,6 +94,10 @@ class FakeConfigured:
                                         model, 0.0)
         raw = self.mock.generate(prompt, "mock-translation-1")
         text = raw.text
+        if kind == "review" and self.review_fix:
+            first = re.search(r'"id": "([^"]+)"', str(prompt)).group(1)
+            text = json.dumps({"corrections": [{"id": first, "issue": "calque", "severity": "major",
+                                                "explanation": "literal", "text": self.review_fix}]})
         if kind == "translation" and self.translation_text:
             body = json.loads(text)
             for item in body["translations"]:
@@ -262,7 +269,29 @@ class ConfiguredTests(TempCase):
     def run_comic(self, model, out="out", stages=None, **extra):
         return cp.run_comic(self.src, self.root / out, "en", "he", model="configured", model_config=self.config,
                             budget_usd=5.0, stages=stages or stub_stages(), adapter_factory=lambda r, d: model,
-                            sleep=lambda s: None, **extra)
+                            sleep=lambda s: None, **dict({"review": False}, **extra))
+
+    def test_review_corrections_are_applied_and_recorded(self):
+        model = FakeConfigured(review_fix="תיקון של העורך")
+        comic = self.run_comic(model, pages="1", review=True)
+        self.assertEqual(model.calls, ["recognition", "translation", "review"])
+        region = comic["pages"][0]["regions"][0]
+        self.assertEqual(region["translation"]["text"], "תיקון של העורך")
+        self.assertEqual(region["translation"]["review"]["issue"], "calque")
+        self.assertTrue(region["translation"]["review"]["previous"].startswith("[תרגום-דמה"))
+        self.assertEqual(comic["pages"][0]["reviewed"], 1)
+        again = self.run_comic(model, pages="1", review=True)            # replayed: no new calls
+        self.assertEqual(len(model.calls), 3)
+        self.assertEqual(again["pages"][0]["regions"][0]["translation"]["text"], "תיקון של העורך")
+
+    def test_catalogue_specs_build_a_configuration(self):
+        configuration = cp.catalogue_configuration("openai:gpt-6.1-sol:high", "openai:gpt-6-luna:xhigh")
+        self.assertEqual(configuration.models["translator"].model, "gpt-6.1-sol")
+        self.assertEqual(configuration.models["translator"].capabilities.reasoning, "high")
+        self.assertEqual(configuration.models["semantic_reviewer"].model, "gpt-6-luna")
+        for bad in ("gpt-6-luna", "openai:no-such-model", "openai:gpt-6-luna:enormous"):
+            with self.assertRaises(cp.ComicPipelineError):
+                cp.catalogue_configuration(bad)
 
     def test_rerun_makes_no_new_calls(self):
         model = FakeConfigured()
@@ -320,7 +349,7 @@ class ConfiguredTests(TempCase):
                              budget_usd=5.0, stages=stub_stages(), adapter_factory=lambda r, d: model,
                              sleep=slept.append, pages="1")
         self.assertEqual(comic["pages"][0]["status"], "rendered")
-        self.assertEqual(model.calls, ["recognition", "recognition", "translation"])
+        self.assertEqual(model.calls, ["recognition", "recognition", "translation", "review"])   # review on by default
         self.assertEqual(slept, [cp.AUTO_RETRY_DELAYS[0]])
 
     def test_budget_exhaustion_stops_the_remaining_pages(self):

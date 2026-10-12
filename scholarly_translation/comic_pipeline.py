@@ -38,8 +38,9 @@ from .translation import TranslationBudgetError
 from .work_journal import WorkJournal
 
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
-ROLE = "translator"
+ROLE, REVIEW_ROLE = "translator", "semantic_reviewer"
 RECOGNITION_STAGE, TRANSLATION_STAGE, SHORTEN_STAGE = "comic-recognition", "comic-translation", "comic-shorten"
+REVIEW_STAGE = "comic-review"
 MAX_CALLS = 20000                 # task call ceiling (fixed per task; the budget is the real limit)
 DEFAULT_OUTPUT_TOKENS = 16384
 PDF_RENDER_SCALE = 2.0
@@ -188,6 +189,8 @@ class MockComicAdapter:
     def generate(self, prompt_text, model):
         self.calls += 1
         text = str(prompt_text)
+        if text.startswith("# Comic Translation Review"):
+            return TextGenerationResult("mock_placeholder", json.dumps({"corrections": []}), "not_metered", model, 0.0)
         if text.startswith("# Comic Text Recognition"):
             count = int(re.search(r"numbered them 1 to (\d+)", text).group(1))
             body = {"regions": [{"marks": [n], "box": None, "kind": "speech", "text": "[source %d]" % n,
@@ -240,7 +243,7 @@ def _configured_adapter_factory():
 # ---------------------------------------------------------------- controlled calls
 
 class _Context:
-    def __init__(self, job_id, configuration, store, journal, budget_usd, adapter_factory, sleep):
+    def __init__(self, job_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review=False):
         self.job_id, self.configuration, self.store, self.journal = job_id, configuration, store, journal
         self.budget_usd, self.adapter_factory, self.sleep = budget_usd, adapter_factory, sleep
         selection, _ = configuration.resolve(ROLE)
@@ -249,6 +252,8 @@ class _Context:
         self.shared_cap = max(s.capabilities.max_output_tokens or 4096 for s in configuration.models.values())
         self.stopped = None
         self.replays = 0
+        self.review = review
+        self.review_role = REVIEW_ROLE if REVIEW_ROLE in configuration.models else ROLE
 
     def spent(self):
         try:
@@ -273,7 +278,7 @@ class _Context:
         except RuntimeControlsError:
             return False
 
-    def call(self, stage, prompt, validator, dependencies, wanted_cap):
+    def call(self, stage, prompt, validator, dependencies, wanted_cap, role=ROLE):
         """One controlled call with the automatic retry rule: a failed, truncated or invalid answer
         is resent (a new attempt number gives a new identity) while this failure row has cost less
         than AUTO_ACCEPT_BELOW_USD and is shorter than AUTO_ACCEPT_MAX_STREAK; otherwise it raises."""
@@ -283,7 +288,7 @@ class _Context:
             deps = dict(dependencies, attempt=attempt) if attempt else dict(dependencies)
             try:
                 parsed, replay = chapter_pipeline._controlled(
-                    self.job_id, ROLE, stage, prompt, self.configuration, cap, self.store, self.journal,
+                    self.job_id, role, stage, prompt, self.configuration, cap, self.store, self.journal,
                     self.budget_usd, MAX_CALLS, self.shared_cap, validator, deps, self.adapter_factory)
                 self.replays += int(replay)
                 return parsed
@@ -375,6 +380,32 @@ def should_mirror(mirror, source_language, target_code):
     if mirror != "auto":
         raise ComicPipelineError("mirror must be auto, yes or no")
     return target_languages.load(target_code).rtl and source_language not in comic_model.RIGHT_TO_LEFT_SOURCES
+
+
+def _review(ctx, image, page, notebook, source_language, target_code, capacities, kinds, sources, base_deps):
+    """Reviewer pass (the literary lesson: review suggestions are applied automatically). Each
+    correction replaces the translation and is recorded on it; a failed review keeps the
+    translation and warns."""
+    ids = [r["region_id"] for r in page["regions"]]
+    current = {r["region_id"]: r["translation"]["text"] for r in page["regions"]}
+    try:
+        corrections = ctx.call(
+            REVIEW_STAGE, comic_model.review_prompt(image, page, notebook, source_language, target_code, capacities),
+            lambda result: comic_model.parse_review(result.text, ids, target_code, kinds, sources),
+            dict(base_deps, stage=comic_model.REVIEW_VERSION, translation=current), _cap(6144, len(ids), 300),
+            role=ctx.review_role)
+    except _FATAL:
+        raise
+    except (chapter_pipeline.ChapterPipelineError, comic_model.ComicModelError, TranslationBudgetError):
+        page["warnings"].append("review_failed")
+        return
+    by_id = {r["region_id"]: r for r in page["regions"]}
+    for fix in corrections:
+        translation = by_id[fix["id"]]["translation"]
+        translation["review"] = {"previous": translation["text"], "issue": fix["issue"],
+                                 "severity": fix["severity"], "explanation": fix["explanation"]}
+        translation["text"] = fix["text"]
+    page["reviewed"] = len(corrections)
 
 
 def _fit_region(stages, region, font, rtl, size, mirror=False):
@@ -476,6 +507,8 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         page["warnings"].extend(w for w in warnings if w not in page["warnings"])
         page["summary"] = answer["summary"] or page["summary"]
         page["status"] = "translated"
+        if ctx.review:
+            _review(ctx, image, page, notebook, source_language, target_code, capacities, kinds, sources, base_deps)
         # typeset, at most one shorten call, re-fit
         for region in page["regions"]:
             _fit_region(stages, region, font, pack.rtl, image.size, mirror)
@@ -562,9 +595,14 @@ def render_review(comic, names, rtl, html_lang, mock):
                      "<th>Warnings</th></tr>")
         for region in page["regions"]:
             translation = region["translation"] or {}
+            notes = list(region["warnings"])
+            fix = translation.get("review")
+            if fix:
+                notes.append("review %s/%s: %s; was: %s" % (fix["issue"], fix["severity"], fix["explanation"],
+                                                             fix["previous"]))
             parts.append("<tr><td>%d</td>%s%s%s%s%s</tr>" % (
                 region["order"], _cell(region["kind"]), _cell(region["speaker"]), _cell(region["source_text"]),
-                _cell(translation.get("text"), rtl), _cell(", ".join(region["warnings"]))))
+                _cell(translation.get("text"), rtl), _cell("; ".join(notes))))
         parts.append("</table></section>")
     parts.append("</body></html>")
     return "\n".join(parts)
@@ -601,7 +639,7 @@ def _settle_budget(store, comic_id, budget_usd):
 
 def run_comic(input_path, out_dir, source_language, target_code, model="mock", model_config=None, budget_usd=1.0,
               pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None,
-              mirror="auto"):
+              mirror="auto", review=True, configuration=None):
     """Translate a comic into ``out_dir`` and return the validated comic dict."""
     if model not in ("mock", "configured"):
         raise ComicPipelineError("model must be mock or configured")
@@ -620,9 +658,10 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
         if adapter_factory is None:
             adapter_factory, mock_adapter = _mock_adapter_factory()
     else:
-        if not model_config:
-            raise ComicPipelineError("--model configured needs --model-config PATH")
-        configuration = load_model_configuration(model_config)
+        if configuration is None:
+            if not model_config:
+                raise ComicPipelineError("--model configured needs --model-config PATH or --translator")
+            configuration = load_model_configuration(model_config)
         configuration.resolve(ROLE)
         adapter_factory = adapter_factory or _configured_adapter_factory()
     notebook = _read_notebook(notebook_path)
@@ -643,7 +682,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
                 selected = parse_pages(pages, len(sources))
             todo = [(i + 1, s) for i, s in enumerate(sources) if selected is None or (i + 1) in selected]
             budget_usd = _settle_budget(store, comic_id, budget_usd)
-            ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep)
+            ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review)
             summaries, dialogue = [], []
             for done, (number, (name, load)) in enumerate(todo, 1):
                 try:
@@ -708,6 +747,29 @@ def summarize(comic, out_dir):
     return "\n".join(lines)
 
 
+def _catalogue_selection(spec):
+    parts = (spec or "").split(":")
+    if len(parts) not in (2, 3) or not all(parts):
+        raise ComicPipelineError("model spec must be PROVIDER:MODEL[:REASONING], got %r" % spec)
+    selection = {"source": "catalog", "provider": parts[0], "model": parts[1]}
+    if len(parts) == 3:
+        selection["reasoning"] = parts[2]
+    return selection
+
+
+def catalogue_configuration(translator, reviewer=None):
+    """Model configuration from catalogue specs, built the way the web UI builds it (keys come
+    from the provider's environment variable or the saved key store)."""
+    from .model_settings import ModelSettingsError, build_configuration
+    roles = {"translator": _catalogue_selection(translator)}
+    if reviewer:
+        roles["semantic_reviewer"] = _catalogue_selection(reviewer)
+    try:
+        return build_configuration(roles)
+    except ModelSettingsError as exc:
+        raise ComicPipelineError(str(exc)) from None
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m scholarly_translation.comic_pipeline",
                                      description="Translate comic pages in place.")
@@ -720,12 +782,22 @@ def main(argv=None):
     parser.add_argument("--budget-usd", type=float, default=1.0)
     parser.add_argument("--pages", help="pages to process, e.g. 1-5,8")
     parser.add_argument("--notebook", help="comic notebook JSON shared across volumes (read, then written)")
+    parser.add_argument("--translator", help="catalogue model for recognition and translation, "
+                                             "PROVIDER:MODEL[:REASONING], e.g. openai:gpt-6.1-sol:high")
+    parser.add_argument("--reviewer", help="catalogue model for the review pass (default: the translator)")
+    parser.add_argument("--review", choices=("on", "off"), default="on",
+                        help="reviewer pass whose corrections are applied automatically")
     parser.add_argument("--mirror", choices=("auto", "yes", "no"), default="auto",
                         help="mirror pages so the panels read right to left (auto: LTR comic into an RTL language)")
     args = parser.parse_args(argv)
     try:
+        configuration = None
+        if args.translator:
+            configuration = catalogue_configuration(args.translator, args.reviewer)
+            args.model = "configured"
         comic = run_comic(args.input, args.out, args.source_language, args.target, args.model, args.model_config,
                           args.budget_usd, args.pages, args.notebook, mirror=args.mirror,
+                          review=args.review == "on", configuration=configuration,
                           progress=lambda done, total, page_id: _safe_print("%s done (%d/%d)" % (page_id, done, total)))
     except (ComicPipelineError, ModelConfigError, OpenAIConfigurationError, RuntimeControlsError) as exc:
         _safe_print("error: %s" % exc)
