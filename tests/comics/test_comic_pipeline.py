@@ -69,17 +69,22 @@ def stub_stages(limit=1000, calls=None):
 class FakeConfigured:
     """A 'real' provider stand-in: metered completed results, valid JSON derived from the prompt."""
 
-    def __init__(self, bad_recognitions=0, transport_failures=0, translation_text=None, review_fix=None):
+    def __init__(self, bad_recognitions=0, transport_failures=0, translation_text=None, review=None,
+                 correction="תיקון מלא", reading=None):
         self.mock = cp.MockComicAdapter()
         self.calls = []
         self.bad_recognitions, self.transport_failures = bad_recognitions, transport_failures
         self.translation_text = translation_text
-        self.review_fix = review_fix
+        self.review = review            # callable(prompt_text) -> list of issues for the first review
+        self.correction, self.reading = correction, reading
+        self.reviews = 0
 
     def kind(self, text):
         return ("recognition" if text.startswith("# Comic Text Recognition")
                 else "shorten" if text.startswith("# Comic Shortening")
-                else "review" if text.startswith("# Comic Translation Review") else "translation")
+                else "review" if text.startswith("# Comic Independent Review")
+                else "correction" if text.startswith("# Comic Correction")
+                else "reread" if text.startswith("# Comic Source Re-reading") else "translation")
 
     def generate(self, prompt, model):
         kind = self.kind(str(prompt))
@@ -94,10 +99,15 @@ class FakeConfigured:
                                         model, 0.0)
         raw = self.mock.generate(prompt, "mock-translation-1")
         text = raw.text
-        if kind == "review" and self.review_fix:
-            first = re.search(r'"id": "([^"]+)"', str(prompt)).group(1)
-            text = json.dumps({"corrections": [{"id": first, "issue": "calque", "severity": "major",
-                                                "explanation": "literal", "text": self.review_fix}]})
+        ids = re.findall(r'^\{"id": "([^"]+)"', str(prompt), re.M)
+        if kind == "review":
+            self.reviews += 1
+            issues = self.review(str(prompt)) if self.review and self.reviews == 1 else []
+            text = json.dumps({"verdict": "REVISE" if issues else "PASS", "issues": issues}, ensure_ascii=False)
+        elif kind == "correction":
+            text = json.dumps({"translations": [{"id": i, "text": self.correction} for i in ids]}, ensure_ascii=False)
+        elif kind == "reread":
+            text = json.dumps({"readings": [{"id": i, "text": self.reading} for i in ids]})
         if kind == "translation" and self.translation_text:
             body = json.loads(text)
             for item in body["translations"]:
@@ -271,18 +281,62 @@ class ConfiguredTests(TempCase):
                             budget_usd=5.0, stages=stages or stub_stages(), adapter_factory=lambda r, d: model,
                             sleep=lambda s: None, **dict({"review": False}, **extra))
 
-    def test_review_corrections_are_applied_and_recorded(self):
-        model = FakeConfigured(review_fix="תיקון של העורך")
+    @staticmethod
+    def issue(label, category="over_literal", severity="MINOR", span="", fix="תיקון", source_span="x"):
+        return {"id": label, "category": category, "severity": severity, "source_span": source_span,
+                "translation_span": span, "problem": "a problem", "suggested_correction": fix}
+
+    def test_span_found_is_replaced_without_a_call_then_rechecked(self):
+        model = FakeConfigured(review=lambda prompt: [self.issue("P1.1", span="תרגום-דמה", fix="נוסח טוב")])
         comic = self.run_comic(model, pages="1", review=True)
-        self.assertEqual(model.calls, ["recognition", "translation", "review"])
-        region = comic["pages"][0]["regions"][0]
-        self.assertEqual(region["translation"]["text"], "תיקון של העורך")
-        self.assertEqual(region["translation"]["review"]["issue"], "calque")
-        self.assertTrue(region["translation"]["review"]["previous"].startswith("[תרגום-דמה"))
-        self.assertEqual(comic["pages"][0]["reviewed"], 1)
+        self.assertEqual(model.calls, ["recognition", "translation", "review", "review"])   # critic + recheck
+        translation = comic["pages"][0]["regions"][0]["translation"]
+        self.assertEqual(translation["text"], "[נוסח טוב 1]")
+        self.assertEqual(translation["review"]["applied"][0]["method"], "span")
+        self.assertTrue(translation["review"]["previous"].startswith("[תרגום-דמה"))
         again = self.run_comic(model, pages="1", review=True)            # replayed: no new calls
-        self.assertEqual(len(model.calls), 3)
-        self.assertEqual(again["pages"][0]["regions"][0]["translation"]["text"], "תיקון של העורך")
+        self.assertEqual(len(model.calls), 4)
+        self.assertEqual(again["pages"][0]["regions"][0]["translation"]["text"], "[נוסח טוב 1]")
+
+    def test_missing_span_goes_to_one_correction_call(self):
+        model = FakeConfigured(review=lambda prompt: [self.issue("P1.1", span="לא קיים", severity="MAJOR"),
+                                                      self.issue("P1.2", span="גם לא", category="mistranslation")])
+        comic = self.run_comic(model, pages="1", review=True, recheck=False)
+        self.assertEqual(model.calls, ["recognition", "translation", "review", "correction"])
+        regions = comic["pages"][0]["regions"]
+        self.assertEqual([r["translation"]["text"] for r in regions], ["תיקון מלא", "תיקון מלא"])
+        self.assertEqual(regions[0]["translation"]["review"]["applied"][0]["method"], "correction")
+
+    def test_review_suggestions_rule(self):
+        model = FakeConfigured(review=lambda prompt: [
+            self.issue("P1.1", category="completeness", span="תרגום-דמה"),
+            self.issue("P1.2", category="consistency", severity="MINOR", span="תרגום-דמה")])
+        comic = self.run_comic(model, pages="1", review=True)
+        self.assertEqual(model.calls, ["recognition", "translation", "review"])   # nothing applied, no recheck
+        for region in comic["pages"][0]["regions"]:
+            self.assertTrue(region["translation"]["text"].startswith("[תרגום-דמה"))
+            self.assertEqual(len(region["translation"]["review"]["notes"]), 1)
+
+    def test_doubtful_source_is_reread_and_retranslated(self):
+        model = FakeConfigured(review=lambda prompt: [self.issue("P1.2", category="source_reading",
+                                                                 source_span="SOBREVOLABAN", fix="")],
+                               reading="Corrected reading")
+        comic = self.run_comic(model, pages="1", review=True, recheck=False)
+        self.assertEqual(model.calls, ["recognition", "translation", "review", "reread", "translation"])
+        region = comic["pages"][0]["regions"][1]
+        self.assertEqual(region["source_text"], "Corrected reading")
+        self.assertEqual(region["source_reread"]["previous"], "[source 2]")
+        self.assertEqual(region["translation"]["review"]["applied"][0]["method"], "reread")
+        self.assertEqual(comic["pages"][0]["regions"][0]["source_text"], "[source 1]")
+
+    def test_review_unit_sizes(self):
+        for unit, reviews in (("page", 2), ("pages:2", 1), ("panel", 4)):
+            with self.subTest(unit):
+                model = FakeConfigured()
+                self.run_comic(model, out="out-" + unit.replace(":", "-"), review=True, review_unit=unit)
+                self.assertEqual(model.calls.count("review"), reviews)
+        with self.assertRaises(Exception):
+            self.run_comic(FakeConfigured(), out="bad", review=True, review_unit="pages:1")
 
     def test_catalogue_specs_build_a_configuration(self):
         configuration = cp.catalogue_configuration("openai:gpt-6.1-sol:high", "openai:gpt-6-luna:xhigh")

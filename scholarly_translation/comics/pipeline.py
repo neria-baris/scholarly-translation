@@ -30,6 +30,7 @@ from PIL import Image, ImageOps
 
 from ..translate import chapter_pipeline
 from . import model as comic_model
+from . import review as comic_review
 from ..core import target_languages
 from . import records
 from ..translate.job_blocks import AUTO_ACCEPT_BELOW_USD, AUTO_ACCEPT_MAX_STREAK, AUTO_RETRY_DELAYS
@@ -42,7 +43,7 @@ from ..core.work_journal import WorkJournal
 IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 ROLE, REVIEW_ROLE = "translator", "semantic_reviewer"
 RECOGNITION_STAGE, TRANSLATION_STAGE, SHORTEN_STAGE = "comic-recognition", "comic-translation", "comic-shorten"
-REVIEW_STAGE = "comic-review"
+REVIEW_STAGE, CORRECTION_STAGE, REREAD_STAGE = "comic-review", "comic-correction", "comic-reread"
 MAX_CALLS = 20000                 # task call ceiling (fixed per task; the budget is the real limit)
 DEFAULT_OUTPUT_TOKENS = 16384
 PDF_RENDER_SCALE = 2.0
@@ -192,8 +193,16 @@ class MockComicAdapter:
     def generate(self, prompt_text, model):
         self.calls += 1
         text = str(prompt_text)
-        if text.startswith("# Comic Translation Review"):
-            return TextGenerationResult("mock_placeholder", json.dumps({"corrections": []}), "not_metered", model, 0.0)
+        if text.startswith("# Comic Independent Review"):
+            return TextGenerationResult("mock_placeholder", json.dumps({"verdict": "PASS", "issues": []}),
+                                        "not_metered", model, 0.0)
+        if text.startswith("# Comic Source Re-reading") or text.startswith("# Comic Correction"):
+            ids = [json.loads(line)["id"] for line in text.splitlines() if line.startswith('{"id"')]
+            key, value = (("readings", "[source]") if text.startswith("# Comic Source")
+                          else ("translations", MOCK_TRANSLATION % 0))
+            body = {key: [{"id": i, "text": value} for i in ids]}
+            return TextGenerationResult("mock_placeholder", json.dumps(body, ensure_ascii=False), "not_metered",
+                                        model, 0.0)
         if text.startswith("# Comic Text Recognition"):
             count = int(re.search(r"numbered them 1 to (\d+)", text).group(1))
             body = {"regions": [{"marks": [n], "box": None, "kind": "speech", "text": "[source %d]" % n,
@@ -246,7 +255,8 @@ def _configured_adapter_factory():
 # ---------------------------------------------------------------- controlled calls
 
 class _Context:
-    def __init__(self, job_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review=False):
+    def __init__(self, job_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review=False,
+                 review_unit="page", recheck=True):
         self.job_id, self.configuration, self.store, self.journal = job_id, configuration, store, journal
         self.budget_usd, self.adapter_factory, self.sleep = budget_usd, adapter_factory, sleep
         selection, _ = configuration.resolve(ROLE)
@@ -256,6 +266,8 @@ class _Context:
         self.stopped = None
         self.replays = 0
         self.review = review
+        self.review_unit, self.recheck = review_unit, recheck
+        comic_review.parse_scope(review_unit)
         self.review_role = REVIEW_ROLE if REVIEW_ROLE in configuration.models else ROLE
 
     def spent(self):
@@ -385,32 +397,6 @@ def should_mirror(mirror, source_language, target_code):
     return target_languages.load(target_code).rtl and source_language not in comic_model.RIGHT_TO_LEFT_SOURCES
 
 
-def _review(ctx, image, page, notebook, source_language, target_code, capacities, kinds, sources, base_deps):
-    """Reviewer pass (the literary lesson: review suggestions are applied automatically). Each
-    correction replaces the translation and is recorded on it; a failed review keeps the
-    translation and warns."""
-    ids = [r["region_id"] for r in page["regions"]]
-    current = {r["region_id"]: r["translation"]["text"] for r in page["regions"]}
-    try:
-        corrections = ctx.call(
-            REVIEW_STAGE, comic_model.review_prompt(image, page, notebook, source_language, target_code, capacities),
-            lambda result: comic_model.parse_review(result.text, ids, target_code, kinds, sources),
-            dict(base_deps, stage=comic_model.REVIEW_VERSION, translation=current), _cap(6144, len(ids), 300),
-            role=ctx.review_role)
-    except _FATAL:
-        raise
-    except (chapter_pipeline.ChapterPipelineError, comic_model.ComicModelError, TranslationBudgetError):
-        page["warnings"].append("review_failed")
-        return
-    by_id = {r["region_id"]: r for r in page["regions"]}
-    for fix in corrections:
-        translation = by_id[fix["id"]]["translation"]
-        translation["review"] = {"previous": translation["text"], "issue": fix["issue"],
-                                 "severity": fix["severity"], "explanation": fix["explanation"]}
-        translation["text"] = fix["text"]
-    page["reviewed"] = len(corrections)
-
-
 def _fit_region(stages, region, font, rtl, size, mirror=False):
     """Layout in output-page coordinates: on a mirrored page it is fitted to the mirrored region."""
     text = region["translation"]["text"]
@@ -441,22 +427,26 @@ def _render(stages, image, regions, mirror):
     return stages.render_page(base, [records.mirror_region(r, width) for r in placed])
 
 
-def process_page(ctx, stages, number, name, image, raw, comic, source_language, target_code, notebook, summaries,
-                 mirror=False, dialogue=None):
-    """Run one page; returns ``(page, output image)``. Model/validation failures mark the page
-    ``failed`` (original kept, unmirrored, as its output). Recognition and translation always
-    see the original page; ``mirror`` only changes the rendered output."""
+def _failed(page, exc):
+    page["status"] = "failed"
+    page["warnings"].append("error: %s: %s" % (type(exc).__name__, str(exc)[:300]))
+
+
+def prepare_page(ctx, stages, number, name, image, raw, source_language, target_code, notebook, summaries,
+                 dialogue=None):
+    """Detection, recognition and translation of one page (always on the original page). The
+    page's summary and dialogue feed the next page's translation right away. Returns the page;
+    a failure marks it ``failed``."""
     pack = target_languages.load(target_code)
     page = records.new_page(number, name, raw, image.width, image.height)
     page["versions"] = {"detect": stages.DETECT_VERSION, "typeset": stages.TYPESET_VERSION,
                         "recognition": comic_model.RECOGNITION_VERSION,
                         "translation": comic_model.TRANSLATION_VERSION, "shorten": comic_model.SHORTEN_VERSION}
-    base_deps = {"page": number, "image": page["image_sha256"], "detect": stages.DETECT_VERSION,
-                 "source": source_language, "target": target_code}
     if ctx.stopped:
         page["status"] = "failed"
         page["warnings"].append("error: skipped, %s" % ctx.stopped)
-        return page, image
+        return page
+    base_deps = _base_deps(page, stages, source_language, target_code)
     try:
         candidates = []
         for i, candidate in enumerate(stages.detect_candidates(image)):
@@ -465,7 +455,6 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
                 candidates.append(candidate)
             except records.ComicRecordError:
                 page["warnings"].append("invalid_candidate:%d" % (i + 1))
-        # recognition
         prompt = comic_model.recognition_prompt(image, candidates, source_language, notebook)
         parsed = ctx.call(
             RECOGNITION_STAGE, prompt, lambda result: comic_model.parse_recognition(result.text, len(candidates)),
@@ -480,44 +469,199 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         update = records.new_notebook()
         update["characters"] = [{"name": c["name"], "target_name": "", "gender": c["gender"],
                                  "note": c["appearance"]} for c in parsed["characters"]]
-        merged, warnings = comic_model.merge_notebook(notebook, update)
-        notebook.clear()
-        notebook.update(merged)
-        page["warnings"].extend(w for w in warnings if w not in page["warnings"])
+        _merge(notebook, update, page)
         if not page["regions"]:
             page["warnings"].append("no_text")
-            page["status"] = "rendered"
-            return page, image
-        # translation
+            return page
         font = stages.font_for(target_code)
-        capacities = {r["region_id"]: max(1, int(stages.capacity(r, font, pack.rtl, image.height)))
-                      for r in page["regions"]}
-        ids = [r["region_id"] for r in page["regions"]]
-        kinds = {r["region_id"]: r["kind"] for r in page["regions"]}
-        sources = {r["region_id"]: r["source_text"] for r in page["regions"]}
-        prompt = comic_model.translation_prompt(image, page, notebook, summaries, source_language, target_code,
-                                                capacities, dialogue)
-        answer = ctx.call(
-            TRANSLATION_STAGE, prompt,
-            lambda result: comic_model.parse_translation(result.text, ids, target_code, kinds, sources),
-            dict(base_deps, stage=comic_model.TRANSLATION_VERSION, typeset=stages.TYPESET_VERSION,
-                 regions=ids), _cap(6144, len(ids), 400))
+        for region in page["regions"]:
+            region["capacity"] = max(1, int(stages.capacity(region, font, pack.rtl, image.height)))
+        answer = _translate(ctx, image, page, page["regions"], notebook, summaries, source_language, target_code,
+                            dialogue, base_deps)
         for item, region in zip(answer["translations"], page["regions"]):
             region["translation"] = {"text": item["text"], "status": "ok", "note": item["note"]}
-        merged, warnings = comic_model.merge_notebook(notebook, answer["notebook"])
-        notebook.clear()
-        notebook.update(merged)
-        page["warnings"].extend(w for w in warnings if w not in page["warnings"])
+        _merge(notebook, answer["notebook"], page)
         page["summary"] = answer["summary"] or page["summary"]
         page["status"] = "translated"
-        if ctx.review:
-            _review(ctx, image, page, notebook, source_language, target_code, capacities, kinds, sources, base_deps)
-        # typeset, at most one shorten call, re-fit
+        summaries.append(page["summary"])
+        if dialogue is not None:   # the next page's translator sees this page's dialogue
+            dialogue[:] = [{"speaker": r["speaker"], "source": r["source_text"], "target": r["translation"]["text"]}
+                           for r in page["regions"]]
+        return page
+    except _FATAL:
+        raise
+    except Exception as exc:
+        _failed(page, exc)
+        return page
+
+
+def _base_deps(page, stages, source_language, target_code):
+    return {"page": page["index"], "image": page["image_sha256"], "detect": stages.DETECT_VERSION,
+            "source": source_language, "target": target_code}
+
+
+def _merge(notebook, update, page):
+    merged, warnings = comic_model.merge_notebook(notebook, update)
+    notebook.clear()
+    notebook.update(merged)
+    page["warnings"].extend(w for w in warnings if w not in page["warnings"])
+
+
+def _translate(ctx, image, page, regions, notebook, summaries, source_language, target_code, dialogue, base_deps):
+    ids = [r["region_id"] for r in regions]
+    kinds = {r["region_id"]: r["kind"] for r in regions}
+    sources = {r["region_id"]: r["source_text"] for r in regions}
+    capacities = {r["region_id"]: r.get("capacity", 0) for r in regions}
+    view = dict(page, regions=regions)
+    prompt = comic_model.translation_prompt(image, view, notebook, summaries, source_language, target_code,
+                                            capacities, dialogue)
+    deps = dict(base_deps, stage=comic_model.TRANSLATION_VERSION, regions=ids)
+    if len(regions) != len(page["regions"]):   # a retranslation after a fresh reading of the source
+        deps["sources"] = sources
+    return ctx.call(TRANSLATION_STAGE, prompt,
+                    lambda result: comic_model.parse_translation(result.text, ids, target_code, kinds, sources),
+                    deps, _cap(6144, len(ids), 400))
+
+
+def review_group(ctx, stages, group, images, notebook, source_language, target_code):
+    """The literary review mechanism over ``group`` (translated pages), unit by unit."""
+    for unit in comic_review.units(group, ctx.review_unit):
+        try:
+            _review_unit(ctx, stages, unit, images, notebook, source_language, target_code)
+        except _FATAL:
+            raise
+        except (chapter_pipeline.ChapterPipelineError, comic_model.ComicModelError, TranslationBudgetError) as exc:
+            for page, _ in unit:
+                if "review_failed" not in page["warnings"]:
+                    page["warnings"].append("review_failed")
+            if isinstance(exc, TranslationBudgetError):
+                return
+
+
+def _unit_deps(unit, stages, source_language, target_code, stage):
+    return {"stage": stage, "detect": stages.DETECT_VERSION, "source": source_language, "target": target_code,
+            "images": [page["image_sha256"] for page, _ in unit],
+            "regions": {comic_review.label(r): [r["source_text"], r["translation"]["text"]]
+                        for _, regions in unit for r in regions}}
+
+
+def _review_unit(ctx, stages, unit, images, notebook, source_language, target_code):
+    by_label = {comic_review.label(r): (page, r) for page, regions in unit for r in regions}
+    labels = list(by_label)
+    kinds = {name: r["kind"] for name, (_, r) in by_label.items()}
+    issues = ctx.call(
+        REVIEW_STAGE, comic_review.critic_prompt(unit, images, notebook, source_language, target_code),
+        lambda result: comic_review.parse_critique(result.text, labels),
+        _unit_deps(unit, stages, source_language, target_code, comic_review.CRITIC_VERSION),
+        _cap(6144, len(labels), 300), role=ctx.review_role)
+    for page, _ in unit:
+        page["reviewed"] = page.get("reviewed", 0) + sum(1 for i in issues if by_label[i["id"]][0] is page)
+    rereads, pending, changed = {}, {}, set()
+    for issue in issues:
+        page, region = by_label[issue["id"]]
+        record = region["translation"].setdefault("review", {"issues": [], "applied": [], "notes": []})
+        record["issues"].append(issue)
+        if issue["category"] == comic_review.SOURCE_READING:
+            rereads.setdefault(issue["id"], issue)
+    for issue in issues:
+        name = issue["id"]
+        if issue["category"] == comic_review.SOURCE_READING or name in rereads:
+            continue
+        region = by_label[name][1]
+        translation, record = region["translation"], region["translation"]["review"]
+        if not comic_review.applies(issue):
+            record["notes"].append(issue)
+            continue
+        replaced = comic_review.apply_span(translation["text"], issue)
+        if replaced is not None:
+            try:
+                comic_model._check_script(replaced, target_code, name)
+            except comic_model.ComicModelError:
+                replaced = None
+        if replaced is None:
+            pending.setdefault(name, []).append(issue)
+            continue
+        record.setdefault("previous", translation["text"])
+        translation["text"] = replaced
+        record["applied"].append(dict(issue, method="span"))
+        changed.add(name)
+    if pending:
+        sources = {name: by_label[name][1]["source_text"] for name in pending}
+        fixed = ctx.call(
+            CORRECTION_STAGE,
+            comic_review.correction_prompt(unit, images, pending, notebook, source_language, target_code),
+            lambda result: comic_review.parse_correction(result.text, list(pending), target_code, kinds, sources),
+            dict(_unit_deps(unit, stages, source_language, target_code, comic_review.CORRECTION_VERSION),
+                 pending={name: [i["suggested_correction"] for i in items] for name, items in pending.items()}),
+            _cap(4096, len(pending), 400))
+        for name, text in fixed.items():
+            translation = by_label[name][1]["translation"]
+            record = translation["review"]
+            record.setdefault("previous", translation["text"])
+            translation["text"] = text
+            record["applied"].extend(dict(issue, method="correction") for issue in pending[name])
+            changed.add(name)
+    if rereads:
+        _reread(ctx, stages, unit, images, by_label, rereads, notebook, source_language, target_code)
+        changed.update(rereads)
+    if changed and ctx.recheck:
+        focus = sorted(changed)
+        notes = ctx.call(
+            REVIEW_STAGE,
+            comic_review.critic_prompt(unit, images, notebook, source_language, target_code, focus=set(focus)),
+            lambda result: comic_review.parse_critique(result.text, focus),
+            dict(_unit_deps(unit, stages, source_language, target_code, comic_review.CRITIC_VERSION),
+                 recheck=focus), _cap(4096, len(focus), 300), role=ctx.review_role)
+        for issue in notes:   # each finding is sent once: recheck findings are recorded, not applied
+            by_label[issue["id"]][1]["translation"]["review"].setdefault("recheck", []).append(issue)
+
+
+def _reread(ctx, stages, unit, images, by_label, rereads, notebook, source_language, target_code):
+    """Fresh reading of doubted lettering, then a retranslation of the regions whose reading
+    changed (recorded on the region; the earlier transcription is kept)."""
+    names = sorted(rereads)
+    items = [by_label[name] for name in names]
+    readings = ctx.call(
+        REREAD_STAGE, comic_review.reread_prompt(items, images, rereads, source_language),
+        lambda result: comic_review.parse_reread(result.text, names),
+        dict(_unit_deps(unit, stages, source_language, target_code, comic_review.REREAD_VERSION), reread=names),
+        _cap(2048, len(names), 300))
+    by_page = {}
+    for name in names:
+        page, region = by_label[name]
+        if readings[name] != region["source_text"]:
+            region["source_reread"] = {"previous": region["source_text"], "reviewer": rereads[name]["source_span"]}
+            region["source_text"] = readings[name]
+            by_page.setdefault(page["index"], (page, []))[1].append(region)
+    for page, regions in by_page.values():
+        answer = _translate(ctx, images[page["index"]], page, regions, notebook, [], source_language, target_code,
+                            None, _base_deps(page, stages, source_language, target_code))
+        for item, region in zip(answer["translations"], regions):
+            record = region["translation"]["review"]
+            record.setdefault("previous", region["translation"]["text"])
+            region["translation"]["text"] = item["text"]
+            record["applied"].append(dict(rereads[comic_review.label(region)], method="reread"))
+
+
+def finish_page(ctx, stages, page, image, source_language, target_code, mirror=False):
+    """Typesetting (at most one shorten call) and rendering; returns the output image (the
+    original, unmirrored, for a failed page)."""
+    if page["status"] == "failed":
+        return image
+    if not page["regions"]:
+        page["status"] = "rendered"
+        return image
+    pack = target_languages.load(target_code)
+    font = stages.font_for(target_code)
+    base_deps = _base_deps(page, stages, source_language, target_code)
+    try:
+        kinds = {r["region_id"]: r["kind"] for r in page["regions"]}
+        sources = {r["region_id"]: r["source_text"] for r in page["regions"]}
         for region in page["regions"]:
             _fit_region(stages, region, font, pack.rtl, image.size, mirror)
         over = [r for r in page["regions"] if r["translation"]["status"] == "overflow"]
         if over:
-            items = [{"id": r["region_id"], "text": r["translation"]["text"], "max_chars": capacities[r["region_id"]]}
+            items = [{"id": r["region_id"], "text": r["translation"]["text"], "max_chars": r.get("capacity", 0)}
                      for r in over]
             over_ids = [i["id"] for i in items]
             current = {i["id"]: i["text"] for i in items}
@@ -539,17 +683,22 @@ def process_page(ctx, stages, number, name, image, raw, comic, source_language, 
         rendered = _render(stages, image, page["regions"], mirror)
         page["mirrored"] = mirror
         page["status"] = "rendered"
-        summaries.append(page["summary"])
-        if dialogue is not None:   # the next page's translator sees this page's dialogue
-            dialogue[:] = [{"speaker": r["speaker"], "source": r["source_text"], "target": r["translation"]["text"]}
-                           for r in page["regions"] if r["translation"]]
-        return page, rendered
+        return rendered
     except _FATAL:
         raise
     except Exception as exc:
-        page["status"] = "failed"
-        page["warnings"].append("error: %s: %s" % (type(exc).__name__, str(exc)[:300]))
-        return page, image
+        _failed(page, exc)
+        return image
+
+
+def process_page(ctx, stages, number, name, image, raw, comic, source_language, target_code, notebook, summaries,
+                 mirror=False, dialogue=None):
+    """One page end to end (prepare, review as a one-page unit, finish); returns ``(page, image)``."""
+    page = prepare_page(ctx, stages, number, name, image, raw, source_language, target_code, notebook, summaries,
+                        dialogue)
+    if ctx.review and page["status"] == "translated":
+        review_group(ctx, stages, [page], {page["index"]: image}, notebook, source_language, target_code)
+    return page, finish_page(ctx, stages, page, image, source_language, target_code, mirror)
 
 
 # ---------------------------------------------------------------- outputs
@@ -599,10 +748,18 @@ def render_review(comic, names, rtl, html_lang, mock):
         for region in page["regions"]:
             translation = region["translation"] or {}
             notes = list(region["warnings"])
-            fix = translation.get("review")
-            if fix:
-                notes.append("review %s/%s: %s; was: %s" % (fix["issue"], fix["severity"], fix["explanation"],
-                                                             fix["previous"]))
+            review = translation.get("review") or {}
+            for issue in review.get("applied", []):
+                notes.append("applied %s/%s (%s): %s" % (issue["category"], issue["severity"], issue["method"],
+                                                        issue["problem"]))
+            for issue in review.get("notes", []):
+                notes.append("note %s/%s: %s" % (issue["category"], issue["severity"], issue["problem"]))
+            for issue in review.get("recheck", []):
+                notes.append("recheck %s/%s: %s" % (issue["category"], issue["severity"], issue["problem"]))
+            if review.get("previous"):
+                notes.append("was: %s" % review["previous"])
+            if region.get("source_reread"):
+                notes.append("source re-read; was: %s" % region["source_reread"]["previous"])
             parts.append("<tr><td>%d</td>%s%s%s%s%s</tr>" % (
                 region["order"], _cell(region["kind"]), _cell(region["speaker"]), _cell(region["source_text"]),
                 _cell(translation.get("text"), rtl), _cell("; ".join(notes))))
@@ -642,7 +799,7 @@ def _settle_budget(store, comic_id, budget_usd):
 
 def run_comic(input_path, out_dir, source_language, target_code, model="mock", model_config=None, budget_usd=1.0,
               pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None,
-              mirror="auto", review=True, configuration=None):
+              mirror="auto", review=True, configuration=None, review_unit="page", recheck=True):
     """Translate a comic into ``out_dir`` and return the validated comic dict."""
     if model not in ("mock", "configured"):
         raise ComicPipelineError("model must be mock or configured")
@@ -685,29 +842,46 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
                 selected = parse_pages(pages, len(sources))
             todo = [(i + 1, s) for i, s in enumerate(sources) if selected is None or (i + 1) in selected]
             budget_usd = _settle_budget(store, comic_id, budget_usd)
-            ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review)
+            ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review,
+                           review_unit, recheck)
             summaries, dialogue = [], []
-            for done, (number, (name, load)) in enumerate(todo, 1):
+            group_size = comic_review.parse_scope(review_unit)[1] if review else 1
+            results, group = [], []
+
+            def flush():
+                if review and group:
+                    review_group(ctx, stages, [page for page, _ in group], {page["index"]: image
+                                 for page, image in group}, notebook, source_language, target_code)
+                for page, image in group:
+                    rendered = finish_page(ctx, stages, page, image, source_language, target_code, mirror)
+                    file_name = "%03d.png" % page["index"]
+                    image.save(out / "originals" / file_name)
+                    rendered.save(out / "pages" / file_name)
+                    results.append((page, file_name, rendered))
+                    if progress:
+                        progress(len(results), len(todo), page["page_id"])
+                group.clear()
+
+            for number, (name, load) in todo:
                 try:
                     image, raw = load()
                 except ComicPipelineError as exc:
+                    flush()
                     page = records.new_page(number, name, b"unreadable", 1, 1)
                     page["status"] = "failed"
                     page["warnings"].append("error: %s" % exc)
-                    comic["pages"].append(page)
-                    names.append(None)
-                    images.append(None)
+                    results.append((page, None, None))
                     continue
-                page, rendered = process_page(ctx, stages, number, name, image, raw, comic, source_language,
-                                              target_code, notebook, summaries, mirror, dialogue)
-                file_name = "%03d.png" % number
-                image.save(out / "originals" / file_name)
-                rendered.save(out / "pages" / file_name)
+                page = prepare_page(ctx, stages, number, name, image, raw, source_language, target_code, notebook,
+                                    summaries, dialogue)
+                group.append((page, image))
+                if len(group) >= group_size:
+                    flush()
+            flush()
+            for page, file_name, rendered in results:
                 comic["pages"].append(page)
                 names.append(file_name)
                 images.append(rendered)
-                if progress:
-                    progress(done, len(todo), page["page_id"])
             comic["notebook"] = notebook
             records.validate_comic(comic)
     finally:
@@ -789,7 +963,11 @@ def main(argv=None):
                                              "PROVIDER:MODEL[:REASONING], e.g. openai:gpt-6.1-sol:high")
     parser.add_argument("--reviewer", help="catalogue model for the review pass (default: the translator)")
     parser.add_argument("--review", choices=("on", "off"), default="on",
-                        help="reviewer pass whose corrections are applied automatically")
+                        help="independent review (literary mechanism) whose findings are applied automatically")
+    parser.add_argument("--review-unit", default="page",
+                        help="how much one review call covers: panel, page or pages:N (default page)")
+    parser.add_argument("--recheck", choices=("on", "off"), default="on",
+                        help="focused recheck of corrected regions (findings recorded, not applied)")
     parser.add_argument("--mirror", choices=("auto", "yes", "no"), default="auto",
                         help="mirror pages so the panels read right to left (auto: LTR comic into an RTL language)")
     args = parser.parse_args(argv)
@@ -800,7 +978,8 @@ def main(argv=None):
             args.model = "configured"
         comic = run_comic(args.input, args.out, args.source_language, args.target, args.model, args.model_config,
                           args.budget_usd, args.pages, args.notebook, mirror=args.mirror,
-                          review=args.review == "on", configuration=configuration,
+                          review=args.review == "on", configuration=configuration, review_unit=args.review_unit,
+                          recheck=args.recheck == "on",
                           progress=lambda done, total, page_id: _safe_print("%s done (%d/%d)" % (page_id, done, total)))
     except (ComicPipelineError, ModelConfigError, OpenAIConfigurationError, RuntimeControlsError) as exc:
         _safe_print("error: %s" % exc)

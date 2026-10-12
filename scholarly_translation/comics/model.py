@@ -22,13 +22,9 @@ PROMPT_DIR = Path(__file__).resolve().parents[1] / "runtime_prompts"
 RECOGNITION_PROMPT = PROMPT_DIR / "14_comic_recognition.md"
 TRANSLATION_PROMPT = PROMPT_DIR / "15_comic_translation.md"
 SHORTEN_PROMPT = PROMPT_DIR / "16_comic_shorten.md"
-REVIEW_PROMPT = PROMPT_DIR / "17_comic_review.md"
 RECOGNITION_VERSION = "comic-recognition@3"
 TRANSLATION_VERSION = "comic-translation@2"
 SHORTEN_VERSION = "comic-shorten@1"
-REVIEW_VERSION = "comic-review@1"
-REVIEW_ISSUES = ("meaning", "gender", "unclear", "calque", "voice", "name", "continuity", "length", "other")
-REVIEW_SEVERITIES = ("minor", "major", "critical")
 
 MARKED_LONG_EDGE = 2048
 LABEL_FONT = Path(__file__).resolve().parents[1] / "assets" / "fonts" / "notosans" / "NotoSans-Regular.ttf"
@@ -468,52 +464,6 @@ def parse_translation(text, region_ids, target_code, kinds=None, sources=None):
         _fail("translation: 'story' must be a string")
     notebook["story"] = story.strip()
     return {"translations": translations, "notebook": notebook, "summary": summary.strip()}
-
-
-def review_prompt(image, page, notebook, source_language, target_code, capacities):
-    """Vision prompt for the reviewer: the page, its panels, the story and every region's
-    source and translation; the reviewer returns only corrections (applied automatically)."""
-    pack = target_languages.load(target_code)
-    rows = []
-    for r in page["regions"]:
-        rows.append({"id": r["region_id"], "order": r["order"], "panel": r.get("panel"), "kind": r["kind"],
-                     "speaker": r["speaker"], "speaker_gender": r["speaker_gender"],
-                     "addressee_gender": r["addressee_gender"], "source": r["source_text"],
-                     "translation": (r["translation"] or {}).get("text", ""),
-                     "max_chars": int(capacities.get(r["region_id"], 0)) or None})
-    template = target_languages.localize(_template(REVIEW_PROMPT), pack)
-    text = _fill(template, LANGUAGE=LANGUAGE_NAMES.get(source_language, source_language),
-                 STORY=(notebook or {}).get("story") or "(the album begins here)", PANELS=_panel_lines(page),
-                 CHARACTERS=_character_lines(notebook, True), TERMS=_term_lines(notebook),
-                 REGIONS="\n".join(_json(row) for row in rows))
-    return ImagePrompt(text, marked_page_image(image, page["regions"], [r["order"] for r in page["regions"]]),
-                       "image/jpeg")
-
-
-def parse_review(text, region_ids, target_code, kinds=None, sources=None):
-    """Validator for the review answer: a list of corrections for known ids (each at most once),
-    each with a usable target-language text. Unknown issue/severity labels read as other/minor."""
-    data = _object(text, "review")
-    entries = data.get("corrections")
-    if not isinstance(entries, list):
-        _fail("'corrections' must be a list")
-    ids, seen, corrections = set(region_ids), set(), []
-    for i, entry in enumerate(entries):
-        where = "corrections[%d]" % i
-        if not isinstance(entry, dict) or entry.get("id") not in ids:
-            _fail("%s: unknown or missing id" % where)
-        if entry["id"] in seen:
-            _fail("%s: id %r corrected twice" % (where, entry["id"]))
-        seen.add(entry["id"])
-        fixed = _translations({"translations": [{"id": entry["id"], "text": entry.get("text")}]}, [entry["id"]],
-                              target_code, kinds, False, sources)[0]
-        explanation = entry.get("explanation", "")
-        corrections.append({"id": entry["id"], "text": fixed["text"],
-                            "issue": entry.get("issue") if entry.get("issue") in REVIEW_ISSUES else "other",
-                            "severity": entry.get("severity") if entry.get("severity") in REVIEW_SEVERITIES
-                            else "minor",
-                            "explanation": explanation.strip() if isinstance(explanation, str) else ""})
-    return corrections
 
 
 def shorten_prompt(image, page, overflowing, target_code):
