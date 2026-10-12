@@ -114,7 +114,7 @@ class SignEditor:
     def _request(self, region, crop_png, mask_png, prompt, size, purpose):
         """One cached masked edit; returns the result PNG bytes."""
         key = hashlib.sha256(b"|".join([EDIT_VERSION.encode(), self.model.encode(), self.quality.encode(),
-                                        crop_png, mask_png, prompt.encode("utf-8")])).hexdigest()[:32]
+                                        crop_png, mask_png or b"", prompt.encode("utf-8")])).hexdigest()[:32]
         cached = self.dir / ("%s.png" % key)
         if cached.exists():
             return cached.read_bytes()
@@ -122,9 +122,10 @@ class SignEditor:
             raise SignEditError("sign-edit budget reached")
         start = time.monotonic()
         try:
+            extra = {"mask": ("mask.png", mask_png, "image/png")} if mask_png else {}
             response = self.client.images.edit(
-                model=self.model, image=("sign.png", crop_png, "image/png"),
-                mask=("mask.png", mask_png, "image/png"), prompt=prompt, size=size, quality=self.quality, n=1)
+                model=self.model, image=("sign.png", crop_png, "image/png"), prompt=prompt, size=size,
+                quality=self.quality, n=1, **extra)
             data = getattr(response, "data", None) or []
             raw = base64.b64decode(getattr(data[0], "b64_json", "") or "", validate=True) if data else b""
             Image.open(io.BytesIO(raw)).verify()
@@ -144,6 +145,14 @@ class SignEditor:
         "clean+letter"). The model's redraw is kept only when it left the composition alone
         outside the mask; otherwise the model only cleans the surface and the text is lettered
         locally along the original lettering's measured angle."""
+        # 1. The smallest local change: regenerate only a tight crop around the sign, paste it whole.
+        tbox, tcrop, tprompt, tsize = local_request(image, region, text, language_name, rtl)
+        local = self._request(region, tcrop, None, tprompt, tsize, "local")
+        if edge_change(tcrop, local) <= EDGE_LIMIT:
+            _paste_whole(image, tbox, local)
+            region["edit_method"] = "local"
+            return "local"
+        # 2. A masked redraw on a wider crop, kept only if the picture outside the mask is intact.
         box, crop_png, mask_png, prompt, size = edit_request(image, region, text, language_name, rtl)
         result = self._request(region, crop_png, mask_png, prompt, size, "redraw")
         if outside_change(crop_png, result, mask_png) <= COMPOSITION_LIMIT:
@@ -475,3 +484,47 @@ def refine_geometry(image, geometry):
     polygon = [(ncx + a * cos - b * sin, ncy + a * sin + b * cos) for a, b in corners]
     return dict(geometry, centre=(ncx + (a0 + a1) / 2 * cos, ncy + (a0 + a1) / 2 * sin), length=a1 - a0,
                 height=letter_h, polygon=polygon, letters=letters)
+
+
+EDGE_LIMIT = 18.0   # mean grey change in the crop's outer band above which the patch would not blend
+
+
+def local_request(image, region, text, language_name="Hebrew", rtl=True):
+    """``(box, crop_png, prompt, size)``: the sign with a narrow margin, nothing more."""
+    width, height = image.size
+    x0, y0, x1, y1 = region["bbox"]
+    margin = max(6, int(0.12 * max(x1 - x0, y1 - y0)))
+    box = (max(0, x0 - margin), max(0, y0 - margin), min(width, x1 + margin), min(height, y1 + margin))
+    crop = image.crop(box).convert("RGB")
+    size = _SIZES[_shape(*crop.size)]
+    direction = "right-to-left" if rtl else "left-to-right"
+    prompt = (
+        "This small image is a detail cut out of a black-and-white comic page; it contains lettering drawn on a "
+        "surface (a sign, awning, banner, label or screen), which may appear mirrored. Redraw this same detail, "
+        "changing ONLY that lettering: replace it with this %s text: «%s», written %s and spelled "
+        "exactly as given, hand-lettered in the same style, weight, size and perspective as the original "
+        "lettering, on the same surface. Keep the composition, every line and hatching, and especially the edges "
+        "of the image unchanged, so the detail can be pasted back into the page seamlessly." % (
+            language_name, text, direction))
+    return box, _png(crop.resize(size, Image.LANCZOS)), prompt, "%dx%d" % size
+
+
+def edge_change(crop_png, result_png, band_share=0.06):
+    """Mean grey difference in the outer band of the crop (where the patch meets the page)."""
+    from PIL import ImageChops, ImageStat
+    crop = Image.open(io.BytesIO(crop_png)).convert("L")
+    result = Image.open(io.BytesIO(result_png)).convert("L").resize(crop.size, Image.LANCZOS)
+    band = max(4, int(band_share * min(crop.size)))
+    mask = Image.new("L", crop.size, 255)
+    ImageDraw.Draw(mask).rectangle([band, band, crop.width - band - 1, crop.height - band - 1], fill=0)
+    return ImageStat.Stat(ImageChops.difference(crop, result), mask).mean[0]
+
+
+def _paste_whole(image, box, result_png):
+    """Paste the regenerated crop whole, fading into the page over its outer few pixels."""
+    w, h = box[2] - box[0], box[3] - box[1]
+    patch = Image.open(io.BytesIO(result_png)).convert("RGB").resize((w, h), Image.LANCZOS)
+    fade = max(2, min(w, h) // 12)
+    alpha = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(alpha).rectangle([fade, fade, w - fade - 1, h - fade - 1], fill=255)
+    image.paste(patch, box[:2], alpha.filter(ImageFilter.GaussianBlur(fade / 2)))

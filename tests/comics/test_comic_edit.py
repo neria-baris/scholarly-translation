@@ -27,6 +27,9 @@ class FakeImages:
         cleaning = "Remove the lettering" in kwargs["prompt"]
         if self.redraw_scene and not cleaning:
             result = Image.new("RGB", (width, height), (255, 0, 0))
+        elif "mask" not in kwargs:                  # local regeneration: edges kept, the middle re-lettered
+            result = Image.open(io.BytesIO(kwargs["image"][1])).convert("RGB")
+            result.paste((255, 0, 0), (width // 4, height // 4, 3 * width // 4, 3 * height // 4))
         else:
             result = Image.open(io.BytesIO(kwargs["image"][1])).convert("RGB")
             hole = Image.open(io.BytesIO(kwargs["mask"][1])).split()[3].point(lambda v: 255 if v == 0 else 0)
@@ -61,7 +64,8 @@ class SignEditTests(unittest.TestCase):
         client = SimpleNamespace(images=FakeImages())
         editor = edit.SignEditor(Path(self.tmp.name), client)
         image = self.page()
-        self.assertEqual(editor.edit(image, self.region, "בר דנוור"), "redraw")
+        self.assertEqual(editor.edit(image, self.region, "בר דנוור"), "local")
+        self.assertNotIn("mask", client.images.calls[0])                   # no mask: a tight crop only
         self.assertEqual(image.getpixel((360, 220))[0], 255)                 # inside the sign: edited
         self.assertEqual(image.getpixel((100, 100)), (240, 240, 240))       # elsewhere untouched
         again = self.page()
@@ -83,7 +87,7 @@ class SignEditTests(unittest.TestCase):
         self.assertLess(geometry["angle"], -5)       # rising to the right in image coordinates
         method = editor.edit(image, self.region, "בר דנוור")
         self.assertEqual(method, "local-clean+letter")                     # plain surface: cleaned locally
-        self.assertEqual(len(client.images.calls), 1)                       # only the rejected redraw
+        self.assertEqual(len(client.images.calls), 2)                       # local and redraw rejected
         self.assertNotEqual(image.getpixel((100, 100))[0], 255)            # the red redraw never pasted
         dark = sum(1 for x in range(300, 420) for y in range(200, 240) if image.getpixel((x, y))[0] < 100)
         self.assertGreater(dark, 30)                                        # new lettering drawn locally
@@ -133,5 +137,5 @@ class LocatedSignTests(unittest.TestCase):
             quad = [to_grid(300, 210), to_grid(420, 210), to_grid(420, 230), to_grid(300, 230)]
             method = editor.edit(image, region, "בר דנוור", locate=lambda img, reg: quad)
         self.assertEqual(method, "local-clean+letter")
-        self.assertEqual(len(client.images.calls), 1)                      # only the rejected redraw
+        self.assertEqual(len(client.images.calls), 2)                      # local and redraw rejected
         self.assertEqual(image.getpixel((100, 100)), (245, 245, 245))      # the picture elsewhere untouched
