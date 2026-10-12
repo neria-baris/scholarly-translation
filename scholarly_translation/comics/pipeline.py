@@ -275,6 +275,7 @@ class _Context:
         self.placement_check = False
         # reading the page (recognition, re-reading, sign location, placement) may use its own model
         self.recognizer_role = RECOGNIZER_ROLE if RECOGNIZER_ROLE in configuration.models else ROLE
+        self.fallbacks = []
         comic_review.parse_scope(review_unit)
         self.review_role = REVIEW_ROLE if REVIEW_ROLE in configuration.models else ROLE
 
@@ -340,6 +341,13 @@ class _Context:
                         or max(0.0, self.spent() - base) >= AUTO_ACCEPT_BELOW_USD):
                     raise
                 invalid = isinstance(exc, comic_model.ComicModelError) or "validation failed" in message
+                if not invalid and role != ROLE and role == self.recognizer_role and failures >= 2:
+                    # the separate recognition model keeps failing at the provider: read the rest of
+                    # the run with the translator's model instead of waiting on it
+                    self.recognizer_role = role = ROLE
+                    self.fallbacks.append(stage)
+                    attempt += 1
+                    continue
                 delay = 0 if invalid else AUTO_RETRY_DELAYS[min(failures, len(AUTO_RETRY_DELAYS)) - 1]
                 if delay:
                     self.sleep(delay)

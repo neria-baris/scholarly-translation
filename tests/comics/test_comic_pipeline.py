@@ -501,3 +501,31 @@ class RecognizerAndPlacementTests(unittest.TestCase):
                     json.dumps({"regions": [{"number": 1, "ok": "yes"}, {"number": 2, "ok": True}]})):
             with self.assertRaises(cm.ComicModelError):
                 cm.parse_placement(bad, [1, 2])
+
+
+class RecognizerFallbackTests(unittest.TestCase):
+    def test_failing_recognizer_falls_back_to_the_translator(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / "in"
+            src.mkdir()
+            make_page(0.5).image.save(src / "p1.png")
+            config = root / "config.json"
+            data = json.loads(json.dumps(CONFIG))
+            data["models"]["comic_recognizer"] = dict(data["models"]["translator"], model="fake-sol")
+            config.write_text(json.dumps(data), encoding="utf-8")
+            calls = []
+            good = FakeConfigured()
+
+            class Adapter:
+                def generate(self, prompt, model):
+                    calls.append(model)
+                    if model == "fake-sol":
+                        return TextGenerationResult("failed_transport", None, None, model, 0.0, error="APIError")
+                    return good.generate(prompt, model)
+            comic = cp.run_comic(src, root / "out", "en", "he", model="configured", model_config=str(config),
+                                 budget_usd=5.0, stages=stub_stages(), adapter_factory=lambda r, d: Adapter(),
+                                 sleep=lambda s: None, review=False)
+        self.assertEqual(comic["pages"][0]["status"], "rendered")
+        self.assertEqual(calls[:2], ["fake-sol", "fake-sol"])
+        self.assertNotIn("fake-sol", calls[2:])
