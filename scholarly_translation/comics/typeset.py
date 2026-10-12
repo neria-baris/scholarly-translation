@@ -45,7 +45,7 @@ def _line_height(font):
     return ascent + descent
 
 
-_GLYPH_FALLBACKS = {"…": "..."}   # the Hebrew font has no ellipsis glyph
+_GLYPH_FALLBACKS = {"…": "...", "—": "-", "–": "-"}   # glyphs the Hebrew font lacks
 
 
 def _visual(text, rtl):

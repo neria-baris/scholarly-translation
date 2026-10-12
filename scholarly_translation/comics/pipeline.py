@@ -347,6 +347,27 @@ def _cap(base, count, each):
 
 # ---------------------------------------------------------------- page processing
 
+def drop_duplicate_boxes(page, limit=0.5):
+    """A region whose box almost coincides with an earlier region's (the recogniser placed two
+    texts on one balloon) is not typeset over it: it keeps its translation for the review page
+    but gets no layout area, and warns ``overlapping_region``."""
+    kept = []
+    for region in page["regions"]:
+        if any(_iou(region["bbox"], other["bbox"]) >= limit for other in kept):
+            region["warnings"].append("overlapping_region")
+            region["skip_layout"] = True
+            continue
+        kept.append(region)
+
+
+def _iou(a, b):
+    ix = max(0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union else 0.0
+
+
 def apply_kinds(regions):
     """Lettering on an object (kind sign) is set on a backing patch, never as a balloon: the
     art around it must not be erased. Balloons keep the measured shape."""
@@ -514,6 +535,7 @@ def prepare_page(ctx, stages, number, name, image, raw, source_language, target_
             _cap(8192, len(candidates), 400))
         page["regions"] = comic_model.reconcile(page, image, candidates, parsed, stages.snap_region)
         apply_kinds(page["regions"])
+        drop_duplicate_boxes(page)
         separate_regions(page["regions"])
         make_room(page["regions"])
         page["summary"] = parsed["summary"]
@@ -734,6 +756,9 @@ def finish_page(ctx, stages, page, image, source_language, target_code, mirror=F
         kinds = {r["region_id"]: r["kind"] for r in page["regions"]}
         sources = {r["region_id"]: r["source_text"] for r in page["regions"]}
         for region in page["regions"]:
+            if region.get("skip_layout"):
+                region["translation"]["status"] = "skipped"
+                continue
             _fit_region(stages, region, font, pack.rtl, image.size, mirror)
         over = [r for r in page["regions"] if r["translation"]["status"] == "overflow"]
         if over:

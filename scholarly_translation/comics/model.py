@@ -276,6 +276,14 @@ def _pixel_box(box, width, height):
     return [x0, y0, x1, y1]
 
 
+def _near(box, model_box):
+    """A mark joins a model box only when it touches the box grown by half its size: a mark
+    elsewhere on the page (a wrong mark number) must not stretch the region across panels."""
+    gx, gy = (model_box[2] - model_box[0]) / 2, (model_box[3] - model_box[1]) / 2
+    return (box[0] < model_box[2] + gx and box[2] > model_box[0] - gx
+            and box[1] < model_box[3] + gy and box[3] > model_box[1] - gy)
+
+
 def _area(box):
     return (box[2] - box[0]) * (box[3] - box[1])
 
@@ -308,7 +316,8 @@ def reconcile(page, image, candidates, parsed, snap):
         if model_box is not None:
             # a mark shared with another entry or far larger than the lettering adds no geometry
             boxes = [candidates[m - 1]["bbox"] for m in entry["marks"]
-                     if uses[m] == 1 and _area(candidates[m - 1]["bbox"]) <= 3 * _area(model_box)]
+                     if uses[m] == 1 and _area(candidates[m - 1]["bbox"]) <= 3 * _area(model_box)
+                     and _near(candidates[m - 1]["bbox"], model_box)]
             if len(boxes) < len(entry["marks"]):
                 warnings.append("mark_ignored")
             boxes.append(model_box)

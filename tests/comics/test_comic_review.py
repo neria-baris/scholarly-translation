@@ -91,3 +91,16 @@ class UnitTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GeometryGuardTests(unittest.TestCase):
+    def test_far_mark_is_not_joined_and_duplicate_box_is_not_typeset(self):
+        from scholarly_translation.comics import model as cm, pipeline as cp
+        self.assertTrue(cm._near([110, 110, 150, 140], [100, 100, 200, 150]))
+        self.assertFalse(cm._near([100, 600, 200, 650], [100, 100, 200, 150]))   # another panel
+        p = page(1, [1, 1, 1])
+        p["regions"][1]["bbox"] = list(p["regions"][0]["bbox"])
+        cp.drop_duplicate_boxes(p)
+        self.assertTrue(p["regions"][1].get("skip_layout"))
+        self.assertIn("overlapping_region", p["regions"][1]["warnings"])
+        self.assertFalse(p["regions"][0].get("skip_layout"))
