@@ -7,6 +7,8 @@ Open: user judges v3; known gaps: lettering the recognition box misses stays (mi
 Uncommitted, not ours: staged scholarly_translation/chapter_pipeline.py and tests/test_chapter_pipeline.py (other owner) — do not commit or revert. Untracked source PDF in repo root: do not commit.
 Next action: wait for the user's verdict on v3 pages 10-13.
 
+TOPIC-LAYOUT (separate Claude Code session, 2026-10-12, user request; contract audit/contracts/topic_layout.md on the branch): branch `chore/topic-layout` (worktree .claude/worktrees/topic-layout), one commit on top of main, NOT merged. Package split into core/sources/models/budget/translate/review/export/comics/learning/ui, tests mirrored; entry points `-m scholarly_translation.ui.web_ui` and `-m scholarly_translation.comics.pipeline` (the comic CLI above changes on merge). Full suite 1525 OK (baseline 1523 + 2 new comic tests). Supersedes unmerged `chore/package-layout`. Merge blockers: the running web UI (lazy imports; restart it after merge) and the other owner's staged chapter_pipeline.py/test change, which must be carried to translate/ and tests/translate/ and left staged. Next action: on user approval, stop the web UI, fast-forward main to the branch, re-apply that staged patch at the new paths, restart the UI.
+
 ---
 Previous checkpoint (other owner):
 # Current state (2026-10-11T15:55:24.649211+00:00)
