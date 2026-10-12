@@ -490,7 +490,7 @@ EDGE_LIMIT = 18.0   # mean grey change in the crop's outer band above which the 
 
 
 def local_request(image, region, text, language_name="Hebrew", rtl=True):
-    """``(box, crop_png, prompt, size)``: the sign with a narrow margin, nothing more."""
+    """``(box, crop_png, prompt, size)``: the lettering with a narrow margin, nothing more."""
     width, height = image.size
     x0, y0, x1, y1 = region["bbox"]
     margin = max(6, int(0.12 * max(x1 - x0, y1 - y0)))
@@ -499,11 +499,13 @@ def local_request(image, region, text, language_name="Hebrew", rtl=True):
     size = _SIZES[_shape(*crop.size)]
     direction = "right-to-left" if rtl else "left-to-right"
     prompt = (
-        "This small image is a detail cut out of a black-and-white comic page; it contains lettering drawn on a "
-        "surface (a sign, awning, banner, label or screen), which may appear mirrored. Redraw this same detail, "
+        "This small image is a detail cut out of a black-and-white comic page; it contains lettering that is part "
+        "of the drawing (a sound effect, sign, awning, banner, label, screen or text on the art), which may appear "
+        "mirrored. Redraw this same detail, "
         "changing ONLY that lettering: replace it with this %s text: «%s», written %s and spelled "
         "exactly as given, hand-lettered in the same style, weight, size and perspective as the original "
-        "lettering, on the same surface. Keep the composition, every line and hatching, and especially the edges "
+        "lettering (a sound effect stays as bold, expressive and dynamic as drawn), on the same surface. Keep the "
+        "composition, every line and hatching, and especially the edges "
         "of the image unchanged, so the detail can be pasted back into the page seamlessly." % (
             language_name, text, direction))
     return box, _png(crop.resize(size, Image.LANCZOS)), prompt, "%dx%d" % size

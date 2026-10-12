@@ -139,3 +139,27 @@ class LocatedSignTests(unittest.TestCase):
         self.assertEqual(method, "local-clean+letter")
         self.assertEqual(len(client.images.calls), 2)                      # local and redraw rejected
         self.assertEqual(image.getpixel((100, 100)), (245, 245, 245))      # the picture elsewhere untouched
+
+
+class ArtTextSelectionTests(unittest.TestCase):
+    def test_everything_lettered_in_the_art_goes_to_the_editor(self):
+        from scholarly_translation.comics import pipeline as cp
+        edited = []
+
+        class Editor:
+            def edit(self, image, region, text, language_name, rtl, locate=None):
+                edited.append(region["region_id"])
+                return "local"
+
+        def region(rid, kind, style, plain=True):
+            return {"region_id": rid, "kind": kind, "bbox": [10, 10, 50, 30], "interior": None, "balloon": None,
+                    "plain_background": plain, "background": [255, 255, 255], "warnings": [],
+                    "translation": {"text": "טקסט", "status": "ok", "note": ""},
+                    "layout": {"style": style, "lines": [], "overflow": False}}
+        regions = [region("a", "speech", "bubble"), region("b", "sfx", "subtitle", False),
+                   region("c", "speech", "box", False), region("d", "sign", "box", False)]
+        stages = SimpleNamespace(render_page=lambda img, regs: img)
+        cp._render(stages, Image.new("RGB", (100, 60), "white"), regions, False, Editor())
+        self.assertEqual(edited, ["b", "c", "d"])
+        self.assertTrue(all(r.get("edited") for r in regions[1:]))
+        self.assertFalse(regions[0].get("edited"))

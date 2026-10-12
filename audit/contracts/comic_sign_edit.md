@@ -23,3 +23,9 @@ budget store (as the cover feature).
 
 Acceptance: offline tests (erase without translation, request/mask, paste only inside the mask,
 cache, ceiling, failure). Live check on two signs is evidence only.
+
+Update 2026-10-12 (user): not only signs — every piece of lettering in the artwork. `is_art_text`:
+kind sfx or sign, or any region set as a backing box or subtitle (text on art). Flag renamed
+`--edit-art-text` (old `--edit-signs` kept as an alias). First path: minimal local regeneration of a
+tight crop (no mask), pasted whole with a faded edge, accepted when the crop's outer band changes
+<= 18; fallbacks: masked redraw, then locate/clean/letter; a failure keeps the box or subtitle.

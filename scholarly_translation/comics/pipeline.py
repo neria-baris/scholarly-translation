@@ -440,11 +440,19 @@ def _fit_region(stages, region, font, rtl, size, mirror=False):
         region["translation"]["status"] = "ok"
 
 
+def is_art_text(region):
+    """Lettering that belongs to the artwork rather than to a plain balloon or caption: sound
+    effects, signs, labels, screens and any text set on art (a backing box or a subtitle)."""
+    layout = region.get("layout") or {}
+    return region["kind"] in ("sfx", "sign") or layout.get("style") in ("box", "subtitle")
+
+
 def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None):
     """Output page. Mirrored: the page is flipped, sound effects left in the art are put back
     unflipped (readable) at their mirrored place, and the mirrored regions are rendered. With an
-    ``editor``, signs are re-lettered in the art by an image model (on the output page, so the
-    new text reads correctly); a sign whose edit fails keeps the backing patch."""
+    ``editor``, every piece of lettering in the art (sound effects, signs, labels, text on art) is
+    re-lettered in place by an image model (on the output page, so the new text reads correctly);
+    one whose edit fails keeps its backing patch or subtitle."""
     placed = [r for r in regions if r["layout"] is not None]
     width, height = image.size
     base = ImageOps.mirror(image) if mirror else image.copy()
@@ -456,7 +464,7 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None)
                 base.paste(image.crop(box), (width - box[2], box[1]))
     if editor is not None:
         for region in placed:
-            if region["kind"] != "sign" or not region.get("translation"):
+            if not is_art_text(region) or not region.get("translation"):
                 continue
             target = records.mirror_region(region, width) if mirror else region
             try:
@@ -868,7 +876,7 @@ def _settle_budget(store, comic_id, budget_usd):
 def run_comic(input_path, out_dir, source_language, target_code, model="mock", model_config=None, budget_usd=1.0,
               pages=None, notebook_path=None, adapter_factory=None, stages=None, progress=None, sleep=None,
               mirror="auto", review=True, configuration=None, review_unit="page", recheck=True,
-              edit_signs=False, edit_budget_usd=1.0, edit_quality="medium", edit_client=None):
+              edit_art_text=False, edit_budget_usd=1.0, edit_quality="medium", edit_client=None):
     """Translate a comic into ``out_dir`` and return the validated comic dict."""
     if model not in ("mock", "configured"):
         raise ComicPipelineError("model must be mock or configured")
@@ -913,7 +921,7 @@ def run_comic(input_path, out_dir, source_language, target_code, model="mock", m
             budget_usd = _settle_budget(store, comic_id, budget_usd)
             ctx = _Context(comic_id, configuration, store, journal, budget_usd, adapter_factory, sleep, review,
                            review_unit, recheck)
-            if edit_signs:
+            if edit_art_text:
                 ctx.editor = comic_edit.SignEditor(out / ".state", edit_client or _openai_image_client(),
                                                    edit_budget_usd, edit_quality)
             summaries, dialogue = [], []
@@ -1053,8 +1061,9 @@ def main(argv=None):
                         help="how much one review call covers: panel, page or pages:N (default page)")
     parser.add_argument("--recheck", choices=("on", "off"), default="on",
                         help="focused recheck of corrected regions (findings recorded, not applied)")
-    parser.add_argument("--edit-signs", choices=("on", "off"), default="off",
-                        help="re-letter signs in the artwork with an image model (paid, cached)")
+    parser.add_argument("--edit-art-text", "--edit-signs", dest="edit_art_text", choices=("on", "off"),
+                        default="off", help="re-letter text in the artwork (sound effects, signs, labels, text on "
+                                            "art) in place with an image model (paid, cached)")
     parser.add_argument("--edit-budget-usd", type=float, default=1.0, help="ceiling for sign edits")
     parser.add_argument("--edit-quality", choices=("low", "medium", "high"), default="medium")
     parser.add_argument("--mirror", choices=("auto", "yes", "no"), default="auto",
@@ -1068,7 +1077,7 @@ def main(argv=None):
         comic = run_comic(args.input, args.out, args.source_language, args.target, args.model, args.model_config,
                           args.budget_usd, args.pages, args.notebook, mirror=args.mirror,
                           review=args.review == "on", configuration=configuration, review_unit=args.review_unit,
-                          recheck=args.recheck == "on", edit_signs=args.edit_signs == "on",
+                          recheck=args.recheck == "on", edit_art_text=args.edit_art_text == "on",
                           edit_budget_usd=args.edit_budget_usd, edit_quality=args.edit_quality,
                           progress=lambda done, total, page_id: _safe_print("%s done (%d/%d)" % (page_id, done, total)))
     except (ComicPipelineError, ModelConfigError, OpenAIConfigurationError, RuntimeControlsError) as exc:
