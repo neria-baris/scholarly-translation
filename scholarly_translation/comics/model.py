@@ -25,7 +25,7 @@ SHORTEN_PROMPT = PROMPT_DIR / "16_comic_shorten.md"
 PLACEMENT_PROMPT = PROMPT_DIR / "20_comic_placement.md"
 PLACEMENT_VERSION = "comic-placement@1"
 RECOGNITION_VERSION = "comic-recognition@3"
-TRANSLATION_VERSION = "comic-translation@5"
+TRANSLATION_VERSION = "comic-translation@6"
 SHORTEN_VERSION = "comic-shorten@1"
 
 MARKED_LONG_EDGE = 2048

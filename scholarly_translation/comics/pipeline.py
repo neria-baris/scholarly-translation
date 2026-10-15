@@ -599,7 +599,8 @@ def draw_footnotes(image, notes, pack=None):
     rtl = pack.rtl if pack else True
     width, height = image.size
     size = max(12, int(round(height * 0.012)))
-    font = typeset._font(stages_font(pack), size)
+    # a footnote quotes the original (accented Latin) next to Hebrew: a font with both scripts
+    font = typeset._font(typeset.FONT_DIR / "davidlibre" / "DavidLibre-Regular.ttf", size)
     draw = ImageDraw.Draw(image)
     lines = []
     for number, (region, shown) in enumerate(notes, 1):
@@ -612,7 +613,8 @@ def draw_footnotes(image, notes, pack=None):
         note = region["source_text"]
         if translation.get("footnote"):      # the meaning matters: add it
             note = "%s: %s" % (note, translation["text"])
-        lines.append("%s %s" % (marker, note))
+        wrapped = typeset._wrap("%s %s" % (marker, note), font, rtl, lambda i: width - 24) or [note]
+        lines.extend(wrapped)
     line_h = int(size * 1.35)
     block = line_h * len(lines) + 6
     gray = image.convert("L")
