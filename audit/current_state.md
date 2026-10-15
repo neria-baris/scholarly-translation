@@ -17,7 +17,11 @@ User 2026-10-15: stay local (hosted server costed and declined for now); distrib
 separate public GitHub repo (Pages site + Releases + raw files for delta updates); dev repo stays private.
 Blocking for real use only: owner creates Google Cloud OAuth Desktop client + privacy URL,
 the public distribution repo (name open), and an offline Ed25519 update-signing key.
-Next action: integrate builders C1, C4, C5, C6 (parallel worktrees from main) as they finish.
+Integrated on main: C5 site fa96180, C4 key guide 50f3e0e (+/keys-guide route), C1 Google sign-in ffda48e
+(contract amended: Desktop client_secret allowed in account_config.json). Running: C6 builder
+(.claude/worktrees/agent-a9ce0caac867160ef), C2 builder (.claude/worktrees/cloud-c2-drive, branch cloud/c2-drive).
+Agent worktrees default to stale origin/main (66 behind): create worktrees on main manually.
+Next action: review/test/integrate C6 and C2 as they finish, then launch C3 (web_ui wiring + account UI).
 
 ---
 Previous checkpoint (other owner):
