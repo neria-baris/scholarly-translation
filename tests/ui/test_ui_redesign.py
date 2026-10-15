@@ -89,7 +89,7 @@ class ShelfTests(unittest.TestCase):
             self.assertNotIn(forbidden, self.shelf)
 
     def test_books_are_matte(self):
-        shelf_css = self.theme[self.theme.index("Stage 2"):]
+        shelf_css = self.theme[self.theme.index("Stage 2"):self.theme.index("Stage 3")]
         for forbidden in ("perspective", "preserve-3d", "rotateY", "radial-gradient"):
             self.assertNotIn(forbidden, shelf_css)
         self.assertIn(".lib-spine:focus-visible .cover-face{transform:scaleX(1)", shelf_css)
@@ -122,6 +122,14 @@ class StartScreenTests(unittest.TestCase):
             self.assertNotIn(forbidden, self.seg)
 
 
+class ResultFixTests(unittest.TestCase):
+    def test_auto_quality_label_returns_a_value(self):
+        # Found by the redesign checks: "returnt(" threw on the result page of every Auto job.
+        js = _read("ui.js")
+        self.assertNotIn("returnt(", js)
+        self.assertIn("if(currentJob.settings.model==='auto')return t('תצוגת ניסיון',\"Trial preview\");", js)
+
+
 class RedesignRouteTests(unittest.TestCase):
     def setUp(self):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler("test-token"))
@@ -134,7 +142,7 @@ class RedesignRouteTests(unittest.TestCase):
         self.server.server_close()
 
     def test_new_static_files_are_served(self):
-        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"), ("/shelf.js", "text/javascript"), ("/segments.js", "text/javascript"),
+        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"), ("/shelf.js", "text/javascript"), ("/segments.js", "text/javascript"), ("/bindery.js", "text/javascript"),
                            ("/fonts/frank-ruhl-libre.ttf", "font/ttf")):
             with urlopen(self.base + path, timeout=10) as response:
                 self.assertEqual(response.status, 200)

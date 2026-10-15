@@ -744,7 +744,7 @@ function renderBook(inResult=false){
   const next=bookPhaseFor(currentJob),previous=book.dataset.phase;
   if(next==='open'&&previous==='start')book.classList.add('opening');
   if(next!=='open')book.classList.remove('opening');
-  book.dataset.phase=next;
+  book.dataset.phase=next;book.dataset.step=currentJob.status||'';
   const pct=currentJob.status==='completed'?100:Math.min(95,Math.max(0,currentJob.progress?.percentage??
     (currentJob.total_units?Math.round(95*currentJob.completed_units/currentJob.total_units):0)));
   $('processing-percentage').textContent=pct+'%';return pct;
@@ -929,7 +929,7 @@ async function poll(jobId){
 }
 function sourceExt(){return (currentJob.source_kind||'pdf').toLowerCase()}
 function qualityLabel(){
-  if(currentJob.settings.model==='auto')returnt('תצוגת ניסיון',"Trial preview");
+  if(currentJob.settings.model==='auto')return t('תצוגת ניסיון',"Trial preview");
   return ({checked_draft:t('טיוטה שבדיקתה הושלמה',"Draft, review completed"),draft_with_exceptions:t('טיוטה עם חריגים',"Draft with exceptions"),
     unreviewed_draft:t('טיוטה ללא QA',"Draft without QA"),edited_draft_review_stale:t('טיוטה ערוכה — QA קודם אינו עדכני',"Edited draft — earlier QA is out of date")})[currentJob.quality_status]||t('טיוטה אוטומטית לא מאושרת',"Unapproved automatic draft");
 }

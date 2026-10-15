@@ -134,6 +134,32 @@ try {
     check('options fit a phone', (await js(`document.documentElement.scrollWidth`)) <= 390);
     await shot('form-390', true);
   }
+  if (want('bindery')) {
+    await viewport(1440, 900); await load('he');
+    check('the processing book is the bindery scene', await js(`(() => { const b = document.getElementById('pixel-book'); return b.classList.contains('bindery') && b.querySelectorAll('.leaf').length === 2 && b.querySelectorAll('.fl').length === 11 && !!b.querySelector('[data-perch=bindery]'); })()`));
+    // Freeze the scene in each real job status and capture it (no job needed for the drawing itself).
+    await js(`show('processing-panel'); document.getElementById('processing-title').textContent = 'מתרגמים…'`);
+    const box = await js(`(() => { window.scrollTo(0, 0); const r = document.getElementById('pixel-book').getBoundingClientRect(); return { x: r.left, y: r.top, width: r.width, height: r.height }; })()`);
+    for (const step of ['reading', 'translating', 'reviewing', 'rebuilding']) {
+      await js(`(() => { const b = document.getElementById('pixel-book'); b.dataset.phase = 'open'; b.dataset.step = '${step}'; })()`); await sleep(500);
+      await js(`document.getElementById('pixel-book').getAnimations({ subtree: true }).forEach(a => { a.pause(); a.currentTime = 0.42 * a.effect.getComputedTiming().duration - (a.effect.getTiming().delay || 0); })`); await sleep(120);
+      const r = await send('Page.captureScreenshot', { format: 'png', clip: { ...box, scale: 1 } });
+      writeFileSync(join(out, `bindery-${step}.png`), Buffer.from(r.data, 'base64'));
+    }
+    await js(`document.getElementById('pixel-book').getAnimations({ subtree: true }).forEach(a => a.play())`);
+    await js(`document.getElementById('pixel-book').dataset.phase = 'paused'`); await sleep(300);
+    check('a paused job freezes the bindery', await js(`getComputedStyle(document.querySelector('#pixel-book .leaf')).animationPlayState === 'paused'`));
+    // A real free Auto job: processing, then the finished book on the result page.
+    await js(`show('start-panel')`); await js(`sample()`);
+    for (let i = 0; i < 60 && (await js(`currentJob?.status`)) !== 'completed'; i++) await sleep(400);
+    await sleep(800);
+    check('the finished job shows the result with the bound book', await js(`!document.getElementById('result-panel').hidden && document.getElementById('result-book-host').contains(document.getElementById('pixel-book')) && document.getElementById('pixel-book').dataset.phase === 'finished'`));
+    await shot('result-he', true);
+    await js(`document.getElementById('language-button').click()`); await sleep(800);
+    check('the page stamp follows the language', await js(`document.querySelector('#pixel-book .page-stamp').textContent === 'DRAFT'`));
+    await shot('result-en', true);
+    await js(`document.getElementById('language-button').click()`); await sleep(300);
+  }
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e) {
   console.error(e); check('script completed', false, String(e.message).slice(0, 300));

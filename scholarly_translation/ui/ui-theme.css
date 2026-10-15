@@ -233,3 +233,98 @@ html[dir=rtl] .opt-group-title:before{box-shadow:-7px 0 0 var(--gold),-14px 0 0 
 .terms-actions{font-size:12px}
 @media(max-width:650px){.settings-fields{grid-template-columns:1fr}.seg-choice{flex-basis:100%}}
 #advanced-roles>summary{cursor:pointer;min-height:36px;display:flex;align-items:center;font-size:13px;font-weight:650;color:var(--green-700)}
+
+/* ---- Stage 4: the bindery (ported from the prototype). ---- */
+/* The bindery — a warm desk scene with a real page turn. */
+.pixel-book.bindery{--turn:3s;position:relative;width:auto;zoom:1;image-rendering:auto;height:300px;margin:6px auto 22px;max-width:760px;border-radius:var(--r-xl);overflow:hidden;text-align:start;
+  background:radial-gradient(380px 240px at 50% 22%,#f3cf8a3d,transparent 70%),linear-gradient(#1d3a31,#152c25 64%,#3a2616 64%,#2b1c10);box-shadow:var(--sh-3),inset 0 0 0 1px #ffffff12}
+.bindery[data-step=reading]{--turn:2.4s}.bindery[data-step=reviewing]{--turn:3.6s}.bindery[data-step=rebuilding]{--turn:1.5s}
+.bd-glow{position:absolute;left:50%;top:40px;width:520px;height:320px;transform:translateX(-50%);background:radial-gradient(closest-side,#ffd99033,transparent);animation:glowpulse 6s ease-in-out infinite}
+@keyframes glowpulse{50%{opacity:.75}}
+.bd-window{position:absolute;top:26px;inset-inline-end:34px;width:86px;height:96px;border-radius:43px 43px 4px 4px;background:linear-gradient(#0f1d2c,#1f3a55);box-shadow:0 0 0 5px #5a3a23,0 0 0 7px #3c2614,inset 0 -20px 30px -10px #3b6a8a55;overflow:hidden}
+.bd-window:before,.bd-window:after{content:"";position:absolute;background:#5a3a23}
+.bd-window:before{left:41px;top:0;bottom:0;width:4px}.bd-window:after{top:50px;left:0;right:0;height:4px}
+.bd-moon{position:absolute;top:16px;left:14px;width:16px;height:16px;border-radius:50%;background:#f6e6b0;box-shadow:0 0 12px 2px #f6e6b066,inset -4px -2px 0 #e0cc8c}
+.bd-star{position:absolute;top:24px;left:60px;width:3px;height:3px;background:#fff6d0;animation:twinkle 2.6s steps(2,end) infinite}
+.bd-star.two{top:62px;left:22px;animation-delay:-1.2s}.bd-star.three{top:72px;left:64px;animation-delay:-.4s}
+.bd-lamp{position:absolute;top:0;left:50%;transform:translateX(-50%);width:80px;height:70px}
+.bd-cord{position:absolute;left:39px;top:0;width:2px;height:30px;background:#8a7a5a}
+.bd-shade{position:absolute;left:12px;top:28px;width:56px;height:22px;background:linear-gradient(#e4bf72,#b98a3f);clip-path:polygon(24% 0,76% 0,100% 100%,0 100%)}
+.bd-bulb{position:absolute;left:32px;top:46px;width:16px;height:8px;border-radius:0 0 8px 8px;background:#fff1c2;box-shadow:0 4px 18px 6px #ffd98f88}
+.bd-desk{position:absolute;inset-inline:0;bottom:0;height:108px;background:linear-gradient(#7a5233 0 3px,#6a4529 3px,#4b301b);box-shadow:inset 0 10px 24px -12px #0009}
+.bd-stage{position:absolute;left:50%;bottom:38px;width:360px;height:180px;margin-left:-180px;perspective:1100px;perspective-origin:50% -20%}
+.tome{position:absolute;inset:0;direction:ltr;transform-style:preserve-3d;transform:rotateX(34deg)}
+.tome-cover{position:absolute;inset:-8px -10px -12px;border-radius:8px;background:linear-gradient(90deg,#5e231b,#7d3226 48%,#5a1f17 50%,#7d3226 52%,#5e231b);box-shadow:0 26px 30px -12px #000c,inset 0 0 0 2px #c8963e66;transform:translateZ(-6px)}
+.tome-page{position:absolute;top:0;bottom:0;width:50%;padding:18px 20px 22px;overflow:hidden;box-shadow:0 1px 0 #e9dec4,0 2px 0 #d9cbaa,0 3px 0 #e9dec4,0 4px 0 #cdbd99}
+.tome-page.left{left:0;border-radius:6px 2px 2px 6px;background:linear-gradient(90deg,#efe3c6,#fffaee 10%,#fff8e9 70%,#e7d8b6 97%,#cdbb92)}
+.tome-page.right{right:0;border-radius:2px 6px 6px 2px;background:linear-gradient(90deg,#cdbb92,#e7d8b6 3%,#fff8e9 30%,#fffaee 90%,#efe3c6)}
+.tome-gutter{position:absolute;top:0;bottom:0;left:50%;width:30px;margin-left:-15px;background:linear-gradient(90deg,transparent,#5a3c1a2e 46%,#5a3c1a4d 50%,#5a3c1a2e 54%,transparent);transform:translateZ(3px);pointer-events:none}
+.lines{display:grid;gap:9px}
+.lines i{display:block;height:4px;width:var(--w);border-radius:2px;background:#9c8a68}
+.lines.tgt i{background:#3a6b59;justify-self:end}
+.lines.src i:nth-child(4){width:40%;background:#b0532f}
+.folio{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font:italic 600 .7rem/1 var(--display);color:#9c8a68}
+.leaf{position:absolute;top:0;bottom:0;left:50%;width:50%;transform-style:preserve-3d;transform-origin:0 50%;transform:translateZ(1px) rotateY(0deg);
+  animation:leaf-turn var(--turn) cubic-bezier(.55,.05,.3,1) infinite;animation-delay:var(--delay)}
+.leaf .face{position:absolute;inset:0;padding:18px 20px 22px;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden}
+.leaf .front{border-radius:2px 6px 6px 2px;background:linear-gradient(90deg,#d8c79f,#ece0c2 4%,#fff8e9 30%,#fffaee 90%,#f1e6cb)}
+.leaf .back{transform:rotateY(180deg);border-radius:6px 2px 2px 6px;background:linear-gradient(90deg,#f1e6cb,#fffaee 10%,#fff8e9 70%,#ece0c2 96%,#d8c79f)}
+.leaf .face:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,#3c28144d,transparent 55%);opacity:0;animation:leaf-shade var(--turn) cubic-bezier(.55,.05,.3,1) infinite;animation-delay:var(--delay)}
+.leaf .back:after{background:linear-gradient(270deg,#3c281452,transparent 55%)}
+@keyframes leaf-turn{0%,12%{transform:translateZ(1px) rotateY(0deg)}50%{transform:translateZ(16px) rotateY(-90deg)}88%,100%{transform:translateZ(2px) rotateY(-180deg)}}
+@keyframes leaf-shade{0%,12%{opacity:0}48%{opacity:1}88%,100%{opacity:0}}
+.tome-page.right:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#3c281440,transparent 40%);opacity:0;animation:leaf-shade var(--turn) cubic-bezier(.55,.05,.3,1) infinite}
+/* Desk props: beside the book, out of the leaf's sweep. Physical sides, like the book itself. */
+.bd-perch{position:absolute;left:14px;bottom:108px;width:190px;height:2px;pointer-events:none}
+.bd-props{position:absolute;right:16px;bottom:62px;width:190px;height:110px;pointer-events:none}
+.bd-candle{position:absolute;right:6px;bottom:0;width:14px;height:46px;border-radius:2px;background:linear-gradient(90deg,#f6ecd2,#d9c9a1);box-shadow:0 4px 0 -1px #c9b48a}
+.bd-candle i{position:absolute;top:-16px;left:2px;width:10px;height:15px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:radial-gradient(circle at 50% 70%,#fff4c4,#f5b94b 60%,#e07b2a);box-shadow:0 0 22px 8px #f5b94b55;animation:flame 1.5s ease-in-out infinite}
+.bd-ink{position:absolute;right:38px;bottom:0;width:30px;height:24px;border-radius:7px 7px 9px 9px;background:radial-gradient(circle at 35% 30%,#4a586c,#151d28 70%);box-shadow:inset 0 2px 0 #ffffff26,0 4px 5px -1px #0008}
+.bd-ink:before{content:"";position:absolute;top:-6px;left:8px;width:14px;height:8px;border-radius:2px;background:#1b2430;box-shadow:inset 0 2px 0 #ffffff1c}
+.bd-quill{position:absolute;right:40px;bottom:14px;width:30px;height:76px;transform-origin:32% 100%;transform:rotate(12deg);filter:drop-shadow(2px 4px 2px #0006)}
+.bd-quill svg{display:block;width:100%;height:100%}
+.bd-glass{position:absolute;right:92px;bottom:4px;width:46px;height:46px;border-radius:50%;box-shadow:inset 0 0 0 5px #c8963e,inset 0 0 16px #ffffff66,0 6px 8px -4px #0008;background:radial-gradient(circle at 35% 30%,#ffffff55,#ffffff12 60%);opacity:0;transition:opacity .4s}
+.bd-glass:after{content:"";position:absolute;bottom:-14px;right:-8px;width:7px;height:22px;border-radius:3px;background:#5a3a23;transform:rotate(-45deg)}
+.bd-stamper{position:absolute;right:98px;bottom:0;width:36px;height:56px;opacity:0;transition:opacity .4s}
+.bd-stamper:before{content:"";position:absolute;bottom:0;left:0;width:36px;height:12px;border-radius:3px;background:linear-gradient(#7a5233,#4b301b);box-shadow:0 -3px 0 #c0392b inset}
+.bd-stamper i{position:absolute;bottom:12px;left:12px;width:12px;height:30px;border-radius:6px 6px 2px 2px;background:linear-gradient(90deg,#8a5d3b,#b98552 50%,#8a5d3b)}
+.bd-stamper i:before{content:"";position:absolute;top:-12px;left:-4px;width:20px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#c98a5a,#7a4a2a)}
+/* Marks printed on the pages turn with them. */
+.lines.tgt i{position:relative}
+.page-stamp{position:absolute;left:16px;bottom:22px;padding:4px 8px;border:2px solid #c0392b;border-radius:4px;color:#c0392b;font:800 .6rem/1 var(--sans);letter-spacing:.1em;transform:rotate(-10deg);opacity:0}
+.bindery[data-step=translating] .bd-quill{animation:quill 2.6s ease-in-out infinite}
+.bindery[data-step=reading] .bd-glass{opacity:1;animation:glass 3.2s ease-in-out infinite}
+.bindery[data-step=reviewing] .lines.tgt i:nth-child(odd):after{content:"";position:absolute;left:-15px;top:-4px;width:9px;height:5px;border-left:2px solid #2f6b45;border-bottom:2px solid #2f6b45;transform:rotate(-45deg)}
+.bindery[data-step=rebuilding] .bd-stamper{opacity:1;animation:stamper 1.5s cubic-bezier(.5,0,.3,1.3) infinite}
+.bindery[data-step=rebuilding] .page-stamp{opacity:.85}
+@keyframes quill{0%,100%{transform:rotate(12deg) translate(0,0)}18%{transform:rotate(4deg) translate(-2px,-22px)}34%{transform:rotate(8deg) translate(0,-2px)}50%{transform:rotate(18deg) translate(-6px,-16px)}62%{transform:rotate(10deg) translate(-12px,-14px)}74%{transform:rotate(18deg) translate(-18px,-16px)}86%{transform:rotate(10deg) translate(-8px,-10px)}}
+@keyframes glass{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(-14px,-10px) rotate(-8deg)}}
+@keyframes stamper{0%,100%{transform:translateY(-14px)}45%,60%{transform:translateY(0)}}
+@keyframes flame{0%,100%{transform:scale(1,1)}50%{transform:scale(.88,1.08) translateY(-1px)}}
+/* Letters in the air: each one rises out of a page, flashes, and lands in the other script. */
+.bd-letters{position:absolute;left:50%;top:150px;width:0;height:0;pointer-events:none;z-index:3}
+.fl{position:absolute;left:var(--x);top:var(--y);opacity:0;font:600 24px/1 var(--display);color:#ffeab8;text-shadow:0 0 8px #ffcf6b,0 0 22px #ffb84d99}
+.fl b{position:absolute;left:0;top:0;font-weight:600;transform:translate(-50%,-50%)}
+.fl .to{opacity:0}
+.fl:after{content:"";position:absolute;left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle,#fff8dc,#ffd27a66 35%,transparent 70%);opacity:0}
+.bindery[data-step=translating] .fl,.bindery[data-step=reviewing] .fl{animation:fl-rise var(--dur) cubic-bezier(.35,.1,.4,1) infinite var(--d)}
+.bindery[data-step=translating] .fl .from,.bindery[data-step=reviewing] .fl .from{animation:fl-from var(--dur) ease-in-out infinite var(--d)}
+.bindery[data-step=translating] .fl .to,.bindery[data-step=reviewing] .fl .to{animation:fl-to var(--dur) ease-in-out infinite var(--d)}
+.bindery[data-step=translating] .fl:after,.bindery[data-step=reviewing] .fl:after{animation:fl-spark var(--dur) ease-out infinite var(--d)}
+.bindery[data-step=reviewing] .fl{color:#d9f0dc;text-shadow:0 0 8px #8fd17a,0 0 20px #5fae6c88}
+@keyframes fl-rise{0%{opacity:0;transform:translate(0,0) scale(.55)}14%{opacity:1}78%{opacity:1}100%{opacity:0;transform:translate(var(--dx),calc(var(--rise) * -1)) scale(1.2) rotate(-6deg)}}
+@keyframes fl-from{0%,36%{opacity:1;filter:blur(0);transform:translate(-50%,-50%) scale(1)}52%,100%{opacity:0;filter:blur(5px);transform:translate(-50%,-50%) scale(1.5)}}
+@keyframes fl-to{0%,40%{opacity:0;filter:blur(5px);transform:translate(-50%,-50%) scale(.5)}58%,100%{opacity:1;filter:blur(0);transform:translate(-50%,-50%) scale(1)}}
+@keyframes fl-spark{0%,38%{opacity:0;transform:scale(.4)}48%{opacity:1;transform:scale(1.5)}62%,100%{opacity:0;transform:scale(2)}}
+@media(max-width:640px){.bd-letters{top:140px;transform:scale(.72)}}
+.bindery:is([data-phase=paused],[data-phase=error],[data-phase=finished]) *,.bindery:is([data-phase=paused],[data-phase=error],[data-phase=finished]) *:before,.bindery:is([data-phase=paused],[data-phase=error],[data-phase=finished]) *:after{animation-play-state:paused!important}
+
+
+/* The app's own phases: the finished book (result page) shows its stamp; before reading, the leaf rests. */
+.bindery[data-phase=finished] .page-stamp,.bindery[data-step=completed] .page-stamp{opacity:.85}
+.bindery[data-phase=error]{filter:saturate(.6)}
+.result-book-host .pixel-book.bindery{height:240px;max-width:560px;margin-bottom:6px}
+.processing-percentage{margin-top:0}
+@media(max-width:650px){.pixel-book.bindery{height:250px}.bd-stage{transform:scale(.78);transform-origin:50% 100%}.bd-window{width:62px;height:72px;inset-inline-end:16px}.bd-window:before{left:29px}.bd-window:after{top:36px}.bd-props .bd-glass,.bd-props .bd-stamper,.bd-props .bd-ink,.bd-props .bd-quill{display:none}.bd-props{width:40px;right:8px}.bd-perch{display:none}}
+.result-notice{background:var(--warn-100);border-color:#efd6a0;color:#5c4210}
+.result-book-host .bd-stage{transform:scale(.84);transform-origin:50% 100%}
