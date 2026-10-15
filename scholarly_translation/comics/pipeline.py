@@ -606,9 +606,11 @@ def draw_footnotes(image, notes, pack=None):
     for number, (region, shown) in enumerate(notes, 1):
         marker = "*" * number if number <= 3 else "(%d)" % number
         x0, y0, x1, y1 = shown["bbox"]
-        mx = x0 - size if rtl else x1 + 2
-        draw.text((max(2, mx), max(2, y0 - size // 2)), marker, font=font, fill=(20, 20, 20),
-                  stroke_width=2, stroke_fill=(255, 255, 255))
+        mark_font = typeset._font(typeset.FONT_DIR / "davidlibre" / "DavidLibre-Bold.ttf", int(size * 1.6))
+        mw = mark_font.getlength(marker)
+        mx = x0 - mw - 2 if rtl else x1 + 2
+        draw.text((max(2, mx), max(2, y0 - size // 2)), marker, font=mark_font, fill=(20, 20, 20),
+                  stroke_width=3, stroke_fill=(255, 255, 255))
         translation = region["translation"]
         note = region["source_text"]
         if translation.get("footnote"):      # the meaning matters: add it
