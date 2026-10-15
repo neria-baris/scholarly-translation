@@ -698,3 +698,6 @@ Live diagnosis: old localhost process returned five languages and no chapter arr
 
 ## 2026-10-11T15:56:43.838613+00:00 | LEARN delivery receipt | local commit verified; not_synced
 Code/contract/test/audit commit ecf7c3d86dc08e83270d8517bcaa321e19b91c66 on main, parent e035107; 43 intended files only, complete reviewed worktree matched staged index, staged diff/check passed. Latest full learning279 PASS plus UI29/HTTP12 and Node compatibility6/syntax PASS; live browser verified Arabic and working chapter selector. Tracked tree/index clean after commit; pre-existing untracked .claude/ preserved and excluded. Screenshot remains ignored private output. Remote accessibility check hung and was interrupted, so ancestry/push/synchronization unverified; no push. No paid runtime dispatch, advisers or builders. Conductor usage/cost not_metered.
+
+## 2026-10-15T22:03:24Z | UI-LIBRARY-REDESIGN | software acceptance PASS (presentation); not pushed
+Six stages on feat/ui-library-redesign merged fast-forward into main. Behaviour, IDs and endpoints unchanged; tests revised only in the new tests/ui/test_ui_redesign.py. Evidence: UI 198 pass + 3 pre-existing errors, learning 279 no errors, 45/45 headless checks (he/en, 1440/390). Real paid translation, Google sign-in and installed-build checks not exercised. Remote not checked; no push.

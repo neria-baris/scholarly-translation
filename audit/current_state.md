@@ -1,3 +1,9 @@
+# Current state — UI-LIBRARY-REDESIGN merged (Claude Code, 2026-10-15)
+The library design is now the real app UI (contract audit/contracts/ui_library_redesign.md, doc docs/design/UI_LIBRARY_REDESIGN_HE.md). Branch feat/ui-library-redesign fast-forwarded into main; worktree .claude/worktrees/ui-redesign can be removed after review. Not pushed (remote unchecked). No active delegated work. Verify locally: python scripts/design/serve_ui_sandbox.py --data outputs/ux/ui-redesign/data --port 8840, then node --experimental-websocket scripts/design/verify_ui_redesign.mjs. The running app picks up the new UI after a restart.
+Uncommitted, not ours (unchanged): staged translate/chapter_pipeline.py and tests/translate/test_chapter_pipeline.py; untracked source PDF.
+Next action: user reviews the redesigned app after restarting it; on approval, push with the usual remote/ancestry checks.
+
+---
 # Public release — pixel library prototype (Claude Code, 2026-10-16)
 User asked to publish the pixel-library prototype with its development process, publicly, on the neria-baris GitHub account. Published: https://github.com/neria-baris/pixel-library (PUBLIC), Pages https://neria-baris.github.io/pixel-library/ (built, pages 200).
 Contents: only design/pixel-library, docs/design/pixel-library, scripts/design, audit/contracts/ux_*, audit/checkpoints/ux_* from design/pixel-library-prototypes 3581774, with its 19 commits rebuilt (same messages/authors/dates, new hashes; public tip 63d588d = 3581774 tree subset) + root README/index.html/.nojekyll (2df578d). Shared audit logs and all other project files excluded; scanned for secrets/local paths (none). scholarly-translation stays PRIVATE.
