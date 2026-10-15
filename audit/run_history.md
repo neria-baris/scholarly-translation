@@ -1257,3 +1257,6 @@ Commits c1cac24 (word-based neighbour split, shared-word ownership by recognised
 
 ## 2026-10-12T18:30:04Z | COMIC-KEEP | scene names kept in the original
 User approved: names and readable scene lettering stay in the original. Commit 899fada (translation@3 "keep"; flat kept lettering pasted unmirrored, slanted re-lettered with the original text). Run torrezno-01-a2 pages 10-13: translator kept BAR DENVER and PEÑA ATLÉTICA SUFRIDORES; banner re-lettered by the model in Spanish, reads correctly and blends in; bar sign fell back to locate/clean/letter (typeset "BAR DENVER BAR" on a light strip, recogniser merged the side sign). Images total 8 calls est. $0.485. 106 comic tests pass.
+
+## 2026-10-15T07:36:35Z | COMIC-KEEP | bar sign retried with a precise high-quality repaint
+User asked to retry the slanted bar sign. Commits 211b5fa (precise: gpt-image-2 high quality, mask limited to the located lettering polygon, composition check, before clean+letter) and 0e71a99 (kept lettering passes the locator). Live page 13: the bar sign is now hand-lettered "BAR DENVER BAR" in the original style along the awning's slant (the recogniser had merged the small side "BAR" sign into the region, so the text repeats; the painted sign is larger than the original awning lettering). One high-quality call, est. $0.22. 107 comic tests pass.
