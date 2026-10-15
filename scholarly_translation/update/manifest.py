@@ -39,6 +39,9 @@ RUNTIME_ROOT_FILES = (
     "install.ps1",
     "Install.bat",
     "Run Scholarly Translation.vbs",
+    # Google Desktop-app OAuth client (installed-app model: not a confidential
+    # secret). Shipped only once the owner commits it; web_ui reads it from ROOT.
+    "account_config.json",
 )
 
 MAX_MANIFEST_BYTES = 2 * 1024 * 1024

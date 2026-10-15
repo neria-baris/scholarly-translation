@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -188,8 +189,13 @@ class ServerTextBehaviourTests(unittest.TestCase):
             'console.log(JSON.stringify(o))'
         ) % (json.dumps(amount), json.dumps(nested), json.dumps(note), json.dumps(amount))
         script = "let LANG='en';\n" + self.program + body
-        out = json.loads(subprocess.run(['node', '-e', script], capture_output=True, text=True,
-                                        encoding='utf-8', check=True).stdout)
+        # A script file, not `node -e`: the i18n block exceeds the Windows
+        # command-line limit (~32K characters).
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'server_text.js'
+            path.write_text(script, encoding='utf-8')
+            out = json.loads(subprocess.run(['node', str(path)], capture_output=True, text=True,
+                                            encoding='utf-8', check=True).stdout)
         self.assertEqual(out['exact'], 'budget or call failure')
         self.assertEqual(out['amount'], 'Raise the budget to $12.50')
         self.assertEqual(out['nested'], 'The cross-chapter review of chapters 1–3 did not run (budget or call failure); '

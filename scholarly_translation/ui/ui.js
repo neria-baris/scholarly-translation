@@ -31,7 +31,7 @@ const t=(he,en)=>LANG==='en'?en:he;
 let targetWanted=LANG==='en'?'en':'he';
 let previewView=null,manualEdit=false,resultError='',reviewSaved=false,libraryData=null,recentName=null;
 /*I18N-BEGIN*/
-const EN={ "brandAria": "Document translation — home", "brand": "Document translation", "help": "Help", "learning": "Language learning", "library": "Library", "heroEyebrow": "PDF / EPUB · to English", "heroTitle": "Your document, <span>in English.</span>", "heroText": "Upload a PDF or EPUB, choose how to translate it, and download it translated in the same format.<br class=\"desktop-break\"> You can review and edit it — if you want.", "fileAria": "Choose a PDF or EPUB", "dropAria": "Choose a PDF or EPUB file, or drag it here", "dropTitle": "Choose a file or drag it here", "chooseFile": "Choose a file <span aria-hidden=\"true\">→</span>", "uploadNote": "PDF with embedded text, or EPUB · up to 25 MB", "changeFile": "Change", "optionsLabel": "Options <span class=\"chevron\" aria-hidden=\"true\">⌄</span>", "lblProfile": "Translation profile", "optScholarly": "Academic (precise; notes and terminology preserved)", "optLiterary": "Literary (fluent, faithful to style)", "lblQuality": "Review level", "optFast": "Fast — no extra review", "optChecked": "Checked — risky segments + chapter review", "optThorough": "In-depth — every segment + chapter review", "lblModel": "Model", "optAuto": "Auto — trial preview (simulated), no cost and no real translation", "optConfigured": "My own model (API key)", "lblTarget": "Target language", "optTgtHe": "Hebrew", "optTgtEn": "English", "noteTarget": "English is available with your own model (API key). Auto mode previews Hebrew.", "lblLanguage": "Source language", "optLangAuto": "Detect automatically", "optEn": "English", "optFr": "French", "optJa": "Japanese", "lblBudget": "Maximum budget per document ($)", "phBudget": "e.g. 5", "noteBudget": "Required with my own model: there is no built-in cap; your limit is enforced as a hard stop.", "lblOcr": "Scanned books (OCR)", "optOcrVision": "Local recognition + model check against the page image", "optOcrOff": "Local recognition only (free)", "noteOcr": "Pages without embedded text are recognized with Tesseract on your computer. The model check compares each page with its image and fixes mistakes and formulas; it needs a model that reads images.", "lblFontBefore": "PDF font (before translation)", "noteFontBefore": "Relevant to PDF files only; an EPUB keeps its original design.", "noteKeys": "My own model: keys are kept in the local server's memory for this run. To keep them after the program closes, tick \"Remember on this computer\": they are stored encrypted in the Windows Credential Manager under your user account — not in project files, the settings file or the browser.", "rememberKeys": "Remember on this computer (Windows Credential Manager)", "forgetKeys": "Delete the saved keys from this computer", "keyDlgTitle": "API key", "keyDlgEnter": "Enter or replace a key", "keysGuideLink": "How do I get a key? <span aria-hidden=\"true\">↗</span>", "roleTranslator": "Translator", "roleQa": "Quality review (QA) <small>— same as the translator by default</small>", "advRoles": "Advanced chapter reviewer selection (chapter_qa)", "saveKeys": "Save API keys", "previewTitle": "Cost estimate (before anything is sent)", "sampleBtn": "Try a sample PDF, free", "libraryStart": "Library: all finished translations <span aria-hidden=\"true\">→</span>", "formatNote": "We translate the document structure (paragraphs, headings). A PDF is rebuilt and does not reproduce the original layout; an EPUB keeps its original chapter structure and design.", "progressAria": "Translation progress", "noteResumeKeys": "The server was restarted and lost the temporary API keys held in memory. Enter them again to continue (tick \"Remember\" so you won't need to next time).", "decisionTitle": "A decision from you is needed to continue", "decisionNote": "The decision is recorded in the cost log. No call is sent to the provider until the work continues.", "recheckTitle": "Saved review answers that were not used", "recheckBtn": "Re-check them (no provider call)", "recheckNote": "The check re-reads the saved answers. Chapters with substantive findings are reopened, and the fixes themselves are sent to the provider only when the work continues.", "crossTitle": "Cross-chapter review of the book", "crossText": "First a name table is built: the model reads the original book, passage by passage, and collects invented names, titles and terms; in a scholarly book also thinkers and authors, cited works and key terms (vowel marks allowed); the table is locked. Then the review compares the source with the translation in windows of 8 chapters with one overlapping chapter (1–8, 8–15, 15–22 …); the overlapping chapter, which has already been reviewed, is the authority. Inconsistent names, terms, references and continuity are corrected automatically and re-checked, and the previous Hebrew text is kept.", "crossNote": "Paid provider calls start only when you click Resume. A re-run re-sends only text that changed.", "crossDone": "The review was prepared. Click Resume to run it.", "sugTitle": "The review's suggested corrections", "sugBtn": "Prepare applying the corrections", "sugNote": "The previous text is kept, and segments you edited yourself are not changed. Paid provider calls start only when you click Resume.", "sugDone": "Applying was prepared. Click Resume to run it.", "pauseBtn": "Pause", "resumeBtn": "Resume", "draftBadge": "Draft", "detailsSummary": "Details about the review and the file", "nbTitle": "Book notebook (optional)", "nbText": "During translation the model records names, terms and translation choices to keep them consistent. You don't need to do anything; you can download it for reference. The download also includes the table of names and terms.", "nbDownload": "Download the notebook (Markdown) <span aria-hidden=\"true\">↓</span>", "nbTermsText": "The terms in this document. To correct a term for future translations, click \"Correct\" and it is saved in My terms.", "lblTerms": "My terms (binding in every translation)", "phTerms": "無尽蔵性 | inexhaustibility = non-exhaustibility", "noteTerms": "One term per line: source = translation. Separate other source forms of the term with |, and write a note after #. The list is stored on this computer, separately for each target language. A term that occurs in the document binds the model, overrides the model's choices, and is checked in the translation.", "saveTerms": "Save the terms", "lblFontAfter": "PDF font (after translation)", "noteFontAfter": "Changing the font rebuilds the PDF only; it sends no call to the model.", "downloadBtn": "Download the translated file <span aria-hidden=\"true\">↓</span>", "reviewBtn": "Review and edit (optional) <span aria-hidden=\"true\">→</span>", "reviewTitle": "Source beside translation", "unitAria": "Choose a segment to review", "closeReviewAria": "Close the review", "srcHead": "Source", "tgtHead": "Translation · editable", "editAria": "Edit the translation", "saveEditBtn": "Save changes", "reviewNote": "Saving updates the downloadable file.", "newDoc": "← Translate another document", "draftNote": "An automatic draft; you can download it right away, or review it first.", "libTitle": "Your translations", "libTabsAria": "Type of documents in the library", "tabDone": "Ready", "tabProgress": "In progress", "back": "← Back", "footerNote": "The file and the result are stored on your computer.", "consentTitle": "Approve sending to providers", "consentText": "The translation and the checks share one budget per document. This is a local estimate limit based on the price list, not a billing limit on the provider account.", "consentOk": "Approve and start translating", "cancel": "Cancel", "connTitle": "Translation model", "closeAria": "Close", "close": "Close", "roleChoose": "Choose a model…", "roleOther": "Other (custom model/provider)…", "roleCompat": "OpenAI-compatible (custom address)", "phModelId": "Model ID", "phBaseUrl": "https://… (OpenAI-compatible only)", "phContext": "Context window (tokens)", "phMaxOut": "Output cap (up to 128,000 tokens)", "phUsable": "Usable window (optional)", "phRateIn": "Input rate ($/1M, optional)", "phRateOut": "Output rate ($/1M, optional)", "phRateCached": "Cache read ($/1M, optional)", "phRateWrite": "Short cache write ($/1M, optional)", "phRateWrite1h": "Hourly cache write ($/1M, optional)", "roleRateNote": "If no rate is entered, a conservative assumption marked \"unofficial\" is used for estimation only." };
+const EN={ "brandAria": "Document translation — home", "brand": "Document translation", "help": "Help", "learning": "Language learning", "library": "Library", "heroEyebrow": "PDF / EPUB · to English", "heroTitle": "Your document, <span>in English.</span>", "heroText": "Upload a PDF or EPUB, choose how to translate it, and download it translated in the same format.<br class=\"desktop-break\"> You can review and edit it — if you want.", "fileAria": "Choose a PDF or EPUB", "dropAria": "Choose a PDF or EPUB file, or drag it here", "dropTitle": "Choose a file or drag it here", "chooseFile": "Choose a file <span aria-hidden=\"true\">→</span>", "uploadNote": "PDF with embedded text, or EPUB · up to 25 MB", "changeFile": "Change", "optionsLabel": "Options <span class=\"chevron\" aria-hidden=\"true\">⌄</span>", "lblProfile": "Translation profile", "optScholarly": "Academic (precise; notes and terminology preserved)", "optLiterary": "Literary (fluent, faithful to style)", "lblQuality": "Review level", "optFast": "Fast — no extra review", "optChecked": "Checked — risky segments + chapter review", "optThorough": "In-depth — every segment + chapter review", "lblModel": "Model", "optAuto": "Auto — trial preview (simulated), no cost and no real translation", "optConfigured": "My own model (API key)", "lblTarget": "Target language", "optTgtHe": "Hebrew", "optTgtEn": "English", "noteTarget": "English is available with your own model (API key). Auto mode previews Hebrew.", "lblLanguage": "Source language", "optLangAuto": "Detect automatically", "optEn": "English", "optFr": "French", "optJa": "Japanese", "lblBudget": "Maximum budget per document ($)", "phBudget": "e.g. 5", "noteBudget": "Required with my own model: there is no built-in cap; your limit is enforced as a hard stop.", "lblOcr": "Scanned books (OCR)", "optOcrVision": "Local recognition + model check against the page image", "optOcrOff": "Local recognition only (free)", "noteOcr": "Pages without embedded text are recognized with Tesseract on your computer. The model check compares each page with its image and fixes mistakes and formulas; it needs a model that reads images.", "lblFontBefore": "PDF font (before translation)", "noteFontBefore": "Relevant to PDF files only; an EPUB keeps its original design.", "noteKeys": "My own model: keys are kept in the local server's memory for this run. To keep them after the program closes, tick \"Remember on this computer\": they are stored encrypted in the Windows Credential Manager under your user account — not in project files, the settings file or the browser.", "rememberKeys": "Remember on this computer (Windows Credential Manager)", "forgetKeys": "Delete the saved keys from this computer", "keyDlgTitle": "API key", "keyDlgEnter": "Enter or replace a key", "keysGuideLink": "How do I get a key? <span aria-hidden=\"true\">↗</span>", "roleTranslator": "Translator", "roleQa": "Quality review (QA) <small>— same as the translator by default</small>", "advRoles": "Advanced chapter reviewer selection (chapter_qa)", "saveKeys": "Save API keys", "previewTitle": "Cost estimate (before anything is sent)", "sampleBtn": "Try a sample PDF, free", "libraryStart": "Library: all finished translations <span aria-hidden=\"true\">→</span>", "formatNote": "We translate the document structure (paragraphs, headings). A PDF is rebuilt and does not reproduce the original layout; an EPUB keeps its original chapter structure and design.", "progressAria": "Translation progress", "noteResumeKeys": "The server was restarted and lost the temporary API keys held in memory. Enter them again to continue (tick \"Remember\" so you won't need to next time).", "decisionTitle": "A decision from you is needed to continue", "decisionNote": "The decision is recorded in the cost log. No call is sent to the provider until the work continues.", "recheckTitle": "Saved review answers that were not used", "recheckBtn": "Re-check them (no provider call)", "recheckNote": "The check re-reads the saved answers. Chapters with substantive findings are reopened, and the fixes themselves are sent to the provider only when the work continues.", "crossTitle": "Cross-chapter review of the book", "crossText": "First a name table is built: the model reads the original book, passage by passage, and collects invented names, titles and terms; in a scholarly book also thinkers and authors, cited works and key terms (vowel marks allowed); the table is locked. Then the review compares the source with the translation in windows of 8 chapters with one overlapping chapter (1–8, 8–15, 15–22 …); the overlapping chapter, which has already been reviewed, is the authority. Inconsistent names, terms, references and continuity are corrected automatically and re-checked, and the previous Hebrew text is kept.", "crossNote": "Paid provider calls start only when you click Resume. A re-run re-sends only text that changed.", "crossDone": "The review was prepared. Click Resume to run it.", "sugTitle": "The review's suggested corrections", "sugBtn": "Prepare applying the corrections", "sugNote": "The previous text is kept, and segments you edited yourself are not changed. Paid provider calls start only when you click Resume.", "sugDone": "Applying was prepared. Click Resume to run it.", "pauseBtn": "Pause", "resumeBtn": "Resume", "draftBadge": "Draft", "detailsSummary": "Details about the review and the file", "nbTitle": "Book notebook (optional)", "nbText": "During translation the model records names, terms and translation choices to keep them consistent. You don't need to do anything; you can download it for reference. The download also includes the table of names and terms.", "nbDownload": "Download the notebook (Markdown) <span aria-hidden=\"true\">↓</span>", "nbTermsText": "The terms in this document. To correct a term for future translations, click \"Correct\" and it is saved in My terms.", "lblTerms": "My terms (binding in every translation)", "phTerms": "無尽蔵性 | inexhaustibility = non-exhaustibility", "noteTerms": "One term per line: source = translation. Separate other source forms of the term with |, and write a note after #. The list is stored on this computer, separately for each target language. A term that occurs in the document binds the model, overrides the model's choices, and is checked in the translation.", "saveTerms": "Save the terms", "lblFontAfter": "PDF font (after translation)", "noteFontAfter": "Changing the font rebuilds the PDF only; it sends no call to the model.", "downloadBtn": "Download the translated file <span aria-hidden=\"true\">↓</span>", "reviewBtn": "Review and edit (optional) <span aria-hidden=\"true\">→</span>", "reviewTitle": "Source beside translation", "unitAria": "Choose a segment to review", "closeReviewAria": "Close the review", "srcHead": "Source", "tgtHead": "Translation · editable", "editAria": "Edit the translation", "saveEditBtn": "Save changes", "reviewNote": "Saving updates the downloadable file.", "newDoc": "← Translate another document", "draftNote": "An automatic draft; you can download it right away, or review it first.", "libTitle": "Your translations", "libTabsAria": "Type of documents in the library", "tabDone": "Ready", "tabProgress": "In progress", "back": "← Back", "footerNote": "The file and the result are stored on your computer.", "consentTitle": "Approve sending to providers", "consentText": "The translation and the checks share one budget per document. This is a local estimate limit based on the price list, not a billing limit on the provider account.", "consentOk": "Approve and start translating", "cancel": "Cancel", "connTitle": "Translation model", "closeAria": "Close", "close": "Close", "roleChoose": "Choose a model…", "roleOther": "Other (custom model/provider)…", "roleCompat": "OpenAI-compatible (custom address)", "phModelId": "Model ID", "phBaseUrl": "https://… (OpenAI-compatible only)", "phContext": "Context window (tokens)", "phMaxOut": "Output cap (up to 128,000 tokens)", "phUsable": "Usable window (optional)", "phRateIn": "Input rate ($/1M, optional)", "phRateOut": "Output rate ($/1M, optional)", "phRateCached": "Cache read ($/1M, optional)", "phRateWrite": "Short cache write ($/1M, optional)", "phRateWrite1h": "Hourly cache write ($/1M, optional)", "roleRateNote": "If no rate is entered, a conservative assumption marked \"unofficial\" is used for estimation only.", "signIn": "Sign in with Google", "accountAria": "Google account", "syncNow": "Sync now", "signOut": "Sign out", "updateReady": "An update is ready — it will apply next time you open the app.", "autoUpdate": "Automatic updates" };
 const STAGE_EN={"קריאת המסמך": "Reading the document", "מתרגם": "Translating", "בניית המסמך המתורגם": "Building the translated document", "הושלם": "Completed", "מושהה — התוצאות נשמרו": "Paused — results saved", "זיהוי טקסט (OCR) בעמודים סרוקים": "Recognizing text (OCR) on scanned pages", "בדיקת ה־OCR בעזרת המודל": "Checking the OCR with the model", "בבדיקה": "Reviewing", "בבדיקת פרקים": "Reviewing chapters", "ממתין לבדיקה רוחבית": "Waiting for the cross-chapter review", "הופסק": "Stopped", "בניית טבלת השמות של הספר": "Building the book's name table", "בניית טבלת השמות והמונחים": "Building the table of names and terms", "תרגום פרק / קבוצת יחידות": "Translating a chapter / group of units", "ביקורת מקטעים ו־QA פרקי": "Segment review and chapter QA"};
 const IN_PROGRESS_EN={"failed": "Stopped", "paused": "Paused", "interrupted": "Interrupted", "queued": "Waiting", "reading": "Reading", "translating": "Translating now", "reviewing": "Reviewing", "rebuilding": "Building the file"};
 const LIMITATION_EN={"missing_translation": "Segments left in the source language", "inline_markup_flattened": "Inline formatting (emphasis/links) simplified", "units_merged_multiple_blocks": "Segments merged from several paragraphs"};
@@ -217,6 +217,19 @@ const SERVER_EN={
 "רשימת המונחים אינה תקינה.": "The list of terms is invalid.",
 "מונח המקור": "The source term",
 "התרגום": "The translation",
+"ההתחברות ל־Google פגה. התחברו שוב.": "Your Google sign-in expired. Sign in again.",
+"ספר עם המזהה הזה כבר קיים במחשב; לא בוצעה דריסה.": "A book with this id already exists on this computer; nothing was overwritten.",
+"האחסון ב־Google Drive מלא.": "Google Drive storage is full.",
+"אין חיבור ל־Google Drive כרגע. נסו שוב מאוחר יותר.": "Google Drive is not reachable right now. Try again later.",
+"הפעולה מול Google Drive נכשלה.": "The Google Drive action failed.",
+"מזהה הספר אינו תקין.": "The book id is not valid.",
+"לא מחוברים ל־Google.": "Not signed in to Google.",
+"ההתחברות לא הושלמה": "Sign-in did not complete.",
+"החיבור ל־Google אינו זמין בגרסה זו.": "Google sign-in is not available in this version.",
+"לא ניתן להתחיל התחברות ל־Google.": "Cannot start Google sign-in.",
+"ההתחברות הושלמה": "Signed in.",
+"אפשר לסגור את הלשונית ולחזור ליישום.": "You can close this tab and return to the app.",
+"חזרו ליישום ונסו להתחבר שוב.": "Return to the app and try again.",
 "ההערה": "The note",
 "קובץ המונחים האישי אינו קריא.": "The personal glossary file cannot be read.",
 "לכל מונח נדרשים מונח מקור ותרגום.": "Every term needs a source term and a translation.",
@@ -1084,7 +1097,7 @@ function renderLibrary(documents){
     const fontField=kind==='pdf'?`<div class="field library-font"><label for="library-font-${index}">${t(`גופן להורדה`,`Download font`)}</label><select id="library-font-${index}" class="library-font-select">${libraryFontOptions(doc.font_id)}</select></div>`:'';
     item.innerHTML=`<button type="button" class="library-entry" aria-expanded="false" aria-controls="${detailId}">
       <span class="library-kind" data-kind="${kind}">${kind.toUpperCase()}</span>
-      <span class="library-entry-text"><strong dir="auto">${esc(doc.filename)}</strong><span class="library-meta">${esc(libraryDate(doc.completed_at))}${doc.unit_count!=null?' · '+esc(doc.unit_count)+t(' מקטעים'," segments"):''}</span></span>
+      <span class="library-entry-text"><strong dir="auto">${esc(doc.filename)}</strong><span class="library-meta">${esc(libraryDate(doc.completed_at))}${doc.unit_count!=null?' · '+esc(doc.unit_count)+t(' מקטעים'," segments"):''}</span>${driveBadge(doc.job_id)}</span>
       <span class="chevron" aria-hidden="true">⌄</span></button>
       <div id="${detailId}" class="library-detail" hidden>${fontField}
       <div class="library-actions"><button type="button" class="primary-button library-download" data-format="${kind}">${t(`הורדת ${kind.toUpperCase()}`,`Download ${kind.toUpperCase()}`)} <span aria-hidden="true">↓</span></button>
@@ -1101,6 +1114,8 @@ function renderLibrary(documents){
     item.querySelector('.library-learning').onclick=()=>openLearningWindow(doc,item.querySelector('.library-error'));
     list.append(item);
   });
+  const driveOnly=renderDriveOnly(list,documents);
+  $('library-empty').hidden=documents.length>0||driveOnly>0;
   applyAutoDirs();
 }
 const IN_PROGRESS_STATUS={failed:'נעצר',paused:'מושהה',interrupted:'הופסק',queued:'ממתין',reading:'קורא',translating:'מתרגם כעת',reviewing:'בבדיקה',rebuilding:'בונה את הקובץ'};
@@ -1168,6 +1183,7 @@ async function loadLibrary(){
   try{const result=await request(tab==='done'?'/document-library':'/document-in-progress',{});if(id!==libraryCounter)return;
     $('library-status').textContent='';const documents=Array.isArray(result.documents)?result.documents:[];libraryData={tab,documents};
     (tab==='done'?renderLibrary:renderInProgress)(documents);
+    if(tab==='done')loadRemoteBooks(id);
   }catch(error){if(id!==libraryCounter)return;$('library-status').textContent='';srvText($('library-message'),error.message);$('library-message').hidden=false}
 }
 function openLibrary(){
@@ -1260,6 +1276,155 @@ $('close-review').onclick=()=>{if(confirmDiscard())$('review-panel').hidden=true
 $('unit-select').onchange=()=>{if(confirmDiscard()){unitIndex=Number($('unit-select').value);renderReview()}else $('unit-select').value=unitIndex};
 $('save-edit').onclick=()=>saveEdit();
 $('new-document').onclick=()=>{if(!confirmDiscard())return;clearTimeout(pollTimer);forget('document-last-job');currentJob=null;uploaded=null;$('document-file').value='';$('review-panel').hidden=true;show('start-panel');setUploaded(null);setBusy(false);message('');window.scrollTo({top:0,behavior:'smooth'})};
+// ---- Google account + Drive library (hidden entirely when unavailable) ----
+let accountState={available:false,signed_in:false},remoteBooks=null,accountTimer=null,signInWaitUntil=0,lastSyncState='idle';
+function syncErrorText(code){
+  if(code==='quota')return t('אחסון Google Drive מלא','Google Drive storage is full');
+  if(code==='network')return t('אין חיבור ל־Google Drive כרגע','Google Drive is not reachable right now');
+  if(code==='drive')return t('הסנכרון מול Google Drive נכשל','Syncing with Google Drive failed');
+  if(code==='upload_failed')return t('חלק מהספרים לא הועלו','Some books could not be uploaded');
+  return t('הסנכרון נכשל','Syncing failed');
+}
+function needsReSignIn(){return !!(accountState.signed_in&&accountState.sync&&accountState.sync.state==='signed_out')}
+function syncLine(){
+  const sync=accountState.sync||{};
+  if(sync.state==='running')return t('מסנכרן…','Syncing…');
+  if(sync.state==='signed_out')return t('ההתחברות פגה — התחברו שוב','Sign-in expired — sign in again');
+  if(sync.state==='error')return syncErrorText(sync.last_error);
+  if(sync.last_sync_at)return t('סונכרן לאחרונה: ','Last synced: ')+libraryDate(sync.last_sync_at);
+  return t('עדיין לא סונכרן','Not synced yet');
+}
+function closeAccountMenu(focusButton){
+  const menu=$('account-menu');if(menu.hidden)return;
+  menu.hidden=true;$('account-button').setAttribute('aria-expanded','false');if(focusButton)$('account-button').focus();
+}
+function renderAccount(){
+  const area=$('account-area');
+  if(!accountState.available){area.hidden=true;return}
+  area.hidden=false;
+  const signedIn=!!accountState.signed_in,again=needsReSignIn();
+  $('sign-in-button').hidden=signedIn&&!again;
+  $('sign-in-button').textContent=again?t('התחברות מחדש','Sign in again'):t('התחברות עם Google','Sign in with Google');
+  $('account-button').hidden=!signedIn;
+  if(!signedIn){closeAccountMenu(false);return}
+  const label=(accountState.name||accountState.email||'?').trim();
+  $('account-initial').textContent=(label.charAt(0)||'?').toUpperCase();
+  $('account-email').textContent=accountState.email||accountState.name||'';
+  $('account-sync-line').textContent=syncLine();
+  $('account-sync-now').disabled=!!(accountState.sync&&accountState.sync.state==='running');
+}
+async function refreshAccount(){
+  try{accountState=await request('/account')}catch(_){return}
+  renderAccount();
+  const sync=accountState.sync||{},running=sync.state==='running';
+  clearTimeout(accountTimer);
+  if(accountState.signed_in)signInWaitUntil=0;
+  if(running||signInWaitUntil>Date.now())accountTimer=setTimeout(refreshAccount,2000);
+  if(lastSyncState==='running'&&!running&&accountState.signed_in)reloadRemoteIfLibraryOpen();
+  lastSyncState=sync.state||'idle';
+  if(!accountState.signed_in)remoteBooks=null;
+}
+async function accountSignIn(){
+  const button=$('sign-in-button');button.disabled=true;
+  try{await request('/account/sign-in');signInWaitUntil=Date.now()+600000;refreshAccount()}
+  catch(error){message(error.message)}
+  finally{button.disabled=false}
+}
+async function accountSyncNow(){
+  try{const result=await request('/account/sync');accountState={...accountState,sync:result.sync};renderAccount();refreshAccount()}
+  catch(error){$('account-sync-line').textContent=serverText(error.message)}
+}
+async function accountSignOut(){
+  closeAccountMenu(true);
+  try{await request('/account/sign-out')}catch(_){}
+  remoteBooks=null;await refreshAccount();
+  if(visiblePanel()==='library-panel')loadLibrary();
+}
+function toggleAccountMenu(){
+  const menu=$('account-menu'),open=menu.hidden;
+  menu.hidden=!open;$('account-button').setAttribute('aria-expanded',String(open));
+  if(open){renderAccount();refreshAccount();$('account-sync-now').focus()}
+}
+function driveBadge(jobId){
+  return remoteBooks&&remoteBooks.some(b=>b.job_id===jobId)?`<span class="drive-badge">${esc(t('ב־Drive','In Drive'))}</span>`:'';
+}
+function renderDriveOnly(list,documents){
+  if(!remoteBooks)return 0;
+  const local=new Set(documents.map(d=>d.job_id)),only=remoteBooks.filter(b=>!local.has(b.job_id));
+  only.forEach((book,index)=>{
+    const kind=/\.epub$/i.test(book.filename||'')?'epub':'pdf',detailId='library-drive-detail-'+index;
+    const item=document.createElement('li');item.className='library-item drive-only';item.dataset.jobId=book.job_id;
+    item.innerHTML=`<button type="button" class="library-entry" aria-expanded="false" aria-controls="${detailId}">
+      <span class="library-kind" data-kind="${kind}">${kind.toUpperCase()}</span>
+      <span class="library-entry-text"><strong dir="auto">${esc(book.filename||book.job_id)}</strong><span class="library-meta">${esc(libraryDate(book.completed_at))}</span><span class="drive-badge">${esc(t('רק ב־Drive','Drive only'))}</span></span>
+      <span class="chevron" aria-hidden="true">⌄</span></button>
+      <div id="${detailId}" class="library-detail" hidden>
+      <div class="library-actions"><button type="button" class="primary-button library-restore">${t('שחזור למחשב הזה','Restore to this computer')}</button></div>
+      <p class="message library-error" role="alert" hidden></p></div>`;
+    const entry=item.querySelector('.library-entry'),detail=item.querySelector('.library-detail');
+    entry.onclick=()=>{const open=entry.getAttribute('aria-expanded')!=='true';entry.setAttribute('aria-expanded',String(open));detail.hidden=!open;item.classList.toggle('open',open)};
+    item.querySelector('.library-restore').onclick=event=>restoreRemote(book,event.currentTarget,item);
+    list.append(item);
+  });
+  return only.length;
+}
+async function restoreRemote(book,button,item){
+  const error=item.querySelector('.library-error');error.hidden=true;button.disabled=true;
+  try{await request('/account/restore',{job_id:book.job_id});loadLibrary()}
+  catch(caught){srvText(error,caught.message);error.hidden=false;button.disabled=false}
+}
+async function loadRemoteBooks(libraryId){
+  const note=$('library-remote-message');note.hidden=true;
+  if(!accountState.signed_in){remoteBooks=null;return}
+  try{
+    const result=await request('/account/remote-library',{});
+    if(libraryId!==libraryCounter||libraryTab!=='done')return;
+    remoteBooks=Array.isArray(result.books)?result.books:[];
+    if(libraryData&&libraryData.tab==='done')renderLibrary(libraryData.documents);
+  }catch(error){
+    if(libraryId!==libraryCounter)return;
+    srvText(note,error.message);note.hidden=false;
+    if(error.status===401)refreshAccount();
+  }
+}
+function reloadRemoteIfLibraryOpen(){
+  if(visiblePanel()==='library-panel'&&libraryTab==='done')loadRemoteBooks(libraryCounter);
+}
+$('sign-in-button').onclick=accountSignIn;
+$('account-button').onclick=toggleAccountMenu;
+$('account-sync-now').onclick=accountSyncNow;
+$('account-sign-out').onclick=accountSignOut;
+document.addEventListener('click',event=>{if(!$('account-area').contains(event.target))closeAccountMenu(false)});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('account-menu').hidden){event.preventDefault();closeAccountMenu(true)}});
+setInterval(()=>{if(accountState.signed_in&&!document.hidden)refreshAccount()},30000);
+// ---- quiet update notice + automatic-update setting (hidden when no status) ----
+let updateStatus=null;
+function updateNotes(status){
+  const he=status.updated_notes_he||'',en=status.updated_notes_en||'';
+  return LANG==='en'?(en||he):(he||en);
+}
+function renderUpdateNotice(){
+  const status=updateStatus,box=$('update-notice');
+  if(!status||!status.updated_to){box.hidden=true;return}
+  let seen=null;try{seen=localStorage.getItem('update-seen')}catch(_){}
+  if(seen===status.updated_to){box.hidden=true;return}
+  const notes=updateNotes(status);
+  $('update-notice-text').textContent=t('עודכן לגרסה ','Updated to version ')+status.updated_to+(notes?' — '+notes:'');
+  box.hidden=false;
+}
+async function initUpdates(){
+  try{updateStatus=(await request('/update-status')).status||null}catch(_){return}
+  if(!updateStatus)return;
+  $('update-settings').hidden=false;
+  $('auto-update').checked=updateStatus.auto_update!==false;
+  $('update-ready').hidden=!updateStatus.staged;
+  renderUpdateNotice();
+}
+$('update-notice-close').onclick=()=>{if(updateStatus&&updateStatus.updated_to)remember('update-seen',updateStatus.updated_to);$('update-notice').hidden=true};
+$('auto-update').onchange=async event=>{
+  const want=event.target.checked;
+  try{await request('/update-settings',{auto_update:want})}catch(_){event.target.checked=!want}
+};
 // ---- language switch ----
 const origText=new WeakMap();
 function applyStatic(){
@@ -1275,7 +1440,7 @@ function applyStatic(){
     });
   }
 }
-const FREE_SEL='#processing-detail,#form-message,#result-notice,#decision-message,#decision-error,#recheck-error,#cross-review-error,#result-cross-review-error,#suggestions-error,#result-suggestions-error,#library-message,#review-findings,#key-message,#resume-key-message,#key-dialog-message,.library-blocker,.library-error,#decision-options label,#decision-options button:not(.decision-confirm)';
+const FREE_SEL='#processing-detail,#form-message,#result-notice,#decision-message,#decision-error,#recheck-error,#cross-review-error,#result-cross-review-error,#suggestions-error,#result-suggestions-error,#library-message,#library-remote-message,#review-findings,#key-message,#resume-key-message,#key-dialog-message,.library-blocker,.library-error,#decision-options label,#decision-options button:not(.decision-confirm)';
 function applyAutoDirs(){
   document.querySelectorAll(FREE_SEL).forEach(el=>{if(LANG==='en')el.setAttribute('dir','auto');else el.removeAttribute('dir')});
 }
@@ -1320,8 +1485,10 @@ function setLanguage(next){
       if(open.includes(i.dataset.jobId))i.querySelector('.library-entry').click()});
   }
   renderKeyFields();restoreKeyInputs(kept);
+  renderAccount();renderUpdateNotice();
   retranslateRaw();applyAutoDirs();
 }
 $('language-button').onclick=()=>setLanguage(LANG==='en'?'he':'en');
 applyBase();
+refreshAccount();initUpdates();
 initialize();

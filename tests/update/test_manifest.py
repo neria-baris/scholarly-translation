@@ -47,6 +47,9 @@ class SignatureTests(unittest.TestCase):
 
 
 class PathTests(unittest.TestCase):
+    def test_account_config_ships_as_runtime_root_file(self):
+        self.assertEqual(mf.normalize_path("account_config.json"), "account_config.json")
+
     def test_rejects_unsafe_paths(self):
         for bad in ("../x.py", "scholarly_translation/../../x", "/etc/passwd", "C:/x.py", "C:\\x.py",
                     "scholarly_translation\\..\\x", "scholarly_translation//a.py", "", "scholarly_translation/./a.py",

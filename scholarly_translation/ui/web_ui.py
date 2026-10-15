@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
+import html as html_lib
 import json
 import os
 import re
@@ -10,6 +12,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -25,10 +28,88 @@ from ..review import review_salvage
 from ..core import target_languages
 from ..translate import user_glossary
 from ..models.settings import ModelSettingsError
+from .. import app_paths
+from ..account.google_auth import (
+    AccountConfigError, GoogleAccount, GoogleClientConfig, SignedOut, SignInError, default_google_store,
+)
+from ..account.drive_library import (
+    DriveError, DriveLibrary, DriveNetworkError, DriveQuotaError, SyncConflict, validate_job_id,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_ROOT = ROOT / "outputs" / "ui"
+OUTPUT_ROOT = app_paths.data_root() / "ui"
+PENDING_SIGN_IN_SECONDS = 600
+
+
+def _under_outputs(candidate: Path) -> bool:
+    """True when the path is inside a dev checkout's outputs/ or the data root."""
+    return any(candidate.is_relative_to(base.resolve()) for base in (ROOT / "outputs", app_paths.data_root()))
+
+
+def ui_status() -> dict | None:
+    """Updater status for the UI; None in a development checkout or on any error."""
+    try:
+        from ..update import updater
+        return updater.ui_status()
+    except Exception:
+        return None
+
+
+def set_auto_update(enabled: bool) -> None:
+    from ..update import updater
+    updater.set_auto_update(app_paths.data_root(), enabled)
+
+
+def _default_account():
+    """The production Google account object, or None when the feature is unavailable
+    (no client id configured, or no credential store on this platform)."""
+    try:
+        config = GoogleClientConfig.load(config_path=ROOT / "account_config.json")
+    except AccountConfigError:
+        return None
+    store = default_google_store()
+    if store is None:
+        return None
+    return GoogleAccount(config, store)
+
+
+_SIGN_IN_PAGE = """<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>{title}</title><style>body{{font-family:"Segoe UI",Arial,sans-serif;background:#f6f0e1;color:#342c19;margin:0;
+display:grid;place-items:center;min-height:100vh}}main{{background:#fff;border:1px solid #e9e6de;border-radius:12px;
+padding:28px 32px;max-width:420px;margin:16px;text-align:center}}h1{{font-size:20px;margin:0 0 10px}}
+p{{margin:6px 0;line-height:1.6}}.en{{color:#6b6352;direction:ltr}}</style></head><body><main>
+<h1>{he_title}</h1><p>{he_text}</p><p class="en">{en_title} {en_text}</p></main></body></html>"""
+
+
+def _sign_in_page(ok: bool, detail: str = "") -> bytes:
+    esc = html_lib.escape
+    if ok:
+        he_title, en_title = "ההתחברות הושלמה", "Signed in."
+        he_text = "אפשר לסגור את הלשונית ולחזור ליישום." + (f" ({esc(detail)})" if detail else "")
+        en_text = "You can close this tab and return to the app."
+    else:
+        he_title, en_title = "ההתחברות לא הושלמה", "Sign-in did not complete."
+        he_text = "חזרו ליישום ונסו להתחבר שוב." + (f" ({esc(detail)})" if detail else "")
+        en_text = "Return to the app and try again."
+    return _SIGN_IN_PAGE.format(title=esc(en_title), he_title=he_title, he_text=he_text,
+                                en_title=en_title, en_text=en_text).encode("utf-8")
+
+
+def _drive_error(exc: Exception) -> tuple[int, dict]:
+    """Map a Drive/sign-in failure to (status, safe JSON). Never includes raw detail."""
+    if isinstance(exc, SignedOut):
+        return 401, {"error": "ההתחברות ל־Google פגה. התחברו שוב.", "code": "signed_out"}
+    if isinstance(exc, SyncConflict):
+        return 409, {"error": "ספר עם המזהה הזה כבר קיים במחשב; לא בוצעה דריסה.", "code": "conflict"}
+    if isinstance(exc, DriveQuotaError):
+        return 507, {"error": "האחסון ב־Google Drive מלא.", "code": "quota"}
+    if isinstance(exc, (DriveNetworkError, SignInError)):
+        return 503, {"error": "אין חיבור ל־Google Drive כרגע. נסו שוב מאוחר יותר.", "code": "network"}
+    if isinstance(exc, DriveError):
+        return 502, {"error": "הפעולה מול Google Drive נכשלה.", "code": "drive"}
+    return 500, {"error": "הפעולה מול Google Drive נכשלה.", "code": "unknown"}
 MAX_UPLOAD = 100 * 1024 * 1024
 UI_DIR = Path(__file__).resolve().parent
 _PROVIDER_ID_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
@@ -46,7 +127,7 @@ def _read_artifact(path: str, expected: str) -> dict | None:
     if not path:
         return None
     candidate = Path(path).resolve()
-    if not candidate.is_relative_to((ROOT / "outputs").resolve()) or not candidate.is_file():
+    if not _under_outputs(candidate) or not candidate.is_file():
         raise ValueError("artifact must be a local output file")
     if candidate.stat().st_size > 5 * 1024 * 1024:
         raise ValueError("artifact is too large for preview")
@@ -218,7 +299,8 @@ def _document_in_progress(document_jobs) -> list[dict]:
     return documents
 
 
-def make_handler(token: str, model_config_path: str | None = None, *, learning_service=None, key_store=None):
+def make_handler(token: str, model_config_path: str | None = None, *, learning_service=None, key_store=None,
+                 account_factory=None, drive_factory=None):
     from ..translate.document_draft import (
         DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download, validate_settings,
     )
@@ -452,6 +534,180 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         path.mkdir(parents=True, exist_ok=False)
         return path
 
+    # ---- Google account + Drive library sync (CLOUD-LIBRARY C3) ----
+    # Tokens, the client secret and refresh tokens never leave GoogleAccount:
+    # no response, log or page below contains them.
+    try:
+        account = (account_factory or _default_account)()
+    except Exception:
+        account = None
+    if account is not None:
+        try:
+            account.restore()  # offline: re-adopts a stored sign-in
+        except Exception:
+            pass
+    account_lock = threading.Lock()
+    pending_sign_in = {"value": None, "at": 0.0}
+    sync_state = {"state": "idle", "last_sync_at": None, "last_error": None, "last_summary": None}
+    sync_flags = {"running": False, "again": False}
+    completed_seen: set[str] = set()
+
+    def _signed_in() -> bool:
+        return account is not None and bool(account.signed_in)
+
+    def _account_view() -> dict:
+        if account is None:
+            return {"available": False}
+        signed_in = _signed_in()
+        who = account.account if signed_in else None
+        with account_lock:
+            sync = dict(sync_state)
+        if not signed_in:
+            sync["state"] = "signed_out"
+        return {"available": True, "signed_in": signed_in,
+                "email": getattr(who, "email", None) if who else None,
+                "name": getattr(who, "name", None) if who else None, "sync": sync}
+
+    def _make_drive():
+        if drive_factory is not None:
+            return drive_factory(account, document_jobs.root)
+        return DriveLibrary(account.access_token, document_jobs.root,
+                            invalidate_token=account.invalidate_access_token)
+
+    def _sync_once() -> None:
+        try:
+            summary = _make_drive().sync_pending()
+            failed = len(summary.get("failed") or [])
+            with account_lock:
+                sync_state["last_summary"] = {"uploaded": len(summary.get("uploaded") or []),
+                                              "skipped": len(summary.get("skipped") or []), "failed": failed}
+                sync_state["last_sync_at"] = time.time()
+                sync_state["state"] = "error" if failed else "idle"
+                sync_state["last_error"] = "upload_failed" if failed else None
+        except Exception as exc:  # a sync failure never touches translation jobs
+            code = _drive_error(exc)[1]["code"]
+            with account_lock:
+                sync_state["state"] = "signed_out" if code == "signed_out" else "error"
+                sync_state["last_error"] = code
+
+    def _sync_worker() -> None:
+        while True:
+            try:
+                _sync_once()
+            finally:
+                with account_lock:
+                    again = sync_flags["again"]
+                    sync_flags["again"] = False
+                    if again:
+                        sync_state["state"] = "running"
+                    else:
+                        sync_flags["running"] = False
+            if not again:
+                return
+
+    def _start_sync() -> bool:
+        """Start a background sync, or queue one more run if one is in flight.
+        One worker thread, one sync at a time. False when not signed in."""
+        if not _signed_in():
+            return False
+        with account_lock:
+            if sync_flags["running"]:
+                sync_flags["again"] = True
+                return True
+            sync_flags["running"] = True
+            sync_state["state"] = "running"
+        threading.Thread(target=_sync_worker, name="drive-sync", daemon=True).start()
+        return True
+
+    def _note_completed(job_ids) -> None:
+        """Sync when a completed job appears that has not triggered a sync yet."""
+        if not _signed_in():
+            return
+        fresh = [job_id for job_id in job_ids if isinstance(job_id, str) and job_id not in completed_seen]
+        if fresh:
+            completed_seen.update(fresh)
+            _start_sync()
+
+    def _require_signed_in():
+        if account is None:
+            return 404, {"error": "החיבור ל־Google אינו זמין בגרסה זו.", "code": "unavailable"}
+        if not _signed_in():
+            return 401, {"error": "לא מחוברים ל־Google.", "code": "signed_out"}
+        return None
+
+    def _account_action(path: str, data: dict, port: int) -> tuple[int, dict]:
+        if path == "/account":
+            return 200, _account_view()
+        if account is None:
+            return 404, {"error": "החיבור ל־Google אינו זמין בגרסה זו.", "code": "unavailable"}
+        if path == "/account/sign-in":
+            try:
+                url, pending = account.begin_sign_in(f"http://127.0.0.1:{port}/oauth/callback")
+            except Exception:
+                return 400, {"error": "לא ניתן להתחיל התחברות ל־Google.", "code": "sign_in_unavailable"}
+            with account_lock:
+                pending_sign_in["value"], pending_sign_in["at"] = pending, time.monotonic()
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
+            return 200, {"url": url}
+        if path == "/account/sign-out":
+            with account_lock:
+                pending_sign_in["value"] = None
+                sync_state.update(state="idle", last_sync_at=None, last_error=None, last_summary=None)
+            try:
+                account.sign_out()
+            except Exception:
+                pass
+            completed_seen.clear()
+            return 200, {"ok": True}
+        refused = _require_signed_in()
+        if refused:
+            return refused
+        if path == "/account/sync":
+            _start_sync()
+            return 200, {"started": True, "sync": _account_view()["sync"]}
+        try:
+            if path == "/account/remote-library":
+                books = [dataclasses.asdict(b) if dataclasses.is_dataclass(b) else dict(b)
+                         for b in _make_drive().list_remote()]
+                return 200, {"books": books}
+            if path == "/account/restore":
+                try:
+                    job_id = validate_job_id(data.get("job_id"))
+                except ValueError:
+                    return 400, {"error": "מזהה הספר אינו תקין.", "code": "bad_id"}
+                _make_drive().download(job_id)
+                return 200, {"ok": True, "job_id": job_id}
+        except Exception as exc:
+            return _drive_error(exc)
+        return 404, {"error": "not found"}
+
+    def _oauth_callback(query: dict) -> bytes:
+        with account_lock:
+            pending = pending_sign_in["value"]
+            if pending is not None and time.monotonic() - pending_sign_in["at"] > PENDING_SIGN_IN_SECONDS:
+                pending = pending_sign_in["value"] = None
+        if account is None or pending is None:
+            return _sign_in_page(False)
+        try:
+            who = account.complete_sign_in(pending, query)
+        except SignInError as exc:
+            if exc.reason != "state_mismatch":  # a stray request must not cancel the real attempt
+                with account_lock:
+                    pending_sign_in["value"] = None
+            return _sign_in_page(False, str(getattr(exc, "reason", "")))
+        except Exception:
+            with account_lock:
+                pending_sign_in["value"] = None
+            return _sign_in_page(False)
+        with account_lock:
+            pending_sign_in["value"] = None
+            sync_state.update(state="idle", last_error=None)
+        _start_sync()
+        return _sign_in_page(True, str(getattr(who, "email", "") or ""))
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, _format, *_args):
             pass
@@ -469,6 +725,12 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
             self._reply(status, json.dumps(value, ensure_ascii=False).encode("utf-8"))
 
         def do_GET(self) -> None:
+            if urlparse(self.path).path == "/oauth/callback":
+                # The browser redirect from Google: no UI token possible. Safe because
+                # the one-time state (plus PKCE) must match the pending sign-in.
+                query = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items() if v}
+                self._reply(200, _oauth_callback(query), "text/html")
+                return
             if urlparse(self.path).path == "/learning/wordlist":
                 language = parse_qs(urlparse(self.path).query).get('language', [''])[0]
                 if language not in ('fr', 'de', 'es', 'yi', 'it', 'ar'):
@@ -598,6 +860,23 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 data = json.loads(self.rfile.read(length))
                 if not isinstance(data, dict):
                     raise ValueError("invalid request")
+                if route.path == "/account" or route.path.startswith("/account/"):
+                    status, body = _account_action(route.path, data, self.server.server_port)
+                    self._json(status, body)
+                    return
+                if route.path == "/update-status":
+                    self._json(200, {"status": ui_status()})
+                    return
+                if route.path == "/update-settings":
+                    enabled = data.get("auto_update")
+                    if not isinstance(enabled, bool):
+                        self._json(400, {"error": "auto_update must be true or false"})
+                    elif ui_status() is None:
+                        self._json(404, {"error": "updates are not available in this installation"})
+                    else:
+                        set_auto_update(enabled)
+                        self._json(200, {"ok": True, "auto_update": enabled})
+                    return
                 if route.path.startswith("/learning/"):
                     from ..learning.contracts import LearningError
                     try:
@@ -693,6 +972,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     job["recheck_candidates"] = sum(review_salvage.candidates(job))
                     job["cross_review_available"] = chapter_pipeline.cross_review_available(job)
                     job["review_suggestions"] = sum(chapter_pipeline.review_suggestions(job).values())
+                    if job.get("status") == "completed":
+                        _note_completed([job.get("job_id")])
                     self._json(200, job)
                 elif route.path == "/document-recheck-reviews":
                     self._json(200, document_jobs.recheck_saved_reviews(data.get("job_id")))
@@ -809,7 +1090,9 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                             continue
                     self._json(200, {"job": recent})
                 elif route.path == "/document-library":
-                    self._json(200, {"documents": _document_library(document_jobs)})
+                    documents = _document_library(document_jobs)
+                    _note_completed([d.get("job_id") for d in documents])
+                    self._json(200, {"documents": documents})
                 elif route.path == "/document-review":
                     self._json(200, document_jobs.review(data.get("job_id"), data.get("unit_index"),
                                data.get("target_text"), data.get("expected_revision")))
@@ -971,7 +1254,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 elif route.path == "/open":
                     path = Path(data.get("path", "")).resolve()
                     with settings_lock:
-                        allowed = path.is_relative_to((ROOT / "outputs").resolve()) or any(
+                        allowed = _under_outputs(path) or any(
                             path == directory or path.is_relative_to(directory)
                             for directory in session_outputs
                         )
@@ -1020,6 +1303,10 @@ def running_instance_url(folder: Path) -> str | None:
 
 
 def main() -> int:
+    try:
+        app_paths.migrate_legacy_outputs()
+    except Exception:
+        pass  # a failed one-time copy must never stop the app starting
     instance_folder = OUTPUT_ROOT.parent
     instance_lock = claim_single_instance(instance_folder)
     if instance_lock is None:
@@ -1036,6 +1323,15 @@ def main() -> int:
     url = f"http://127.0.0.1:{server.server_port}/"
     (instance_folder / "web_ui.url").write_text(url, encoding="utf-8")
     print(f"Local UI: {url}", flush=True)
+    try:
+        app_paths.start_heartbeat_thread()
+    except Exception:
+        pass
+    try:
+        from ..update import updater
+        updater.start_background_check()
+    except Exception:
+        pass
     webbrowser.open(url)
     try:
         server.serve_forever()
