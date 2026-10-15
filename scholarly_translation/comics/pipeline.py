@@ -791,7 +791,7 @@ def prepare_page(ctx, stages, number, name, image, raw, source_language, target_
                             dialogue, base_deps)
         for item, region in zip(answer["translations"], page["regions"]):
             region["translation"] = {"text": item["text"], "status": "ok", "note": item["note"]}
-            if region["kind"] in ("sign", "other"):      # scene lettering stays in the original
+            if region["kind"] == "sign":      # scene lettering stays in the original
                 region["translation"]["keep_original"] = True
                 if item.get("footnote"):
                     region["translation"]["footnote"] = True

@@ -437,9 +437,13 @@ def _translations(data, ids, target_code, kinds, with_note, sources=None):
         source = (sources or {}).get(key, "")
         if any(ch.isalpha() for ch in source) and not any(ch.isalpha() for ch in text):
             _fail("%s: the source has words but the translation has none" % where)
-        # Sound effects may stay in the original lettering when no equivalent exists.
-        if (kinds or {}).get(key) != "sfx":
-            _check_script(text, target_code, where)
+        # Sound effects may stay in the original lettering when no equivalent exists; a sign stays
+        # in the original anyway. Names and codes copied from the source (ISBN, a publisher's
+        # name) are not counted as foreign script.
+        if (kinds or {}).get(key) not in ("sfx", "sign"):
+            copied = set(re.findall(r"\w+", source))
+            _check_script(" ".join(w for w in re.findall(r"\S+", text) if not set(re.findall(r"\w+", w)) <= copied
+                                   or not re.findall(r"\w+", w)), target_code, where)
         note = entry.get("note", "")
         found[key] = {"id": key, "text": text, "note": note.strip() if with_note and isinstance(note, str) else ""}
         order.append(key)
@@ -458,7 +462,7 @@ def parse_translation(text, region_ids, target_code, kinds=None, sources=None):
     translations = _translations(data, ids, target_code, kinds, True, sources)
     notes = {e.get("id"): e.get("footnote") is True for e in data.get("translations") or [] if isinstance(e, dict)}
     for item in translations:   # only lettering in the scene gets a footnote
-        item["footnote"] = notes.get(item["id"], False) and (kinds or {}).get(item["id"]) in ("sign", "other")
+        item["footnote"] = notes.get(item["id"], False) and (kinds or {}).get(item["id"]) == "sign"
     notebook = records.new_notebook()
     raw = data.get("notebook") or {}
     if not isinstance(raw, dict):
