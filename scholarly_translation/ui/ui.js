@@ -27,6 +27,8 @@ function forget(key){try{localStorage.removeItem(key)}catch(_){}}
 let LANG='he';
 try{if(localStorage.getItem('ui-language')==='en')LANG='en'}catch(_){}
 const t=(he,en)=>LANG==='en'?en:he;
+// The library cat (cat.js) reacts to app events; decorative and optional.
+const catReact=(type,detail)=>{try{window.libraryCat?.react(type,detail)}catch(_){}};let catJobKey='';
 // Default target follows the interface language; a choice holds until the language switches.
 let targetWanted=LANG==='en'?'en':'he';
 let previewView=null,manualEdit=false,resultError='',reviewSaved=false,libraryData=null,recentName=null;
@@ -277,6 +279,8 @@ function message(text){srvText($('form-message'),text);$('form-message').hidden=
 function show(panel){
   const changed=$(panel).hidden;
   for(const id of ['start-panel','processing-panel','result-panel','library-panel'])$(id).hidden=id!==panel;
+  document.body.dataset.route={'start-panel':'new','processing-panel':'job','result-panel':'result','library-panel':'library'}[panel];
+  if(changed)catReact('route');
   if(changed&&panel==='processing-panel')window.scrollTo({top:0,behavior:'auto'});
 }
 function setBusy(value){busy=value;updateSettings();$('sample-button').disabled=value}
@@ -321,6 +325,7 @@ function initRoleUI(){
   if(LANG==='en')applyStatic();
 }
 function onRoleSelectChange(role,value){
+  if(role==='translator')catReact('model',{id:String(value).split(':').pop()});
   if(role==='semantic_reviewer')qaTouched=true;
   if(role==='chapter_qa')chapterQaTouched=true;
   const otherFields=document.querySelector(`.other-fields[data-role="${role}"]`);
@@ -649,6 +654,7 @@ function setUploaded(file){
   uploaded=file;$('upload-empty').hidden=!!file;$('upload-selected').hidden=!file;
   if(file){$('filename').textContent=file.name;$('file-size').textContent=(file.size/1024/1024<1?Math.ceil(file.size/1024)+' KB':(file.size/1024/1024).toFixed(1)+' MB')+' · '+file.name.split('.').pop().toUpperCase()}
   updatePdfFontVisibility();updateSettings();schedulePreview();
+  if(file)catReact('file-selected',{perch:'dropzone'});
 }
 function updatePdfFontVisibility(){
   const isPdf=uploaded&&/\.pdf$/i.test(uploaded.name);
@@ -767,6 +773,8 @@ function renderStats(){
   box.hidden=!rows.length;box.innerHTML=rows.length?'<dl class="stat-grid">'+rows.join('')+'</dl>':'';
 }
 function renderProcessing(){
+  const catKey=currentJob.job_id+':'+(currentJob.blocker?'decision':currentJob.status);
+  if(catKey!==catJobKey){catJobKey=catKey;catReact(currentJob.blocker?'job-decision':currentJob.status==='paused'?'job-paused':['failed','interrupted'].includes(currentJob.status)?'job-error':'job-start',{perch:'bindery'})}
   $('processing-eyebrow').textContent=t('המסמך בדרך ',"Your document is on its way ")+targetTo(targetOf(currentJob));
   $('processing-title').textContent=stageLabel(currentJob.stage_label)||t('קוראים את המסמך…','Reading the document…');
   $('processing-file').textContent=currentJob.placeholder?t('המסמך האחרון','The last document'):currentJob.filename;
@@ -969,6 +977,7 @@ function renderResultSummary(){
 function renderResult(){
   manualEdit=false;resultError='';renderResultSummary();
   const complete=currentJob.status==='completed';
+  if(complete&&catJobKey!==currentJob.job_id+':done'){catJobKey=currentJob.job_id+':done';catReact('job-done',{perch:'result'})}
   const isPdf=sourceExt()==='pdf';
   $('font-after-field').hidden=!isPdf||!complete;
   if(isPdf&&pdfFonts.length){
@@ -1067,6 +1076,7 @@ async function saveEdit(showMessage=true){
 }
 async function download(){
   if(dirty()&&!await saveEdit())return;
+  catReact('download');
   $('download-pdf').disabled=true;
   try{const payload={job_id:currentJob.job_id,format:sourceExt()};
     if(sourceExt()==='pdf'&&$('font-after').value)payload.font_id=$('font-after').value;
@@ -1159,7 +1169,7 @@ async function libraryDelete(doc,item,inProgress){
   try{await request('/document-delete',{job_id:doc.job_id,confirm:true});
     try{if(localStorage.getItem('document-last-job')===doc.job_id)forget('document-last-job')}catch(_){}
     if(currentJob?.job_id===doc.job_id)currentJob=null;
-    loadLibrary();
+    loadLibrary();catReact('delete');
   }catch(caught){srvText(error,caught.message);error.hidden=false;item.querySelectorAll('button,select').forEach(control=>control.disabled=false)}
 }
 let libraryTab='done';
@@ -1457,6 +1467,7 @@ function restoreKeyInputs(kept){document.querySelectorAll('.key-input,.resume-ke
 function setLanguage(next){
   if(next===LANG)return;
   LANG=next;remember('ui-language',next);targetWanted=next==='en'?'en':'he';
+  setTimeout(()=>catReact(next==='en'?'lang-en':'lang-he'),50);
   const kept=keptKeyInputs(),beforeFont=$('font-before').value,afterFont=$('font-after').value;
   applyBase();
   document.querySelectorAll('.role-select option[data-cat]').forEach(option=>{

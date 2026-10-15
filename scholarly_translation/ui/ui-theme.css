@@ -1,0 +1,130 @@
+/* Library theme for the translation app: warm paper, ink green and brass, a book typeface.
+   Layered after ui.css; IDs, structure and behaviour are unchanged. Local font only. */
+@font-face{font-family:"Frank Ruhl Libre";src:url("/fonts/frank-ruhl-libre.ttf") format("truetype");font-weight:300 900;font-display:swap}
+:root{
+  --bg:#f5eee0;--bg-2:#efe5d1;--surface:#fffdf8;--surface-2:#faf5ea;--surface-3:#f3ebda;
+  --border:#e6dac3;--border-2:#d6c6a6;--ink:#1f2823;--ink-2:#3b443d;--muted:#6f685a;
+  --green-950:#11241e;--green-900:#173029;--green-800:#1f3d34;--green-700:#2a5144;--green-600:#3a6b59;--green-100:#e5eee6;--green-50:#f0f5ef;
+  --clay:#b0532f;--clay-700:#93401f;--clay-100:#f7e5da;--gold:#c8963e;--gold-300:#e8c98a;--gold-100:#f8ecd2;
+  --ok:#2f6b45;--ok-100:#e3efe5;--warn-100:#fbefd5;--danger:#a33a2e;--danger-100:#f8e2dd;--focus:#c26a2e;
+  --display:"Frank Ruhl Libre","David",Georgia,"Times New Roman",serif;
+  --sans:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  --r-sm:8px;--r:12px;--r-lg:18px;--r-xl:24px;
+  --sh-1:0 1px 2px #3c28140f;--sh-2:0 1px 2px #3c28140d,0 10px 28px -14px #3c281445;--sh-3:0 2px 6px #3c281414,0 28px 60px -24px #3c281466;
+  /* The older names used by ui.css follow the theme. */
+  --teal:var(--green-800);--line:var(--border);
+  color:var(--ink);background:var(--bg);font-family:var(--sans);-webkit-font-smoothing:antialiased
+}
+body{background:radial-gradient(1200px 500px at 85% -10%,#fbe9c766,transparent 70%),radial-gradient(#8a6a3a0a 1px,transparent 1.3px) 0 0/6px 6px,var(--bg);overflow-x:clip}
+:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible,[role=button]:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green-600)!important;box-shadow:0 0 0 4px #3a6b5926}
+
+/* Header: a full-width ink-green bar with the cat-and-book mark. */
+.app-header{position:sticky;top:0;z-index:50;padding:10px 24px;color:#f1e7cf;background:linear-gradient(#1b3830,#152d26);box-shadow:0 0 0 100vmax #173029,0 1px 0 100vmax #c8963e66;clip-path:inset(0 -100vmax -12px)}
+.brand{gap:12px;color:var(--gold-300);font:650 1.45rem/1 var(--display);letter-spacing:0}
+.brand-mark{width:auto;height:auto;background:none;border-radius:0}
+.brand-mark .brand-logo{width:54px;height:41px;filter:drop-shadow(0 3px 4px #0007);transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.brand:hover .brand-logo{transform:translateY(-2px) rotate(-3deg)}
+.header-actions{gap:6px}
+.app-header .quiet-button{min-height:38px;padding:6px 13px;border:1px solid #ffffff24;border-radius:999px;background:#ffffff0d;color:#efe5cc;font-size:.82rem;font-weight:600}
+.app-header .quiet-button:hover{background:#ffffff1f;border-color:#ffffff40;color:#fff}
+.app-header .library-header-button,.app-header .help-header-link,.app-header #language-button,.app-header .sign-in-button{color:#efe5cc}
+.app-header .key-indicator{color:#8d9886;padding:6px 10px}.app-header .key-indicator.has-key{color:#a7d58d}.app-header .key-indicator.saved{color:var(--gold-300)}
+.app-header .key-badge{border-color:#173029;background:var(--gold-300)}
+.connection-dot{width:8px;height:8px;background:#7c8576}.connection-dot.connected{background:#8fd17a;box-shadow:0 0 0 3px #8fd17a33}
+.account-button{width:38px;height:38px;border:0;background:linear-gradient(#f0d79f,#d9b268);color:var(--green-950)}
+.account-button:hover{background:linear-gradient(#f4dca8,#e0bb73)}
+.account-menu{border-radius:var(--r);border-color:var(--border);box-shadow:var(--sh-3);padding:16px}
+.update-notice{max-width:960px;border-radius:var(--r);background:linear-gradient(90deg,var(--gold-100),#fbf3e2);border-color:#ecd6a6;color:#5c4415;margin-top:16px}
+
+/* Type and page rhythm. */
+.workspace{max-width:900px;padding-top:28px}
+.hero{margin-bottom:24px}
+.eyebrow{color:var(--clay);font-weight:650;letter-spacing:.02em}
+html[lang=en] .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px}
+.hero h1,.processing-panel h1,.result-heading h1,.library-heading h1{font-family:var(--display);font-weight:650;letter-spacing:-.01em;color:var(--green-900)}
+.hero h1{font-size:clamp(34px,4.2vw,50px)}
+.hero h1 span{color:var(--clay)}
+.hero p{font-size:15px;color:var(--muted)}
+
+/* Cards. */
+.translate-card,.result-card,.library-card,.review-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-2)}
+.translate-card{padding:22px}
+.drop-zone{border:2px dashed #cdb98f;border-radius:var(--r);background:radial-gradient(400px 200px at 50% 0,#fff8e6,transparent),var(--surface-2);padding:22px 20px}
+.drop-zone:hover,.drop-zone.dragging{border-color:var(--green-600);background:radial-gradient(400px 200px at 50% 0,#fffaf0,transparent),var(--green-50)}
+.drop-zone h2{font-family:var(--display);font-size:20px;color:var(--green-900)}
+.file-illustration{background:var(--gold-100);color:var(--clay);border-radius:var(--r)}
+.choose-file{border:0;border-radius:var(--r-sm);background:var(--green-800);color:#fdf8ec;box-shadow:0 6px 14px -8px #11241e80}
+.selected-file strong{font-family:var(--display);font-size:18px;color:var(--green-900)}
+.selected-file-icon{background:var(--gold-100);color:var(--clay);border-radius:var(--r-sm)}
+.change-file{color:var(--green-700);border-color:#2a514466}
+
+/* Option summary reads as chips. */
+.options summary{min-height:44px}
+.option-summary{gap:6px}
+.option-summary>span:not(.separator){padding:3px 11px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border);color:var(--ink-2);font-weight:650}
+.option-summary .separator{display:none}
+.options-label{color:var(--green-800);font-weight:700;font-size:13px}
+.settings-fields{border-top-color:var(--border)}
+.field label,.role-block h3,.key-fields label{color:var(--ink-2);font-weight:650}
+.field input,.field select,.field textarea,.role-fields select,.role-fields input,.key-fields input,.decision-option input,#resume-key-fields input,.review-toolbar select{border:1px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);box-shadow:inset 0 1px 2px #3c28140a;transition:border-color .15s,box-shadow .15s}
+.field input:hover,.field select:hover,.field textarea:hover{border-color:#bfa97f}
+.model-settings{border-top-color:var(--border)}
+.preview-card{background:var(--green-50);border-color:#c9dbc9;border-radius:var(--r)}
+
+/* Buttons. */
+.primary-button,.secondary-button{border-radius:var(--r-sm);font-weight:650;transition:background .15s,transform .08s,box-shadow .15s}
+.primary-button{background:var(--green-800);color:#fdf8ec;box-shadow:0 1px 0 #ffffff24 inset,0 1px 2px #11241e33,0 6px 14px -8px #11241e80}
+.primary-button:hover:not(:disabled){background:var(--green-700)}
+.primary-button:active:not(:disabled),.secondary-button:active:not(:disabled){transform:translateY(1px)}
+.primary-button:disabled{background:#d8d0bf;color:#7d7564;box-shadow:none;opacity:1}
+.secondary-button{background:var(--surface);color:var(--green-800);border-color:var(--border-2);box-shadow:var(--sh-1)}
+.secondary-button:hover{background:var(--green-50);border-color:var(--green-600)}
+.translate-button{min-height:52px;border-radius:var(--r);font-size:15px}
+.text-button{color:var(--green-700);font-weight:600}
+.text-button:hover{color:var(--green-900);background:#1f3d340d}
+.message,.result-notice{border-radius:var(--r-sm);background:var(--danger-100);border-color:#eac0b8;color:#6e241b}
+
+/* Processing, result and review: calm cards (the bindery arrives in stage 4). */
+.processing-percentage{font:600 26px/1.1 var(--display);color:var(--green-800);font-variant-numeric:tabular-nums}
+.processing-panel progress{height:10px;border-radius:999px;width:min(420px,90%)}
+.processing-panel progress::-webkit-progress-bar{background:var(--surface-3);border-radius:999px}
+.processing-panel progress::-webkit-progress-value{background:linear-gradient(90deg,var(--green-600),var(--green-800));border-radius:999px}
+.result-symbol{background:radial-gradient(circle at 35% 30%,#4f9a6a,#2f6b45);border:0;color:#fff;box-shadow:0 0 0 4px var(--ok-100)}
+.result-file strong{font-family:var(--display);font-size:18px;color:var(--green-900)}
+.result-file-icon{background:var(--green-800);color:#fdf8ec;border-radius:var(--r-sm)}
+.draft-badge{border:1px dashed #d89b7f;background:var(--clay-100);color:var(--clay-700);border-radius:999px;font-weight:800;letter-spacing:.04em}
+.result-secondary{border-top-color:var(--border)}
+.review-toolbar h2{font-family:var(--display);font-size:22px;color:var(--green-900)}
+.source-copy,#review-target{font-family:var(--display);font-size:18px;border-color:var(--border);border-radius:var(--r-sm)}
+.source-copy{background:var(--surface-2)}
+.review-findings{color:#6b4a1c}
+.decision-box{border-radius:var(--r);border-color:#ead39f;background:linear-gradient(var(--surface),#fffaf0);box-shadow:var(--sh-1)}
+.decision-box h2{font-family:var(--display);font-size:19px;color:var(--green-900)}
+
+/* Library (the shelf arrives in stage 2). */
+.library-heading h1:focus{outline:none}
+.library-tabs{border-radius:999px;border-color:var(--border);background:var(--surface-3)}
+.library-tab{border-radius:999px}
+.library-tab[aria-selected=true]{background:var(--surface);color:var(--green-900);box-shadow:var(--sh-1),0 0 0 1px var(--border)}
+.library-kind{border-radius:999px;color:#f8eed6;background:#1f2823;border:0}
+.library-kind[data-kind=epub]{color:#f8eed6;background:var(--green-700)}
+.library-entry:hover{background:var(--surface-2)}
+.library-entry strong{font-family:var(--display);font-size:17px;color:var(--green-900)}
+.drive-badge{border-radius:999px}
+
+/* Dialogs and footer. */
+dialog{border-radius:var(--r-lg);border-color:var(--border);background:var(--surface);box-shadow:var(--sh-3)}
+dialog::backdrop{background:#0f1f1aa6;backdrop-filter:blur(3px)}
+.dialog-heading h2{font-family:var(--display);color:var(--green-900)}
+.app-footer{max-width:none;margin-top:32px;padding:16px 40px;align-items:center;flex-wrap:wrap;color:var(--ink-2);font-size:12px;background:linear-gradient(var(--bg-2),#e8dcc4);border-top:1px solid var(--border-2)}
+.app-footer a{border-bottom-color:#2a514466}
+.cat-button{font-size:12px}
+
+@media(max-width:650px){
+  .app-header{padding:8px 14px}
+  .brand{font-size:1.15rem}
+  .brand-mark .brand-logo{width:44px;height:33px}
+  .app-header .quiet-button{min-height:34px;padding:5px 9px;font-size:.76rem}
+  .app-footer{padding:16px}
+}

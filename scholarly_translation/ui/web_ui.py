@@ -781,10 +781,15 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     return
                 self._reply(200, html.encode("utf-8"), "text/html")
                 return
-            if self.path in ("/ui.css", "/ui.js"):
+            if self.path in ("/ui.css", "/ui.js", "/ui-theme.css", "/cat.css", "/cat.js"):
                 name = self.path.removeprefix("/")
                 kind = "text/css" if name.endswith(".css") else "text/javascript"
                 self._reply(200, (UI_DIR / name).read_bytes(), kind)
+                return
+            if self.path == "/fonts/frank-ruhl-libre.ttf":
+                # The interface typeface ships with the app (OFL), so the page needs no remote font.
+                font = UI_DIR.parent / "assets" / "fonts" / "frankruhllibre" / "FrankRuhlLibre[wght].ttf"
+                self._reply(200, font.read_bytes(), "font/ttf")
                 return
             if self.path == "/book-sprite.svg":
                 self._reply(200, (UI_DIR.parent / "assets" / "book-sprite.svg").read_bytes(), "image/svg+xml")

@@ -1,0 +1,142 @@
+/* The roaming cat lives in document coordinates, above content and below the header. */
+.roam-cat{--cat-scale:3;position:absolute;left:0;top:0;width:calc(32px*var(--cat-scale));height:calc(24px*var(--cat-scale));z-index:30;pointer-events:none;will-change:transform;transition:opacity .25s}
+.roam-cat[hidden]{display:none}
+.roam-cat.away,.roam-cat.paused{opacity:0}
+.roam-cat.paused{transition:none}
+.roam-body{all:unset;display:block;width:100%;height:100%;pointer-events:auto;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.roam-body:focus-visible{outline:3px dashed var(--brass-2,#e2c27f);outline-offset:2px}
+.roam-cat.held .roam-body{cursor:grabbing}
+.roam-body svg{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 100%;filter:none}
+.roam-cat.face-left svg{transform:scaleX(-1)}
+.roam-cat.crouch svg{transform:scaleY(.86)}
+.roam-cat.crouch.face-left svg{transform:scaleX(-1) scaleY(.86)}
+.roam-cat.land svg{transform:scale(1.08,.88)}
+.roam-cat.land.face-left svg{transform:scale(-1.08,.88)}
+.roam-cat.held svg{transform:rotate(-6deg)}
+.roam-cat.held.face-left svg{transform:scaleX(-1) rotate(-6deg)}
+.roam-cat.arriving{opacity:.4}
+
+/* Thought bubble: rounded cloud with trailing thought dots, kept inside the viewport by JS. */
+.roam-thought{position:absolute;top:0;left:0;width:max-content;max-width:min(250px,calc(100vw - 24px));padding:10px 14px;background:#fffbea;color:#3a3122;border:3px solid #2a1d15;border-radius:28px;box-shadow:4px 4px 0 #2a1d1526,inset 0 0 0 4px #fffbea,inset 0 0 0 5px #2a1d1514;font:italic 500 .9rem/1.6 var(--serif,Georgia,serif);pointer-events:none;animation:thought-in .22s steps(3,end) both;--tail:50%;--lean:0px;--mid:50%}
+.roam-thought p{margin:0}
+.roam-thought:before,.roam-thought:after{content:"";position:absolute;background:#fffbea;border:3px solid #2a1d15;border-radius:50%}
+.roam-thought:before{width:12px;height:12px;bottom:-15px;left:calc(var(--tail) + var(--lean) * .3 - 6px)}
+.roam-thought:after{width:8px;height:8px;bottom:-26px;left:calc(var(--tail) + var(--lean) * .6 - 4px)}
+@keyframes thought-in{from{opacity:0;transform:translateY(6px) scale(.9)}to{opacity:1;transform:none}}
+
+.roam-fx{position:absolute;left:50%;bottom:calc(18px*var(--cat-scale));width:0;height:0}
+.roam-heart{position:absolute;left:var(--dx);bottom:0;width:15px;height:12px;background:#d4574e;clip-path:polygon(0 25%,20% 0,40% 0,50% 17%,60% 0,80% 0,100% 25%,100% 50%,50% 100%,0 50%);animation:cat-float 1.5s steps(10,end) both}
+.roam-zzz{position:absolute;left:calc(var(--dx) + 20px);bottom:0;font:800 1rem/1 ui-monospace,Consolas,monospace;color:#6a7f9b;animation:cat-float 1.6s steps(8,end) both}
+@keyframes cat-float{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-46px)}}
+@media(forced-colors:active){.roam-thought{border-color:CanvasText}}
+@media print{.roam-cat{display:none}}
+.roam-thought.side .roam-floor{position:fixed;left:0;right:0;bottom:10px;height:1px;pointer-events:none}
+
+/* Illustrated cat. Warm ginger tabby, cream chest and socks, soft outline. */
+.cat-svg{overflow:visible}
+.cat-svg g{transform-box:view-box}
+.cat-svg .c-shadow{fill:#2a1d1524}
+.cat-svg .c-fur,.cat-svg .c-leg rect{fill:#e3893a;stroke:#3a2416;stroke-width:2.3;stroke-linejoin:round}
+.cat-svg .c-leg.far rect{fill:#c8722b}
+.cat-svg .c-haunch{fill:#de8236}
+.cat-svg .c-cream,.cat-svg .paw{fill:#fbe8c8}
+.cat-svg .paw{stroke:#3a2416;stroke-width:1.6}
+.cat-svg .c-ear-in{fill:#f2a69d}
+.cat-svg .c-stripes{fill:none;stroke:#b55d1c;stroke-width:2.6;stroke-linecap:round}
+.cat-svg .t-out{fill:none;stroke:#3a2416;stroke-width:10.8;stroke-linecap:round}
+.cat-svg .t-in{fill:none;stroke:#e3893a;stroke-width:6.4;stroke-linecap:round}
+.cat-svg .t-stripe{fill:none;stroke:#b55d1c;stroke-width:6.4;stroke-dasharray:3 7}
+.cat-svg .t-tip{fill:none;stroke:#fbe8c8;stroke-width:6.4;stroke-linecap:round}
+.cat-svg .eyes-open ellipse{fill:#2c4a28}
+.cat-svg .glint{fill:#fff}
+.cat-svg .eyes-closed,.cat-svg .eyes-happy,.cat-svg .c-mouth{fill:none;stroke:#3a2416;stroke-width:1.8;stroke-linecap:round}
+.cat-svg .c-nose{fill:#e08178;stroke:#3a2416;stroke-width:1;stroke-linejoin:round}
+.cat-svg .c-yawn{fill:#b9464a;stroke:#3a2416;stroke-width:1.3;opacity:0}
+.cat-svg .c-whisk{fill:none;stroke:#7a5a40;stroke-width:1;stroke-linecap:round;opacity:.65}
+.cat-svg .blush{fill:#ef8b82;opacity:0;transition:opacity .2s}
+.cat-svg .eyes-closed,.cat-svg .eyes-happy{display:none}
+.cat-svg .c-head{transform-origin:97px 46px;transition:transform .22s ease}
+.cat-svg .c-stand,.cat-svg .c-sit{transform-origin:60px 88px}
+.cat-svg .c-leg{transition:transform .18s ease}
+.cat-svg .c-leg.back.near{transform-origin:34.75px 60px}.cat-svg .c-leg.back.far{transform-origin:42.75px 60px}
+.cat-svg .c-leg.front.near{transform-origin:74.75px 60px}.cat-svg .c-leg.front.far{transform-origin:82.75px 60px}
+.cat-svg .c-leg.sit.near{transform-origin:79px 62px}.cat-svg .c-leg.sit.far{transform-origin:70px 62px}
+.cat-svg .c-tail{transform-origin:31px 51px;transition:transform .2s ease}
+.cat-svg .c-tail-sit{transform-origin:37px 86px}
+.cat-svg .eyes-open{transform-origin:97px 32px;transition:transform .15s}
+
+/* Which body. */
+.cat-svg .c-sit{display:none}
+.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom]) .c-stand{display:none}
+.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom]) .c-sit{display:inline}
+.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom]) .c-head{transform:translate(-18px,-8px)}
+
+/* Eyes. */
+.cat-svg:is([data-pose=loaf],[data-pose=groom],[data-pose=yawn],.blink) .eyes-open,.cat-svg[data-pose=happy] .eyes-open{display:none}
+.cat-svg:is([data-pose=loaf],[data-pose=groom],[data-pose=yawn],.blink):not([data-pose=happy]) .eyes-closed{display:inline}
+.cat-svg[data-pose=happy] .eyes-happy{display:inline}
+.cat-svg[data-pose=happy] .blush{opacity:.6}
+.cat-svg:is([data-pose=jump],[data-pose=held]) .eyes-open{transform:scale(1.18)}
+.cat-svg[data-pose=look] .eyes-open{transform:translate(2.2px,-.6px)}
+.cat-svg[data-pose=yawn] .c-yawn{opacity:1}.cat-svg[data-pose=yawn] .c-mouth{display:none}
+
+/* Sitting life: tail swish and slow breathing. */
+.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy]) .c-tail-sit{animation:cat-swish 2.8s ease-in-out infinite}
+.cat-svg:is([data-pose=sit],[data-pose=look]) .c-sit{animation:cat-breathe 3.4s ease-in-out infinite}
+.cat-svg[data-pose=look] .c-head{transform:translate(-17px,-9px) rotate(-7deg)}
+.cat-svg[data-pose=happy] .c-head{transform:translate(-18px,-8px) rotate(6deg)}
+.cat-svg[data-pose=yawn] .c-head{transform:translate(-19px,-9px) rotate(-10deg)}
+.cat-svg[data-pose=groom] .c-head{transform:translate(-17px,-6px) rotate(9deg)}
+.cat-svg[data-pose=groom] .c-leg.sit.near{transform:rotate(-158deg);animation:cat-lick .5s ease-in-out infinite alternate}
+
+/* Walking: diagonal pairs swing together; the body bobs, the head nods, the tail sways. */
+.cat-svg[data-pose=walk] :is(.c-leg.back.near,.c-leg.front.far){animation:cat-step-a .54s ease-in-out infinite}
+.cat-svg[data-pose=walk] :is(.c-leg.back.far,.c-leg.front.near){animation:cat-step-b .54s ease-in-out infinite}
+.cat-svg[data-pose=walk] .c-stand{animation:cat-bob .27s ease-in-out infinite alternate}
+.cat-svg[data-pose=walk] .c-head{animation:cat-nod .54s ease-in-out infinite}
+.cat-svg[data-pose=walk] .c-tail{animation:cat-sway 1.08s ease-in-out infinite}
+
+/* Napping loaf, jumping and being held. */
+.cat-svg[data-pose=loaf] .c-stand{transform:translateY(14px);animation:cat-loaf 3.6s ease-in-out infinite}
+.cat-svg[data-pose=loaf] .c-leg{opacity:0}
+.cat-svg[data-pose=loaf] .c-tail{transform:rotate(-76deg)}
+.cat-svg[data-pose=loaf] .c-head{transform:translate(-5px,13px) rotate(7deg)}
+.cat-svg[data-pose=jump] .c-stand{transform:rotate(-9deg)}
+.cat-svg[data-pose=jump] :is(.c-leg.front.near,.c-leg.front.far){transform:rotate(-52deg)}
+.cat-svg[data-pose=jump] :is(.c-leg.back.near,.c-leg.back.far){transform:rotate(48deg)}
+.cat-svg[data-pose=jump] .c-tail{transform:rotate(-58deg)}
+.cat-svg[data-pose=jump] .c-head{transform:translate(3px,-6px) rotate(-6deg)}
+.cat-svg[data-pose=held] .c-tail{transform:rotate(-142deg)}
+.cat-svg[data-pose=held] .c-leg{transform:translateY(3px)}
+.cat-svg[data-pose=held] .c-head{transform:translate(0,-3px) rotate(-4deg)}
+@keyframes cat-step-a{0%,100%{transform:rotate(20deg)}50%{transform:rotate(-20deg)}}
+@keyframes cat-step-b{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(20deg)}}
+@keyframes cat-bob{to{transform:translateY(-1.4px)}}
+@keyframes cat-nod{0%,100%{transform:translate(0,0)}25%{transform:translate(.6px,1.2px)}75%{transform:translate(.6px,-.6px)}}
+@keyframes cat-sway{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(9deg)}}
+@keyframes cat-swish{0%,100%{transform:rotate(0)}40%{transform:rotate(-5deg)}60%{transform:rotate(2deg)}}
+@keyframes cat-breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.018)}}
+@keyframes cat-loaf{0%,100%{transform:translateY(14px) scaleY(1)}50%{transform:translateY(13.4px) scaleY(1.03)}}
+@keyframes cat-lick{from{transform:rotate(-158deg)}to{transform:rotate(-146deg)}}
+.cat-svg[data-pose=groom] .c-chest{display:none}
+.roam-dot{position:absolute;width:5px;height:5px;bottom:-34px;left:calc(var(--tail) + var(--lean) * .9 - 2.5px);background:#fffbea;border:2px solid #2a1d15;border-radius:50%}
+/* Beside the head: the dots run sideways toward it. */
+.roam-thought[data-side=right]:before{left:-15px;bottom:auto;top:calc(var(--mid) - 6px)}
+.roam-thought[data-side=right]:after{left:-26px;bottom:auto;top:calc(var(--mid) - 4px)}
+.roam-thought[data-side=right] .roam-dot{left:-35px;bottom:auto;top:calc(var(--mid) - 2.5px)}
+.roam-thought[data-side=left]:before{left:auto;right:-15px;bottom:auto;top:calc(var(--mid) - 6px)}
+.roam-thought[data-side=left]:after{left:auto;right:-26px;bottom:auto;top:calc(var(--mid) - 4px)}
+.roam-thought[data-side=left] .roam-dot{left:auto;right:-35px;bottom:auto;top:calc(var(--mid) - 2.5px)}
+/* The cat's settings dialog (opened from the footer). */
+.cat-dialog{width:min(440px,calc(100% - 28px))}
+.cat-dialog h2{margin:0 0 14px;font:650 1.3rem/1.3 var(--display,Georgia,serif);color:var(--green-900,#173029)}
+.cat-options{display:grid;gap:8px}
+.cat-option{display:flex;cursor:pointer}
+.cat-option input{position:absolute;opacity:0}
+.cat-option span{flex:1;padding:10px 14px;border-radius:8px;border:1px solid var(--border-2,#d6c6a6);background:var(--surface,#fffdf8)}
+.cat-option b{display:block;font-size:.95rem}.cat-option small{display:block;font-size:.8rem;color:var(--muted,#6f685a)}
+.cat-option input:checked+span{border-color:var(--green-700,#2a5144);background:var(--green-50,#f0f5ef);box-shadow:0 0 0 1px var(--green-700,#2a5144)}
+.cat-option input:focus-visible+span{outline:3px solid var(--focus,#c26a2e);outline-offset:2px}
+.cat-check{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:.88rem;cursor:pointer}
+.cat-hint,.cat-sound-note{font-size:.82rem;color:var(--muted,#6f685a);line-height:1.6;margin:12px 0 0}
+.cat-actions{display:flex;justify-content:flex-end;margin-top:16px}
