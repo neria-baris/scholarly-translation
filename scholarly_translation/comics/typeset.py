@@ -407,8 +407,11 @@ def _erase_balloon(image, region, protected=()):
         return
     width, height = image.size
     rows, step = area["rows"], area["step"]
-    box = (max(0, min(r[1] for r in rows) - 2), max(0, rows[0][0] - step), min(width, max(r[2] for r in rows) + 2),
-           min(height, rows[-1][0] + step + 1))
+    words = region.get("words") or []
+    box = (max(0, min([r[1] for r in rows] + [w[0] - 5 for w in words]) - 2),
+           max(0, min([rows[0][0] - step] + [w[1] - 5 for w in words])),
+           min(width, max([r[2] for r in rows] + [w[2] + 5 for w in words]) + 2),
+           min(height, max([rows[-1][0] + step + 1] + [w[3] + 5 for w in words])))
     inside = Image.new("L", (box[2] - box[0], box[3] - box[1]), 0)
     mark = ImageDraw.Draw(inside)
     for i, (y, a, b) in enumerate(rows):
@@ -430,6 +433,12 @@ def _erase_balloon(image, region, protected=()):
             if not inside_px[a, y] or not inside_px[b - 1, y]:
                 outside.add(root)
     keep = {root for root, st in stats.items() if st[0] == 0 or st[1] == 0 or st[2] >= cw or st[3] >= ch}
+    own = [[w[0] - box[0] - 3, w[1] - box[1] - 3, w[2] - box[0] + 3, w[3] - box[1] + 3]
+           for w in region.get("words") or []]
+    for root, st in stats.items():           # a letter of this region's own words goes, even at the area's edge
+        if any(st[0] >= w[0] and st[1] >= w[1] and st[2] <= w[2] and st[3] <= w[3] for w in own):
+            outside.discard(root)
+            keep.discard(root)
     for root, st in stats.items():           # ink of protected art lettering stays
         gx0, gy0, gx1, gy1 = st[0] + box[0], st[1] + box[1], st[2] + box[0], st[3] + box[1]
         if any(gx0 < p[2] and gx1 > p[0] and gy0 < p[3] and gy1 > p[1] for p in protected):

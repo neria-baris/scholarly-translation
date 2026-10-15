@@ -17,7 +17,7 @@ from collections import Counter
 
 from PIL import Image, ImageChops, ImageFilter
 
-DETECT_VERSION = "comic-detect@6"
+DETECT_VERSION = "comic-detect@7"
 WORK_EDGE = 1200          # long edge of the analysis copy
 LIGHT = 200               # gray >= LIGHT is fill
 MAX_DARK = 110            # gray < min(Otsu, MAX_DARK) is ink
@@ -558,8 +558,12 @@ def _shaped(interior, lines, line_height):
     for y, a, b in interior["rows"]:
         if y < top - reach or y > bottom + reach:
             continue
-        near = min(lines, key=lambda line: 0 if line[0] <= y < line[1] else min(abs(y - line[0]), abs(y - line[1])))
-        a, b = max(a, near[2] - margin), min(b, near[3] + margin)
+        def dist(line):
+            return 0 if line[0] <= y < line[1] else min(abs(y - line[0]), abs(y - line[1]))
+        best = min(dist(line) for line in lines)
+        # every line about as near (a row between two lines) counts, not just the first found
+        near = [line for line in lines if dist(line) <= best + 0.5 * line_height]
+        a, b = max(a, min(line[2] for line in near) - margin), min(b, max(line[3] for line in near) + margin)
         if b > a:
             rows.append([y, a, b])
     return {"step": interior["step"], "rows": rows} if rows else None

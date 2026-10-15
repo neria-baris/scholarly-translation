@@ -77,7 +77,7 @@ class ComicDetectTests(unittest.TestCase):
         again = comic_detect.detect_candidates(self.page.image)
         self.assertEqual(again, self.found)
         self.assertEqual(self.page.image.tobytes(), before)
-        self.assertEqual(comic_detect.DETECT_VERSION, "comic-detect@6")
+        self.assertEqual(comic_detect.DETECT_VERSION, "comic-detect@7")
 
     def test_blank_page_has_no_candidates(self):
         from PIL import Image
