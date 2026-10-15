@@ -71,6 +71,7 @@ let state=null;
 let activeReader=null; // {session_id, chapter_index, chapter_count, title}
 let pollTimer=null, chapterRequest=0;
 let glossTarget=null;
+let languageChosen=false; // the page opens on the language choice; the rest appears after choosing
 
 function completionKey(sessionId){return 'learning-completion-'+sessionId}
 function completionIdFor(sessionId){
@@ -115,12 +116,16 @@ function learningUpdateNeeded(summary){
 function renderEffort(){
   const active=!!state.learner.active_book_id;
   const selector=$('learning-language');selector.replaceChildren();
+  if(!languageChosen){
+    const option=document.createElement('option');option.value='';option.disabled=true;option.textContent='בחירה';
+    selector.append(option);
+  }
   for(const lang of state.languages){
     const option=document.createElement('option');option.value=lang.id;
     option.textContent=LANGUAGE_NAMES[lang.id]||lang.id;option.disabled=!lang.available;
     selector.append(option);
   }
-  selector.value=state.selected_language||state.learner.language;selector.disabled=false;
+  selector.value=languageChosen?(state.selected_language||state.learner.language):'';selector.disabled=false;
   $('effort-note').textContent=active?'אפשר להכין ספרים נוספים ולעבור בין שפות. ספרים שמתחילים יחד מתחילים מאותה נקודת פתיחה. כל ספר שהושלם מוסיף מילים לספרים חדשים, בלי לשנות ספרים שכבר התחילו. שינוי הרמה זמין לאחר סיום הספרים הפעילים בשפה זו.':'בחרו את קצב שילוב החומר החדש. החזרה על מילים מוכרות מצטברת מעבר לכך.';
   const host=$('effort-levels');host.replaceChildren();
   const labels={'1':'1 — עד 10% חומר חדש','2':'2 — עד 20% חומר חדש','3':'3 — עד 30% חומר חדש וביטויים קצרים'};
@@ -142,10 +147,11 @@ $('learning-language').onchange=async()=>{
   const selector=$('learning-language');selector.disabled=true;
   try{
     await request('/learning/language',{language:selector.value});
+    languageChosen=true;document.body.classList.remove('choosing');
     closeGloss();activeReader=null;chapterRequest++;$('reader-section').hidden=true;
     document.body.classList.remove('reading','progress-open');$('progress-return').hidden=true;
     $('reader-progress').setAttribute('aria-expanded','false');await loadState();
-  }catch(error){selector.value=state.selected_language||state.learner.language;
+  }catch(error){selector.value=languageChosen?(state.selected_language||state.learner.language):'';
     selector.disabled=false;
     $('import-error').textContent=error.message;$('import-error').hidden=false}
 };

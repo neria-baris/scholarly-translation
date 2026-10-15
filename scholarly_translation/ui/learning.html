@@ -5,7 +5,7 @@
 <meta name="color-scheme" content="light"><title>למידת שפה</title>
 <link rel="stylesheet" href="/learning.css">
 </head>
-<body>
+<body class="choosing">
 <header class="app-header">
 <a class="brand" href="/" aria-label="חזרה לתרגום מסמכים"><span>← תרגום מסמכים</span></a>
 <h1 class="page-title">למידת שפה</h1>
@@ -14,6 +14,12 @@
 <main class="workspace">
 <p id="learning-update-message" class="message" role="status" hidden>התוכנה עודכנה, אבל החלון הזה עדיין מחובר לגרסה הקודמת. סגרו והפעילו מחדש את התוכנה, ופתחו את חלונית הלמידה מהחלון החדש כדי לראות ערבית ולבחור פרק התחלה.</p>
 <p id="import-error" class="message" role="alert" hidden></p>
+
+<section id="language-section" class="card language-bar" aria-label="השפה שלומדים">
+<label for="learning-language">השפה שלומדים</label>
+<select id="learning-language" aria-describedby="language-note"></select>
+<p id="language-choose-note" class="muted">בחרו שפה כדי לראות את הספרים, ההתקדמות וההגדרות שלה.</p>
+</section>
 
 <section id="upload-section" class="card" aria-labelledby="upload-title">
 <h2 id="upload-title">הוספת ספר</h2>
@@ -25,8 +31,6 @@
 
 <section id="effort-section" class="card" aria-labelledby="effort-title">
 <h2 id="effort-title">מה לומדים</h2>
-<label for="learning-language">השפה שלומדים</label>
-<select id="learning-language" aria-describedby="language-note"></select>
 <p class="muted" id="level-label">רמת מאמץ: כמה מהטקסט מוחלף בחומר חדש בשפה הנלמדת.</p>
 <p class="muted" id="effort-note"></p>
 <div id="effort-levels" class="levels" role="radiogroup" aria-labelledby="level-label"></div>

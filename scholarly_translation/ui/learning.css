@@ -9,9 +9,10 @@ input:focus{outline:2px solid #ae9252;outline-offset:2px}
 .app-header .brand{font-weight:600;font-size:14px}
 .page-title{font-size:18px;margin:0;font-weight:650}
 .workspace{max-width:900px;margin:auto;padding:0 24px 60px;display:grid;gap:18px}
-.workspace>#books-section{order:1}.workspace>#upload-section{order:2}.workspace>#effort-section{order:3}.workspace>#progress-section{order:4}.workspace>#key-section{order:5}.workspace>#languages-section{order:6}
-.reading .workspace>section:not(#reader-section){display:none}.reading #reader-section{order:0}
-.reading.progress-open .workspace>section#progress-section{display:block;order:0}.reading.progress-open #reader-section{display:none}
+.workspace>#language-section{order:0}.workspace>#books-section{order:1}.workspace>#upload-section{order:2}.workspace>#effort-section{order:3}.workspace>#progress-section{order:4}.workspace>#key-section{order:5}.workspace>#languages-section{order:6}
+.reading .workspace>section:not(#reader-section):not(#language-section){display:none}.reading #reader-section{order:1}
+.choosing .workspace>section:not(#language-section){display:none!important}
+.reading.progress-open .workspace>section#progress-section{display:block;order:1}.reading.progress-open #reader-section{display:none}
 summary{cursor:pointer;font-weight:650;font-size:16px}details[open]>summary{margin-bottom:14px}
 .app-footer{text-align:center;color:var(--muted);font-size:12px;padding:16px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 8px 30px #18372e08}
@@ -68,6 +69,9 @@ input[type=number],input[type=password],input[type=text]{min-height:40px;border:
 .learning-foreign-click:focus-visible{outline:2px solid #ae9252;outline-offset:3px}
 .click-gloss-option{display:flex;align-items:center;gap:6px;font-size:13px;margin:0}
 #learning-language{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:180px}
+.language-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px}
+.language-bar label{margin:0;font-size:14px}.language-bar #learning-language{font-size:15px;font-weight:600}
+.language-bar #language-choose-note{flex-basis:100%;margin:0}body:not(.choosing) #language-choose-note{display:none}
 .export-form{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-block:12px;padding-block:10px;border-top:1px solid var(--line)}
 .export-form label{display:flex;align-items:center;gap:6px}.export-form select{font:inherit;max-width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 .export-form p{flex-basis:100%;margin:0}.export-form input[type=checkbox]{flex-shrink:0}
