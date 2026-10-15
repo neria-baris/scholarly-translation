@@ -17,12 +17,14 @@ User 2026-10-15: stay local (hosted server costed and declined for now); distrib
 separate public GitHub repo (Pages site + Releases + raw files for delta updates); dev repo stays private.
 Blocking for real use only: owner creates Google Cloud OAuth Desktop client + privacy URL,
 the public distribution repo (name open), and an offline Ed25519 update-signing key.
-Integrated on main: C5 site fa96180, C4 key guide 50f3e0e, C1 sign-in ffda48e, C6 self-update 447b44e
-(review fix: rollback runs previous version's code), C2 Drive sync 0286c77 (review fix: 401 invalidates cached
-token; restore of 4 real jobs without journal.sqlite3 renders OK). Running: C3 builder in
-.claude/worktrees/cloud-c3-wiring (branch cloud/c3-wiring) — web_ui wiring, account UI, update UI, OUTPUT_ROOT=data_root.
-Agent worktrees default to stale origin/main (66+ behind): create worktrees on main manually.
-Next action: review/test/integrate C3, then full test suite, run history entry, gate card.
+All six parts integrated on main (C5 fa96180, C4 50f3e0e, C1 ffda48e, C6 447b44e, C2 0286c77, C3 276381d,
+test rename f62d6f3). Full suite 1735 tests passing after the fix (see run_history). No builders running;
+session worktrees removed, branches kept. Not pushed (origin/main 66+ behind; remote previously hung).
+Blocked on owner for release: Google Cloud OAuth Desktop client -> account_config.json; public dist repo name
+(DIST_REPO in update/manifest.py and site placeholder); Ed25519 key via scripts/release/sign_manifest.py
+--generate-key -> PUBLIC_KEY_B64; contact email/effective date in site/privacy.html; verify provider links.
+Next action: owner supplies the above; then a real end-to-end run (sign-in, Drive sync/restore, update round-trip
+on a clean Windows profile) before the first public release.
 
 ---
 Previous checkpoint (other owner):
