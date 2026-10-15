@@ -137,7 +137,8 @@ class LocatedSignTests(unittest.TestCase):
             quad = [to_grid(300, 210), to_grid(420, 210), to_grid(420, 230), to_grid(300, 230)]
             method = editor.edit(image, region, "בר דנוור", locate=lambda img, reg: quad)
         self.assertEqual(method, "local-clean+letter")
-        self.assertEqual(len(client.images.calls), 2)                      # local and redraw rejected
+        self.assertEqual(len(client.images.calls), 3)                      # local, redraw, precise rejected
+        self.assertEqual(client.images.calls[2]["quality"], "high")
         self.assertEqual(image.getpixel((100, 100)), (245, 245, 245))      # the picture elsewhere untouched
 
 
@@ -174,3 +175,35 @@ class SignRouteTests(unittest.TestCase):
             method = editor.edit(image, {"region_id": "p001-r01", "kind": "sign", "bbox": [300, 200, 420, 240]}, "בר")
         self.assertEqual(method, "redraw")
         self.assertIn("mask", client.images.calls[0])
+
+
+
+class PreciseSignTests(unittest.TestCase):
+    def test_located_lettering_is_repainted_inside_its_polygon_only(self):
+        from PIL import ImageDraw
+        image = Image.new("RGB", (800, 600), (245, 245, 245))
+        draw = ImageDraw.Draw(image)
+        for i in range(6):
+            draw.rectangle([305 + i * 18, 214, 315 + i * 18, 226], fill=(20, 20, 20))
+
+        class Picky(FakeImages):                    # the wide redraw repaints everything; masked edits obey
+            def edit(self, **kwargs):
+                if "Replace ONLY" in kwargs["prompt"]:
+                    kwargs = dict(kwargs, prompt="x")
+                    self.redraw_scene = True
+                    try:
+                        return FakeImages.edit(self, **kwargs)
+                    finally:
+                        self.redraw_scene = False
+                return FakeImages.edit(self, **kwargs)
+        client = SimpleNamespace(images=Picky())
+        with tempfile.TemporaryDirectory() as tmp:
+            editor = edit.SignEditor(Path(tmp), client)
+            region = {"region_id": "p001-r01", "kind": "sign", "bbox": [300, 200, 420, 240]}
+            box = edit.edit_request(image, region, "x")[0]
+            to_grid = lambda x, y: [(x - box[0]) * 1000 / (box[2] - box[0]), (y - box[1]) * 1000 / (box[3] - box[1])]
+            quad = [to_grid(300, 210), to_grid(420, 210), to_grid(420, 230), to_grid(300, 230)]
+            method = editor.edit(image, region, "BAR", "Spanish", False, locate=lambda img, reg: quad)
+        self.assertEqual(method, "precise")
+        self.assertEqual(image.getpixel((360, 220))[0], 255)              # repainted inside the polygon
+        self.assertEqual(image.getpixel((100, 100)), (245, 245, 245))      # untouched elsewhere

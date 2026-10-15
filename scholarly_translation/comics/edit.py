@@ -111,9 +111,10 @@ class SignEditor:
             total += cost if isinstance(cost, (int, float)) else 0.0
         return total
 
-    def _request(self, region, crop_png, mask_png, prompt, size, purpose):
+    def _request(self, region, crop_png, mask_png, prompt, size, purpose, quality=None):
         """One cached masked edit; returns the result PNG bytes."""
-        key = hashlib.sha256(b"|".join([EDIT_VERSION.encode(), self.model.encode(), self.quality.encode(),
+        quality = quality or self.quality
+        key = hashlib.sha256(b"|".join([EDIT_VERSION.encode(), self.model.encode(), quality.encode(),
                                         crop_png, mask_png or b"", prompt.encode("utf-8")])).hexdigest()[:32]
         cached = self.dir / ("%s.png" % key)
         if cached.exists():
@@ -125,7 +126,7 @@ class SignEditor:
             extra = {"mask": ("mask.png", mask_png, "image/png")} if mask_png else {}
             response = self.client.images.edit(
                 model=self.model, image=("sign.png", crop_png, "image/png"), prompt=prompt, size=size,
-                quality=self.quality, n=1, **extra)
+                quality=quality, n=1, **extra)
             data = getattr(response, "data", None) or []
             raw = base64.b64decode(getattr(data[0], "b64_json", "") or "", validate=True) if data else b""
             Image.open(io.BytesIO(raw)).verify()
@@ -135,7 +136,7 @@ class SignEditor:
         cached.write_bytes(raw)
         with self.ledger.open("a", encoding="utf-8") as ledger:
             ledger.write(json.dumps({"key": key, "region": region.get("region_id"), "purpose": purpose,
-                                     "model": self.model, "quality": self.quality, "size": size, "usage": usage,
+                                     "model": self.model, "quality": quality, "size": size, "usage": usage,
                                      "estimated_cost_usd": estimate_cost(usage),
                                      "seconds": round(time.monotonic() - start, 2)}) + "\n")
         return raw
@@ -164,7 +165,12 @@ class SignEditor:
             region["edit_method"] = "redraw"
             return "redraw"
         if locate is not None:
-            return self._clean_and_letter(image, region, text, rtl, box, crop_png, size, locate(image, region))
+            quad = locate(image, region)
+            # 3. A precise attempt: only the located lettering may change, at high quality.
+            precise = self._precise(image, region, text, language_name, rtl, box, crop_png, size, quad)
+            if precise:
+                return precise
+            return self._clean_and_letter(image, region, text, rtl, box, crop_png, size, quad)
         geometry = lettering_geometry(image, region)             # measured before the surface is cleaned
         if len(geometry["letters"]) < 3:
             raise SignEditError("the sign's lettering could not be measured")
@@ -186,6 +192,38 @@ class SignEditor:
         region["edit_method"] = method
         return method
 
+
+    def _precise(self, image, region, text, language_name, rtl, box, crop_png, size, quad):
+        """Masked edit limited to the located lettering polygon, high quality, a prompt insisting
+        on the surface's perspective; kept only when nothing outside the polygon changed."""
+        geometry = refine_geometry(image, geometry_from_quad(quad, box))
+        crop_size = Image.open(io.BytesIO(crop_png)).size
+        sx, sy = crop_size[0] / (box[2] - box[0]), crop_size[1] / (box[3] - box[1])
+        grow = max(2, int(0.25 * geometry["height"]))
+        hole = _polygon_mask(crop_size, [((x - box[0]) * sx, (y - box[1]) * sy) for x, y in geometry["polygon"]],
+                             max(2, int(grow * sx)))
+        mask = Image.new("RGBA", crop_size, (0, 0, 0, 255))
+        mask.putalpha(hole.point(lambda v: 0 if v else 255))
+        mask_png = _png(mask)
+        direction = "right-to-left" if rtl else "left-to-right"
+        prompt = (
+            "This is a detail of a black-and-white comic page. Inside the transparent area of the mask there is "
+            "lettering painted on a surface (a sign, awning or wall) seen in perspective; it may appear mirrored. "
+            "Repaint ONLY that lettering so it reads «%s» in %s, written %s and spelled exactly as given. "
+            "The new letters must lie on the same surface with the same slant, perspective, size, stroke weight "
+            "and ink style as the original lettering; continue the surface's texture and hatching between the "
+            "letters. Do not move, straighten, resize or redraw the sign, the building or anything else; outside "
+            "the lettering the image must stay exactly as it is." % (text, language_name, direction))
+        result = self._request(region, crop_png, mask_png, prompt, size, "precise", quality="high")
+        if outside_change(crop_png, result, mask_png) > COMPOSITION_LIMIT:
+            return None
+        edited = Image.open(io.BytesIO(result)).convert("RGB").resize((box[2] - box[0], box[3] - box[1]),
+                                                                      Image.LANCZOS)
+        keep = _polygon_mask((box[2] - box[0], box[3] - box[1]),
+                             [(x - box[0], y - box[1]) for x, y in geometry["polygon"]], grow)
+        image.paste(edited, box[:2], keep.filter(ImageFilter.GaussianBlur(1.5)))
+        region["edit_method"] = "precise"
+        return "precise"
 
     def _clean_and_letter(self, image, region, text, rtl, box, crop_png, size, quad):
         """Fallback with a located quadrilateral: clean only the lettering polygon (locally on a
