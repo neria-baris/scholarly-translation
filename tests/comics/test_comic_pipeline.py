@@ -532,13 +532,25 @@ class RecognizerFallbackTests(unittest.TestCase):
 
 
 class KeepOriginalTests(unittest.TestCase):
-    def test_parse_keep_only_for_scene_lettering(self):
+    def test_parse_footnote_only_for_scene_lettering(self):
         from scholarly_translation.comics import model as cm
-        text = json.dumps({"translations": [{"id": "a", "text": "בר דנוור", "note": "", "keep": True},
-                                            {"id": "b", "text": "שלום לך", "note": "", "keep": True}],
+        text = json.dumps({"translations": [{"id": "a", "text": "מועדון האוהדים הסובלים", "note": "", "footnote": True},
+                                            {"id": "b", "text": "שלום לך", "note": "", "footnote": True}],
                            "notebook": {}, "summary": ""}, ensure_ascii=False)
         parsed = cm.parse_translation(text, ["a", "b"], "he", {"a": "sign", "b": "speech"})
-        self.assertEqual([t["keep"] for t in parsed["translations"]], [True, False])
+        self.assertEqual([t["footnote"] for t in parsed["translations"]], [True, False])
+
+    def test_footnotes_in_the_bottom_margin(self):
+        from scholarly_translation.core import target_languages
+        image = Image.new("RGB", (400, 600), "white")
+        ImageDraw.Draw(image).rectangle([20, 20, 380, 520], fill=(120, 120, 120))   # the art; margin below
+        region = self.region([300, 100, 360, 130])
+        region["translation"]["footnote"] = True
+        region["translation"]["text"] = "מועדון האוהדים"
+        cp.draw_footnotes(image, [(region, region)], target_languages.load("he"))
+        dark_in_margin = sum(1 for x in range(0, 400) for y in range(525, 600) if image.getpixel((x, y))[0] < 100)
+        self.assertGreater(dark_in_margin, 20)                              # the note is in the margin
+        self.assertEqual(image.getpixel((200, 300)), (120, 120, 120))       # the art untouched
 
     def region(self, bbox):
         return {"region_id": "p001-r01", "kind": "sign", "bbox": bbox, "source_text": "BAR", "warnings": [],

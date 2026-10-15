@@ -589,6 +589,52 @@ def is_art_text(region):
     return region.get("kind") in ("sfx", "sign") or layout.get("style") in ("box", "subtitle")
 
 
+def draw_footnotes(image, notes, pack=None):
+    """Translator's footnotes for scene lettering kept in the original: a numbered marker beside
+    the lettering and the notes, smallest readable size, in the page's bottom margin (or on a
+    light strip at the bottom when the art reaches the edge). ``notes``: (region, shown region)."""
+    from PIL import ImageDraw
+    from . import typeset
+    from ..export.common import reorder_bidi_line
+    rtl = pack.rtl if pack else True
+    width, height = image.size
+    size = max(12, int(round(height * 0.012)))
+    font = typeset._font(stages_font(pack), size)
+    draw = ImageDraw.Draw(image)
+    lines = []
+    for number, (region, shown) in enumerate(notes, 1):
+        marker = "*" * number if number <= 3 else "(%d)" % number
+        x0, y0, x1, y1 = shown["bbox"]
+        mx = x0 - size if rtl else x1 + 2
+        draw.text((max(2, mx), max(2, y0 - size // 2)), marker, font=font, fill=(20, 20, 20),
+                  stroke_width=2, stroke_fill=(255, 255, 255))
+        lines.append("%s %s" % (marker, region["translation"]["text"]))
+    line_h = int(size * 1.35)
+    block = line_h * len(lines) + 6
+    gray = image.convert("L")
+    top = height - block - 4
+    for y in range(height - 1, int(height * 0.85), -1):    # the lowest run of white rows: the margin
+        row = gray.crop((0, y, width, y + 1)).getdata()
+        if sum(1 for v in row if v < 200) > 0.02 * width:
+            top = min(top, y + 4) if height - y - 4 >= block else height - block - 4
+            break
+    if any(sum(1 for v in gray.crop((0, top + i, width, top + i + 1)).getdata() if v < 200) > 0.02 * width
+           for i in range(0, block, 3)):
+        draw.rectangle([0, top - 2, width, top + block], fill=(255, 255, 255))
+    y = top + 3
+    for line in lines:
+        visual = reorder_bidi_line(line, rtl_paragraph=True) if rtl else line
+        w = font.getlength(visual)
+        x = width - 12 - w if rtl else 12
+        draw.text((x, y), visual, font=font, fill=(20, 20, 20))
+        y += line_h
+
+
+def stages_font(pack):
+    from . import typeset
+    return typeset.font_for(pack.code if pack else "he")
+
+
 KEEP_FLAT_DEGREES = 6.0   # kept lettering slanted less than this is restored by pasting the original
 
 
@@ -646,7 +692,7 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None,
             if not is_art_text(region) or not region.get("translation"):
                 continue
             if region["translation"].get("keep_original"):
-                region["edit_method"] = keep_original(base, image, region, mirror, editor, source_language, locate)
+                region["edit_method"] = keep_original(base, image, region, mirror)   # pasted back, no model
                 continue
             target = records.mirror_region(region, width) if mirror else region
             try:
@@ -660,11 +706,16 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None,
     if editor is None:
         for region in placed:
             if is_art_text(region) and (region.get("translation") or {}).get("keep_original"):
-                region["edit_method"] = keep_original(base, image, region, mirror, None, source_language)
+                region["edit_method"] = keep_original(base, image, region, mirror)
     shown = [records.mirror_region(r, width) for r in regions] if mirror else regions   # with "edited" flags
     if editor is not None and getattr(stages, "erase_balloons", None) is not None:
-        return stages.render_page(base, shown, erase=False)
-    return stages.render_page(base, shown)
+        out = stages.render_page(base, shown, erase=False)
+    else:
+        out = stages.render_page(base, shown)
+    notes = [(r, s) for r, s in zip(regions, shown) if (r.get("translation") or {}).get("footnote")]
+    if notes:
+        draw_footnotes(out, notes, pack)
+    return out
 
 
 def _failed(page, exc):
@@ -725,8 +776,10 @@ def prepare_page(ctx, stages, number, name, image, raw, source_language, target_
                             dialogue, base_deps)
         for item, region in zip(answer["translations"], page["regions"]):
             region["translation"] = {"text": item["text"], "status": "ok", "note": item["note"]}
-            if item.get("keep"):
+            if region["kind"] in ("sign", "other"):      # scene lettering stays in the original
                 region["translation"]["keep_original"] = True
+                if item.get("footnote"):
+                    region["translation"]["footnote"] = True
         _merge(notebook, answer["notebook"], page)
         page["summary"] = answer["summary"] or page["summary"]
         page["status"] = "translated"

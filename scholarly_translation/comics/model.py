@@ -25,7 +25,7 @@ SHORTEN_PROMPT = PROMPT_DIR / "16_comic_shorten.md"
 PLACEMENT_PROMPT = PROMPT_DIR / "20_comic_placement.md"
 PLACEMENT_VERSION = "comic-placement@1"
 RECOGNITION_VERSION = "comic-recognition@3"
-TRANSLATION_VERSION = "comic-translation@3"
+TRANSLATION_VERSION = "comic-translation@4"
 SHORTEN_VERSION = "comic-shorten@1"
 
 MARKED_LONG_EDGE = 2048
@@ -456,9 +456,9 @@ def parse_translation(text, region_ids, target_code, kinds=None, sources=None):
     data = _object(text, "translation")
     ids = list(region_ids)
     translations = _translations(data, ids, target_code, kinds, True, sources)
-    keep = {e.get("id"): e.get("keep") is True for e in data.get("translations") or [] if isinstance(e, dict)}
-    for item in translations:   # only lettering in the scene may stay in the original
-        item["keep"] = keep.get(item["id"], False) and (kinds or {}).get(item["id"]) in ("sign", "other")
+    notes = {e.get("id"): e.get("footnote") is True for e in data.get("translations") or [] if isinstance(e, dict)}
+    for item in translations:   # only lettering in the scene gets a footnote
+        item["footnote"] = notes.get(item["id"], False) and (kinds or {}).get(item["id"]) in ("sign", "other")
     notebook = records.new_notebook()
     raw = data.get("notebook") or {}
     if not isinstance(raw, dict):
