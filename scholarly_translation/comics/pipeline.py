@@ -620,15 +620,21 @@ def draw_footnotes(image, notes, pack=None):
     line_h = int(size * 1.35)
     block = line_h * len(lines) + 6
     gray = image.convert("L")
-    top = height - block - 4
-    for y in range(height - 1, int(height * 0.85), -1):    # the lowest run of white rows: the margin
+    # the empty margin under the art: white rows from the bottom up
+    free = 0
+    for y in range(height - 1, -1, -1):
         row = gray.crop((0, y, width, y + 1)).getdata()
         if sum(1 for v in row if v < 200) > 0.02 * width:
-            top = min(top, y + 4) if height - y - 4 >= block else height - block - 4
             break
-    if any(sum(1 for v in gray.crop((0, top + i, width, top + i + 1)).getdata() if v < 200) > 0.02 * width
-           for i in range(0, block, 3)):
-        draw.rectangle([0, top - 2, width, top + block], fill=(255, 255, 255))
+        free += 1
+    if free < block + 4:
+        # no room: extend the page downwards, never paint over the art
+        taller = Image.new("RGB", (width, height + block + 8 - free), (255, 255, 255))
+        taller.paste(image, (0, 0))
+        image, height = taller, taller.height
+        draw = ImageDraw.Draw(image)
+        free = block + 8
+    top = height - free + max(0, (free - block) // 2)
     y = top + 3
     for line in lines:
         visual = reorder_bidi_line(line, rtl_paragraph=True) if rtl else line
@@ -636,6 +642,7 @@ def draw_footnotes(image, notes, pack=None):
         x = width - 12 - w if rtl else 12
         draw.text((x, y), visual, font=font, fill=(20, 20, 20))
         y += line_h
+    return image
 
 
 def stages_font(pack):
@@ -722,7 +729,7 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None,
         out = stages.render_page(base, shown)
     notes = [(r, s) for r, s in zip(regions, shown) if (r.get("translation") or {}).get("keep_original")]
     if notes:
-        draw_footnotes(out, notes, pack)
+        out = draw_footnotes(out, notes, pack)
     return out
 
 
