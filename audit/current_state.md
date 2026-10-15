@@ -1,30 +1,11 @@
 # Current state — COMIC on real pages (Claude Code session); other owner's checkpoint below
 Updated: 2026-10-15. Claude Code primary agent (conductor) for the comic work.
 
-Comic code: scholarly_translation/comics/ (pipeline, model, review, edit, detect, typeset, records). Latest commit c89a15d + receipt. Not pushed. Recommended CLI: python -m scholarly_translation.comics.pipeline INPUT --out DIR --source-language es --target he --translator openai:gpt-6-luna:medium --reviewer openai:gpt-6-luna:medium --recognizer openai:gpt-6.1-sol:medium --review-unit page [--edit-art-text on for sound effects] [--pages] [--notebook].
-Current best output: outputs/comics/torrezno-01-a2 (pages 10-13): balloons separated by words, signs kept in the original with footnotes, sound effects re-lettered. Its budget ledger shows ~\$2.6 mostly from unmetered failures during an OpenAI outage (2026-10-12 14:32-15:33).
-Open: user decides on a full-album run (estimate ~\$8 without sfx image edits, ~\$13 with; Luna-only ~\$2); Haiku not cheaper (no Anthropic key saved). Known gaps: leftover lettering touching outlines; sfx labels; recogniser merging adjacent signs.
-TIME-ESTIMATE (same session): the document preview shows an estimated time (expected, low-high range) beside the cost; models/timing.py holds per-model speed and the output share calibrated 2026-10-15 on 8 completed local jobs (7 inside the range). Fast/thorough and non-Luna models are uncalibrated.
-Uncommitted, not ours: staged translate/chapter_pipeline.py + tests/translate/test_chapter_pipeline.py (other owner). Untracked source PDF in repo root: do not commit.
-Next action: user's choice of configuration and approval for the full album (157 pages).
-
-CLOUD-LIBRARY (same session, 2026-10-15): user decided online availability = local app + Google
-sign-in + library in the user's own Drive + static site; users bring their own API keys (guide with
-links per provider, Luna recommended); no hosted server. Contract audit/contracts/cloud_library.md
-(C1 sign-in, C2 Drive sync, C3 wiring/UI, C4 key guide, C5 static site, C6 signed delta
-self-update + data moved to %LOCALAPPDATA%). No builder launched yet.
-User 2026-10-15: stay local (hosted server costed and declined for now); distribute via a
-separate public GitHub repo (Pages site + Releases + raw files for delta updates); dev repo stays private.
-Blocking for real use only: owner creates Google Cloud OAuth Desktop client + privacy URL,
-the public distribution repo (name open), and an offline Ed25519 update-signing key.
-All six parts integrated on main (C5 fa96180, C4 50f3e0e, C1 ffda48e, C6 447b44e, C2 0286c77, C3 276381d,
-test rename f62d6f3). Full suite 1735 tests passing after the fix (see run_history). No builders running;
-session worktrees removed, branches kept. Not pushed (origin/main 66+ behind; remote previously hung).
-Blocked on owner for release: Google Cloud OAuth Desktop client -> account_config.json; public dist repo name
-(DIST_REPO in update/manifest.py and site placeholder); Ed25519 key via scripts/release/sign_manifest.py
---generate-key -> PUBLIC_KEY_B64; contact email/effective date in site/privacy.html; verify provider links.
-Next action: owner supplies the above; then a real end-to-end run (sign-in, Drive sync/restore, update round-trip
-on a clean Windows profile) before the first public release.
+Comic code: scholarly_translation/comics/. Latest commit 33e624f + receipt. Not pushed.
+Output: outputs/comics/torrezno-01-a2/comic.pdf = pages 1-40 (written 17:25; page 3 credits untranslated). A rerun to fix page 3 was stopped by the user mid-way; its journal holds one 'dispatched' step of unknown outcome (a rerun of that exact step is refused: use a new --notebook or run only --pages 3 into a separate folder).
+Cost so far for the quarter: text ~\$2.4 + image edits ~\$4.2. For the rest of the book recommend --edit-art-text off (~\$10 for the whole book).
+Uncommitted, not ours: staged/modified translate/chapter_pipeline.py, tests/translate/test_chapter_pipeline.py, untracked models/timing.py (other owner). Untracked source PDF: do not commit.
+Next action: user reviews the quarter PDF; on request, translate page 3 alone (one Luna call) and/or continue with pages 41+.
 
 ---
 Previous checkpoint (other owner):
