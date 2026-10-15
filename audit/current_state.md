@@ -1,3 +1,9 @@
+# Public release — pixel library prototype (Claude Code, 2026-10-16)
+User asked to publish the pixel-library prototype with its development process, publicly, on the neria-baris GitHub account. Published: https://github.com/neria-baris/pixel-library (PUBLIC), Pages https://neria-baris.github.io/pixel-library/ (built, pages 200).
+Contents: only design/pixel-library, docs/design/pixel-library, scripts/design, audit/contracts/ux_*, audit/checkpoints/ux_* from design/pixel-library-prototypes 3581774, with its 19 commits rebuilt (same messages/authors/dates, new hashes; public tip 63d588d = 3581774 tree subset) + root README/index.html/.nojekyll (2df578d). Shared audit logs and all other project files excluded; scanned for secrets/local paths (none). scholarly-translation stays PRIVATE.
+Future prototype updates: republish from the design branch by the same path-subset rebuild; do not push the private repo there.
+
+---
 # Current state — COMIC on real pages (Claude Code session); other owner's checkpoint below
 Updated: 2026-10-15. Claude Code primary agent (conductor) for the comic work.
 
