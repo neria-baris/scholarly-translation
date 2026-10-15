@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="he" dir="rtl" data-lang="he">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light"><title>איך משיגים מפתח API — תרגום מסמכים</title>
+<link rel="stylesheet" href="/ui.css">
+<style>
+html:not([data-lang="en"]) .lang-en,html[data-lang="en"] .lang-he{display:none}
+.lang-switch{margin-inline-start:auto}
+.help-main{max-width:860px;margin:auto;padding:30px 24px 60px;line-height:1.75}
+.help-main h2{font-size:21px;margin:36px 0 12px;color:var(--teal)}
+.help-main p,.help-main li{font-size:14px;color:#2c4642}
+.help-main a{color:var(--teal)}
+.help-hero{padding:24px;border:1px solid var(--line);border-radius:16px;background:white}.help-hero h1{margin:8px 0 10px}.help-hero p{margin:0}
+.callout{background:#f8fbf9;border:1px solid var(--line);border-radius:10px;padding:16px;margin:16px 0}
+.callout.warn{background:#fcf0ec;border-color:#f0dad1}
+.provider{border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;background:white}.provider h3{margin:0 0 8px}
+.help-main code{direction:ltr;unicode-bidi:isolate}
+@media(max-width:650px){.help-main{padding:20px 16px 40px}.help-hero{padding:18px}}
+</style>
+</head>
+<body>
+<header class="app-header">
+<a class="brand" href="/"><span class="lang-he">תרגום מסמכים</span><span class="lang-en">Document Translation</span></a>
+<a class="quiet-button" href="/"><span class="lang-he">חזרה לעמוד הראשי</span><span class="lang-en">Back to main page</span></a>
+<a class="quiet-button lang-switch" id="lang-switch" href="#en">English</a>
+</header>
+<main class="help-main">
+<div class="lang-he" id="keys-he" lang="he" dir="rtl">
+<div class="help-hero"><span class="eyebrow">מדריך</span><h1>איך משיגים מפתח API?</h1>
+<p>כדי לתרגם עם מודל משלכם צריך מפתח API מאחד הספקים. העמוד הזה הוא קובץ סטטי מהמחשב שלכם: הוא לא שולח שום מפתח, דוא"ל או נתוני שימוש לשום מקום.</p></div>
+
+<h2>מה זה מפתח API?</h2>
+<p>מפתח API הוא מחרוזת סודית שמזהה את החשבון שלכם אצל ספק המודל. התוכנה משתמשת בו כדי לשלוח את הטקסט לתרגום, והספק מחייב את החשבון שלכם בעלות השימוש ישירות. אל תשתפו אותו ואל תפרסמו אותו.</p>
+<div class="callout warn"><strong>שימו לב:</strong> מנוי ChatGPT או מנוי Claude אינו כולל קרדיט API. ה-API הוא חשבון נפרד עם תשלום נפרד לפי שימוש, ויש להטעין בו קרדיט מראש.</div>
+
+<h2>המלצה</h2>
+<div class="callout"><p><strong>OpenAI <code>gpt-6-luna</code></strong> גם כמתרגם וגם לבדיקת האיכות (QA) — האפשרות הזולה ביותר מבין המודלים שהתוכנה מכירה את מחירם. מחיר הקטלוג (<code>model-catalog-2026-10-05</code>): <strong>$0.10</strong> למיליון טוקני קלט ו-<strong>$0.50</strong> למיליון טוקני פלט. העלות האמיתית לספר שלכם תלויה באורכו; תצוגת האומדן באפליקציה מחשבת אותה לכל מסמך לפני ששולחים משהו, וזה האומדן שכדאי להסתמך עליו.</p></div>
+
+<h2>שלבים לפי ספק</h2>
+<div class="provider"><h3>OpenAI</h3>
+<ol>
+<li>היכנסו או הירשמו, פתחו את <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">עמוד מפתחות ה-API של OpenAI</a> ויצרו מפתח חדש (Create new secret key). העתיקו אותו מיד — הוא מוצג פעם אחת.</li>
+<li>פתחו את <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener noreferrer">עמוד החיוב של OpenAI</a> והוסיפו קרדיט מראש (בדרך כלל המינימום הוא כ-5$; הספקים משנים סכומים מדי פעם).</li>
+<li>מומלץ לכבות הטענה אוטומטית (auto-recharge) ולהגדיר מגבלה חודשית.</li>
+<li>הדביקו את המפתח באפליקציה וסמנו "לזכור במחשב הזה".</li></ol></div>
+<div class="provider"><h3>Anthropic (Claude)</h3>
+<ol>
+<li>היכנסו או הירשמו, פתחו את <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer">עמוד המפתחות של Anthropic</a> ויצרו מפתח (Create Key). העתיקו אותו מיד.</li>
+<li>פתחו את <a href="https://platform.claude.com/settings/billing" target="_blank" rel="noopener noreferrer">עמוד החיוב של Anthropic</a> והוסיפו קרדיט מראש (בדרך כלל המינימום הוא כ-5$).</li>
+<li>מומלץ לכבות הטענה אוטומטית ולהגדיר מגבלת הוצאה חודשית.</li>
+<li>הדביקו את המפתח באפליקציה וסמנו "לזכור במחשב הזה".</li></ol></div>
+<div class="provider"><h3>DeepSeek</h3>
+<ol>
+<li>היכנסו או הירשמו, פתחו את <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">עמוד המפתחות של DeepSeek</a> ויצרו מפתח. העתיקו אותו מיד.</li>
+<li>הטעינו קרדיט ב<a href="https://platform.deepseek.com/top_up" target="_blank" rel="noopener noreferrer">עמוד ההטענה של DeepSeek</a> (בדרך כלל יש סכום מינימום קטן).</li>
+<li>אם קיימת הטענה אוטומטית — כבו אותה, ועקבו אחרי היתרה, והגדירו מגבלה חודשית אם האתר מאפשר.</li>
+<li>הדביקו את המפתח באפליקציה וסמנו "לזכור במחשב הזה".</li></ol></div>
+<p>המפתח נשמר מוצפן במנהל האישורים של Windows בחשבון המשתמש שלכם בלבד, ולא בקובצי הפרויקט. אפשר למחוק אותו בכל עת מחלון המפתח באפליקציה. אתרי הספקים והסכומים עשויים להשתנות; אם עמוד נראה אחרת, חפשו באתר הספק "API keys" או "billing".</p>
+</div>
+
+<div class="lang-en" id="keys-en" lang="en" dir="ltr">
+<div class="help-hero"><span class="eyebrow">Guide</span><h1>How do I get an API key?</h1>
+<p>To translate with your own model you need an API key from one of the providers. This page is a static file on your computer: it sends no key, email or usage data anywhere.</p></div>
+
+<h2>What is an API key?</h2>
+<p>An API key is a secret string that identifies your account with the model provider. The app uses it to send text for translation, and the provider bills your account directly for the usage. Never share or publish it.</p>
+<div class="callout warn"><strong>Note:</strong> a ChatGPT or Claude subscription does not include API credit. The API is a separate account billed separately by usage, and you add credit to it in advance.</div>
+
+<h2>Recommendation</h2>
+<div class="callout"><p><strong>OpenAI <code>gpt-6-luna</code></strong> for both the translator and quality review (QA) — the cheapest option among the models whose prices the app knows. Catalogue list rate (<code>model-catalog-2026-10-05</code>): <strong>$0.10</strong> per million input tokens and <strong>$0.50</strong> per million output tokens. The real cost of your book depends on its length; the app's own cost preview calculates it per document before anything is sent, and that is the estimate to rely on.</p></div>
+
+<h2>Steps by provider</h2>
+<div class="provider"><h3>OpenAI</h3>
+<ol>
+<li>Sign in or sign up, open the <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API keys page</a> and create a new secret key. Copy it immediately — it is shown once.</li>
+<li>Open the <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" rel="noopener noreferrer">OpenAI billing page</a> and add prepaid credit (usually a minimum of about $5; providers change these amounts).</li>
+<li>We recommend turning auto-recharge off and setting a monthly limit.</li>
+<li>Paste the key in the app and tick "Remember on this computer".</li></ol></div>
+<div class="provider"><h3>Anthropic (Claude)</h3>
+<ol>
+<li>Sign in or sign up, open the <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer">Anthropic keys page</a> and create a key. Copy it immediately.</li>
+<li>Open the <a href="https://platform.claude.com/settings/billing" target="_blank" rel="noopener noreferrer">Anthropic billing page</a> and add prepaid credit (usually a minimum of about $5).</li>
+<li>We recommend turning auto-recharge off and setting a monthly spend limit.</li>
+<li>Paste the key in the app and tick "Remember on this computer".</li></ol></div>
+<div class="provider"><h3>DeepSeek</h3>
+<ol>
+<li>Sign in or sign up, open the <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">DeepSeek keys page</a> and create a key. Copy it immediately.</li>
+<li>Add credit on the <a href="https://platform.deepseek.com/top_up" target="_blank" rel="noopener noreferrer">DeepSeek top-up page</a> (usually there is a small minimum amount).</li>
+<li>If automatic top-up exists, turn it off, keep an eye on your balance, and set a monthly limit if the site allows.</li>
+<li>Paste the key in the app and tick "Remember on this computer".</li></ol></div>
+<p>The key is stored encrypted in the Windows Credential Manager under your user account only, not in project files. You can delete it at any time from the app's key dialog. Provider sites and amounts may change; if a page looks different, search the provider's site for "API keys" or "billing".</p>
+</div>
+</main>
+<script>
+(function(){
+var T={he:'איך משיגים מפתח API — תרגום מסמכים',en:'How to get an API key — Document Translation'};
+function stored(){try{return localStorage.getItem('ui-language')}catch(e){return null}}
+function store(l){try{localStorage.setItem('ui-language',l)}catch(e){}}
+function pick(){var h=location.hash;if(h==='#he')return'he';if(h==='#en')return'en';return stored()==='en'?'en':'he'}
+function apply(l){var d=document.documentElement;d.lang=l;d.dir=l==='en'?'ltr':'rtl';d.setAttribute('data-lang',l);document.title=T[l];
+var b=document.getElementById('lang-switch');if(b){b.textContent=l==='en'?'עברית':'English';b.setAttribute('lang',l==='en'?'he':'en');b.setAttribute('href',l==='en'?'#he':'#en')}}
+apply(pick());
+document.addEventListener('DOMContentLoaded',function(){
+var b=document.getElementById('lang-switch');
+if(b)b.addEventListener('click',function(ev){ev.preventDefault();var n=document.documentElement.getAttribute('data-lang')==='en'?'he':'en';store(n);apply(n);history.replaceState(null,'','#'+n);window.scrollTo(0,0)});
+window.addEventListener('hashchange',function(){var h=location.hash;if(h==='#en'||h==='#he'){var n=h.slice(1);store(n);apply(n)}})});
+})();
+</script>
+</body></html>

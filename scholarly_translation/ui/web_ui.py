@@ -487,6 +487,9 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 config = json.dumps({"token": token}, ensure_ascii=False)
                 self._reply(200, (UI_DIR / "learning.html").read_text(encoding="utf-8").replace("__CONFIG__", config).encode("utf-8"), "text/html")
                 return
+            if urlparse(self.path).path == "/keys-guide":
+                self._reply(200, (UI_DIR / "keys_guide.html").read_bytes(), "text/html")
+                return
             if self.path == "/help":
                 try:
                     rows = "".join(
