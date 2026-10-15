@@ -8,6 +8,13 @@ TIME-ESTIMATE (same session): the document preview shows an estimated time (expe
 Uncommitted, not ours: staged translate/chapter_pipeline.py + tests/translate/test_chapter_pipeline.py (other owner). Untracked source PDF in repo root: do not commit.
 Next action: user's choice of configuration and approval for the full album (157 pages).
 
+CLOUD-LIBRARY (same session, 2026-10-15): user decided online availability = local app + Google
+sign-in + library in the user's own Drive + static site; users bring their own API keys (guide with
+links per provider, Luna recommended); no hosted server. Contract audit/contracts/cloud_library.md
+(C1 sign-in, C2 Drive sync, C3 wiring/UI, C4 key guide, C5 static site). No builder launched yet.
+Blocking for real-account use only: owner creates Google Cloud OAuth Desktop client + privacy URL.
+Next action: launch C1, C4, C5 builders in parallel worktrees from main.
+
 ---
 Previous checkpoint (other owner):
 # Current state (2026-10-11T15:55:24.649211+00:00)
