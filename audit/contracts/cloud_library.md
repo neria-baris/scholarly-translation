@@ -116,9 +116,20 @@ that drive.file is still classified non-sensitive and every provider URL below.
   privacy policy (data stays on the user's computer and the user's own Drive; Google
   data used only for sign-in and the app's own Drive folder; no server collects
   anything; contact address is a placeholder the owner fills).
-- Pure static files, no analytics, no external scripts or fonts, works on GitHub
-  Pages or any static host. Tests: links well-formed, no external script/style,
-  every page has lang/dir and a title.
+- Pure static files, no analytics, no external scripts or fonts, served by GitHub
+  Pages of the public distribution repo (see Distribution). The download button
+  points to `https://github.com/<DIST_REPO>/releases/latest/download/ScholarlyTranslation-Setup.zip`
+  with `<DIST_REPO>` as a literal placeholder the release script fills.
+  Tests: links well-formed, no external script/style, every page has lang/dir and a title.
+
+## Distribution (user decision 2026-10-15)
+
+The development repo stays private. A separate public repo (`<DIST_REPO>`, created
+by the owner; name not yet chosen) holds only runtime files, one tag per version
+(`v<version>`), the static site on GitHub Pages, and per-release assets:
+`ScholarlyTranslation-Setup.zip` (first install), `manifest.json`, `manifest.json.sig`.
+Nothing from audit/, docs/, tests/, outputs/, .claude/ or Git history of the private
+repo is published. Creating the repo and each publish are owner-approved actions.
 
 ## C6 silent updates (owns: scholarly_translation/update/ (new: __init__.py,
 ## manifest.py, updater.py), scholarly_translation/app_paths.py (new),
@@ -134,11 +145,13 @@ that drive.file is still classified non-sensitive and every provider URL below.
   checkout keeps `<repo>/outputs` when no install marker exists). First run after
   the move copies an existing `<install>/outputs` into data/ once, never deletes it.
   web_ui.OUTPUT_ROOT derives from data_root() — that one line is integrated after C3.
-- Release channel (static, no server): `update/manifest.json` + content-addressed
-  files `update/files/<sha256>` published on the C5 static host (the source repo is
-  private, so not GitHub release assets). Manifest: `{schema 1, version, min_launcher,
-  requirements_sha256, files: {relative_path: {sha256, size}}, notes_he, notes_en}`
-  plus detached Ed25519 signature `manifest.json.sig`. The public key is embedded in
+- Release channel (GitHub, no server): the manifest and signature are fetched from
+  `https://github.com/<DIST_REPO>/releases/latest/download/manifest.json(.sig)`;
+  each changed file from `https://raw.githubusercontent.com/<DIST_REPO>/v<version>/<path>`.
+  `<DIST_REPO>` is one constant in update/manifest.py. Manifest: `{schema 1, version,
+  tag, min_launcher, requirements_sha256, files: {relative_path: {sha256, size}},
+  notes_he, notes_en}` plus detached Ed25519 signature `manifest.json.sig`. Redirects
+  only to github.com / *.githubusercontent.com hosts; anything else is rejected. The public key is embedded in
   the app; the private key stays with the owner, offline, never in the repo or audit.
 - Updater: at app start, in a background thread, fetch the manifest (HTTPS, short
   timeout); verify the signature (dependency: `cryptography`, pinned in
@@ -158,8 +171,12 @@ that drive.file is still classified non-sensitive and every provider URL below.
   and show only. No telemetry: the only request is the anonymous manifest/file GET.
 - Jobs, keys, terms and Drive state written by an older version stay readable
   (existing explicit legacy-reading rule); an update never touches data/.
-- `scripts/release/build_release.py` builds the manifest/files from a clean Git
-  commit; `sign_manifest.py` signs with a key path the owner supplies at run time.
+- `scripts/release/build_release.py` (dry-run by default) exports the runtime file
+  allow-list from a clean commit of the private repo into a local checkout of the
+  distribution repo, writes the manifest and the Setup zip, and prints the exact `git`
+  and `gh release create` commands for the owner to run; it never pushes by itself.
+  `sign_manifest.py` signs with a key path the owner supplies at run time and also
+  offers `--generate-key` writing the private key outside the repo.
 - Tests offline: tampered manifest/file/signature, downgrade, path traversal,
   partial download, unchanged-file reuse, requirements change, rollback, data-root
   migration, update disabled.

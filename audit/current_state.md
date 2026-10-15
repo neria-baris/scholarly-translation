@@ -13,9 +13,11 @@ sign-in + library in the user's own Drive + static site; users bring their own A
 links per provider, Luna recommended); no hosted server. Contract audit/contracts/cloud_library.md
 (C1 sign-in, C2 Drive sync, C3 wiring/UI, C4 key guide, C5 static site, C6 signed delta
 self-update + data moved to %LOCALAPPDATA%). No builder launched yet.
+User 2026-10-15: stay local (hosted server costed and declined for now); distribute via a
+separate public GitHub repo (Pages site + Releases + raw files for delta updates); dev repo stays private.
 Blocking for real use only: owner creates Google Cloud OAuth Desktop client + privacy URL,
-a public static host (repo is private), and an offline Ed25519 update-signing key.
-Next action: launch C1, C4, C5, C6 builders in parallel worktrees from main.
+the public distribution repo (name open), and an offline Ed25519 update-signing key.
+Next action: integrate builders C1, C4, C5, C6 (parallel worktrees from main) as they finish.
 
 ---
 Previous checkpoint (other owner):
