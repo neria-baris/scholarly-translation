@@ -592,7 +592,7 @@ def is_art_text(region):
 KEEP_FLAT_DEGREES = 6.0   # kept lettering slanted less than this is restored by pasting the original
 
 
-def keep_original(base, image, region, mirror, editor=None, source_language=None):
+def keep_original(base, image, region, mirror, editor=None, source_language=None, locate=None):
     """Lettering the translator chose to keep (a name, a word readable as it stands) stays in
     the original. On a mirrored page it must read the right way: flat lettering is restored by
     pasting the unmirrored original at its mirrored place (free); slanted lettering, whose
@@ -607,7 +607,8 @@ def keep_original(base, image, region, mirror, editor=None, source_language=None
         target = records.mirror_region(region, width)
         try:
             editor.edit(base, dict(target, kind="sign"), region["source_text"],
-                        comic_model.LANGUAGE_NAMES.get(source_language, "the original language"), False)
+                        comic_model.LANGUAGE_NAMES.get(source_language, "the original language"), False,
+                        (lambda img, reg, src=region["source_text"]: locate(img, reg, src)) if locate else None)
             return "kept-relettered"
         except comic_edit.SignEditError as exc:
             region["warnings"].append("keep_edit_failed: %s" % exc)
@@ -645,7 +646,7 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None,
             if not is_art_text(region) or not region.get("translation"):
                 continue
             if region["translation"].get("keep_original"):
-                region["edit_method"] = keep_original(base, image, region, mirror, editor, source_language)
+                region["edit_method"] = keep_original(base, image, region, mirror, editor, source_language, locate)
                 continue
             target = records.mirror_region(region, width) if mirror else region
             try:
