@@ -17,7 +17,7 @@ from collections import Counter
 
 from PIL import Image, ImageChops, ImageFilter
 
-DETECT_VERSION = "comic-detect@5"
+DETECT_VERSION = "comic-detect@6"
 WORK_EDGE = 1200          # long edge of the analysis copy
 LIGHT = 200               # gray >= LIGHT is fill
 MAX_DARK = 110            # gray < min(Otsu, MAX_DARK) is ink
@@ -496,7 +496,7 @@ def _light_runs(row_bytes):
     return [(m.start(), m.end()) for m in _RUN.finditer(row_bytes)]
 
 
-def _free_space(gray, bbox, line_height, light_level):
+def _free_space(gray, bbox, line_height, light_level, letters=None):
     """Interior rows: per sampled row, the light run around the lettering, inside a window
     around it. Rows above/below the lettering count while their run still spans at least half
     its width (the balloon outline ends it); no closed outline is needed."""
@@ -505,8 +505,12 @@ def _free_space(gray, bbox, line_height, light_level):
     mh, mv = int(round(max(0.3 * bw, 1.5 * line_height))), int(round(line_height))
     window = (max(0, bbox[0] - mh), max(0, bbox[1] - mv), min(width, bbox[2] + mh), min(height, bbox[3] + mv))
     light = gray.crop(window).point(lambda v: 255 if v >= light_level else 0)
-    # the lettering itself counts as free space (exact box: a margin could cross a panel border)
-    light.paste(255, (bbox[0] - window[0], bbox[1] - window[1], bbox[2] - window[0], bbox[3] - window[1]))
+    # the lettering itself counts as free space: its word boxes, not its bounding box (slanted
+    # lettering's bounding box can reach over art, e.g. a TV drawn beside the words)
+    grow = int(round(0.6 * line_height)) if letters else 0     # closes the gaps between words
+    for b in letters or [bbox]:
+        light.paste(255, (max(0, max(bbox[0], b[0] - grow) - window[0]), max(0, max(bbox[1], b[1] - grow) - window[1]),
+                          max(0, min(bbox[2], b[2] + grow) - window[0]), max(0, min(bbox[3], b[3] + grow) - window[1])))
     data, ww = light.tobytes(), light.width
     step = max(2, int(round(line_height / 6)))
     lx0, lx1 = bbox[0] - window[0], bbox[2] - window[0]
@@ -594,7 +598,8 @@ def snap_region(image, bbox):
         tight = placed(grown)
         line_height = round(max(1.0, _letter_pitch(grown)), 1)
         level = int((threshold + sum(ring["light_colour"]) / 3) / 2)
-        interior = _free_space(gray, tight, line_height, level)
+        words = _letter_words(_words(grown, crop_box), line_height)
+        interior = _free_space(gray, tight, line_height, level, words)
         balloon = interior          # the whole free light area: what is erased, and room for overflow
         if interior is not None:
             lines = [(line[0] + crop_box[1], line[1] + crop_box[1], min(g[0] for g in line[2]) + crop_box[0],
@@ -603,7 +608,7 @@ def snap_region(image, bbox):
         if interior is not None:
             return {"bbox": tight, "interior": interior, "background": ring["light_colour"],
                     "plain_background": True, "line_height": line_height, "confidence": 0.9,
-                    "balloon": balloon, "words": _letter_words(_words(grown, crop_box), line_height)}
+                    "balloon": balloon, "words": words}
     return {"bbox": tight, "interior": None, "background": ring["colour"], "plain_background": False,
             "line_height": line_height, "confidence": 0.6}
 
