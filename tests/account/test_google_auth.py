@@ -191,6 +191,13 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(auth.access_token(), "NEW")
         self.assertEqual(len(transport.calls), 2)
 
+    def test_invalidate_forces_refresh_before_expiry(self):
+        auth, transport, _, clock = self.signed_in((200, {"access_token": "FRESH", "expires_in": 3600}))
+        auth.invalidate_access_token()
+        self.assertEqual(auth.access_token(), "FRESH")
+        self.assertEqual(transport.calls[1][2]["grant_type"], "refresh_token")
+        self.assertTrue(auth.signed_in)
+
     def test_invalid_grant_signs_out_once(self):
         auth, transport, store, clock = self.signed_in((400, {"error": "invalid_grant"}))
         clock.now += 3600

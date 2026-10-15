@@ -288,6 +288,11 @@ class GoogleAccount:
         self._expires_at = self._clock() + float(body.get("expires_in") or 0)
         return self._access_token
 
+    def invalidate_access_token(self) -> None:
+        """Forget the cached access token (an API answered 401); the next
+        access_token() call refreshes it with the stored refresh token."""
+        self._access_token, self._expires_at = None, 0.0
+
     def sign_out(self) -> None:
         if self._account is None:
             return
