@@ -15,7 +15,7 @@ const port = 9500 + Math.floor(Math.random() * 300);
 const proc = spawn(chrome, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'uir-'))}`, '--no-first-run', '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let ws, id = 0;
-const pending = new Map(), errors = [], results = [];
+const pending = new Map(), errors = [], results = [], dialogs = [];
 const send = (method, params = {}) => new Promise((res, rej) => { const n = ++id; pending.set(n, { res, rej }); ws.send(JSON.stringify({ id: n, method, params })); });
 async function js(expression) {
   const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true, userGesture: true });
@@ -44,6 +44,7 @@ try {
   ws.addEventListener('message', ev => {
     const m = JSON.parse(ev.data);
     if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); return; }
+    if (m.method === 'Page.javascriptDialogOpening') { dialogs.push(m.params); send('Page.handleJavaScriptDialog', { accept: false }); return; } // cancel: never delete in checks
     if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(m.params.args.map(a => a.value || a.description).join(' '));
   });
@@ -74,6 +75,40 @@ try {
     await js(`localStorage.removeItem('cat-mode')`);
     await js(`document.getElementById('language-button').click()`); await sleep(600);
     check('language switch updates the cat button', await js(`document.getElementById('cat-button').textContent.includes('Cat')`));
+  }
+  if (want('library')) {
+    // Fill the sandbox library through the app's own free sample flow (Auto mode, simulated).
+    await viewport(1440, 900); await load('he');
+    for (let n = await js(`request('/document-library',{}).then(r => (r.documents || []).length)`); n < 7; n++) {
+      await js(`sample()`);
+      for (let i = 0; i < 60 && (await js(`currentJob?.status`)) !== 'completed'; i++) await sleep(500);
+      await js(`show('start-panel')`); await sleep(200);
+    }
+    await js(`openLibrary()`); await sleep(1500);
+    const spines = await js(`document.querySelectorAll('.lib-spine').length`);
+    check('the library opens as a shelf of books', spines >= 7 && await js(`!document.getElementById('library-shelf').hidden && document.getElementById('library-list').hidden`), String(spines));
+    await shot('library-shelf');
+    const r = await js(`(() => { const b = document.querySelectorAll('.lib-spine')[2].getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; })()`);
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: r.x, y: r.y }); await sleep(600);
+    check('hover turns the book to its cover (flat 2D turn)', await js(`getComputedStyle(document.querySelectorAll('.lib-spine')[2].querySelector('.cover-face')).transform === 'matrix(1, 0, 0, 1, 0, 0)'`));
+    check('books are matte: no perspective or 3D on the shelf', await js(`[...document.querySelectorAll('.library-shelf, .library-shelf *')].every(e => { const s = getComputedStyle(e); return s.perspective === 'none' && s.transformStyle !== 'preserve-3d'; })`));
+    await shot('library-hover');
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
+    await js(`document.querySelectorAll('.lib-spine')[2].click()`); await sleep(500);
+    check('a book opens its real item (download, open, delete) in the card', await js(`(() => { const c = document.getElementById('library-shelf-detail'); return !c.hidden && !!c.querySelector('.library-item .library-download') && !!c.querySelector('.library-open') && !!c.querySelector('.library-delete'); })()`));
+    await shot('library-detail', true);
+    dialogs.length = 0;
+    await js(`document.querySelector('#library-shelf-detail .library-delete').click()`); await sleep(600);
+    check('delete still asks for confirmation (cancelled here)', dialogs.some(d => d.type === 'confirm'), dialogs.map(d => d.message.slice(0, 40)).join(' | '));
+    check('cancelled delete keeps the book', (await js(`request('/document-library',{}).then(r => (r.documents || []).length)`)) >= 7);
+    await js(`document.querySelector('[data-shelf-view=list]').click()`); await sleep(400);
+    check('list view shows the original list', await js(`!document.getElementById('library-list').hidden && document.getElementById('library-shelf').hidden && document.querySelectorAll('#library-list > li').length >= 7`));
+    await shot('library-list');
+    await js(`document.querySelector('[data-shelf-view=shelf]').click()`); await sleep(300);
+    await js(`document.getElementById('language-button').click()`); await sleep(1500);
+    check('English library keeps the shelf and translated tools', await js(`!document.getElementById('library-shelf').hidden && document.getElementById('library-search').placeholder === 'Search by file name'`));
+    await shot('library-shelf-en');
+    await js(`document.getElementById('language-button').click()`); await sleep(500);
   }
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e) {

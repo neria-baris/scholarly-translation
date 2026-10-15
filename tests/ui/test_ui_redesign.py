@@ -60,6 +60,41 @@ class RedesignStaticTests(unittest.TestCase):
         self.assertNotRegex(self.js, r"(?<!\?)\blibraryCat\.(?!react)")
 
 
+class ShelfTests(unittest.TestCase):
+    """Stage 2: the shelf is built from the rendered list items and keeps their handlers."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.html = _read("ui.html")
+        cls.js = _read("ui.js")
+        cls.shelf = _read("shelf.js")
+        cls.theme = _read("ui-theme.css")
+
+    def test_shelf_loads_between_the_cat_and_the_app(self):
+        self.assertLess(self.html.index('src="/cat.js"'), self.html.index('src="/shelf.js"'))
+        self.assertLess(self.html.index('src="/shelf.js"'), self.html.index('src="/ui.js"'))
+        for element in ('id="library-tools"', 'id="library-shelf"', 'id="library-shelf-detail"', 'id="library-list"'):
+            self.assertIn(element, self.html)
+
+    def test_every_library_render_rebuilds_the_shelf(self):
+        self.assertEqual(self.js.count("window.libraryShelf?.build()"), 2)
+        for field in ("item.dataset.date=doc.completed_at", "item.dataset.size=doc.unit_count",
+                      "item.dataset.progress=doc.total_units?", "item.dataset.date=book.completed_at"):
+            self.assertIn(field, self.js)
+
+    def test_shelf_moves_whole_items_so_their_actions_keep_working(self):
+        self.assertIn("card.querySelector('.shelf-detail-item').append(b.li)", self.shelf)
+        self.assertIn("$('library-list')?.append(li)", self.shelf)
+        for forbidden in ("fetch(", "request(", "XMLHttpRequest", "/document-delete", "confirm("):
+            self.assertNotIn(forbidden, self.shelf)
+
+    def test_books_are_matte(self):
+        shelf_css = self.theme[self.theme.index("Stage 2"):]
+        for forbidden in ("perspective", "preserve-3d", "rotateY", "radial-gradient"):
+            self.assertNotIn(forbidden, shelf_css)
+        self.assertIn(".lib-spine:focus-visible .cover-face{transform:scaleX(1)", shelf_css)
+
+
 class RedesignRouteTests(unittest.TestCase):
     def setUp(self):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler("test-token"))
@@ -72,7 +107,7 @@ class RedesignRouteTests(unittest.TestCase):
         self.server.server_close()
 
     def test_new_static_files_are_served(self):
-        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"),
+        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"), ("/shelf.js", "text/javascript"),
                            ("/fonts/frank-ruhl-libre.ttf", "font/ttf")):
             with urlopen(self.base + path, timeout=10) as response:
                 self.assertEqual(response.status, 200)

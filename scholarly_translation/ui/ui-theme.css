@@ -128,3 +128,76 @@ dialog::backdrop{background:#0f1f1aa6;backdrop-filter:blur(3px)}
   .app-header .quiet-button{min-height:34px;padding:5px 9px;font-size:.76rem}
   .app-footer{padding:16px}
 }
+
+/* ---- Stage 2: the library as a shelf. Matte cloth books, printed details, a flat 2D turn. ---- */
+.workspace:has(#library-panel:not([hidden])){max-width:1180px}
+#library-panel .library-card{max-width:none;padding:18px}
+.library-tools{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;margin-top:16px}
+.library-search{position:relative;display:block;flex:1 1 240px;max-width:340px}
+.library-search svg{position:absolute;inset-inline-start:13px;top:50%;width:17px;height:17px;transform:translateY(-50%);color:var(--muted)}
+.library-search input,.library-sort select{width:100%;min-height:40px;padding:8px 14px;padding-inline-start:38px;border:1px solid var(--border-2);border-radius:999px;background:var(--surface);color:var(--ink)}
+.library-sort select{padding-inline-start:14px;min-width:160px}
+.library-view{display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--surface-3);border:1px solid var(--border)}
+.library-view button{min-height:34px;padding:5px 14px;border:0;border-radius:999px;background:transparent;font-weight:650;font-size:13px;color:var(--ink-2)}
+.library-view button[aria-pressed=true]{background:var(--surface);color:var(--green-900);box-shadow:var(--sh-1),0 0 0 1px var(--border)}
+
+.library-shelf{position:relative;padding:20px 20px 6px;border-radius:var(--r-lg);background:repeating-linear-gradient(90deg,#ffffff05 0 1px,transparent 1px 22px),#3a2717;box-shadow:inset 0 10px 18px -12px #000c,inset 0 0 0 1px #ffffff0d}
+.shelf-books{display:flex;align-items:flex-end;gap:5px;min-height:186px;padding:0 6px}
+.shelf-plank{height:14px;margin:0 -20px 18px;background:#7a5333;border-top:3px solid #9b7049;box-shadow:0 6px 8px -6px #000a}
+.lib-spine{position:relative;flex:none;width:var(--w);height:var(--h);padding:0;border:0;background:none;cursor:pointer;transition:transform .18s ease}
+.spine-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:20px 0 9px;border-radius:2px 2px 1px 1px;color:#f1e4c6;
+  background:repeating-linear-gradient(45deg,#ffffff08 0 1px,transparent 1px 4px),var(--c);border:1px solid #00000047;transform-origin:center;transition:transform .13s ease-in .15s}
+.spine-face:before,.spine-face:after{content:"";position:absolute;inset-inline:5px;height:5px;border-top:2px solid #d4b26c;border-bottom:1px solid #d4b26c}
+.spine-face:before{top:8px}.spine-face:after{bottom:26px}
+.spine-title{flex:1;writing-mode:vertical-rl;text-orientation:mixed;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-height:calc(var(--h) - 62px);padding:6px 0;font:600 13px/1 var(--display)}
+.spine-title.plate{padding:8px 3px;margin:4px 0;background:#efe3c6;color:#2b241a;border-radius:1px;max-height:calc(var(--h) - 70px)}
+.spine-kind{font:700 9px/1 var(--sans);letter-spacing:.08em;opacity:.85}
+.spine-cloud{position:absolute;top:-9px;inset-inline-end:-5px;width:18px;height:11px;background:#fffbef;clip-path:polygon(20% 40%,35% 15%,60% 10%,75% 35%,95% 45%,100% 80%,90% 100%,10% 100%,0 75%)}
+.spine-ribbon{position:absolute;bottom:-14px;inset-inline-start:40%;width:7px;height:22px;background:var(--clay);clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%)}
+.spine-flag{position:absolute;top:30px;inset-inline-start:-8px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#f0a34a;color:var(--ink);font:800 11px/1 var(--sans);font-style:normal}
+.lib-spine.drive-only .spine-face{opacity:.72;border-style:dashed;border-color:#f1e4c699}
+.cover-face{position:absolute;bottom:0;left:50%;z-index:2;width:var(--cw);height:var(--h);margin-left:calc(var(--cw) / -2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:12px 10px;
+  color:#f1e4c6;text-align:center;border-radius:2px 6px 6px 2px;background:repeating-linear-gradient(45deg,#ffffff08 0 1px,transparent 1px 4px),var(--c);border:1px solid #00000047;outline:1px solid #d4b26c99;outline-offset:-7px;
+  transform:scaleX(0);transform-origin:center;transition:transform .15s ease-out}
+.cover-kind{font:700 9px/1 var(--sans);letter-spacing:.1em;padding:3px 7px;border-radius:999px;background:#0000003a}
+.cover-plate{max-width:100%;padding:7px 8px;background:#efe3c6;color:#2b241a;border-radius:1px;font:600 13px/1.25 var(--display);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.cover-meta{font:600 10px/1.35 var(--sans);opacity:.9;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cover-progress{width:80%;height:5px;border-radius:999px;background:#0000003a;overflow:hidden}.cover-progress i{display:block;height:100%;background:var(--gold-300)}
+.cover-flag{font:800 9px/1.2 var(--sans);padding:3px 6px;border-radius:999px;background:#f0a34a;color:var(--ink)}
+.lib-spine:focus-visible{outline:none;z-index:5}
+.lib-spine:focus-visible .spine-face{transform:scaleX(0);transition-delay:0s}
+.lib-spine:focus-visible .cover-face{transform:scaleX(1);transition-delay:.13s;box-shadow:0 0 0 3px var(--gold-300)}
+@media(hover:hover){
+  .lib-spine:hover{z-index:5;transform:translateY(-6px)}
+  .lib-spine:hover .spine-face{transform:scaleX(0);transition-delay:0s}
+  .lib-spine:hover .cover-face{transform:scaleX(1);transition-delay:.13s}
+}
+.lib-spine.is-selected{transform:translateY(-12px)}
+.lib-spine.is-selected .spine-face{box-shadow:0 0 0 2px var(--gold-300)}
+.shelf-decor{margin-inline-start:auto;display:flex;align-items:flex-end;gap:16px;padding-inline:8px;pointer-events:none}
+.decor-stack{display:flex;flex-direction:column;align-items:center;gap:1px}.decor-stack b{display:block;height:11px;border:1px solid #00000047}
+.decor-stack b:nth-child(1){width:56px;background:#5a5470}.decor-stack b:nth-child(2){width:70px;background:#94473b}.decor-stack b:nth-child(3){width:62px;background:#3f5f48}
+.decor-candle{display:block;width:11px;height:32px;background:#efe3c6;position:relative}
+.decor-candle:before{content:"";position:absolute;top:-12px;left:2px;width:7px;height:11px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#f5b94b;box-shadow:0 0 12px 3px #f5b94b44}
+.decor-basket{display:block;width:118px;height:28px;border-radius:3px 3px 10px 10px;background:repeating-linear-gradient(90deg,#b98a5a 0 6px,#946644 6px 9px);border-top:6px solid #a8504a}
+.decor-plant{display:block;width:24px;height:20px;border-radius:0 0 5px 5px;background:#a35c3a;position:relative}
+.decor-plant:before{content:"";position:absolute;bottom:20px;left:1px;width:22px;height:20px;background:#5f8f4f;clip-path:polygon(50% 0,62% 40%,95% 20%,72% 60%,100% 75%,0 75%,28% 60%,5% 20%,38% 40%)}
+.shelf-more{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 16px;padding:4px 0 18px;color:#e6dcc2;font-size:13px}
+
+/* The open book: a card below the shelf holding the item itself (detail panel and actions). */
+.shelf-detail{display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;margin-top:22px;padding:20px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh-2)}
+.shelf-detail-cover{align-self:start;aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:14px;color:#f1e4c6;border-radius:2px 8px 8px 2px;
+  background:repeating-linear-gradient(45deg,#ffffff08 0 1px,transparent 1px 4px),var(--c);border:1px solid #00000047;outline:1px solid #d4b26c99;outline-offset:-8px}
+.shelf-detail-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.shelf-detail-body{min-width:0}
+.shelf-detail h3{margin:2px 0 4px;font:600 24px/1.3 var(--display);color:var(--green-900);overflow-wrap:anywhere}
+.shelf-detail-meta{margin:0 0 6px;color:var(--muted);font-size:13px}
+.shelf-detail-item{list-style:none;margin:0;padding:0}
+.library-item.in-card{border:0}
+.library-item.in-card .library-entry{display:none}
+.library-item.in-card .library-detail{padding:6px 0 0}
+@media(max-width:650px){
+  .library-shelf{padding:14px 12px 4px}.shelf-plank{margin-inline:-12px}
+  .shelf-detail{grid-template-columns:1fr;padding:16px}.shelf-detail-cover{width:110px}
+  .library-search{max-width:none;flex-basis:100%}
+}

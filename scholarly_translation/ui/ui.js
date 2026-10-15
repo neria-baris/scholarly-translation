@@ -1104,6 +1104,7 @@ function renderLibrary(documents){
   documents.forEach((doc,index)=>{
     const kind=doc.source_kind==='epub'?'epub':'pdf',detailId='library-detail-'+index;
     const item=document.createElement('li');item.className='library-item';item.dataset.jobId=doc.job_id;
+    item.dataset.date=doc.completed_at||'';item.dataset.size=doc.unit_count||0;
     const fontField=kind==='pdf'?`<div class="field library-font"><label for="library-font-${index}">${t(`גופן להורדה`,`Download font`)}</label><select id="library-font-${index}" class="library-font-select">${libraryFontOptions(doc.font_id)}</select></div>`:'';
     item.innerHTML=`<button type="button" class="library-entry" aria-expanded="false" aria-controls="${detailId}">
       <span class="library-kind" data-kind="${kind}">${kind.toUpperCase()}</span>
@@ -1126,7 +1127,7 @@ function renderLibrary(documents){
   });
   const driveOnly=renderDriveOnly(list,documents);
   $('library-empty').hidden=documents.length>0||driveOnly>0;
-  applyAutoDirs();
+  applyAutoDirs();window.libraryShelf?.build();
 }
 const IN_PROGRESS_STATUS={failed:'נעצר',paused:'מושהה',interrupted:'הופסק',queued:'ממתין',reading:'קורא',translating:'מתרגם כעת',reviewing:'בבדיקה',rebuilding:'בונה את הקובץ'};
 function renderInProgress(documents){
@@ -1135,6 +1136,7 @@ function renderInProgress(documents){
   documents.forEach((doc,index)=>{
     const kind=doc.source_kind==='epub'?'epub':'pdf',detailId='library-detail-'+index;
     const item=document.createElement('li');item.className='library-item in-progress';item.dataset.jobId=doc.job_id;
+    item.dataset.date=doc.updated_at||'';item.dataset.size=doc.total_units||0;item.dataset.progress=doc.total_units?Math.round(100*doc.translated_units/doc.total_units):0;
     const parts=[(LANG==='en'?IN_PROGRESS_EN:IN_PROGRESS_STATUS)[doc.status]||doc.status];
     if(doc.total_chapters)parts.push(t('פרק ',"Chapter ")+doc.completed_chapters+t(' מתוך '," of ")+doc.total_chapters);
     parts.push(doc.translated_units+t(' מתוך '," of ")+doc.total_units+t(' מקטעים'," segments"));
@@ -1159,7 +1161,7 @@ function renderInProgress(documents){
     item.querySelector('.library-delete').onclick=()=>libraryDelete(doc,item,true);
     list.append(item);
   });
-  applyAutoDirs();
+  applyAutoDirs();window.libraryShelf?.build();
 }
 async function libraryDelete(doc,item,inProgress){
   const spent=inProgress&&doc.spent_usd?t(' העבודה שכבר שולמה ($'," The work already paid for ($")+Number(doc.spent_usd).toFixed(4)+t(') תאבד.',") will be lost."):'';
@@ -1363,7 +1365,7 @@ function renderDriveOnly(list,documents){
   const local=new Set(documents.map(d=>d.job_id)),only=remoteBooks.filter(b=>!local.has(b.job_id));
   only.forEach((book,index)=>{
     const kind=/\.epub$/i.test(book.filename||'')?'epub':'pdf',detailId='library-drive-detail-'+index;
-    const item=document.createElement('li');item.className='library-item drive-only';item.dataset.jobId=book.job_id;
+    const item=document.createElement('li');item.className='library-item drive-only';item.dataset.jobId=book.job_id;item.dataset.date=book.completed_at||'';
     item.innerHTML=`<button type="button" class="library-entry" aria-expanded="false" aria-controls="${detailId}">
       <span class="library-kind" data-kind="${kind}">${kind.toUpperCase()}</span>
       <span class="library-entry-text"><strong dir="auto">${esc(book.filename||book.job_id)}</strong><span class="library-meta">${esc(libraryDate(book.completed_at))}</span><span class="drive-badge">${esc(t('רק ב־Drive','Drive only'))}</span></span>
