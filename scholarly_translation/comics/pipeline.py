@@ -982,14 +982,29 @@ def _quad(text):
         raise comic_model.ComicModelError(str(exc)) from None
 
 
+PROSE_PAGE_CHARS = 800   # narration on a page beyond this: a text page, not a comic page
+
+
+def is_comic_page(page):
+    """A page of panels to be read right to left: at least two panels or any balloon or sound
+    effect, and not mostly prose. Cover, title, credits and text pages are not mirrored."""
+    regions = page.get("regions") or []
+    prose = sum(len(r["source_text"]) for r in regions if r["kind"] == "narration")
+    if prose >= PROSE_PAGE_CHARS:
+        return False
+    return len(page.get("panels") or []) >= 2 or any(r["kind"] in ("speech", "thought", "sfx") for r in regions)
+
+
 def finish_page(ctx, stages, page, image, source_language, target_code, mirror=False):
     """Typesetting (at most one shorten call) and rendering; returns the output image (the
     original, unmirrored, for a failed page)."""
     if page["status"] == "failed":
         return image
+    mirror = mirror and is_comic_page(page)     # cover, title, credits and prose pages keep their layout
+    page["mirrored"] = mirror
     if not page["regions"]:
         page["status"] = "rendered"
-        return image
+        return ImageOps.mirror(image) if mirror else image
     pack = target_languages.load(target_code)
     font = stages.font_for(target_code)
     base_deps = _base_deps(page, stages, source_language, target_code)

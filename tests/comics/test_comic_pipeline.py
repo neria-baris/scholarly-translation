@@ -581,3 +581,15 @@ class KeepOriginalTests(unittest.TestCase):
         method = cp.keep_original(ImageOps.mirror(image), image, self.region([100, 95, 220, 145]), True, Editor(), "es")
         self.assertEqual(method, "kept-relettered")
         self.assertEqual(calls, [("BAR", "Spanish", False)])
+
+
+class ComicPageTests(unittest.TestCase):
+    def test_only_comic_pages_are_mirrored(self):
+        def page(panels, *regions):
+            return {"panels": [{"panel": i + 1, "description": ""} for i in range(panels)],
+                    "regions": [{"kind": k, "source_text": t} for k, t in regions]}
+        self.assertFalse(cp.is_comic_page(page(1, ("other", "Edicions de Ponent"))))         # credits
+        self.assertFalse(cp.is_comic_page(page(1, ("narration", "A man on a staircase"))))   # cover
+        self.assertFalse(cp.is_comic_page(page(2, ("narration", "x" * 900), ("speech", "Hola"))))   # prose
+        self.assertTrue(cp.is_comic_page(page(4)))                                            # silent panels
+        self.assertTrue(cp.is_comic_page(page(1, ("speech", "Hola"), ("sfx", "BOOM"))))     # splash page
