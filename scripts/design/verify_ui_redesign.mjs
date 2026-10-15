@@ -110,6 +110,30 @@ try {
     await shot('library-shelf-en');
     await js(`document.getElementById('language-button').click()`); await sleep(500);
   }
+  if (want('form')) {
+    await viewport(1440, 900); await load('he');
+    await js(`document.getElementById('translation-options').open = true`); await sleep(300);
+    check('short choices are option cards backed by the original selects', await js(`['profile','target-language','model','quality','ocr-review'].every(id => document.getElementById(id).nextElementSibling?.classList.contains('seg-group'))`));
+    await js(`document.querySelector('input[name="seg-profile"][value="literary"]').click()`); await sleep(300);
+    check('a card writes the select and the summary follows', await js(`document.getElementById('profile').value === 'literary' && document.getElementById('profile-summary').textContent.startsWith('ספרותי')`));
+    await js(`document.querySelector('input[name="seg-model"][value="configured"]').click()`); await sleep(500);
+    check('own model: review level follows ui.js and model settings open', await js(`document.querySelector('input[name="seg-quality"]:checked')?.value === document.getElementById('quality').value && !document.getElementById('model-settings').hidden`));
+    check('own model enables the English target card', await js(`!document.querySelector('input[name="seg-target-language"][value="en"]').disabled`));
+    await shot('form-own-model', true);
+    await js(`document.querySelector('input[name="seg-model"][value="auto"]').click()`); await sleep(300);
+    check('Auto disables the English target card', await js(`document.querySelector('input[name="seg-target-language"][value="en"]').disabled && document.querySelector('input[name="seg-target-language"][value="he"]').checked`));
+    await js(`document.querySelector('input[name="seg-model"][value="configured"]').click()`); await sleep(300);
+    await js(`document.getElementById('model').value = 'auto'; updateSettings()`); await sleep(200);
+    check('programmatic changes reach the cards (as sample() does)', await js(`document.querySelector('input[name="seg-model"][value="auto"]').checked`));
+    check('the disabled start button shows what is missing', await js(`(() => { const b = document.getElementById('translate-button'); const n = document.getElementById('send-note'); return !b.disabled || getComputedStyle(n).backgroundColor !== 'rgba(0, 0, 0, 0)'; })()`));
+    await js(`document.getElementById('language-button').click()`); await sleep(800);
+    check('cards speak English after the switch', await js(`[...document.querySelectorAll('.seg-group b')].some(b => b.textContent.trim() === 'Academic')`), await js(`[...document.querySelectorAll('.seg-group b')].slice(0,4).map(b => b.textContent).join(' | ')`));
+    await shot('form-en', true);
+    await js(`document.getElementById('language-button').click()`); await sleep(400);
+    await viewport(390, 844, true); await sleep(600);
+    check('options fit a phone', (await js(`document.documentElement.scrollWidth`)) <= 390);
+    await shot('form-390', true);
+  }
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e) {
   console.error(e); check('script completed', false, String(e.message).slice(0, 300));

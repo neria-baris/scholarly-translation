@@ -95,6 +95,33 @@ class ShelfTests(unittest.TestCase):
         self.assertIn(".lib-spine:focus-visible .cover-face{transform:scaleX(1)", shelf_css)
 
 
+class StartScreenTests(unittest.TestCase):
+    """Stage 3: grouped options and option cards over the original selects."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.html = _read("ui.html")
+        cls.js = _read("ui.js")
+        cls.seg = _read("segments.js")
+
+    def test_options_are_grouped_and_every_field_kept(self):
+        fields = self.html[self.html.index('<div class="settings-fields">'):self.html.index('<p id="form-message"')]
+        order = [fields.index(marker) for marker in ('data-i18n="grpHow"', 'for="profile"', 'for="target-language"', 'for="language"',
+                                                     'data-i18n="grpModel"', 'for="model"', 'for="quality"', 'for="budget"', 'id="model-settings"',
+                                                     'data-i18n="grpScan"', 'for="ocr-review"', 'for="font-before"', 'data-i18n="grpTerms"', 'for="user-terms"')]
+        self.assertEqual(order, sorted(order))
+        for key in ("grpHow", "grpModel", "grpScan", "grpTerms"):
+            self.assertIn(f'"{key}":', self.js)
+
+    def test_cards_write_the_select_and_follow_it(self):
+        self.assertIn("select.value = input.value;", self.seg)
+        self.assertIn("select.dispatchEvent(new Event('change', { bubbles: true }))", self.seg)
+        self.assertIn("window.libraryForm?.sync();", self.js)
+        self.assertLess(self.html.index('src="/ui.js"'), self.html.index('src="/segments.js"'))
+        for forbidden in ("fetch(", "request(", "localStorage"):
+            self.assertNotIn(forbidden, self.seg)
+
+
 class RedesignRouteTests(unittest.TestCase):
     def setUp(self):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler("test-token"))
@@ -107,7 +134,7 @@ class RedesignRouteTests(unittest.TestCase):
         self.server.server_close()
 
     def test_new_static_files_are_served(self):
-        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"), ("/shelf.js", "text/javascript"),
+        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"), ("/shelf.js", "text/javascript"), ("/segments.js", "text/javascript"),
                            ("/fonts/frank-ruhl-libre.ttf", "font/ttf")):
             with urlopen(self.base + path, timeout=10) as response:
                 self.assertEqual(response.status, 200)
