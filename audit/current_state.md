@@ -1,11 +1,11 @@
 # Current state — COMIC on real pages (Claude Code session); other owner's checkpoint below
-Updated: 2026-10-12. Claude Code primary agent (conductor) for the comic work.
+Updated: 2026-10-15. Claude Code primary agent (conductor) for the comic work.
 
-Comic code: scholarly_translation/comics/ (pipeline, model, review, edit, detect, typeset, records). Latest commits up to cf9ac94 + receipt. Not pushed. CLI adds --review-unit, --recheck, --edit-art-text (alias --edit-signs), --edit-budget-usd, --edit-quality.
-Best current output: outputs/comics/torrezno-01-v4 (pages 10-13, all features; comic.pdf, review.html); signs-only check: outputs/comics/torrezno-01-v3/signs-test/013.png.
-Open: recogniser box accuracy in crowded panels (Luna medium) misplaces some regions (art edits then land in the wrong place); tiny adjacent balloons overflow into each other; leftover lettering touching outlines. Options for the user: stronger recognition model (gpt-6.1-sol) or a per-page placement-verification call. Full album only on explicit approval.
+Comic code: scholarly_translation/comics/ (pipeline, model, review, edit, detect, typeset, records). Latest commit c89a15d + receipt. Not pushed. Recommended CLI: python -m scholarly_translation.comics.pipeline INPUT --out DIR --source-language es --target he --translator openai:gpt-6-luna:medium --reviewer openai:gpt-6-luna:medium --recognizer openai:gpt-6.1-sol:medium --review-unit page [--edit-art-text on for sound effects] [--pages] [--notebook].
+Current best output: outputs/comics/torrezno-01-a2 (pages 10-13): balloons separated by words, signs kept in the original with footnotes, sound effects re-lettered. Its budget ledger shows ~\$2.6 mostly from unmetered failures during an OpenAI outage (2026-10-12 14:32-15:33).
+Open: user decides on a full-album run (estimate ~\$8 without sfx image edits, ~\$13 with; Luna-only ~\$2); Haiku not cheaper (no Anthropic key saved). Known gaps: leftover lettering touching outlines; sfx labels; recogniser merging adjacent signs.
 Uncommitted, not ours: staged translate/chapter_pipeline.py + tests/translate/test_chapter_pipeline.py (other owner). Untracked source PDF in repo root: do not commit.
-Next action: user chooses how to fix placement (stronger recogniser vs placement check).
+Next action: user's choice of configuration and approval for the full album (157 pages).
 
 ---
 Previous checkpoint (other owner):
