@@ -549,11 +549,23 @@ async function runPreview(){
   }catch(error){if(id!==previewCounter)return;$('preview-card').hidden=false;
     const detail=error.message;previewView=()=>{$('preview-body').textContent=t('אומדן לא זמין: ','Estimate unavailable: ')+serverText(detail)};previewView()}
 }
+function duration(seconds){
+  const minutes=Math.round(Number(seconds)/60);
+  if(!(minutes>=1))return t('פחות מדקה','under a minute');
+  if(minutes<60)return t(`${minutes} דק׳`,`${minutes} min`);
+  const hours=Math.floor(minutes/60),rest=minutes%60;
+  return t(`${hours} שע׳`+(rest?` ו־${rest} דק׳`:''),`${hours} h`+(rest?` ${rest} min`:''));
+}
+function timeRange(preview){
+  return t(`זמן משוער: כ־${duration(preview.expected_total_seconds)} (בדרך כלל בין ${duration(preview.low_total_seconds)} ל־${duration(preview.high_total_seconds)}).`,
+    `Estimated time: about ${duration(preview.expected_total_seconds)} (usually between ${duration(preview.low_total_seconds)} and ${duration(preview.high_total_seconds)}).`);
+}
 function renderPreview(preview){
   previewView=()=>renderPreview(preview);
   $('preview-card').hidden=false;
   if(preview.scanned){
-    const review=preview.vision_review?t(`בדיקת המודל מול תמונות העמודים: צפוי כ־$${Number(preview.expected_total_cost_usd).toFixed(4)}, תקרה $${Number(preview.conservative_total_ceiling_usd).toFixed(4)}.`,`Model check against page images: expected about $${Number(preview.expected_total_cost_usd).toFixed(4)}, ceiling $${Number(preview.conservative_total_ceiling_usd).toFixed(4)}.`):t('ללא בדיקת מודל (זיהוי מקומי בלבד, ללא עלות).',"No model check (local recognition only, free).");
+    const review=preview.vision_review?t(`בדיקת המודל מול תמונות העמודים: צפוי כ־$${Number(preview.expected_total_cost_usd).toFixed(4)}, תקרה $${Number(preview.conservative_total_ceiling_usd).toFixed(4)}.`,`Model check against page images: expected about $${Number(preview.expected_total_cost_usd).toFixed(4)}, ceiling $${Number(preview.conservative_total_ceiling_usd).toFixed(4)}.`)+
+' '+timeRange(preview)+t(' (לא כולל הזיהוי המקומי).',' (local recognition not included).'):t('ללא בדיקת מודל (זיהוי מקומי בלבד, ללא עלות).',"No model check (local recognition only, free).");
     $('preview-body').innerHTML=`<p>${t(`<strong>קובץ סרוק:</strong> `,`<strong>Scanned file:</strong> `)}${esc(preview.scanned_pages)}${t(` מתוך ${esc(preview.total_pages)} עמודים בלי טקסט מוטמע. הטקסט יזוהה ב־OCR במחשב שלכם לפני התרגום.`,` of ${esc(preview.total_pages)} pages have no embedded text. The text will be recognized with OCR on your computer before translation.`)}</p>
       ${preview.ocr_ready?'':`<p class="message">${esc(preview.ocr_problem)}</p>`}
       <p>${review}</p>
@@ -565,15 +577,16 @@ function renderPreview(preview){
     for(const [role,usage] of Object.entries(chapter.role_usage)){
       rows.push(`<tr><td>${esc(role==='notebook_keeper'?t('מחברת הספר',"Book notebook"):role)}</td><td dir="ltr">${esc(usage.provider)}/${esc(usage.model)}</td><td dir="ltr">${esc(usage.calls)}</td>
         <td dir="ltr">${esc(usage.input_tokens_upper_bound)} / ${esc(usage.output_tokens_upper_bound)}<br>${esc(usage.count_method)} · ${usage.exact?t('ספירה לפי קידוד',"counted by encoding"):t('אומדן',"estimate")}</td>
-        <td dir="ltr">$${Number(usage.expected_cost_usd).toFixed(4)}</td><td dir="ltr">$${Number(usage.conservative_cost_usd).toFixed(4)}</td>
+        <td dir="ltr">$${Number(usage.expected_cost_usd).toFixed(4)}</td><td dir="ltr">$${Number(usage.conservative_cost_usd).toFixed(4)}</td><td>${esc(duration(usage.expected_seconds))}</td>
         <td>${usage.pricing_basis==='unknown_conservative'?t('הנחה שמרנית (לא רשמי)',"Conservative assumption (unofficial)"):esc(usage.pricing_basis)}</td></tr>`);
     }
   }
-  $('preview-body').innerHTML=`<div class="table-scroll"><table><thead><tr>${t(`<th>תפקיד</th><th>מודל</th><th>קריאות מרביות</th><th>טוקנים קלט / פלט — גבול תכנון</th><th>צפוי</th><th>תקרה לפי ההנחות</th><th>בסיס תמחור</th>`,`<th>Role</th><th>Model</th><th>Max calls</th><th>Input / output tokens — planning bound</th><th>Expected</th><th>Ceiling under the assumptions</th><th>Pricing basis</th>`)}</tr></thead>
+  $('preview-body').innerHTML=`<div class="table-scroll"><table><thead><tr>${t(`<th>תפקיד</th><th>מודל</th><th>קריאות מרביות</th><th>טוקנים קלט / פלט — גבול תכנון</th><th>צפוי</th><th>תקרה לפי ההנחות</th><th>זמן צפוי</th><th>בסיס תמחור</th>`,`<th>Role</th><th>Model</th><th>Max calls</th><th>Input / output tokens — planning bound</th><th>Expected</th><th>Ceiling under the assumptions</th><th>Expected time</th><th>Pricing basis</th>`)}</tr></thead>
     <tbody>${rows.join('')}</tbody></table></div>
     <p>${t(`סה״כ צפוי: `,`Expected total: `)}$${Number(preview.expected_total_cost_usd).toFixed(4)}${t(` · תקרה שמרנית: `,` · Conservative ceiling: `)}$${Number(preview.conservative_total_ceiling_usd).toFixed(4)}
     (${esc(preview.chapter_count)}${t(` פרקים) · קטלוג: `,` chapters) · Catalog: `)}${esc(preview.catalog_version||'')}</p>
-    <p class="advanced-note">${t(`האומדן "צפוי" מניח כ-35% ניצול תקרת הפלט, ללא תיקונים וללא הנחת פגיעה במטמון; התקרה לפי ההנחות כוללת תיקון מקומי אחד ובדיקה חוזרת וכתיבת מטמון מלאה. למודל אחר ללא תעריף משתמשים בהנחת $4 קלט / $20 פלט למיליון; זו אינה התחייבות או תקרת חיוב של הספק.`,`The "expected" estimate assumes about 35% use of the output cap, with no corrections and no cache hits; the ceiling under the assumptions includes one local correction, one re-check and a full cache write. For another model with no rate, an assumption of $4 input / $20 output per million is used; this is not a commitment or a provider billing cap.`)}</p>`;
+    <p>${timeRange(preview)}</p>
+    <p class="advanced-note">${t(`האומדן "צפוי" מניח כ-35% ניצול תקרת הפלט, ללא תיקונים וללא הנחת פגיעה במטמון; התקרה לפי ההנחות כוללת תיקון מקומי אחד ובדיקה חוזרת וכתיבת מטמון מלאה. למודל אחר ללא תעריף משתמשים בהנחת $4 קלט / $20 פלט למיליון; זו אינה התחייבות או תקרת חיוב של הספק. הזמן כולל בדיקות חוזרות ותיקונים, ומבוסס על מהירות המודלים ועל משך תרגומים קודמים שנמדדו במחשב הזה (מודל שלא נמדד מוערך כאיטי מבין הנמדדים). הקריאות נשלחות בזו אחר זו; עיכובים או תקלות אצל הספק יאריכו אותו.`,`The "expected" estimate assumes about 35% use of the output cap, with no corrections and no cache hits; the ceiling under the assumptions includes one local correction, one re-check and a full cache write. For another model with no rate, an assumption of $4 input / $20 output per million is used; this is not a commitment or a provider billing cap. The time includes rechecks and corrections and is based on the models' speed and the duration of earlier translations measured on this computer (an unmeasured model is assumed as slow as the slowest measured one). Calls are sent one after another; provider delays or outages make it longer.`)}</p>`;
 }
 
 function settings(){

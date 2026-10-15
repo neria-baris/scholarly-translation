@@ -29,6 +29,7 @@ from ..budget.runtime_controls import PersistentBudget, RuntimeCache, RuntimeCon
 from ..core.source_reading import fingerprint
 from ..budget.token_counting import count_tokens, upper_bound_tokens
 from ..models.catalog import estimate_cost, CATALOG_VERSION
+from ..models.timing import TIMING_VERSION, planned_seconds
 from ..budget.reasoning_budget import review_output_cap, review_reasoning_headroom, REVIEW_CAP_VERSION
 from .translation_profiles import style_profile_text, SUPPORTED_PROFILE_IDS, PROMPT_VERSIONS, CONFIG_VERSIONS
 from ..core.work_journal import WorkJournal, step_identity
@@ -1322,12 +1323,17 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
         row = role_usage.setdefault(role, {'provider': selection.provider, 'provider_type': definition.provider_type,
             'model': selection.model, 'count_method': q['count']['method'], 'exact': q['count']['exact'],
             'input_tokens_upper_bound': 0, 'output_tokens_upper_bound': 0, 'calls': 0,
-            'expected_cost_usd': 0.0, 'conservative_cost_usd': 0.0, 'pricing_basis': q['basis']})
+            'expected_cost_usd': 0.0, 'conservative_cost_usd': 0.0, 'pricing_basis': q['basis'],
+            'low_seconds': 0.0, 'expected_seconds': 0.0, 'high_seconds': 0.0})
         row['input_tokens_upper_bound'] += q['input'] * calls
         row['output_tokens_upper_bound'] += cap * calls
         row['calls'] += calls
         row['expected_cost_usd'] += q['expected'] * expected_factor
         row['conservative_cost_usd'] += q['ceiling'] * calls
+        # Time counts the expected first passes; their calibrated output share
+        # already carries the time of rechecks and corrections.
+        for name, value in planned_seconds(definition.provider_type, selection.model, q['input'], cap).items():
+            row[f'{name}_seconds'] += value * expected_factor
         return q
     batch_plans = []
     for group in batches:
@@ -1408,6 +1414,9 @@ def plan_chapter(structure, glossary, unit_ids, configuration, quality, profile_
         'conservative_translation_ceiling_usd': sum(b['conservative_cost_usd'] for b in batch_plans),
         'expected_total_cost_usd': sum(row['expected_cost_usd'] for row in role_usage.values()),
         'conservative_total_ceiling_usd': sum(row['conservative_cost_usd'] for row in role_usage.values()),
+        **{f'{name}_total_seconds': sum(row[f'{name}_seconds'] for row in role_usage.values())
+           for name in ('low', 'expected', 'high')},
+        'timing_version': TIMING_VERSION,
         'max_attempts_per_qa_group': 3, 'hebrew_expansion_hypothesis': HEBREW_EXPANSION_HYPOTHESIS,
         'expected_cost_assumptions': {'output_fraction_of_cap': .35,
             'cache_reads': 0, 'automatic_corrections': 0,
@@ -1429,7 +1438,8 @@ def _passthrough_plan(structure, glossary, configuration, quality, profile_id, k
         'whole_chapter': True, 'context_mode': 'whole_chapter', 'batches': [], 'qa_groups': [], 'role_usage': {},
         'qa_roles': [], 'qa_role_cost_usd': {}, 'qa_tail_usd': 0.0, 'expected_translation_cost_usd': 0.0,
         'conservative_translation_ceiling_usd': 0.0, 'expected_total_cost_usd': 0.0,
-        'conservative_total_ceiling_usd': 0.0, 'max_attempts_per_qa_group': 3,
+        'conservative_total_ceiling_usd': 0.0, 'low_total_seconds': 0.0, 'expected_total_seconds': 0.0, 'high_total_seconds': 0.0,
+        'timing_version': TIMING_VERSION, 'max_attempts_per_qa_group': 3,
         'hebrew_expansion_hypothesis': HEBREW_EXPANSION_HYPOTHESIS,
         'expected_cost_assumptions': {'output_fraction_of_cap': .35, 'cache_reads': 0, 'automatic_corrections': 0,
             'notice': 'Planning hypothesis, not a provider quote or measured chapter usage'},

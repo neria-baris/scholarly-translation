@@ -1396,6 +1396,7 @@ class DocumentJobs:
             raise DocumentDraftError(f"לא ניתן לתכנן את התרגום עם המודלים שנבחרו: {exc}") from None
         chapters = []
         total_expected, total_conservative = 0.0, 0.0
+        seconds = dict.fromkeys(("low_total_seconds", "expected_total_seconds", "high_total_seconds"), 0.0)
         for group in groups:
             unit_ids = [u["unit_id"] for u in group]
             preview = chapter_pipeline.estimate_preview(
@@ -1404,10 +1405,13 @@ class DocumentJobs:
             chapters.append(preview)
             total_expected += preview["expected_total_cost_usd"]
             total_conservative += preview["conservative_total_ceiling_usd"]
+            for key in seconds:
+                seconds[key] += preview[key]
         return {
             "chapter_count": len(groups), "chapters": chapters,
             "expected_total_cost_usd": total_expected,
             "conservative_total_ceiling_usd": total_conservative,
+            **seconds,
         }
 
     def _scanned_preview(self, document, settings, configuration):
@@ -1415,10 +1419,12 @@ class DocumentJobs:
         so only the OCR/vision-review part is estimated; translation is planned after
         OCR against the same budget (over budget -> a decision for the user)."""
         from ..models.catalog import estimate_cost
+        from ..models.timing import planned_seconds
         pages = scanned_ocr.scanned_pages(document)
         ready, reason = scanned_ocr.ocr_ready(document.language)
         review = settings.get("ocr_review", "vision") == "vision"
         expected = ceiling = 0.0
+        seconds = dict.fromkeys(("low", "expected", "high"), 0.0)
         if review:
             selection, definition = configuration.resolve("translator")
             image = scanned_ocr.IMAGE_TOKEN_ALLOWANCE
@@ -1430,6 +1436,8 @@ class DocumentJobs:
                     raise DocumentDraftError("אין מחיר ידוע למודל עבור בדיקת ה־OCR.")
                 if bound:
                     ceiling = quote["cost_usd"] * len(pages)
+                    seconds = {name: value * len(pages) for name, value in planned_seconds(
+                        definition.provider_type, selection.model, usage["input"], usage["output"]).items()}
                 else:
                     expected = quote["cost_usd"] * len(pages)
         return {
@@ -1437,6 +1445,7 @@ class DocumentJobs:
             "ocr_ready": ready, "ocr_problem": reason, "vision_review": review,
             "chapter_count": 0, "chapters": [],
             "expected_total_cost_usd": expected, "conservative_total_ceiling_usd": ceiling,
+            **{f"{name}_total_seconds": value for name, value in seconds.items()},
         }
 
     def review(self, job_id, unit_index, target_text, expected_revision):

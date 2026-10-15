@@ -34,6 +34,16 @@ def page_groups(structure):
     return [groups[page] for page in order]
 
 
+def without_timing(plan):
+    """The frozen reference predates the time estimate, which is derived from the
+    planned calls; compare the planning itself."""
+    plan = {k: v for k, v in plan.items()
+            if k not in ('low_total_seconds', 'expected_total_seconds', 'high_total_seconds', 'timing_version')}
+    plan['role_usage'] = {role: {k: v for k, v in row.items() if k not in ('low_seconds', 'expected_seconds', 'high_seconds')}
+                          for role, row in plan['role_usage'].items()}
+    return plan
+
+
 def assert_plans_close(case, old, new, tolerance):
     """Plans must have identical shape; numeric bounds may only differ by the
     explicit additive-count slack and the new bound is never lower."""
@@ -93,7 +103,7 @@ class PlannerEquivalenceTests(unittest.TestCase):
                             plan_chapter(self.small, glossary, ids, config, quality, 'scholarly')
                         self.assertEqual(str(raised.exception), str(exc))
                         continue
-                    actual = plan_chapter(self.small, glossary, ids, config, quality, 'scholarly')
+                    actual = without_timing(plan_chapter(self.small, glossary, ids, config, quality, 'scholarly'))
                     self.assertEqual(expected, actual, '%s/%s/%d' % (name, quality, len(ids)))
 
     def test_plans_exercise_batches_groups_and_both_context_modes(self):
@@ -117,7 +127,7 @@ class PlannerEquivalenceTests(unittest.TestCase):
         config = configuration(translator_output=8192, context=30000, qa_context=30000, qa_output=2048)
         for quality in QUALITIES:
             old = reference.plan_chapter(self.large, glossary, self.large_ids, config, quality, 'scholarly')
-            new = plan_chapter(self.large, glossary, self.large_ids, config, quality, 'scholarly')
+            new = without_timing(plan_chapter(self.large, glossary, self.large_ids, config, quality, 'scholarly'))
             self.assertEqual([b['unit_ids'] for b in old['batches']], [b['unit_ids'] for b in new['batches']])
             self.assertEqual([g['unit_ids'] for g in old['qa_groups']], [g['unit_ids'] for g in new['qa_groups']])
             self.assertEqual(old['context_mode'], new['context_mode'])
