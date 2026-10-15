@@ -120,6 +120,50 @@ that drive.file is still classified non-sensitive and every provider URL below.
   Pages or any static host. Tests: links well-formed, no external script/style,
   every page has lang/dir and a title.
 
+## C6 silent updates (owns: scholarly_translation/update/ (new: __init__.py,
+## manifest.py, updater.py), scholarly_translation/app_paths.py (new),
+## run-ui.ps1, install.ps1, Install.bat, scripts/release/ (new: build_release.py,
+## sign_manifest.py), tests/update/ (new)) — user decision 2026-10-15: users get
+## updates without consciously re-downloading the project
+
+- Install layout: `%LOCALAPPDATA%\ScholarlyTranslation\app\<version>\` (runtime
+  files only: scholarly_translation/, requirements.txt, launcher scripts; never
+  audit/, docs/, tests/, outputs/) and `...\app\current.txt` naming the active
+  version. User data moves to `%LOCALAPPDATA%\ScholarlyTranslation\data\`
+  (`app_paths.data_root()`; env `SCHOLARLY_DATA_ROOT` overrides; a development
+  checkout keeps `<repo>/outputs` when no install marker exists). First run after
+  the move copies an existing `<install>/outputs` into data/ once, never deletes it.
+  web_ui.OUTPUT_ROOT derives from data_root() — that one line is integrated after C3.
+- Release channel (static, no server): `update/manifest.json` + content-addressed
+  files `update/files/<sha256>` published on the C5 static host (the source repo is
+  private, so not GitHub release assets). Manifest: `{schema 1, version, min_launcher,
+  requirements_sha256, files: {relative_path: {sha256, size}}, notes_he, notes_en}`
+  plus detached Ed25519 signature `manifest.json.sig`. The public key is embedded in
+  the app; the private key stays with the owner, offline, never in the repo or audit.
+- Updater: at app start, in a background thread, fetch the manifest (HTTPS, short
+  timeout); verify the signature (dependency: `cryptography`, pinned in
+  requirements.txt); reject any version not greater than current (no downgrade) and
+  any path outside the app tree (no `..`, absolute or drive paths). Build the new
+  version folder by hard-copying unchanged files from the current version and
+  downloading only files whose sha256 differs; verify each file's hash and size;
+  write `current.txt` atomically only after the whole folder verifies. If
+  `requirements_sha256` changed, the launcher runs `pip install -r` into the
+  existing venv before switching; on failure it stays on the old version.
+- Applied at the next launch, never mid-run. The UI shows a quiet notice "updated to
+  X" with the notes, and an "update ready, restart" hint if one is staged. Keep the
+  previous version folder for rollback: if the new version fails to start (no
+  heartbeat within 60 s), the launcher switches back and records why. Remove older
+  folders beyond two.
+- Setting "automatic updates" (default on) in the existing options; off = check
+  and show only. No telemetry: the only request is the anonymous manifest/file GET.
+- Jobs, keys, terms and Drive state written by an older version stay readable
+  (existing explicit legacy-reading rule); an update never touches data/.
+- `scripts/release/build_release.py` builds the manifest/files from a clean Git
+  commit; `sign_manifest.py` signs with a key path the owner supplies at run time.
+- Tests offline: tampered manifest/file/signature, downgrade, path traversal,
+  partial download, unchanged-file reuse, requirements change, rollback, data-root
+  migration, update disabled.
+
 ## Invariants
 
 - No hosted backend, database or job server is introduced. No paid provider call,
@@ -130,12 +174,13 @@ that drive.file is still classified non-sensitive and every provider URL below.
 
 ## Integration order
 
-C1 and C4 and C5 in parallel (disjoint paths) -> C2 -> C3 -> conductor
-end-to-end check with a real test Google account once the owner supplies the
-OAuth client (human prerequisite above).
+C1, C4, C5 and C6 in parallel (disjoint paths) -> C2 -> C3 -> C6's OUTPUT_ROOT
+line -> conductor end-to-end check with a real test Google account once the owner
+supplies the OAuth client, and an update round-trip on a clean Windows user
+profile once the owner generates the signing key (human prerequisites).
 
 ## Out of scope
 
-Mac/Linux packaging, code signing, hosted processing, payments to the owner,
+Mac/Linux packaging, Windows Authenticode signing of the installer, hosted processing, payments to the owner,
 OpenRouter or Sign-in-with-ChatGPT, sharing books between users, deleting Drive
 copies, multi-device conflict merging beyond the explicit SyncConflict.
