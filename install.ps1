@@ -3,7 +3,29 @@ $projectRoot = $PSScriptRoot
 
 # Import names that must load after installing requirements.txt
 # (keep in sync with requirements.txt; Pillow imports as PIL).
-$verifyModules = @('pdfplumber', 'reportlab', 'PIL', 'tiktoken', 'openai', 'anthropic')
+$verifyModules = @('pdfplumber', 'reportlab', 'PIL', 'tiktoken', 'openai', 'anthropic', 'cryptography')
+
+# Install layout. When this script runs from the Setup zip (release.json next to
+# scholarly_translation) it lays out
+#   %LOCALAPPDATA%\ScholarlyTranslation\app\<version>\ + app\current.txt + install.marker
+# and the data\ folder; run-ui.ps1 and the .vbs live in the install root so the
+# desktop shortcut never points into a version folder. From a development
+# checkout (no release.json) everything stays in the project folder as before.
+$releaseInfoPath = Join-Path $projectRoot 'release.json'
+$installMode = (Test-Path -LiteralPath $releaseInfoPath) -and (Test-Path -LiteralPath (Join-Path $projectRoot 'scholarly_translation'))
+$runtimeRoot = $projectRoot   # where scholarly_translation\ and requirements.txt are used from
+$envRoot = $projectRoot       # where .venv lives
+$launchRoot = $projectRoot    # where the launcher .vbs and the shortcut target live
+$installRoot = $null
+$appVersion = $null
+if ($installMode) {
+    $appVersion = ((Get-Content -LiteralPath $releaseInfoPath -Raw | ConvertFrom-Json).version).ToString().Trim()
+    if ($appVersion -notmatch '^\d+(\.\d+){0,3}$') { throw "Invalid version in release.json: $appVersion" }
+    $installRoot = Join-Path $env:LOCALAPPDATA 'ScholarlyTranslation'
+    $runtimeRoot = Join-Path $installRoot "app\$appVersion"
+    $envRoot = $installRoot
+    $launchRoot = $installRoot
+}
 
 # Pinned official per-user Python installer used only when Python 3.10+ is
 # missing and winget is unavailable or did not succeed.
@@ -108,7 +130,7 @@ function Invoke-ProcessWithUi {
     param([string]$FilePath, [string[]]$Arguments = @())
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $FilePath
-    $psi.WorkingDirectory = $projectRoot
+    $psi.WorkingDirectory = $(if ($installMode -and (Test-Path -LiteralPath $runtimeRoot)) { $runtimeRoot } else { $projectRoot })
     $psi.Arguments = (($Arguments | ForEach-Object { ConvertTo-ProcessArgument $_ }) -join ' ')
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
@@ -313,6 +335,39 @@ function New-DesktopShortcut {
     return $shortcutPath
 }
 
+function Write-AtomicText {
+    param([string]$Path, [string]$Text)
+    $tmp = $Path + '.tmp'
+    [System.IO.File]::WriteAllText($tmp, $Text, (New-Object System.Text.UTF8Encoding($false)))
+    Move-Item -LiteralPath $tmp -Destination $Path -Force
+}
+
+# Copies the runtime files into app\<version>\, keeps launcher scripts in the
+# install root, writes the install marker and (last, atomically) current.txt.
+# Existing user data and previous versions are never touched.
+function Install-AppLayout {
+    $appRoot = Join-Path $installRoot 'app'
+    foreach ($dir in @($installRoot, $appRoot, $runtimeRoot, (Join-Path $installRoot 'data'))) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    }
+    Write-Log "Installing version $appVersion into $runtimeRoot ..."
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'scholarly_translation') -Destination $runtimeRoot -Recurse -Force
+    Get-ChildItem -LiteralPath $runtimeRoot -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    foreach ($name in @('requirements.txt', 'run-ui.ps1', 'install.ps1', 'Install.bat', 'Run Scholarly Translation.vbs', 'release.json')) {
+        $source = Join-Path $projectRoot $name
+        if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $runtimeRoot -Force }
+    }
+    foreach ($name in @('run-ui.ps1', 'Run Scholarly Translation.vbs')) {
+        Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $installRoot -Force
+    }
+    # An older project folder with its own outputs\ is copied into data\ once at first start.
+    $legacyOutputs = Join-Path $projectRoot 'outputs'
+    if (Test-Path -LiteralPath $legacyOutputs) { Write-AtomicText (Join-Path $installRoot 'legacy_outputs.txt') $legacyOutputs }
+    Write-AtomicText (Join-Path $installRoot 'install.marker') "1`n"
+    Write-AtomicText (Join-Path $appRoot 'current.txt') "$appVersion`n"
+}
+
 function Test-VenvHealthy {
     param([string]$VenvPython)
     $previousPreference = $ErrorActionPreference
@@ -349,11 +404,16 @@ function Run-Install {
         Write-Log "Using Python: $python"
         Set-Progress 20
 
-        $venvPath = Join-Path $projectRoot '.venv'
+        if ($installMode) {
+            Install-AppLayout
+            Set-Progress 25
+        }
+
+        $venvPath = Join-Path $envRoot '.venv'
         $venvPython = Join-Path $venvPath 'Scripts\python.exe'
         if ((Test-Path $venvPython) -and -not (Test-VenvHealthy $venvPython)) {
             Write-Log 'Existing .venv is unusable; preserving it and using outputs/tooling/runtime-venv.'
-            $venvPath = Join-Path $projectRoot 'outputs\tooling\runtime-venv'
+            $venvPath = Join-Path $envRoot 'outputs\tooling\runtime-venv'
             $venvPython = Join-Path $venvPath 'Scripts\python.exe'
             if ((Test-Path $venvPython) -and -not (Test-VenvHealthy $venvPython)) {
                 throw 'Both .venv and outputs/tooling/runtime-venv are unusable. Delete outputs/tooling/runtime-venv and click Retry.'
@@ -374,7 +434,7 @@ function Run-Install {
         Set-Progress 45
 
         Write-Log 'Installing document, tokenizer and provider SDK dependencies...'
-        $requirements = Join-Path $projectRoot 'requirements.txt'
+        $requirements = Join-Path $runtimeRoot 'requirements.txt'
         $code = Invoke-ProcessWithUi -FilePath $venvPython -Arguments @('-m', 'pip', 'install', '--disable-pip-version-check', '-r', $requirements)
         if ($code -ne 0) { throw 'Installing dependencies failed (see log above).' }
         Set-Progress 80
@@ -386,7 +446,7 @@ function Run-Install {
         Set-Progress 90
 
         Write-Log 'Creating a desktop shortcut...'
-        $shortcutPath = New-DesktopShortcut -ProjectRoot $projectRoot
+        $shortcutPath = New-DesktopShortcut -ProjectRoot $launchRoot
         Write-Log "Shortcut created: $shortcutPath"
         Set-Progress 100
 
@@ -403,7 +463,7 @@ function Run-Install {
 }
 
 $runButton.Add_Click({
-    Start-Process -FilePath (Join-Path $projectRoot 'Run Scholarly Translation.vbs')
+    Start-Process -FilePath (Join-Path $launchRoot 'Run Scholarly Translation.vbs')
     $form.Close()
 })
 $retryButton.Add_Click({ Run-Install })

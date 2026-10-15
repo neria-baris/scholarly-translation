@@ -9,6 +9,14 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+rem From the Setup zip (release.json present) this installs into
+rem %LOCALAPPDATA%\ScholarlyTranslation; the zip must be extracted first.
+echo "%~dp0" | findstr /i /c:"\Temp\Temp" >nul
+if not errorlevel 1 (
+    echo Please extract the whole zip file to a normal folder first, then run Install.bat again.
+    pause
+    exit /b 1
+)
 if not exist "%~dp0install.ps1" (
     echo install.ps1 was not found next to Install.bat:
     echo %~dp0install.ps1
