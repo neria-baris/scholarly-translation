@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from ..core import target_languages
 from ..export.common import reorder_bidi_line
 
-TYPESET_VERSION = "comic-typeset@3"
+TYPESET_VERSION = "comic-typeset@4"
 FONT_DIR = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 HEBREW_FONT = FONT_DIR / "culmus" / "HadasimCLM-Bold.ttf"
 LATIN_FONT = FONT_DIR / "notosans" / "NotoSans-Regular.ttf"
@@ -466,6 +466,44 @@ def _erase_bubble(draw, region, size):
             draw.line([(a, y), (b - 1, y)], fill=colour)
 
 
+def trim_to_ink(region, erased, key="interior", band=None):
+    """Cut a region's text area (``key``) to pixels free of drawn lines in ``erased`` (the page
+    after the lettering was erased): each sampled row keeps the ink-free run around its centre
+    over the whole band down to the next sample, so a thin outline spike between two samples,
+    or a jagged balloon edge, is never crossed by a line of text."""
+    area = region.get(key)
+    if not area:
+        return
+    gray = erased.convert("L")
+    width, height = gray.size
+    step = area["step"]
+    band = band or step
+    rows = []
+    for y, a, b in area["rows"]:
+        y0, y1 = max(0, y), min(height, y + band)
+        a, b = max(0, a), min(width, b)
+        if y1 <= y0 or b <= a:
+            continue
+        strip = gray.crop((a, y0, b, y1)).point(lambda v: 255 if v < 128 else 0)
+        ink = strip.resize((b - a, 1), Image.BOX).point(lambda v: 255 if v > 0 else 0)
+        ink = ink.filter(ImageFilter.MaxFilter(5)).tobytes()   # a small gap kept from any line
+        centre = (b - a) // 2
+        if ink[centre]:
+            free = [i for i in range(b - a) if not ink[i]]
+            if not free:
+                continue
+            centre = min(free, key=lambda i: abs(i - centre))
+        lo = centre
+        while lo > 0 and not ink[lo - 1]:
+            lo -= 1
+        hi = centre
+        while hi < b - a and not ink[hi]:
+            hi += 1
+        if hi - lo >= 4:
+            rows.append([y, a + lo, a + hi])
+    region[key] = {"step": step, "rows": rows} if rows else None
+
+
 def erase_balloons(image, regions):
     """Erase every balloon's lettering in place (independent of the translation). Lettering
     that belongs to the art (signs, sound effects, text on art) is protected: a balloon whose
@@ -505,6 +543,8 @@ def render_page(image, regions, erase=True) -> Image.Image:
                 draw.text((line["x"], line["y"]), text, font=font, fill=DARK,
                           stroke_width=layout.get("stroke_width", 1), stroke_fill=LIGHT)
             else:
-                draw.text((line["x"], line["y"]), text, font=font,
-                          fill=LIGHT if _luminance(colour) < 100 else DARK)
+                dark_ground = _luminance(colour) < 100
+                halo = max(1, layout["font_size"] // 12)   # keeps letters readable next to drawn lines
+                draw.text((line["x"], line["y"]), text, font=font, fill=LIGHT if dark_ground else DARK,
+                          stroke_width=halo, stroke_fill=DARK if dark_ground else colour)
     return out

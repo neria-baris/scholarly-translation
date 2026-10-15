@@ -224,3 +224,15 @@ class TypesetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TrimToInkTests(unittest.TestCase):
+    def test_a_line_between_samples_cuts_the_area(self):
+        from PIL import ImageDraw
+        page = Image.new("RGB", (300, 200), "white")
+        ImageDraw.Draw(page).line([(200, 52), (200, 58)], fill=(0, 0, 0), width=2)   # a short spike at x=200
+        region = {"interior": {"step": 10, "rows": [[40, 20, 280], [50, 20, 280], [60, 20, 280]]}}
+        ts.trim_to_ink(region, page)
+        rows = {y: (a, b) for y, a, b in region["interior"]["rows"]}
+        self.assertEqual(rows[40], (20, 280))                    # above the spike: untouched
+        self.assertLess(rows[50][1], 199)                        # the band 50-60 holds the spike: cut short of it

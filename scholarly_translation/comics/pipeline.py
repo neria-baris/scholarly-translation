@@ -76,7 +76,7 @@ def default_stages():
         DETECT_VERSION=comic_detect.DETECT_VERSION, TYPESET_VERSION=comic_typeset.TYPESET_VERSION,
         detect_candidates=comic_detect.detect_candidates, snap_region=comic_detect.snap_region,
         font_for=comic_typeset.font_for, min_font_px=comic_typeset.min_font_px,
-        erase_balloons=comic_typeset.erase_balloons,
+        erase_balloons=comic_typeset.erase_balloons, trim_to_ink=comic_typeset.trim_to_ink,
         capacity=comic_typeset.capacity, fit=comic_typeset.fit, render_page=comic_typeset.render_page)
 
 
@@ -608,7 +608,11 @@ def draw_footnotes(image, notes, pack=None):
         mx = x0 - size if rtl else x1 + 2
         draw.text((max(2, mx), max(2, y0 - size // 2)), marker, font=font, fill=(20, 20, 20),
                   stroke_width=2, stroke_fill=(255, 255, 255))
-        lines.append("%s %s" % (marker, region["translation"]["text"]))
+        translation = region["translation"]
+        note = region["source_text"]
+        if translation.get("footnote"):      # the meaning matters: add it
+            note = "%s: %s" % (note, translation["text"])
+        lines.append("%s %s" % (marker, note))
     line_h = int(size * 1.35)
     block = line_h * len(lines) + 6
     gray = image.convert("L")
@@ -692,7 +696,7 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None,
             if not is_art_text(region) or not region.get("translation"):
                 continue
             if region["translation"].get("keep_original"):
-                region["edit_method"] = keep_original(base, image, region, mirror)   # pasted back, no model
+                region["edited"], region["edit_method"] = True, "kept-as-drawn"
                 continue
             target = records.mirror_region(region, width) if mirror else region
             try:
@@ -706,13 +710,13 @@ def _render(stages, image, regions, mirror, editor=None, pack=None, locate=None,
     if editor is None:
         for region in placed:
             if is_art_text(region) and (region.get("translation") or {}).get("keep_original"):
-                region["edit_method"] = keep_original(base, image, region, mirror)
+                region["edited"], region["edit_method"] = True, "kept-as-drawn"
     shown = [records.mirror_region(r, width) for r in regions] if mirror else regions   # with "edited" flags
     if editor is not None and getattr(stages, "erase_balloons", None) is not None:
         out = stages.render_page(base, shown, erase=False)
     else:
         out = stages.render_page(base, shown)
-    notes = [(r, s) for r, s in zip(regions, shown) if (r.get("translation") or {}).get("footnote")]
+    notes = [(r, s) for r, s in zip(regions, shown) if (r.get("translation") or {}).get("keep_original")]
     if notes:
         draw_footnotes(out, notes, pack)
     return out
@@ -981,6 +985,14 @@ def finish_page(ctx, stages, page, image, source_language, target_code, mirror=F
     try:
         kinds = {r["region_id"]: r["kind"] for r in page["regions"]}
         sources = {r["region_id"]: r["source_text"] for r in page["regions"]}
+        trim = getattr(stages, "trim_to_ink", None)
+        if trim is not None:          # text areas end at drawn lines of the page as it will look
+            erased = image.copy()
+            stages.erase_balloons(erased, page["regions"])
+            for region in page["regions"]:
+                if region.get("plain_background"):
+                    trim(region, erased)
+                    trim(region, erased, "room")
         for region in page["regions"]:
             if region.get("skip_layout"):
                 region["translation"]["status"] = "skipped"
