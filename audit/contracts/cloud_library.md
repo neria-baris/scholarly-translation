@@ -26,9 +26,10 @@ that drive.file is still classified non-sensitive and every provider URL below.
 - Component: installed-app OAuth 2.0 for Google. Stdlib only (urllib, hashlib,
   secrets, base64, json); no new dependency.
 - Input: `GoogleClientConfig(client_id, client_secret|None)` read from
-  `SCHOLARLY_GOOGLE_CLIENT_ID` / `SCHOLARLY_GOOGLE_CLIENT_SECRET` or a
-  secret-free `account_config.json` (client_id only; a desktop client secret is
-  not confidential per Google, but it is still never logged or returned to the UI).
+  `SCHOLARLY_GOOGLE_CLIENT_ID` / `SCHOLARLY_GOOGLE_CLIENT_SECRET` or
+  `account_config.json` (client_id and the Desktop-app client_secret, which Google
+  treats as non-confidential for installed apps but still requires at the token
+  endpoint; amended 2026-10-15 at C1 review). It is never logged or returned to the UI.
 - `begin_sign_in(redirect_uri) -> (authorization_url, PendingSignIn)`: S256 PKCE,
   random `state`, scopes exactly as above, `access_type=offline`, `prompt=consent`
   only when no refresh token is stored.
