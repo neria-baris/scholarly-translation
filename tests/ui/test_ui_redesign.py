@@ -34,7 +34,9 @@ class RedesignStaticTests(unittest.TestCase):
         header = self.html[self.html.index('<header class="app-header">'):self.html.index("</header>")]
         self.assertIn('class="brand-logo"', header)
         self.assertIn('data-i18n="brand"', header)  # the brand name keeps its translation
-        self.assertRegex(self.html, r'<link rel="icon" href="data:image/svg\+xml,')
+        icon = re.search(r'<link rel="icon" href="(data:image/svg\+xml,[^"]*)">', self.html)
+        self.assertIsNotNone(icon)
+        self.assertIn("%3Csvg", icon.group(1))  # fully encoded: no raw quote cuts the attribute short
 
     def test_cat_perches_mark_real_surfaces(self):
         for perch in ("hero", "desk", "dropzone", "result", "review", "library"):
@@ -130,6 +132,17 @@ class ResultFixTests(unittest.TestCase):
         self.assertIn("if(currentJob.settings.model==='auto')return t('תצוגת ניסיון',\"Trial preview\");", js)
 
 
+class LearningWindowTests(unittest.TestCase):
+    def test_learning_window_shares_the_look_and_the_cat(self):
+        html = _read("learning.html")
+        self.assertLess(html.index('href="/learning.css"'), html.index('href="/learning-theme.css"'))
+        self.assertIn('class="brand-logo"', html)
+        self.assertLess(html.index('src="/cat.js"'), html.index('src="/learning.js"'))
+        self.assertIn('class="reader-html" data-cat-avoid', html)  # the cat never sits on the reading text
+        theme = _read("learning-theme.css")
+        self.assertEqual(re.findall(r'url\("([^"]+)"\)', theme), ["/fonts/frank-ruhl-libre.ttf"])
+
+
 class RedesignRouteTests(unittest.TestCase):
     def setUp(self):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler("test-token"))
@@ -142,7 +155,7 @@ class RedesignRouteTests(unittest.TestCase):
         self.server.server_close()
 
     def test_new_static_files_are_served(self):
-        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"), ("/shelf.js", "text/javascript"), ("/segments.js", "text/javascript"), ("/bindery.js", "text/javascript"),
+        for path, kind in (("/ui-theme.css", "text/css"), ("/cat.css", "text/css"), ("/cat.js", "text/javascript"), ("/shelf.js", "text/javascript"), ("/segments.js", "text/javascript"), ("/bindery.js", "text/javascript"), ("/learning-theme.css", "text/css"),
                            ("/fonts/frank-ruhl-libre.ttf", "font/ttf")):
             with urlopen(self.base + path, timeout=10) as response:
                 self.assertEqual(response.status, 200)

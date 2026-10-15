@@ -29,7 +29,12 @@ async function load(lang = 'he', hash = '') {
   await sleep(600);
   await js(`localStorage.setItem('ui-language', '${lang}'); localStorage.removeItem('cat-mode')`);
   await send('Page.reload', { ignoreCache: true }); // the server serves exactly "/", so no query string
-  await sleep(2200);
+  // Wait for the app and the cat to be ready rather than a fixed time.
+  for (let i = 0; i < 60; i++) {
+    await sleep(250);
+    if (await js(`document.readyState === 'complete' && typeof request === 'function' && !!window.libraryCat`).catch(() => false)) break;
+  }
+  await sleep(1200);
   if (hash) { await js(`location.hash = '${hash}'`); await sleep(300); }
 }
 function check(name, ok, detail = '') { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); }
@@ -159,6 +164,17 @@ try {
     check('the page stamp follows the language', await js(`document.querySelector('#pixel-book .page-stamp').textContent === 'DRAFT'`));
     await shot('result-en', true);
     await js(`document.getElementById('language-button').click()`); await sleep(300);
+  }
+  if (want('learning')) {
+    await viewport(1440, 900);
+    await send('Page.navigate', { url: base + 'learning' }); await sleep(2500);
+    check('learning window: book typeface and logo', await js(`document.fonts.ready.then(() => document.fonts.check('600 20px "Frank Ruhl Libre"') && !!document.querySelector('.app-header .brand-logo'))`));
+    const options = await js(`[...document.getElementById('learning-language').options].map(o => o.value).filter(Boolean)`);
+    if (options.length) { await js(`(() => { const s = document.getElementById('learning-language'); s.value = ${JSON.stringify(options[0])}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`); await sleep(1500); }
+    const samples = [];
+    for (let i = 0; i < 6; i++) { samples.push(await js(catState)); await sleep(800); }
+    check('the cat visits the learning window, never on text', samples.some(s => s.shown) && samples.every(s => !s.shown || !s.anchor || ['held', 'jump'].includes(s.pose) || !s.hits.length), JSON.stringify(samples.at(-1)));
+    await shot('learning-he');
   }
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 } catch (e) {

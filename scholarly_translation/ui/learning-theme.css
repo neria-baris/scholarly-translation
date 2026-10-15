@@ -1,0 +1,51 @@
+/* Library theme for the language-learning window, layered after learning.css (structure unchanged).
+   Same palette and book typeface as the translation window; local font only. */
+@font-face{font-family:"Frank Ruhl Libre";src:url("/fonts/frank-ruhl-libre.ttf") format("truetype");font-weight:300 900;font-display:swap}
+:root{
+  --bg:#f5eee0;--bg-2:#efe5d1;--surface:#fffdf8;--surface-2:#faf5ea;--surface-3:#f3ebda;--border:#e6dac3;--border-2:#d6c6a6;
+  --ink:#1f2823;--ink-2:#3b443d;--muted:#6f685a;--green-900:#173029;--green-800:#1f3d34;--green-700:#2a5144;--green-600:#3a6b59;--green-100:#e5eee6;--green-50:#f0f5ef;
+  --clay:#b0532f;--gold:#c8963e;--gold-300:#e8c98a;--gold-100:#f8ecd2;--warn-100:#fbefd5;--danger-100:#f8e2dd;--focus:#c26a2e;
+  --display:"Frank Ruhl Libre","David",Georgia,"Times New Roman",serif;--sans:"Segoe UI",system-ui,Arial,sans-serif;
+  --r-sm:8px;--r:12px;--r-lg:18px;--sh-1:0 1px 2px #3c28140f;--sh-2:0 1px 2px #3c28140d,0 10px 28px -14px #3c281445;
+  --teal:var(--green-800);--line:var(--border);color:var(--ink);background:var(--bg);font-family:var(--sans);-webkit-font-smoothing:antialiased
+}
+body{background:radial-gradient(1200px 500px at 85% -10%,#fbe9c766,transparent 70%),radial-gradient(#8a6a3a0a 1px,transparent 1.3px) 0 0/6px 6px,var(--bg);overflow-x:clip}
+:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+
+.app-header{position:sticky;top:0;z-index:50;max-width:none;padding:10px 24px;color:#f1e7cf;background:linear-gradient(#1b3830,#152d26);box-shadow:0 1px 0 #c8963e66,0 10px 30px -18px #000c}
+.app-header a{color:#efe5cc}
+.app-header .brand{display:flex;align-items:center;gap:10px;color:var(--gold-300);font:650 1.1rem/1 var(--display)}
+.app-header .brand-logo{width:46px;height:35px;filter:drop-shadow(0 3px 4px #0007)}
+.page-title{font:650 1.5rem/1.2 var(--display);color:#fbf3dd}
+.app-header>a:last-child{padding:6px 13px;border:1px solid #ffffff24;border-radius:999px;background:#ffffff0d;font-size:.82rem;font-weight:600}
+.workspace{padding-top:26px}
+.card{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--sh-2)}
+.card h2,summary{font-family:var(--display);color:var(--green-900)}
+.card h2{font-size:20px}
+.muted{color:var(--muted)}
+.message{border-radius:var(--r-sm);background:var(--danger-100);border-color:#eac0b8;color:#6e241b}
+.primary-button,.secondary-button{border-radius:var(--r-sm);font-weight:650}
+.primary-button{background:var(--green-800);color:#fdf8ec;box-shadow:0 1px 0 #ffffff24 inset,0 6px 14px -8px #11241e80}
+.primary-button:hover:not(:disabled){background:var(--green-700)}
+.secondary-button{background:var(--surface);color:var(--green-800);border-color:var(--border-2)}
+.secondary-button:hover{background:var(--green-50);border-color:var(--green-600)}
+label{color:var(--ink-2)}
+input[type=number],input[type=password],input[type=text],#learning-language,.budget-form select,.export-form select{border:1px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface)}
+.language-bar #learning-language{font-family:var(--display);font-size:17px}
+.level-button{border-color:var(--border-2);border-radius:var(--r-sm);background:var(--surface)}
+.level-button:hover{border-color:var(--green-600)}
+.level-button[aria-checked=true]{border-color:var(--green-700);background:var(--green-50);box-shadow:0 0 0 1px var(--green-700);color:var(--green-900)}
+.tag{border-radius:999px}.tag.available{color:var(--green-800);background:var(--green-100);border-color:#c9dbc9}
+.book-item{border-color:var(--border);border-inline-start-width:6px;border-radius:var(--r);background:var(--surface-2)}
+.book-head strong{font-family:var(--display);font-size:17px;color:var(--green-900)}
+.prep-progress span{background:linear-gradient(90deg,var(--green-600),var(--green-800))}
+/* Reading: a calm page in the book face; foreign words stand out as soft chips. */
+#reader-section{padding:28px 34px}
+.reader-html{font:1.24rem/2.05 var(--display);color:#2a2620;max-width:64ch}
+.learning-foreign{color:var(--green-800);font-weight:650}
+.learning-foreign-click{padding:0 4px;border-radius:5px;background:var(--green-100);border-bottom:2px dotted var(--green-600)}
+.learning-foreign-click:hover{background:#d6e5d7}
+.gloss-popup{border-color:#c9dbc9;border-radius:var(--r);background:var(--green-50);box-shadow:var(--sh-2)}
+.app-footer{color:var(--ink-2)}
+@media(max-width:650px){.app-header{padding:8px 14px}#reader-section{padding:20px 18px}.reader-html{font-size:1.1rem}}
+.app-header a{text-decoration:none}.app-header a:hover{text-decoration:underline;text-underline-offset:4px}

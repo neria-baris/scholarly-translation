@@ -741,7 +741,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
             if urlparse(self.path).path == '/learning/help':
                 self._reply(200, (UI_DIR / 'learning_help.html').read_bytes(), 'text/html')
                 return
-            if self.path in ("/learning.js", "/learning.css"):
+            if self.path in ("/learning.js", "/learning.css", "/learning-theme.css"):
                 name = self.path.removeprefix("/")
                 self._reply(200, (UI_DIR / name).read_bytes(), "text/javascript" if name.endswith(".js") else "text/css")
                 return
