@@ -156,7 +156,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <h2 id="scanned">ספרים סרוקים</h2>
 <p>עמודים בלי טקסט מוטמע (סריקות) מזוהים אוטומטית לפני התרגום, בשני שלבים:</p>
 <ul>
-<li><strong>זיהוי מקומי (OCR)</strong> בתוכנת Tesseract במחשב שלכם, ללא עלות. אנגלית משתמשת במודל של ההתקנה; צרפתית ויפנית משתמשות במודלים שמצורפים לפרויקט. בחרו את שפת המקור במפורש: בקובץ סרוק אין טקסט לזיהוי השפה.</li>
+<li><strong>זיהוי מקומי (OCR)</strong> בתוכנת Tesseract במחשב שלכם, ללא עלות. Tesseract והמודלים לאנגלית, לצרפתית וליפנית מגיעים עם התוכנה, ואין צורך להתקין דבר. בחרו את שפת המקור במפורש: בקובץ סרוק אין טקסט לזיהוי השפה.</li>
 <li><strong>בדיקת המודל</strong> (ברירת המחדל במודל משלכם): כל עמוד נשלח למודל המתרגם יחד עם תמונת העמוד וטקסט ה־OCR. המודל מחזיר את הטקסט המדויק של העמוד בשפת המקור: מתקן טעויות זיהוי ומשלים שורות חסרות. נוסחאות נכתבות בצורה מתמטית ומוגנות בתרגום. המודל צריך לקרוא תמונות. אפשר לבחור "זיהוי מקומי בלבד" בהגדרות.</li>
 </ul>
 <p>מילים שהמודל שינה נשמרות בלי מיקום בעמוד ובביטחון 0, כדי שיהיה ברור מאיפה בא כל קטע. עמוד שבו הזיהוי המקומי והמודל שונים מאוד מסומן כחריג בדף התוצאה; כדאי לבדוק אותו. טקסט מזוהה תמיד נשלח לבדיקת האיכות של המקטע ברמת "נבדק".</p>
@@ -295,7 +295,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <h2 id="en-scanned">Scanned books</h2>
 <p>Pages without embedded text (scans) are detected automatically before translation, in two stages:</p>
 <ul>
-<li><strong>Local recognition (OCR)</strong> with Tesseract on your computer, at no cost. English uses the installation's model; French and Japanese use models bundled with the project. Choose the source language explicitly: a scanned file has no text from which to detect the language.</li>
+<li><strong>Local recognition (OCR)</strong> with Tesseract on your computer, at no cost. Tesseract and the English, French and Japanese models come with the app; there is nothing to install. Choose the source language explicitly: a scanned file has no text from which to detect the language.</li>
 <li><strong>Model check</strong> (the default with your own model): each page is sent to the translator model together with the page image and the OCR text. The model returns the exact text of the page in the source language: it fixes recognition errors and fills in missing lines. Formulas are written in mathematical form and protected in translation. The model must be able to read images. You can choose "Local recognition only" in the settings.</li>
 </ul>
 <p>Words the model changed are kept with no position on the page and with confidence 0, so it is clear where each passage came from. A page where local recognition and the model differ greatly is flagged as an exception on the result page; it is worth checking. Recognized text is always sent to segment quality review at the "Checked" level.</p>
