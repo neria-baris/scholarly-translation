@@ -701,3 +701,6 @@ Code/contract/test/audit commit ecf7c3d86dc08e83270d8517bcaa321e19b91c66 on main
 
 ## 2026-10-15T22:03:24Z | UI-LIBRARY-REDESIGN | software acceptance PASS (presentation); not pushed
 Six stages on feat/ui-library-redesign merged fast-forward into main. Behaviour, IDs and endpoints unchanged; tests revised only in the new tests/ui/test_ui_redesign.py. Evidence: UI 198 pass + 3 pre-existing errors, learning 279 no errors, 45/45 headless checks (he/en, 1440/390). Real paid translation, Google sign-in and installed-build checks not exercised. Remote not checked; no push.
+
+## 2026-11-05T08:11:24Z | RELEASE-DIST | v1.0.0 published (software acceptance PASS for install + update channel)
+Public repo https://github.com/neria-baris/scholarly-translation-app, release v1.0.0 from scholarly-translation dd7f95a (runtime allow-list only). Evidence: isolated install through the EXE wrapper code passed setup verification; installed server pages 200; signed manifest and 197/197 files verified from GitHub. Not exercised: the published Setup.exe file itself on a clean Windows profile (built identically; antivirus blocks reading it here), SmartScreen prompt, a real update round-trip to a later version, OPENAI-ACCOUNT (not in this release). Dev repo main not pushed.
