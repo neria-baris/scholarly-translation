@@ -652,8 +652,8 @@
     requestAnimationFrame(() => { node.textContent = text; });
   }
   // A mouse pointer within paw's reach of the sitting cat gets swatted at: he turns toward it, winds up
-  // and strikes two or three times. The leg stretches so the paw lands on the pointer itself, and
-  // follows it while the strike lasts. Decorative only: the paw ignores clicks and touches nothing.
+  // and strikes two or three times. The leg stretches so the paw lands on the pointer itself, then
+  // pulls straight back. Decorative only: the paw ignores clicks and touches nothing.
   let swatReadyAt = 0;
   const pointer = { x: 0, y: 0 };
   const reachLeg = svg.querySelector('.c-leg.sit.near'), reachRect = reachLeg.querySelector('rect'), reachPaw = reachLeg.querySelector('.paw');
@@ -702,7 +702,6 @@
       for (let i = 0; i < strikes && !tk.cancelled; i++) {
         await move(i ? 150 : 230, windUp);
         await move(90, aim, easeOut);
-        await move(110, aim, t => t); // the paw stays on the pointer for a moment
         if (i < strikes - 1) await tk.wait(rand(60, 160));
       }
       await move(220, () => ({ angle: 0, len: LEG }));
