@@ -68,9 +68,9 @@ class SelectionTests(unittest.TestCase):
     def test_catalogue_lists_levels_and_default(self):
         entries = {(e["provider"], e["model"]): e for e in model_settings.catalogue()}
         luna = entries[("openai", "gpt-6-luna")]
-        self.assertEqual(luna["default_reasoning"], "none")
+        self.assertEqual(luna["default_reasoning"], "low")
         self.assertIn("high", luna["reasoning_values"])
-        self.assertEqual(entries[("openai", "gpt-6.1-sol")]["default_reasoning"], "low")
+        self.assertEqual(entries[("openai", "gpt-6.1-sol")]["default_reasoning"], "medium")
         self.assertEqual(entries[("anthropic", "claude-sonnet-5-5")]["reasoning_values"], [])
         self.assertIsNone(entries[("anthropic", "claude-sonnet-5-5")]["default_reasoning"])
 

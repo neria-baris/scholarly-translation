@@ -54,6 +54,8 @@ class ModelPricing:
     reasoning_values: tuple = ()
     long_context: bool = False
     thinking_always_on: bool = False
+    # The project's default effort when the user picks none; must be one of reasoning_values.
+    default_reasoning: str | None = None
 
 
 _CATALOG = {
@@ -61,14 +63,16 @@ _CATALOG = {
         provider="openai", model="gpt-6-luna",
         context_window=1_050_000, max_output_tokens=128_000,
         rates_per_million={"input": 0.10, "output": 0.50, "cached": 0.01, "cache_write": 0.125},
-        # Project default remains none; catalogue lists all documented values.
+        # User decision 2026-11-05: light reasoning (low) by default; catalogue lists all documented values.
         reasoning_values=("none", "low", "medium", "high", "xhigh", "max"), long_context=True,
+        default_reasoning="low",
     ),
     ("openai", "gpt-6.1-sol"): ModelPricing(
         provider="openai", model="gpt-6.1-sol",
         context_window=1_050_000, max_output_tokens=128_000,
         rates_per_million={"input": 2.0, "output": 10.0, "cached": 0.10, "cache_write": 2.50},
         reasoning_values=("low", "medium", "high", "xhigh", "max"), long_context=True,
+        default_reasoning="medium",  # user decision 2026-11-05
     ),
     ("anthropic", "claude-sonnet-5-5"): ModelPricing(
         provider="anthropic", model="claude-sonnet-5-5",
@@ -92,6 +96,13 @@ _CATALOG = {
         reasoning_values=(), long_context=False, thinking_always_on=False,
     ),
 }
+
+
+def default_reasoning(entry):
+    """The default effort of a catalogue entry: its explicit default, else its first listed value, else None."""
+    if entry is None or not entry.reasoning_values:
+        return None
+    return entry.default_reasoning if entry.default_reasoning in entry.reasoning_values else entry.reasoning_values[0]
 
 
 def known_models(provider=None):

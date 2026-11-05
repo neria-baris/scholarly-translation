@@ -44,10 +44,15 @@ class ReasoningCapTests(unittest.TestCase):
     def test_implicit_defaults_match_adapter_and_legacy_none_is_unchanged(self):
         luna = model_settings.build_configuration({"translator": LUNA}).models["chapter_qa"]
         sol = model_settings.build_configuration({"translator": dict(LUNA, model="gpt-6.1-sol")}).models["chapter_qa"]
-        self.assertEqual(pipeline._review_cap(luna, 2), 2304)
+        # Implicit defaults (user decision 2026-11-05): Luna low, Sol medium.
+        self.assertEqual(pipeline._review_cap(luna, 2), pipeline._review_cap(
+            replace(luna, capabilities=replace(luna.capabilities, reasoning="low")), 2))
         self.assertEqual(pipeline._review_cap(sol, 2), pipeline._review_cap(
-            replace(sol, capabilities=replace(sol.capabilities, reasoning="low")), 2))
-        self.assertGreater(pipeline._review_cap(sol, 2), 2304)
+            replace(sol, capabilities=replace(sol.capabilities, reasoning="medium")), 2))
+        # An explicit legacy "none" keeps its historical allowance.
+        self.assertEqual(pipeline._review_cap(replace(luna, capabilities=replace(luna.capabilities, reasoning="none")), 2), 2304)
+        self.assertGreater(pipeline._review_cap(luna, 2), 2304)
+        self.assertGreater(pipeline._review_cap(sol, 2), pipeline._review_cap(luna, 2))
 
     def test_declared_limit_cannot_silently_erase_answer_allowance(self):
         selection = config("high").models["chapter_qa"]

@@ -11,6 +11,15 @@ function t(he,en){return isEn()?en:he}
 function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
 
 var openai=null,google=null,openaiWaitUntil=0,googleWaitUntil=0,timer=null,dlg=null,button=null,badge=null,opener=null;
+/* One account state for the whole app: this window, the model-settings card (ui.js, same page) and the app's
+   other open pages (BroadcastChannel) tell each other when the OpenAI account changes. */
+var sig='',fetchedAt=0,channel=null;
+try{channel=new BroadcastChannel('scholarly-openai-account')}catch(_){}
+function signature(s){var a=(s&&s.account)||{},p=(s&&s.plan)||{};return JSON.stringify([a.available,a.signed_in,a.plan_usage,s&&s.auto_fallback,s&&s.key_available,p.state,p.fallback_calls])}
+function announce(fromPage){var next=signature(openai);if(next===sig)return;var first=!sig;sig=next;
+  if(first)return; /* the first state after loading is not a change */
+  if(!fromPage){try{window.dispatchEvent(new CustomEvent('openai-account',{detail:{state:openai,source:'profile'}}))}catch(_){}}
+  if(channel){try{channel.postMessage('changed')}catch(_){}}}
 
 async function post(route,data){
   var response=await fetch(route,{method:'POST',headers:{'Content-Type':'application/json','X-UI-Token':token},body:JSON.stringify(data||{})});
@@ -135,7 +144,9 @@ function renderGoogle(){
 }
 
 async function refreshOpenAI(){
+  fetchedAt=Date.now();
   try{openai=await post('/openai-account')}catch(_){return}
+  announce(false);
   if(openai.account&&openai.account.signed_in)openaiWaitUntil=0;
   renderBadge();if(dlg&&dlg.open)renderOpenAI();
 }
@@ -169,7 +180,7 @@ async function openaiSignOut(){
   await refreshOpenAI();
 }
 async function saveFallback(){
-  try{openai=await post('/openai-account/settings',{auto_fallback:ui.fallback.checked});renderOpenAI();renderBadge()}
+  try{openai=await post('/openai-account/settings',{auto_fallback:ui.fallback.checked});announce(false);renderOpenAI();renderBadge()}
   catch(error){ui['openai-status'].textContent=error.message}
 }
 /* On the main page the legacy Google controls (ui.js, hidden in the header) own the sync state and the
@@ -208,6 +219,14 @@ function init(){
   renderBadge();
   if(token){refreshOpenAI();setInterval(function(){if(!document.hidden)refreshOpenAI()},60000)}
   new MutationObserver(function(){renderBadge();render()}).observe(doc,{attributes:true,attributeFilter:['lang','data-lang']});
+  // A change seen by the card on this page.
+  window.addEventListener('openai-account',function(ev){var d=ev.detail;if(!d||d.source==='profile'||!d.state)return;
+    openai=d.state;if(openai.account&&openai.account.signed_in)openaiWaitUntil=0;announce(true);renderBadge();if(dlg&&dlg.open)renderOpenAI()});
+  // A change made in another window of the app: fetch the fresh state here too.
+  if(channel)channel.onmessage=function(){if(token)refreshOpenAI()};
+  // Back from OpenAI's consent page: check at once.
+  function recheck(){if(token&&!document.hidden&&Date.now()-fetchedAt>3000)refreshOpenAI()}
+  window.addEventListener('focus',recheck);document.addEventListener('visibilitychange',recheck);
 }
 init();
 })();

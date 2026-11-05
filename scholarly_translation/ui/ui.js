@@ -508,7 +508,7 @@ function renderKeyFields(){
   renderKeyIndicator();
   const container=document.querySelector('.key-fields');if(!container)return;
   const ids=requiredProviderIds();
-  container.innerHTML=ids.map(pid=>`<div><label for="key-${esc(pid)}">${t('מפתח API — ','API key — ')}${esc(pid)}${keyState(pid)}</label>
+  container.innerHTML=ids.map(pid=>`<div><label for="key-${esc(pid)}">${t('מפתח API — ','API key — ')}${esc(pid)}${keyState(pid)}${openaiCoversProvider(pid)&&!keyProvidersAvailable[pid]?t(' (לא חובה: חשבון OpenAI המחובר משמש לתרגום; המפתח ישמש רק כשהתקציב ייגמר)',' (optional: the connected OpenAI account is used; the key only when its budget runs out)'):''}</label>
     <small dir="ltr">${esc(resolvedProviders.find(p=>p.id===pid)?.endpoint||t('הספק הרשמי','the official provider'))}</small>
     <input id="key-${esc(pid)}" class="key-input" type="password" data-provider="${esc(pid)}" autocomplete="off"></div>`).join('');
 }
@@ -523,7 +523,19 @@ async function saveKeys(){
 }
 
 // ---- OpenAI account (Sign in with ChatGPT): plan first, API key on exhaustion ----
-let openaiState=null,openaiTimer=null,openaiSignInUntil=0,openaiLastFallbackCalls=null;
+let openaiState=null,openaiTimer=null,openaiSignInUntil=0,openaiLastFallbackCalls=null,openaiSig='',openaiFetchedAt=0;
+// The model-settings card and the profile window (profile.js) share one account state: whichever learns of a
+// change announces it, so signing in from either place is enough for the translation flow.
+function openaiSignature(s){const a=(s&&s.account)||{},p=(s&&s.plan)||{};return JSON.stringify([a.available,a.signed_in,a.plan_usage,s&&s.auto_fallback,s&&s.key_available,p.state,p.fallback_calls])}
+function announceOpenAI(){const sig=openaiSignature(openaiState);if(sig===openaiSig)return false;const first=!openaiSig;openaiSig=sig;
+  // The first state after loading is not a change; only later differences are announced.
+  if(!first){try{window.dispatchEvent(new CustomEvent('openai-account',{detail:{state:openaiState,source:'ui'}}))}catch(_){}}return true}
+window.addEventListener('openai-account',event=>{const d=event.detail;if(!d||d.source==='ui'||!d.state)return;
+  openaiState=d.state;openaiSig=openaiSignature(openaiState);clearTimeout(openaiTimer);openaiSignInUntil=0;
+  renderOpenAI();renderOpenAIJobNotice();renderKeyFields();updateSettings()});
+// Coming back from OpenAI's consent page (another tab or window): check at once.
+function openaiRecheck(){if(document.hidden||Date.now()-openaiFetchedAt<3000)return;refreshOpenAI()}
+window.addEventListener('focus',openaiRecheck);document.addEventListener('visibilitychange',openaiRecheck);
 function oaTime(iso){if(!iso)return '';const d=new Date(iso);return isNaN(d)?'':d.toLocaleTimeString(LANG==='en'?'en-GB':'he-IL',{hour:'2-digit',minute:'2-digit'})}
 function openaiPlanGranted(){return !!(openaiState&&openaiState.account&&openaiState.account.signed_in&&openaiState.account.plan_usage)}
 function openaiCoversProvider(pid){return openaiPlanGranted()&&pid==='openai'}
@@ -559,7 +571,9 @@ function renderOpenAIJobNotice(){
   else if(!openaiPlanGranted()||!plan)el.hidden=true;
 }
 async function refreshOpenAI(){
+  openaiFetchedAt=Date.now();
   try{openaiState=await request('/openai-account')}catch(_){return}
+  if(announceOpenAI())renderKeyFields();
   if(openaiLastFallbackCalls===null)openaiLastFallbackCalls=(openaiState.plan&&openaiState.plan.fallback_calls)||0;
   renderOpenAI();renderOpenAIJobNotice();
   clearTimeout(openaiTimer);
@@ -568,7 +582,9 @@ async function refreshOpenAI(){
   updateSettings();
 }
 async function pollOpenAIDuringJob(){
+  openaiFetchedAt=Date.now();
   try{openaiState=await request('/openai-account')}catch(_){return}
+  announceOpenAI();
   renderOpenAI();renderOpenAIJobNotice();
 }
 async function openaiSignIn(){
@@ -582,7 +598,7 @@ async function openaiSignOut(){
   await refreshOpenAI();
 }
 async function openaiSaveFallback(){
-  try{openaiState=await request('/openai-account/settings',{auto_fallback:$('oa-fallback').checked});renderOpenAI()}
+  try{openaiState=await request('/openai-account/settings',{auto_fallback:$('oa-fallback').checked});announceOpenAI();renderOpenAI()}
   catch(error){srvText($('oa-status'),error.message)}
 }
 function missingKeyProviders(){return requiredProviderIds().filter(pid=>!keyProvidersAvailable[pid]&&!openaiCoversProvider(pid))}

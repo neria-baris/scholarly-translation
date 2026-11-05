@@ -470,7 +470,7 @@ class RunTranslationOpenAITests(unittest.TestCase):
         self.assertEqual(captured["model"], "gpt-6-luna")
         self.assertEqual(captured["store"], False)
         self.assertEqual(captured["tools"], [])
-        self.assertEqual(captured["reasoning"], {"effort": "none"})
+        self.assertEqual(captured["reasoning"], {"effort": "low"})  # Luna's default (user decision 2026-11-05)
         self.assertEqual(captured["max_output_tokens"], 256)
 
 

@@ -50,7 +50,7 @@ def catalogue() -> list[dict]:
             "max_output_tokens": pricing.max_output_tokens,
             "rates_per_million": dict(pricing.rates_per_million),
             "reasoning_values": list(pricing.reasoning_values),
-            "default_reasoning": pricing.reasoning_values[0] if pricing.reasoning_values else None,
+            "default_reasoning": model_catalog.default_reasoning(pricing),
             "catalog_version": model_catalog.CATALOG_VERSION,
         })
     return entries

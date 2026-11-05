@@ -180,7 +180,7 @@ class ChatGPTPlanAdapter(TextGenerationAdapter):
             if entry is not None and self._reasoning not in entry.reasoning_values:
                 raise RequestValidationError(f"model {model!r} does not support reasoning {self._reasoning!r}")
             return self._reasoning
-        return entry.reasoning_values[0] if entry and entry.reasoning_values else None
+        return model_catalog.default_reasoning(entry)
 
     def _token(self):
         from ..account.openai_auth import OpenAISignedOut, OpenAISignInError

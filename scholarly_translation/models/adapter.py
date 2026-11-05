@@ -619,7 +619,7 @@ class OpenAITextGenerationAdapter(TextGenerationAdapter):
                 raise RequestValidationError(f"model {model!r} does not support reasoning {self._reasoning!r}")
             return self._reasoning
         entry = model_catalog.resolve('openai', model)
-        return entry.reasoning_values[0] if entry and entry.reasoning_values else None
+        return model_catalog.default_reasoning(entry)
 
     def generate(self, prompt_text: str, model: str) -> TextGenerationResult:
         if not isinstance(model, str) or not model.strip():

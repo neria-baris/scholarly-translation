@@ -137,10 +137,10 @@ class PlanAdapterTests(unittest.TestCase):
     def test_reasoning_from_catalog_or_explicit(self):
         adapter, client, _, _ = make([[completed_event()]])
         adapter.generate("x", "gpt-6-luna")
-        self.assertEqual(client.responses.calls[0]["reasoning"], {"effort": "none"})
-        adapter2, client2, _, _ = make([[completed_event()]], reasoning="low")
+        self.assertEqual(client.responses.calls[0]["reasoning"], {"effort": "low"})  # Luna's default
+        adapter2, client2, _, _ = make([[completed_event()]], reasoning="medium")
         adapter2.generate("x", "gpt-6-luna")
-        self.assertEqual(client2.responses.calls[0]["reasoning"], {"effort": "low"})
+        self.assertEqual(client2.responses.calls[0]["reasoning"], {"effort": "medium"})
         adapter3, _, _, _ = make([], reasoning="bogus")
         with self.assertRaises(RequestValidationError):
             adapter3.generate("x", "gpt-6-luna")

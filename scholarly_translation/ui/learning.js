@@ -93,6 +93,9 @@ async function importFromQuery(){
   catch(error){$('import-error').textContent=error.message;$('import-error').hidden=false}
 }
 
+// Signing in to (or out of) the OpenAI account anywhere in the app changes which models need a key here.
+window.addEventListener('openai-account',()=>{loadState().catch(()=>{})});
+
 async function loadState(){
   state=await request('/learning/state',{});
   $('learning-update-message').hidden=!learningUpdateNeeded(state);

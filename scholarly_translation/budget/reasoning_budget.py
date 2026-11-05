@@ -3,7 +3,7 @@
 Headroom is an experimental planning assumption, not a provider guarantee.
 Callers pass original model capabilities, never an already resolved call cap.
 """
-from ..models.catalog import resolve
+from ..models.catalog import default_reasoning, resolve
 
 REVIEW_CAP_VERSION = 1
 REASONING_HEADROOM = {
@@ -17,7 +17,7 @@ def review_reasoning_headroom(selection):
     effort = getattr(capabilities, "reasoning", None)
     entry = resolve("openai", getattr(selection, "model", ""))
     if effort is None:
-        effort = entry.reasoning_values[0] if entry and entry.reasoning_values else "none"
+        effort = default_reasoning(entry) or "none"
     if effort not in REASONING_HEADROOM:
         raise ValueError("unsupported review reasoning effort")
     if entry and effort not in entry.reasoning_values:

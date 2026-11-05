@@ -207,7 +207,12 @@ class LearningIntegrationTests(unittest.TestCase):
         plain = configuration()
         high = build_configuration({'translator': learning_model_selection('gpt-6-luna', 'high')})
         job = {'plans': [{'policy_version': 'learning-policy@1'}], 'output_tokens': 6000}
-        self.assertEqual(self.service._shared_cap(job, plain), 6000)
+        # No explicit level: Luna's project default (low, user decision 2026-11-05) gets its headroom.
+        low = build_configuration({'translator': learning_model_selection('gpt-6-luna', 'low')})
+        none = build_configuration({'translator': learning_model_selection('gpt-6-luna', 'none')})
+        self.assertEqual(self.service._shared_cap(job, plain), self.service._shared_cap(job, low))
+        self.assertGreater(self.service._shared_cap(job, plain), 6000)
+        self.assertEqual(self.service._shared_cap(job, none), 6000)
         self.assertEqual(self.service._shared_cap(job, high), 6000 + 32768)
         with self.assertRaises(LearningError) as ctx:
             learning_model_selection('gpt-6-luna', 'extreme')
