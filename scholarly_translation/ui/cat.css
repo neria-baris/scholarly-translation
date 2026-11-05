@@ -30,7 +30,8 @@
 @keyframes cat-float{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-46px)}}
 @media(forced-colors:active){.roam-thought{border-color:CanvasText}}
 @media print{.roam-cat{display:none}}
-.roam-thought.side .roam-floor{position:fixed;left:0;right:0;bottom:10px;height:1px;pointer-events:none}
+/* The floor of last resort: always the bottom edge of the window, so the cat always has a visible place. */
+.roam-floor{position:fixed;left:0;right:0;bottom:10px;height:1px;pointer-events:none}
 
 /* Illustrated cat. Warm ginger tabby, cream chest and socks, soft outline. */
 .cat-svg{overflow:visible}
