@@ -1,3 +1,10 @@
+# Current state — tab icon + orphaned batch-parse fix committed (Claude Code conductor, session scholarly-translation-cf, 2026-11-05)
+main = b531ebb on top of bee8a1f, not pushed. fb58318: the cat logo (assets/app.ico) is served at /favicon.ico and is the tab icon on all five pages and the sign-in page; the old inline SVG icon was removed (its raw '#' colours were read as a URL fragment, so it never rendered). b531ebb: the previously staged, ownerless chapter_pipeline change (context_unit_ids: drop an extra batch item for a chapter-context unit) committed at the user's request; sessions b8, 9c and 68 each said it is not theirs.
+Tests: tests/ui 242, only the pre-existing Python 3.9 write_text(newline=) error. tests/translate 430 (PYTHONPATH=tests): 1 failure, test_preview_uses_real_chapters_quickly (60 s timing limit); it also fails on HEAD without the change (63.3 s), so it is a machine-speed issue, not this change.
+Uncommitted: only the untracked source PDF (do not commit).
+Next action: on the user's request, push main to origin (gh credential, see below); then restart the app (session 68 runs it at http://127.0.0.1:54045/) and check the cat in the tab.
+
+---
 # Current state — PROFILE-EVERYWHERE + CAT fixes merged (Claude Code conductor, 2026-11-05)
 User asked for a sign-in window and a drawn profile on every screen, and for the cat to stay visible, vary its thoughts and move after too many clicks. Contract audit/contracts/profile_everywhere.md. Branches feat/profile-everywhere (builder, 6547c61) and fix/cat-visible-lines (conductor, 67e9804) integrated on feat/profile-and-cat (wording fix 623989d) and fast-forwarded into main; pushed via the gh credential.
 Tests: full suite 1862, only the 33 pre-existing Python 3.9 write_text(newline=) errors. Headless Chrome (sandbox): profile button + window on all five pages at 1280/390, Esc/focus; cat visible after scrolling (roam and nap), leaves after 12 fast clicks, 8 distinct thoughts.
