@@ -34,9 +34,11 @@ class RedesignStaticTests(unittest.TestCase):
         header = self.html[self.html.index('<header class="app-header">'):self.html.index("</header>")]
         self.assertIn('class="brand-logo"', header)
         self.assertIn('data-i18n="brand"', header)  # the brand name keeps its translation
-        icon = re.search(r'<link rel="icon" href="(data:image/svg\+xml,[^"]*)">', self.html)
-        self.assertIsNotNone(icon)
-        self.assertIn("%3Csvg", icon.group(1))  # fully encoded: no raw quote cuts the attribute short
+        # Every page shows the cat logo (the desktop app's icon) in the browser tab. The old inline
+        # SVG icon had raw '#' colours, which a data URL reads as a fragment, so it never rendered.
+        for page in ("ui.html", "learning.html", "help.html", "keys_guide.html", "learning_help.html"):
+            self.assertEqual(re.findall(r'<link rel="icon"[^>]*>', _read(page)),
+                             ['<link rel="icon" href="/favicon.ico" type="image/x-icon">'], page)
 
     def test_cat_perches_mark_real_surfaces(self):
         for perch in ("hero", "desk", "dropzone", "result", "review", "library"):
@@ -161,6 +163,13 @@ class RedesignRouteTests(unittest.TestCase):
                 self.assertEqual(response.status, 200)
                 self.assertTrue(response.headers.get("Content-Type", "").startswith(kind), path)
                 self.assertGreater(len(response.read()), 1000, path)
+
+    def test_tab_icon_is_the_cat_logo(self):
+        icon = UI_DIR.parent / "assets" / "app.ico"
+        with urlopen(self.base + "/favicon.ico", timeout=10) as response:
+            self.assertEqual(response.status, 200)
+            self.assertTrue(response.headers.get("Content-Type", "").startswith("image/x-icon"))
+            self.assertEqual(response.read(), icon.read_bytes())
 
     def test_unknown_paths_stay_closed(self):
         from urllib.error import HTTPError

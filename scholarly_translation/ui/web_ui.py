@@ -97,7 +97,7 @@ def _is_native_openai(definition) -> bool:
     return definition.provider_type == "openai" and not definition.base_url
 
 
-_SIGN_IN_PAGE = """<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+_SIGN_IN_PAGE = """<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><link rel="icon" href="/favicon.ico" type="image/x-icon">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
 <title>{title}</title><style>body{{font-family:"Segoe UI",Arial,sans-serif;background:#f6f0e1;color:#342c19;margin:0;
 display:grid;place-items:center;min-height:100vh}}main{{background:#fff;border:1px solid #e9e6de;border-radius:12px;
@@ -968,6 +968,10 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 # The interface typeface ships with the app (OFL), so the page needs no remote font.
                 font = UI_DIR.parent / "assets" / "fonts" / "frankruhllibre" / "FrankRuhlLibre[wght].ttf"
                 self._reply(200, font.read_bytes(), "font/ttf")
+                return
+            if urlparse(self.path).path == "/favicon.ico":
+                # The cat logo (the same icon as the desktop app) for the browser tab.
+                self._reply(200, (UI_DIR.parent / "assets" / "app.ico").read_bytes(), "image/x-icon")
                 return
             if self.path == "/book-sprite.svg":
                 self._reply(200, (UI_DIR.parent / "assets" / "book-sprite.svg").read_bytes(), "image/svg+xml")
