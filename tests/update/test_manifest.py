@@ -35,9 +35,13 @@ class SignatureTests(unittest.TestCase):
         with self.assertRaises(mf.ManifestError):
             mf.load_verified_manifest(self.data, b"not base64 !!", self.pub)
 
-    def test_placeholder_public_key_never_verifies(self):
+    def test_embedded_public_key_rejects_a_foreign_signature(self):
         with self.assertRaises(mf.ManifestError):
             mf.load_verified_manifest(self.data, self.sig)
+
+    def test_embedded_release_key_and_repo_are_real(self):
+        self.assertEqual(len(base64.b64decode(mf.PUBLIC_KEY_B64, validate=True)), 32)
+        self.assertEqual(mf.DIST_REPO, "neria-baris/scholarly-translation-app")
 
     def test_requirements_hash_must_match_file(self):
         doc = json.loads(self.data)

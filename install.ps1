@@ -329,7 +329,10 @@ function New-DesktopShortcut {
     $shortcut = $wsh.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = Join-Path $ProjectRoot 'Run Scholarly Translation.vbs'
     $shortcut.WorkingDirectory = $ProjectRoot
-    $shortcut.IconLocation = 'shell32.dll,1'
+    # The app icon lives in the install root (copied by Install-AppLayout) so the
+    # shortcut keeps it when old version folders are removed after updates.
+    $icon = if ($installMode) { Join-Path $installRoot 'app.ico' } else { Join-Path $projectRoot 'scholarly_translation\assets\app.ico' }
+    $shortcut.IconLocation = if (Test-Path -LiteralPath $icon) { "$icon,0" } else { 'shell32.dll,1' }
     $shortcut.Description = 'Translate books to Hebrew and learn languages through reading (local UI)'
     $shortcut.Save()
     return $shortcutPath
@@ -361,6 +364,8 @@ function Install-AppLayout {
     foreach ($name in @('run-ui.ps1', 'Run Scholarly Translation.vbs')) {
         Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $installRoot -Force
     }
+    $appIcon = Join-Path $projectRoot 'scholarly_translation\assets\app.ico'
+    if (Test-Path -LiteralPath $appIcon) { Copy-Item -LiteralPath $appIcon -Destination (Join-Path $installRoot 'app.ico') -Force }
     # An older project folder with its own outputs\ is copied into data\ once at first start.
     $legacyOutputs = Join-Path $projectRoot 'outputs'
     if (Test-Path -LiteralPath $legacyOutputs) { Write-AtomicText (Join-Path $installRoot 'legacy_outputs.txt') $legacyOutputs }

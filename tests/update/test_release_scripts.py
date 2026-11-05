@@ -8,6 +8,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 from scholarly_translation.update import manifest as mf
 from tests.update import make_key
@@ -88,7 +89,7 @@ class ExportTests(unittest.TestCase):
 
     def args(self, **kw):
         base = dict(version="1.2.0", dist_checkout=str(self.dist), out_dir=None, dist_repo="O/R",
-                    min_launcher=1, notes_he_file=None, notes_en_file=None, execute=False)
+                    min_launcher=1, notes_he_file=None, notes_en_file=None, execute=False, no_exe=True)
         base.update(kw)
         return SimpleNamespace(**base)
 
@@ -144,6 +145,76 @@ class ExportTests(unittest.TestCase):
         inner.mkdir()
         with self.assertRaises(build_release.ReleaseError):
             self.run_release(dist_checkout=str(inner))
+
+    def commit_template(self, files):
+        for name, text in files.items():
+            path = self.repo / "scripts" / "release" / "dist" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(text.encode())
+        git(self.repo, "add", "-f", "-A")
+        git(self.repo, "commit", "-q", "-m", "template")
+
+    def test_template_files_copied_with_repo_filled_but_not_in_manifest(self):
+        self.commit_template({"README.md": "Download: https://github.com/{{DIST_REPO}}/releases\n",
+                              ".gitignore": ".venv/\n"})
+        code, _ = self.run_release(execute=True)
+        self.assertEqual(code, 0)
+        self.assertEqual((self.dist / "README.md").read_text(), "Download: https://github.com/O/R/releases\n")
+        self.assertEqual((self.dist / ".gitignore").read_text(), ".venv/\n")
+        out_dir = self.dist.parent / f"{self.dist.name}-release-1.2.0"
+        manifest = mf.parse_manifest((out_dir / "manifest.json").read_bytes())
+        self.assertNotIn("README.md", manifest.files)
+        self.assertFalse(any(p.startswith("scripts") for p in manifest.files))
+        self.assertFalse((out_dir / build_release.SETUP_EXE_NAME).exists())  # --no-exe
+
+    def test_template_may_not_replace_app_files(self):
+        self.commit_template({"run-ui.ps1": "# hijack\n"})
+        with self.assertRaises(build_release.ReleaseError):
+            self.run_release()
+
+    def test_owner_commands_upload_exe_only_when_built(self):
+        _, lines = self.run_release(no_exe=False)
+        upload = [l for l in lines if "gh release create" in l][0]
+        self.assertIn(build_release.SETUP_EXE_NAME, upload)
+        _, lines = self.run_release()
+        upload = [l for l in lines if "gh release create" in l][0]
+        self.assertNotIn(build_release.SETUP_EXE_NAME, upload)
+        self.assertIn(build_release.SETUP_ZIP_NAME, upload)
+
+    @unittest.skipUnless(build_release.find_csc(), "csc.exe (.NET Framework 4) not available")
+    def test_execute_builds_setup_exe_embedding_the_zip(self):
+        # A neutral file name: antivirus products (seen: Sophos Intercept X) may
+        # hold a fresh unsigned "*Setup*.exe" and deny reads; content is what counts.
+        with mock.patch.object(build_release, "SETUP_EXE_NAME", "built-launcher.exe"):
+            code, _ = self.run_release(execute=True, no_exe=False)
+        self.assertEqual(code, 0)
+        out_dir = self.dist.parent / f"{self.dist.name}-release-1.2.0"
+        exe_path = out_dir / "built-launcher.exe"
+        zip_size = (out_dir / build_release.SETUP_ZIP_NAME).stat().st_size
+        self.assertGreater(exe_path.stat().st_size, zip_size)
+        try:
+            exe = exe_path.read_bytes()
+        except PermissionError:
+            self.skipTest("the built EXE is held by an antivirus scan; size check passed")
+        self.assertEqual(exe[:2], b"MZ")
+        zip_bytes = (out_dir / build_release.SETUP_ZIP_NAME).read_bytes()
+        self.assertIn(zip_bytes, exe)  # embedded verbatim as the payload resource
+        self.assertIn("1.2.0.0".encode("utf-16-le"), exe)  # file version resource
+
+
+class SetupExeSourceTests(unittest.TestCase):
+    def test_launcher_runs_install_ps1_without_admin_rights(self):
+        source = (REPO_ROOT / "scripts" / "release" / "setup_exe" / "SetupLauncher.cs").read_text(encoding="utf-8")
+        self.assertIn('"install.ps1"', source)
+        self.assertIn('"release.json"', source)
+        self.assertIn("-ExecutionPolicy Bypass -File", source)
+        self.assertIn("StartsWith(root", source)  # zip-slip guard
+        manifest = (REPO_ROOT / "scripts" / "release" / "setup_exe" / "app.manifest").read_text(encoding="utf-8")
+        self.assertIn('level="asInvoker"', manifest)
+
+    def test_file_version_is_four_numeric_parts(self):
+        self.assertEqual(build_release._file_version("1.2"), "1.2.0.0")
+        self.assertEqual(build_release._file_version("1.0.3.4"), "1.0.3.4")
 
 
 class SigningTests(unittest.TestCase):

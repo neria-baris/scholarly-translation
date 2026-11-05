@@ -1,0 +1,6 @@
+# Local data when running from source (see README)
+outputs/
+.venv/
+__pycache__/
+*.pyc
+.env

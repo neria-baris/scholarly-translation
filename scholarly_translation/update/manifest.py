@@ -13,13 +13,13 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import quote, urlsplit
 
-# The public distribution repository (one constant; the owner replaces it).
-DIST_REPO = "OWNER/scholarly-translation-app"
+# The public distribution repository (owner decision 2026-11-05).
+DIST_REPO = "neria-baris/scholarly-translation-app"
 
-# PLACEHOLDER: base64 of the 32-byte Ed25519 public key. Run
-#   python scripts/release/sign_manifest.py --generate-key <path outside repo>
-# and paste the printed constant here. Until then no manifest verifies.
-PUBLIC_KEY_B64 = "REPLACE_WITH_ED25519_PUBLIC_KEY_BASE64"
+# Base64 of the owner's 32-byte Ed25519 release public key (generated
+# 2026-11-05 with scripts/release/sign_manifest.py --generate-key; the private
+# key is kept offline by the owner, never in this repository).
+PUBLIC_KEY_B64 = "weiLSddVaPQbPFck36ArGA9SMqGY9RKTgcxXiDDEHP8="
 
 SCHEMA = 1
 LAUNCHER_VERSION = 1  # bumped when run-ui.ps1 gains behaviour a manifest may require
