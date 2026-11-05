@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light"><title>איך משיגים מפתח API — תרגום מסמכים</title>
-<link rel="stylesheet" href="/ui.css">
+<link rel="stylesheet" href="/ui.css"><link rel="stylesheet" href="/profile.css">
 <style>
 html:not([data-lang="en"]) .lang-en,html[data-lang="en"] .lang-he{display:none}
 .lang-switch{margin-inline-start:auto}
@@ -24,6 +24,7 @@ html:not([data-lang="en"]) .lang-en,html[data-lang="en"] .lang-he{display:none}
 <a class="brand" href="/"><span class="lang-he">תרגום מסמכים</span><span class="lang-en">Document Translation</span></a>
 <a class="quiet-button" href="/"><span class="lang-he">חזרה לעמוד הראשי</span><span class="lang-en">Back to main page</span></a>
 <a class="quiet-button lang-switch" id="lang-switch" href="#en">English</a>
+<span id="profile-mount" class="profile-mount"></span>
 </header>
 <main class="help-main">
 <div class="lang-he" id="keys-he" lang="he" dir="rtl">
@@ -98,6 +99,7 @@ html:not([data-lang="en"]) .lang-en,html[data-lang="en"] .lang-he{display:none}
 <p>The key is stored encrypted in the Windows Credential Manager under your user account only, not in project files. You can delete it at any time from the app's key dialog. Provider sites and amounts may change; if a page looks different, search the provider's site for "API keys" or "billing".</p>
 </div>
 </main>
+<script>window.UI_CONFIG = __CONFIG__;</script><script src="/profile.js"></script>
 <script>
 (function(){
 var T={he:'איך משיגים מפתח API — תרגום מסמכים',en:'How to get an API key — Document Translation'};
