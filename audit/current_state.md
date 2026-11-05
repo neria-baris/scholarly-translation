@@ -1,3 +1,10 @@
+# Current state - RELEASE-DIST v1.0.1 published (Claude Code conductor, 2026-11-05)
+https://github.com/neria-baris/scholarly-translation-app/releases/tag/v1.0.1 built from 39c75d3 (main 3fb5dfc + README update): OCR bundle, OpenAI account, key window, default roles, cat. Dist commit 88ebd62; GPL/LGPL sources attached. Trial install and a real 1.0.0 -> 1.0.1 self-update passed (see run_history RELEASE-DIST v1.0.1). main fast-forwarded to include 39c75d3 and pushed.
+Found: the update check intermittently fails TLS verification on this PC (Python 3.10 OpenSSL, "unable to get issuer certificate"); truststore (already in the app venv) verifies fine. Updates still arrive on a later launch.
+No active delegated work. Worktree .claude/worktrees/bundled-tesseract (feat/bundled-tesseract = main) and readme-cat can be removed after review.
+Next action: on the user's request, make the updater use truststore when importable (fallback to the default context), test, and ship as 1.0.2; otherwise the user installs/updates from the release page.
+
+---
 # Current state — ACCOUNT-SYNC + KEYS-IN-DIALOG + DEFAULT-ROLES pushed (Claude Code conductor, session 68, 2026-11-05)
 Update: at the user's request main was pushed (e66be3d..0667260, including the other sessions' cat-swat and OCR-bundle commits). 0667260 (untested at the user's request, syntax check only): the quality review and chapter reviewer now default to Luna with xhigh reasoning; the translator stays Luna (low).
 User requests: signing in from the profile window must be enough for translation; Luna low / Sol medium by default; the key light blinks green when a key exists; API keys only in the key window, not in the translation flow; models preselected (user chose: Luna translates, Sol reviews; reasoning each model's default) and "Checked" marked recommended.
