@@ -68,9 +68,9 @@
 
 /* Which body. */
 .cat-svg .c-sit{display:none}
-.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom]) .c-stand{display:none}
-.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom]) .c-sit{display:inline}
-.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom]) .c-head{transform:translate(-18px,-8px)}
+.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom],[data-pose=swat]) .c-stand{display:none}
+.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom],[data-pose=swat]) .c-sit{display:inline}
+.cat-svg:is([data-pose=sit],[data-pose=look],[data-pose=happy],[data-pose=yawn],[data-pose=groom],[data-pose=swat]) .c-head{transform:translate(-18px,-8px)}
 
 /* Eyes. */
 .cat-svg:is([data-pose=loaf],[data-pose=groom],[data-pose=yawn],.blink) .eyes-open,.cat-svg[data-pose=happy] .eyes-open{display:none}
@@ -119,7 +119,7 @@
 @keyframes cat-breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.018)}}
 @keyframes cat-loaf{0%,100%{transform:translateY(14px) scaleY(1)}50%{transform:translateY(13.4px) scaleY(1.03)}}
 @keyframes cat-lick{from{transform:rotate(-158deg)}to{transform:rotate(-146deg)}}
-.cat-svg[data-pose=groom] .c-chest,.cat-svg:not([data-pose=groom]) .c-belly{display:none}
+.cat-svg:is([data-pose=groom],[data-pose=swat]) .c-chest,.cat-svg:not([data-pose=groom],[data-pose=swat]) .c-belly{display:none}
 /* Grooming: the other front leg steps under the chest so the body keeps its support. */
 .cat-svg[data-pose=groom] .c-leg.sit.far{transform:translateX(8px)}
 .roam-dot{position:absolute;width:5px;height:5px;bottom:-34px;left:calc(var(--tail) + var(--lean) * .9 - 2.5px);background:#fffbea;border:2px solid #2a1d15;border-radius:50%}
@@ -143,3 +143,11 @@
 .cat-check{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:.88rem;cursor:pointer}
 .cat-hint,.cat-sound-note{font-size:.82rem;color:var(--muted,#6f685a);line-height:1.6;margin:12px 0 0}
 .cat-actions{display:flex;justify-content:flex-end;margin-top:16px}
+/* Swatting at the pointer: wide eyes, a quick tail, and the near front paw raised, then struck toward
+   the pointer. JS sets the two angles (--swat-wind, --swat-hit) from where the pointer is. */
+.cat-svg[data-pose=swat] .c-head{transform:translate(-16px,-9px) rotate(-5deg)}
+.cat-svg[data-pose=swat] .eyes-open{transform:scale(1.2)}
+.cat-svg[data-pose=swat] .c-tail-sit{animation:cat-swish .6s ease-in-out infinite}
+.cat-svg[data-pose=swat] .c-leg.sit.far{transform:translateX(8px)}
+.cat-svg[data-pose=swat] .c-leg.sit.near{transform:rotate(var(--swat-wind,-140deg));transition:transform .14s ease-out}
+.cat-svg[data-pose=swat].swat-strike .c-leg.sit.near{transform:rotate(var(--swat-hit,-95deg));transition:transform .07s cubic-bezier(.3,0,.2,1)}

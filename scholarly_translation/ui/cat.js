@@ -164,6 +164,11 @@
     dropped: [['נחתתי על הרגליים. כרגיל.', 'Landed on my feet. As usual.'],
       ['כמובן שתכננתי את זה.', 'Of course I planned that.'],
       ['עשר מהשופט הצרפתי.', 'A ten from the French judge.']],
+    swat: [['זה עכבר? זה עכבר.', 'Is that a mouse? That is a mouse.'],
+      ['כמעט תפסתי. הוא זריז, החץ הזה.', 'Nearly had it. Quick, that arrow.'],
+      ['עכבר בלי זנב. חשוד.', 'A mouse with no tail. Suspicious.'],
+      ['אינסטינקט. לא אני החלטתי.', 'Instinct. I didn’t decide that.'],
+      ['הוא יחזור. אני מוכן.', 'It will be back. I am ready.']],
     wake: [['כמה זמן ישנתי? כנראה לא מספיק.', 'How long did I sleep? Not enough, clearly.'],
       ['חלמתי על דג שמתרגם את עצמו.', 'Dreamt of a fish that translates itself.'],
       ['מה פספסתי? כלום. מצוין.', 'What did I miss? Nothing. Excellent.']],
@@ -646,6 +651,52 @@
     node.textContent = '';
     requestAnimationFrame(() => { node.textContent = text; });
   }
+  // A mouse pointer that comes near (but not onto) the sitting cat gets swatted at: he turns toward it,
+  // raises a paw and strikes two or three times, aiming each strike at where the pointer is now.
+  // Decorative only: the paw stays inside the cat's own box and nothing on the page is touched.
+  let swatReadyAt = 0;
+  const pointer = { x: 0, y: 0 };
+  function pointerNear(px, py) {
+    const w = W(), h = H(), l = cat.x, t = cat.y - h;
+    if (px >= l && px <= l + w && py >= t && py <= t + h) return false; // on the cat: that is petting
+    const dx = Math.max(l - px, 0, px - l - w), dy = Math.max(t - py, 0, py - t - h);
+    return Math.hypot(dx, dy) < w * .55;
+  }
+  function aimPaw() {
+    const k = W() / 120, shoulderX = cat.x + (cat.face > 0 ? 79 : 41) * k, shoulderY = cat.y - H() + 62 * k;
+    // 0deg = paw straight down, 90deg = straight ahead, 180deg = straight up.
+    const angle = Math.atan2((pointer.x - shoulderX) * cat.face, pointer.y - shoulderY) * 180 / Math.PI;
+    // Capped so the raised leg never ends up straight up behind the face.
+    const hit = clamp(angle, 70, 135);
+    svg.style.setProperty('--swat-hit', `${-hit}deg`);
+    svg.style.setProperty('--swat-wind', `${-Math.min(hit + 40, 155)}deg`);
+  }
+  function swat() {
+    swatReadyAt = performance.now() + rand(3500, 6000);
+    run(async tk => {
+      tk.waiters.add(() => { svg.classList.remove('swat-strike'); if (cat.pose === 'swat') setPose('sit'); });
+      cat.face = pointer.x >= cat.x + W() / 2 ? 1 : -1;
+      aimPaw(); setPose('swat');
+      await tk.wait(220);
+      const strikes = Math.random() < .5 ? 2 : 3;
+      for (let i = 0; i < strikes; i++) {
+        aimPaw(); svg.classList.add('swat-strike');
+        await tk.wait(130);
+        svg.classList.remove('swat-strike');
+        await tk.wait(rand(200, 320));
+      }
+      setPose('look'); await tk.wait(700); setPose('sit');
+      if (Math.random() < .35) await think(tk, say('swat'), 2200);
+    });
+  }
+  addEventListener('pointermove', event => {
+    if (event.pointerType !== 'mouse') return;
+    pointer.x = event.pageX; pointer.y = event.pageY;
+    const now = performance.now();
+    if (!running || paused || mode !== 'roam' || dragging || napping || now < swatReadyAt || now < annoyedUntil) return;
+    if (cat.motion || cat.airborne || !cat.anchor || cat.anchor.peek || !bubble.hidden || !['sit', 'look'].includes(cat.pose)) return;
+    if (pointerNear(pointer.x, pointer.y)) swat();
+  }, { passive: true });
   body.addEventListener('click', event => {
     if (suppressClick) { suppressClick = false; event.preventDefault(); return; }
     pet();
@@ -754,7 +805,7 @@
         ${option('away', L(['בחופשה', 'On holiday']), L(['בלי חתול. הוא יתגעגע.', 'No cat. He will miss you.']))}</div>
       <label class="cat-check"><input type="checkbox" name="cat-sound" ${soundOn ? 'checked' : ''}> ${L(['צלילי גרגור קטנים, נוצרים כאן במחשב', 'A small purr, synthesized on this computer'])}</label>
       <p class="cat-sound-note" hidden>${L(['הצלילים אינם זמינים בדפדפן הזה. החתול ימשיך בשקט.', 'Sounds are unavailable in this browser. The cat carries on silently.'])}</p>
-      <p class="cat-hint">${L(['אפשר ללטף אותו (לחיצה או Enter) ולהרים אותו בגרירה. הוא לא יושב על כפתורים או על טקסט.', 'Pet him with a click or Enter, lift him by dragging. He never sits on buttons or text.'])}</p>
+      <p class="cat-hint">${L(['אפשר ללטף אותו (לחיצה או Enter) ולהרים אותו בגרירה. סמן עכבר שמתקרב אליו יחטוף חבטה. הוא לא יושב על כפתורים או על טקסט.', 'Pet him with a click or Enter, lift him by dragging. A mouse pointer that comes close gets swatted at. He never sits on buttons or text.'])}</p>
       <div class="cat-actions"><button type="button" class="primary-button" data-cat-close>${L(['סגירה', 'Close'])}</button></div>`;
     dialog.showModal();
     dialog.querySelector('input:checked')?.focus();
