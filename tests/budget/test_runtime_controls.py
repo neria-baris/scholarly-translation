@@ -429,6 +429,86 @@ class TranslationIntegrationTests(unittest.TestCase):
         store.close()
 
 
+class PlanSettleTests(unittest.TestCase):
+    """A call served by the ChatGPT plan settles at 0.0 as "chatgpt_plan" and stays cacheable."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.structure = _synthetic_structure(Path(self.tmp.name), "en", "Axiom 3 remains true.")
+        self.unit = self.structure["units"][0]
+        self.db_path = Path(self.tmp.name) / "controls.sqlite3"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _run(self, observed_provider, counting):
+        from scholarly_translation.translate.glossary import new_store as new_glossary_store
+        request = build_translation_request(
+            self.structure, new_glossary_store(), self.unit["unit_id"], "scholarly", "openai", "gpt-6-luna")
+        with ControlStore(self.db_path) as store:
+            cache = RuntimeCache(store, stage="translate", provider="openai", model="gpt-6-luna")
+            budget = PersistentBudget(store, "doc-1", max_calls=3, hard_list_usd=0.01, stage="translate",
+                                      provider="openai", model="gpt-6-luna")
+            first = run_translation(request, adapter=counting, budget=budget, cache=cache)
+            second = run_translation(request, adapter=counting, budget=budget, cache=cache)
+            status = store.status("doc-1")
+            rows = store._conn.execute(
+                "SELECT outcome,observed_usd,actual_charge,metadata_json FROM events ORDER BY event_id").fetchall()
+        return first, second, status, [dict(r) for r in rows]
+
+    def _adapter(self, observed_provider):
+        class Adapter:
+            calls = 0
+
+            def generate(self_inner, prompt_text, model):
+                Adapter.calls += 1
+                return TextGenerationResult("completed", "אקסיומה 3 נותרת נכונה.",
+                                            {"input": 1000, "output": 500}, model, 0.1,
+                                            observed_provider=observed_provider)
+        return Adapter(), Adapter
+
+    def test_plan_result_settles_free_and_is_cacheable(self):
+        from scholarly_translation.models.chatgpt_plan import PLAN_PROVIDER_ID
+        adapter, cls = self._adapter(PLAN_PROVIDER_ID)
+        first, second, status, rows = self._run(PLAN_PROVIDER_ID, adapter)
+        self.assertEqual(cls.calls, 1)  # second run was a cache hit
+        self.assertTrue(second["cache_hit"])
+        self.assertEqual(status["list_estimated_spent_usd"], 0)
+        settled = [r for r in rows if r["outcome"] == "settled"]
+        self.assertEqual(len(settled), 1)
+        self.assertEqual(settled[0]["actual_charge"], "chatgpt_plan")
+        self.assertEqual(json.loads(settled[0]["metadata_json"])["token_usage"]["input"], 1000)
+
+    def test_normal_result_still_priced(self):
+        adapter, cls = self._adapter("openai")
+        first, second, status, rows = self._run("openai", adapter)
+        self.assertEqual(cls.calls, 1)
+        self.assertGreater(status["list_estimated_spent_usd"], 0)
+        settled = [r for r in rows if r["outcome"] == "settled"]
+        self.assertEqual(settled[0]["actual_charge"], "unknown")
+
+    def test_unmetered_plan_result_is_not_cached_but_not_an_error(self):
+        from scholarly_translation.models.chatgpt_plan import PLAN_PROVIDER_ID
+        from scholarly_translation.translate.glossary import new_store as new_glossary_store
+
+        class Adapter:
+            calls = 0
+
+            def generate(self_inner, prompt_text, model):
+                Adapter.calls += 1
+                return TextGenerationResult("completed", "אקסיומה 3 נותרת נכונה.", "not_metered", model, 0.1,
+                                            observed_provider=PLAN_PROVIDER_ID)
+        request = build_translation_request(
+            self.structure, new_glossary_store(), self.unit["unit_id"], "scholarly", "openai", "gpt-6-luna")
+        with ControlStore(self.db_path) as store:
+            budget = PersistentBudget(store, "doc-1", max_calls=3, hard_list_usd=0.01, stage="translate",
+                                      provider="openai", model="gpt-6-luna")
+            cache = RuntimeCache(store, stage="translate", provider="openai", model="gpt-6-luna")
+            run_translation(request, adapter=Adapter(), budget=budget, cache=cache)
+            run_translation(request, adapter=Adapter(), budget=budget, cache=cache)
+        self.assertEqual(Adapter.calls, 2)
+
+
 class SemanticReviewIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

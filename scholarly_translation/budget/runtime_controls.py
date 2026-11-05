@@ -732,17 +732,25 @@ class RuntimeCache:
             # known catalogue rate, an explicit custom rate, or the labelled
             # conservative unknown-model assumption) -- never "not_metered"
             # solely because the provider type is not openai.
-            estimate = (0.0 if provider_type == "mock" else
+            from ..models.chatgpt_plan import PLAN_PROVIDER_ID
+            plan_served = getattr(result, "observed_provider", None) == PLAN_PROVIDER_ID
+            # A call served by the user's ChatGPT plan costs nothing at the margin;
+            # its token usage is still recorded. Token usage that cannot be
+            # metered simply is not cached.
+            estimate = (0.0 if provider_type == "mock" or plan_served else
                         estimate_model_cost(provider_type, model, result.token_usage, custom_rates=budget.custom_rates))
             cache_entry = None
-            if result.status in COMPLETED_STATUSES and estimate != "not_metered":
+            plan_metered = (not plan_served or estimate_model_cost(
+                provider_type, model, result.token_usage, custom_rates=budget.custom_rates) != "not_metered")
+            if result.status in COMPLETED_STATUSES and estimate != "not_metered" and plan_metered:
                 _raw_result(raw, self.provider, result.status, model=model, custom_rates=budget.custom_rates)
                 cache_entry = dict(cache_key=key, stage=stage, provider=self.provider, model=model, status=result.status, result=raw)
         except (AttributeError, TypeError, ValueError):
             self._store.settle(event, token_usage="not_metered", estimate="not_metered", outcome="invalid_result")
             raise RuntimeControlsError("invalid provider result; reservation retained") from None
         notices.extend(self._store.settle(event, token_usage=result.token_usage, estimate=estimate, observed_model=result.observed_model,
-                         actual_charge="synthetic_non_billed" if self.provider == "mock" else "unknown",
+                         actual_charge=("synthetic_non_billed" if self.provider == "mock"
+                                        else "chatgpt_plan" if plan_served else "unknown"),
                          latency=time.monotonic() - start, outcome=result.status, cache_entry=cache_entry))
         self.provenance.append(dict(event_id=event, task_id=budget.task_id, cache_hit=False, provider_requests=1))
         return result, False, notices
