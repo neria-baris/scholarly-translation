@@ -1,3 +1,9 @@
+# Current state — sitting cat drawing fixed (Claude Code conductor, 2026-11-05)
+main = 8b19c91 on top of c0298f6, not pushed. 8b19c91: the sitting body's front edge no longer ends in a square corner at the floor (visible while grooming, when the paw lifts), and a cream belly shows behind the lifted paw. Checked by headless Chrome renders of sit/groom/happy; tests/ui/test_ui_redesign 17 OK.
+Uncommitted: only the untracked source PDF (do not commit).
+Next action: user restarts the app and watches the cat groom; on the user's request, push main to origin (gh credential).
+
+---
 # Current state — tab icon + orphaned batch-parse fix committed (Claude Code conductor, session scholarly-translation-cf, 2026-11-05)
 main = b531ebb on top of bee8a1f, not pushed. fb58318: the cat logo (assets/app.ico) is served at /favicon.ico and is the tab icon on all five pages and the sign-in page; the old inline SVG icon was removed (its raw '#' colours were read as a URL fragment, so it never rendered). b531ebb: the previously staged, ownerless chapter_pipeline change (context_unit_ids: drop an extra batch item for a chapter-context unit) committed at the user's request; sessions b8, 9c and 68 each said it is not theirs.
 Tests: tests/ui 242, only the pre-existing Python 3.9 write_text(newline=) error. tests/translate 430 (PYTHONPATH=tests): 1 failure, test_preview_uses_real_chapters_quickly (60 s timing limit); it also fails on HEAD without the change (63.3 s), so it is a machine-speed issue, not this change.
