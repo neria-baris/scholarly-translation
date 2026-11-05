@@ -38,7 +38,7 @@ function stateLine(){
   if(plan.state==='exhausted')parts.push(t('תקציב החשבון נגמר ב־','The account budget ran out at ')+timeText(plan.since)+(plan.retry_at?t('; ניסיון הבא ב־','; next try at ')+timeText(plan.retry_at):''));
   else if(plan.state==='not_eligible')parts.push(t('החשבון אינו זכאי לשימוש בתוכנית; התחברו מחדש.','The account is not eligible for plan usage; reconnect.'));
   else parts.push(t('החשבון מוכן לשימוש.','The account is ready to use.'));
-  if(plan.fallback_calls>0)parts.push(t('עברנו למפתח ה־API '+plan.fallback_calls+' פעמים','Switched to the API key '+plan.fallback_calls+' times')+(plan.last_fallback_at?t(' (לאחרונה ב־',' (last at ')+timeText(plan.last_fallback_at)+')':''));
+  if(plan.fallback_calls>0)parts.push(t(plan.fallback_calls+' פעמים עברו הקריאות למפתח ה־API','Switched to the API key '+plan.fallback_calls+' times')+(plan.last_fallback_at?t(' (לאחרונה ב־',' (last at ')+timeText(plan.last_fallback_at)+')':''));
   return parts.join(' · ');
 }
 function renderBadge(){
@@ -100,7 +100,7 @@ function renderOpenAI(){
   if(!acc.available){ui['openai-status'].textContent=t('חיבור חשבון OpenAI אינו זמין בגרסה הזו.','OpenAI account sign-in is not available in this build.');hideOpenAIControls();return}
   var granted=planGranted();
   ui['openai-status'].textContent=!acc.signed_in?t('לא מחוברים. הקריאות ייצאו עם מפתח ה־API.','Not connected. Calls will use the API key.'):
-    granted?t('מחוברים: ','Connected: ')+(acc.email||'')+t(' — קריאות לדגמי OpenAI ייצאו קודם על חשבון התוכנית.',' — calls to OpenAI models go to the plan first.'):
+    granted?t('מחוברים: ','Connected: ')+(acc.email||'')+t(' — קריאות למודלים של OpenAI ייצאו קודם על חשבון המנוי.',' — calls to OpenAI models go to the plan first.'):
     t('מחוברים: ','Connected: ')+(acc.email||'')+t(' — אבל השימוש בתוכנית לא אושר. יש לאשר אותו במסך ההסכמה של OpenAI; התחברו מחדש ואשרו.',' — but plan usage was not allowed. It must be allowed on OpenAI\'s consent screen; reconnect and allow it.');
   ui['oa-connect'].hidden=!!acc.signed_in;ui['oa-reconnect'].hidden=!acc.signed_in||granted;ui['oa-disconnect'].hidden=!acc.signed_in;
   ui['fallback-row'].hidden=false;
