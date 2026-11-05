@@ -1,7 +1,7 @@
 # Current state - OCR-BUNDLE committed, 1.0.1 release on hold (Claude Code conductor, 2026-11-05)
 Tesseract 5.4.0 is now bundled (scholarly_translation/assets/tesseract/, see run_history OCR-BUNDLE). Release 1.0.1 is on hold: the user is testing the OpenAI sign-in first and will say when to publish. At release time: build from main, trial-install, attach libiconv-1.17.tar.gz and jbigkit-2.1.tar.gz (GPL/LGPL sources; URLs and SHA-256 in assets/tesseract/sources.json) to the GitHub release, then refresh the distribution README (its OCR section now says nothing to install).
 Next action: wait for the user's go-ahead after the OpenAI sign-in test, then release 1.0.1 as above.
-Also on main (not pushed): CAT swat. A mouse pointer near (not on) the sitting cat makes him face it and swat 2-3 times with the near front paw, aimed at the pointer (angles capped 70-135 deg), cooldown 3.5-6 s; roam mode only, never while moving, napping, thinking or held. Checked in headless Chrome (trigger near/far/on-cat, renders of each angle); tests/ui/test_ui_redesign 17 OK.
+Also on main (not pushed): CAT swat. A mouse pointer within paw's reach of the sitting cat (not over him) makes him face it and swat 2-3 times; JS rotates and stretches the near front leg every frame so the paw lands on the pointer (measured 0-1 px in headless Chrome, ahead/up/low/behind; out of reach = no swat). Cooldown 3.5-6 s; roam mode only, never while moving, napping, thinking or held. tests/ui/test_ui_redesign 17 OK.
 
 ---
 # Current state — sitting cat drawing fixed (Claude Code conductor, 2026-11-05)

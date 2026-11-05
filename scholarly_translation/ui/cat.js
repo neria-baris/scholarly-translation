@@ -651,41 +651,62 @@
     node.textContent = '';
     requestAnimationFrame(() => { node.textContent = text; });
   }
-  // A mouse pointer that comes near (but not onto) the sitting cat gets swatted at: he turns toward it,
-  // raises a paw and strikes two or three times, aiming each strike at where the pointer is now.
-  // Decorative only: the paw stays inside the cat's own box and nothing on the page is touched.
+  // A mouse pointer within paw's reach of the sitting cat gets swatted at: he turns toward it, winds up
+  // and strikes two or three times. The leg stretches so the paw lands on the pointer itself, and
+  // follows it while the strike lasts. Decorative only: the paw ignores clicks and touches nothing.
   let swatReadyAt = 0;
   const pointer = { x: 0, y: 0 };
-  function pointerNear(px, py) {
-    const w = W(), h = H(), l = cat.x, t = cat.y - h;
-    if (px >= l && px <= l + w && py >= t && py <= t + h) return false; // on the cat: that is petting
-    const dx = Math.max(l - px, 0, px - l - w), dy = Math.max(t - py, 0, py - t - h);
-    return Math.hypot(dx, dy) < w * .55;
+  const reachLeg = svg.querySelector('.c-leg.sit.near'), reachRect = reachLeg.querySelector('rect'), reachPaw = reachLeg.querySelector('.paw');
+  // Drawing units (viewBox): the shoulder pivot, the paw's resting distance from it, and how far it can reach.
+  const SHOULDER_X = 79, SHOULDER_Y = 62, LEG = 24.4, REACH_MIN = 12, REACH_MAX = 48, AIM_LO = 30, AIM_HI = 150;
+  // The pointer in the cat's drawing units, x measured in the direction he faces.
+  function pointerLocal(face = cat.face) {
+    const k = W() / 120, u = (pointer.x - cat.x) / k, v = (pointer.y - (cat.y - H())) / k;
+    return { u: face > 0 ? u : 120 - u, v };
   }
-  function aimPaw() {
-    const k = W() / 120, shoulderX = cat.x + (cat.face > 0 ? 79 : 41) * k, shoulderY = cat.y - H() + 62 * k;
-    // 0deg = paw straight down, 90deg = straight ahead, 180deg = straight up.
-    const angle = Math.atan2((pointer.x - shoulderX) * cat.face, pointer.y - shoulderY) * 180 / Math.PI;
-    // Capped so the raised leg never ends up straight up behind the face.
-    const hit = clamp(angle, 70, 135);
-    svg.style.setProperty('--swat-hit', `${-hit}deg`);
-    svg.style.setProperty('--swat-wind', `${-Math.min(hit + 40, 155)}deg`);
+  // 0deg = paw straight down, 90deg = straight ahead, 180deg = straight up.
+  function reachTo(p) { const dx = p.u - SHOULDER_X, dy = p.v - SHOULDER_Y; return { len: Math.hypot(dx, dy), angle: Math.atan2(dx, dy) * 180 / Math.PI }; }
+  function canSwat() {
+    const face = pointer.x >= cat.x + W() / 2 ? 1 : -1, p = pointerLocal(face), r = reachTo(p);
+    if (p.u > 16 && p.u < 102 && p.v > 4 && p.v < 92) return false; // over the cat himself: that is petting
+    return r.len >= REACH_MIN && r.len <= REACH_MAX && r.angle >= AIM_LO && r.angle <= AIM_HI;
   }
+  function setLeg(angle, len) {
+    reachLeg.style.transform = `rotate(${(-angle).toFixed(1)}deg)`;
+    reachRect.setAttribute('height', (len + 5.6).toFixed(2));
+    reachPaw.setAttribute('cy', (SHOULDER_Y + len).toFixed(2));
+  }
+  function resetLeg() { reachLeg.style.transform = ''; reachRect.setAttribute('height', '30'); reachPaw.setAttribute('cy', '86.4'); }
+  const easeOut = t => 1 - (1 - t) * (1 - t), easeInOut = t => (t < .5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t));
   function swat() {
     swatReadyAt = performance.now() + rand(3500, 6000);
     run(async tk => {
-      tk.waiters.add(() => { svg.classList.remove('swat-strike'); if (cat.pose === 'swat') setPose('sit'); });
+      tk.waiters.add(() => { resetLeg(); if (cat.pose === 'swat') setPose('sit'); });
       cat.face = pointer.x >= cat.x + W() / 2 ? 1 : -1;
-      aimPaw(); setPose('swat');
-      await tk.wait(220);
+      setPose('swat');
+      const leg = { angle: 0, len: LEG }, curl = LEG * .8;
+      // One movement of the leg from where it is now; `target(t)` gives the goal at time t (0..1) and may follow the pointer.
+      const move = (ms, target, ease = easeInOut) => {
+        const from = { ...leg }, t0 = performance.now();
+        return animate(tk, now => {
+          const t = Math.min(1, (now - t0) / ms), e = ease(t), to = target(t);
+          leg.angle = from.angle + (to.angle - from.angle) * e;
+          leg.len = from.len + (to.len - from.len) * e;
+          setLeg(leg.angle, leg.len);
+          return t >= 1;
+        }, resetLeg);
+      };
+      const aim = () => { const r = reachTo(pointerLocal()); return { angle: clamp(r.angle, AIM_LO, AIM_HI), len: clamp(r.len, REACH_MIN, REACH_MAX) }; };
+      const windUp = () => ({ angle: Math.min(aim().angle + 40, 155), len: curl });
       const strikes = Math.random() < .5 ? 2 : 3;
-      for (let i = 0; i < strikes; i++) {
-        aimPaw(); svg.classList.add('swat-strike');
-        await tk.wait(130);
-        svg.classList.remove('swat-strike');
-        await tk.wait(rand(200, 320));
+      for (let i = 0; i < strikes && !tk.cancelled; i++) {
+        await move(i ? 150 : 230, windUp);
+        await move(90, aim, easeOut);
+        await move(110, aim, t => t); // the paw stays on the pointer for a moment
+        if (i < strikes - 1) await tk.wait(rand(60, 160));
       }
-      setPose('look'); await tk.wait(700); setPose('sit');
+      await move(220, () => ({ angle: 0, len: LEG }));
+      resetLeg(); setPose('look'); await tk.wait(700); setPose('sit');
       if (Math.random() < .35) await think(tk, say('swat'), 2200);
     });
   }
@@ -695,7 +716,7 @@
     const now = performance.now();
     if (!running || paused || mode !== 'roam' || dragging || napping || now < swatReadyAt || now < annoyedUntil) return;
     if (cat.motion || cat.airborne || !cat.anchor || cat.anchor.peek || !bubble.hidden || !['sit', 'look'].includes(cat.pose)) return;
-    if (pointerNear(pointer.x, pointer.y)) swat();
+    if (canSwat()) swat();
   }, { passive: true });
   body.addEventListener('click', event => {
     if (suppressClick) { suppressClick = false; event.preventDefault(); return; }

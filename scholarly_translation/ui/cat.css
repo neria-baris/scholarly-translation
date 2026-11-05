@@ -143,11 +143,10 @@
 .cat-check{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:.88rem;cursor:pointer}
 .cat-hint,.cat-sound-note{font-size:.82rem;color:var(--muted,#6f685a);line-height:1.6;margin:12px 0 0}
 .cat-actions{display:flex;justify-content:flex-end;margin-top:16px}
-/* Swatting at the pointer: wide eyes, a quick tail, and the near front paw raised, then struck toward
-   the pointer. JS sets the two angles (--swat-wind, --swat-hit) from where the pointer is. */
+/* Swatting at the pointer: wide eyes and a quick tail. JS moves and stretches the near front leg
+   every frame so the paw lands on the pointer; the paw never takes clicks. */
 .cat-svg[data-pose=swat] .c-head{transform:translate(-16px,-9px) rotate(-5deg)}
 .cat-svg[data-pose=swat] .eyes-open{transform:scale(1.2)}
 .cat-svg[data-pose=swat] .c-tail-sit{animation:cat-swish .6s ease-in-out infinite}
 .cat-svg[data-pose=swat] .c-leg.sit.far{transform:translateX(8px)}
-.cat-svg[data-pose=swat] .c-leg.sit.near{transform:rotate(var(--swat-wind,-140deg));transition:transform .14s ease-out}
-.cat-svg[data-pose=swat].swat-strike .c-leg.sit.near{transform:rotate(var(--swat-hit,-95deg));transition:transform .07s cubic-bezier(.3,0,.2,1)}
+.cat-svg[data-pose=swat] .c-leg.sit.near{transition:none;pointer-events:none}
