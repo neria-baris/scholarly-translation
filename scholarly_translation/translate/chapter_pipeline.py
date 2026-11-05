@@ -1727,13 +1727,16 @@ def _unit_record(job, structure, unit, translated, state_version, passthrough=No
     return record
 
 
-def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=None, on_format_repair=None):
+def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=None, on_format_repair=None,
+                                     context_unit_ids=()):
     """Batch translation parse: rejects missing/duplicate/unknown/out-of-order
     ids and empty/non-Hebrew targets. Never returns source text as a
     translation. Raises ``ChapterPipelineError`` (never a partial/best-effort
     result) on any violation, including JSON truncation. Punctuation slips
     around complete items and text before them are tolerated (see ``_json_items``),
-    as are a boolean ``approved`` key (dropped) and an empty note (read as null);
+    as are a boolean ``approved`` key (dropped), an empty note (read as null) and
+    an extra item for a ``context_unit_ids`` unit (dropped: the prompt showed that
+    unit as chapter context and its own batch translates it);
     ``on_format_repair()`` is called once when an accepted answer needed that.
 
     ``source_texts`` (unit_id -> source text) enables one narrow exemption: a
@@ -1763,6 +1766,9 @@ def parse_batch_translation_response(raw_text, expected_unit_ids, source_texts=N
         unit_id = item["unit_id"]
         if not isinstance(unit_id, str) or not unit_id:
             raise ChapterPipelineError("translation response item has an invalid unit_id")
+        if unit_id not in expected and unit_id in context_unit_ids:
+            repaired = True
+            continue
         if unit_id not in expected:
             raise ChapterPipelineError("translation response contains an unknown unit_id")
         if unit_id in by_id:
@@ -1945,7 +1951,8 @@ def dispatch_batch_translation(job_id, structure, glossary, unit_ids, profile_id
     return _controlled(job_id, 'translator', 'chapter-translate', prompt, configuration, call_output_cap,
         store, journal, hard_list_usd, max_calls, shared_output_cap,
         lambda result: parse_batch_translation_response(result.text, unit_ids,
-            {uid: article_layout.marked_text(structure, units[uid]) for uid in unit_ids}, on_format_repair),
+            {uid: article_layout.marked_text(structure, units[uid]) for uid in unit_ids}, on_format_repair,
+            set(source_unit_ids or ())),
         {'ids': list(unit_ids), 'source': fingerprint(structure), 'glossary': fingerprint(glossary), 'profile': profile_id},
         adapter_factory, qa_tail_usd)
 

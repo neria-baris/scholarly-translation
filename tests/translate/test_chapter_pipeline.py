@@ -89,6 +89,20 @@ class ChapterPipelineTests(unittest.TestCase):
         with self.assertRaises(ChapterPipelineError):
             parse_batch_translation_response(raw, ["u1"])
 
+    def test_drops_extra_item_for_a_context_unit(self):
+        # The prompt shows the whole chapter; a translation of the next batch's unit is dropped.
+        raw = json.dumps([{"unit_id": "u1", "translation": HEBREW}, {"unit_id": "u2", "translation": HEBREW}])
+        repairs = []
+        result = parse_batch_translation_response(raw, ["u1"], on_format_repair=lambda: repairs.append(1),
+                                                  context_unit_ids={"u1", "u2"})
+        self.assertEqual(list(result), ["u1"])
+        self.assertEqual(repairs, [1])
+        with self.assertRaises(ChapterPipelineError):
+            parse_batch_translation_response(raw, ["u1"], context_unit_ids={"u1"})
+        with self.assertRaises(ChapterPipelineError):   # a context unit never replaces a missing one
+            parse_batch_translation_response(json.dumps([{"unit_id": "u2", "translation": HEBREW}]),
+                                             ["u1"], context_unit_ids={"u1", "u2"})
+
     def test_rejects_duplicate_unit_id(self):
         raw = json.dumps([{"unit_id": "u1", "translation": HEBREW}, {"unit_id": "u1", "translation": HEBREW}])
         with self.assertRaises(ChapterPipelineError):
