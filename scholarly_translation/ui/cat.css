@@ -119,7 +119,7 @@
 @keyframes cat-breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.018)}}
 @keyframes cat-loaf{0%,100%{transform:translateY(14px) scaleY(1)}50%{transform:translateY(13.4px) scaleY(1.03)}}
 @keyframes cat-lick{from{transform:rotate(-158deg)}to{transform:rotate(-146deg)}}
-.cat-svg[data-pose=groom] .c-chest{display:none}
+.cat-svg[data-pose=groom] .c-chest,.cat-svg:not([data-pose=groom]) .c-belly{display:none}
 .roam-dot{position:absolute;width:5px;height:5px;bottom:-34px;left:calc(var(--tail) + var(--lean) * .9 - 2.5px);background:#fffbea;border:2px solid #2a1d15;border-radius:50%}
 /* Beside the head: the dots run sideways toward it. */
 .roam-thought[data-side=right]:before{left:-15px;bottom:auto;top:calc(var(--mid) - 6px)}
