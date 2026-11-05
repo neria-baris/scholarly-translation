@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" width="128" alt="">
+  <img src="assets/banner.png" width="100%" alt="Scholarly Translation · תרגום מסמכים לעברית: the library cat sitting on a shelf of books">
 </p>
 
 <h1 align="center">Scholarly Translation · תרגום מסמכים לעברית</h1>
@@ -307,3 +307,11 @@ python -m venv .venv
 
 - Requires Python 3.10 or newer.
 - When run from source, your data is kept in an `outputs` folder inside the code folder.
+
+---
+
+<p align="center">
+  <img src="assets/library-cat.png" width="157" alt="The library cat asleep on a stack of books">
+  <br>
+  <sub>חתול הספרייה שומר על הספרים · The library cat keeps watch over the books</sub>
+</p>
