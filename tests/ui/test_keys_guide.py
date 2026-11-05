@@ -35,7 +35,8 @@ class KeysGuideTests(unittest.TestCase):
         self.assertEqual(external, set(LINKS))
 
     def test_no_external_resources(self):
-        self.assertNotRegex(self.guide, r"<script[^>]*\ssrc=")
+        # The only script is the shared same-origin profile window (PROFILE-EVERYWHERE).
+        self.assertEqual(re.findall(r"<script[^>]*\ssrc=\"([^\"]*)\"", self.guide), ["/profile.js"])
         self.assertNotRegex(self.guide, r"<link[^>]*href=\"(https?:)?//")
         self.assertNotRegex(self.guide, r"<(img|iframe)\b")
         self.assertNotRegex(self.guide, r"fetch\(|XMLHttpRequest|sendBeacon")

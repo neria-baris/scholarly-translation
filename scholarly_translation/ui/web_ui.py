@@ -913,7 +913,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 self._reply(200, (ROOT / 'prompts' / 'language_learning' / 'wordlists' / ('ar_starter.md' if language == 'ar' else language + '_500.md')).read_bytes(), 'text/plain')
                 return
             if urlparse(self.path).path == '/learning/help':
-                self._reply(200, (UI_DIR / 'learning_help.html').read_bytes(), 'text/html')
+                config = json.dumps({"token": token}, ensure_ascii=False)
+                self._reply(200, (UI_DIR / 'learning_help.html').read_text(encoding="utf-8").replace("__CONFIG__", config).encode("utf-8"), 'text/html')
                 return
             if self.path in ("/learning.js", "/learning.css", "/learning-theme.css"):
                 name = self.path.removeprefix("/")
@@ -924,7 +925,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 self._reply(200, (UI_DIR / "learning.html").read_text(encoding="utf-8").replace("__CONFIG__", config).encode("utf-8"), "text/html")
                 return
             if urlparse(self.path).path == "/keys-guide":
-                self._reply(200, (UI_DIR / "keys_guide.html").read_bytes(), "text/html")
+                config = json.dumps({"token": token}, ensure_ascii=False)
+                self._reply(200, (UI_DIR / "keys_guide.html").read_text(encoding="utf-8").replace("__CONFIG__", config).encode("utf-8"), "text/html")
                 return
             if self.path == "/help":
                 try:
@@ -949,13 +951,14 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     html = (UI_DIR / "help.html").read_text(encoding="utf-8")
                     html = (html.replace("__PRICING_ROWS__", rows)
                                 .replace("__CATALOG_VERSION__", CATALOG_VERSION)
-                                .replace("__FONT_LIST__", fonts_rows))
+                                .replace("__FONT_LIST__", fonts_rows)
+                                .replace("__CONFIG__", json.dumps({"token": token}, ensure_ascii=False)))
                 except OSError:
                     self._json(404, {"error": "not found"})
                     return
                 self._reply(200, html.encode("utf-8"), "text/html")
                 return
-            if self.path in ("/ui.css", "/ui.js", "/ui-theme.css", "/cat.css", "/cat.js", "/shelf.js", "/segments.js", "/bindery.js"):
+            if self.path in ("/ui.css", "/ui.js", "/ui-theme.css", "/cat.css", "/cat.js", "/shelf.js", "/segments.js", "/bindery.js", "/profile.js", "/profile.css"):
                 name = self.path.removeprefix("/")
                 kind = "text/css" if name.endswith(".css") else "text/javascript"
                 self._reply(200, (UI_DIR / name).read_bytes(), kind)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light"><title>עזרה — תרגום מסמכים</title>
-<link rel="stylesheet" href="/ui.css">
+<link rel="stylesheet" href="/ui.css"><link rel="stylesheet" href="/profile.css">
 <style>
 html:not([data-lang="en"]) .lang-en,html[data-lang="en"] .lang-he{display:none}
 .lang-switch{margin-inline-start:auto}
@@ -28,6 +28,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <a class="brand" href="/" aria-label="תרגום מסמכים — עמוד הבית"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.2c-2.3-1.2-5-1.5-7-1.1v12c2-.4 4.7-.1 7 1.1z"/><path d="M12 7.2c2.2-1.4 5.1-1.7 7.3-1.3v12c-2.2-.4-5.1-.1-7.3 1.3z"/><path d="M12 7.2v12"/><path d="M16.3 5.6v4.3l1.3-1 1.3 1V5.6" fill="currentColor" stroke="none"/></svg></span><span class="lang-he">תרגום מסמכים</span><span class="lang-en">Document Translation</span></a>
 <a class="quiet-button" href="/"><span class="lang-he">חזרה לעמוד הראשי</span><span class="lang-en">Back to main page</span></a>
 <a class="quiet-button lang-switch" id="lang-switch" href="#en">English</a>
+<span id="profile-mount" class="profile-mount"></span>
 </header>
 <main class="help-main">
 <div class="lang-he" id="help-he" lang="he" dir="rtl">
@@ -309,6 +310,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>The server listens only on the local computer. The source, drafts and job logs are stored in <code>outputs/ui/</code>; keys entered in the interface are kept in memory, and in the Windows Credential Manager only if you ticked "Remember"; password fields are cleared after saving.</p>
 </div>
 </main>
+<script>window.UI_CONFIG = __CONFIG__;</script><script src="/profile.js"></script>
 <script>
 (function(){
 var T={he:'עזרה — תרגום מסמכים',en:'Help — Document Translation'};
