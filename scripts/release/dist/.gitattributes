@@ -1,0 +1,3 @@
+# Store every file byte-for-byte: app updates verify each file's SHA-256
+# against the signed manifest, so line endings must never be converted.
+* -text

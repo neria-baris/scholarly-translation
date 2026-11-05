@@ -241,6 +241,12 @@ class SetupExeSourceTests(unittest.TestCase):
         manifest = (REPO_ROOT / "scripts" / "release" / "setup_exe" / "app.manifest").read_text(encoding="utf-8")
         self.assertIn('level="asInvoker"', manifest)
 
+    def test_dist_template_stores_files_byte_for_byte(self):
+        # Updates hash raw.githubusercontent.com files against the manifest; a
+        # line-ending conversion in the distribution repo would break them.
+        attributes = (REPO_ROOT / "scripts" / "release" / "dist" / ".gitattributes").read_text(encoding="utf-8")
+        self.assertIn("* -text", attributes.splitlines())
+
     def test_file_version_is_four_numeric_parts(self):
         self.assertEqual(build_release._file_version("1.2"), "1.2.0.0")
         self.assertEqual(build_release._file_version("1.0.3.4"), "1.0.3.4")
