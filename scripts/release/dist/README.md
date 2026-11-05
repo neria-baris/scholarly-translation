@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" width="100%" alt="Scholarly Translation · תרגום מסמכים לעברית: the library cat sitting on a shelf of books">
+  <img src="assets/banner.png" width="100%" alt="Scholarly Translation: the library cat sitting on a shelf of books">
 </p>
 
 <h1 align="center">Scholarly Translation · תרגום מסמכים לעברית</h1>
