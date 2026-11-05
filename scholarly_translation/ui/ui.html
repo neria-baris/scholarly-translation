@@ -38,6 +38,15 @@
 <div class="role-block" data-role="translator"><h3 data-i18n="roleTranslator">מתרגם</h3><div class="role-fields"></div></div>
 <div class="role-block" data-role="semantic_reviewer"><h3 data-i18n="roleQa">בדיקת איכות (QA) <small>— כברירת מחדל כמו המתרגם</small></h3><div class="role-fields"></div></div>
 <details id="advanced-roles"><summary data-i18n="advRoles">בחירת מבקר פרקים מתקדמת (chapter_qa)</summary><div class="role-block" data-role="chapter_qa"><div class="role-fields"></div></div></details>
+<section id="openai-card" class="openai-card" aria-labelledby="oa-title" hidden>
+<h3 id="oa-title" data-i18n="oaTitle">חשבון OpenAI (ChatGPT Plus/Pro)</h3>
+<p id="oa-status" role="status"></p>
+<div class="oa-actions"><button id="oa-connect" type="button" class="secondary-button" data-i18n="oaConnect">התחברות עם ChatGPT</button><button id="oa-reconnect" type="button" class="secondary-button" hidden data-i18n="oaReconnect">חיבור מחדש</button><button id="oa-disconnect" type="button" class="text-button" hidden data-i18n="oaDisconnect">ניתוק</button></div>
+<label class="oa-fallback"><input id="oa-fallback" type="checkbox" checked> <span data-i18n="oaFallback">כשתקציב החשבון נגמר — להמשיך אוטומטית עם מפתח ה־API</span></label>
+<p id="oa-state" role="status"></p>
+<p id="oa-warn" class="oa-warn" hidden></p>
+<a id="oa-usage-link" class="help-link" href="https://chatgpt.com/#settings" target="_blank" rel="noopener noreferrer" data-i18n="oaUsage">שימוש בחשבון: הגדרות ChatGPT ← Usage</a>
+</section>
 <div class="key-fields"></div>
 <label class="remember-keys" hidden><input id="remember-keys" type="checkbox"> <span data-i18n="rememberKeys">לזכור במחשב הזה (מנהל האישורים של Windows)</span></label>
 <div class="field"><button id="save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="key-message" class="key-message" role="status"></span><button id="forget-keys" type="button" class="text-button forget-keys" hidden data-i18n="forgetKeys">מחיקת המפתחות השמורים מהמחשב</button></div>
@@ -63,6 +72,7 @@
 </div><p id="processing-percentage" class="processing-percentage">0%</p></div>
 <span class="eyebrow" id="processing-eyebrow">המסמך בדרך לעברית</span><h1 id="processing-title">קוראים את המסמך…</h1><p id="processing-file" dir="auto"></p>
 <progress id="translation-progress" max="100" aria-label="התקדמות התרגום" data-i18n-aria="progressAria"></progress>
+<p id="oa-job-notice" class="oa-job-notice" role="status" hidden></p>
 <p id="processing-detail">אפשר להשאיר את החלון פתוח או לחזור אליו בהמשך.</p>
 <div id="processing-budget" class="processing-budget" hidden></div>
 <div id="processing-usage" class="usage-summary" hidden></div>

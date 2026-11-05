@@ -3,6 +3,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
@@ -186,7 +187,11 @@ class TableTests(unittest.TestCase):
 const out={known:stageLabel('מתרגם'),window:stageLabel('בדיקה רוחבית של פרקים 3–9'),other:stageLabel('תווית חדשה'),empty:stageLabel('')};
 LANG='he';out.he=stageLabel('מתרגם');
 console.log(JSON.stringify(out));"""
-        out = json.loads(subprocess.run(["node", "-e", script], capture_output=True, text=True, encoding="utf-8", check=True).stdout)
+        # A script file, not `node -e`: the i18n block exceeds the Windows command-line limit.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "stage_label.js"
+            path.write_text(script, encoding="utf-8")
+            out = json.loads(subprocess.run(["node", str(path)], capture_output=True, text=True, encoding="utf-8", check=True).stdout)
         self.assertEqual(out["known"], "Translating")
         self.assertIn("3–9", out["window"])
         self.assertIsNone(HEBREW.search(out["window"]))

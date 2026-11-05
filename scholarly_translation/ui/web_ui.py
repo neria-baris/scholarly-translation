@@ -74,6 +74,29 @@ def _default_account():
     return GoogleAccount(config, store)
 
 
+def _default_openai_account():
+    """The production OpenAI account object, or None when the feature is unavailable
+    (module missing, or no credential store on this platform)."""
+    try:
+        from ..account.openai_auth import default_openai_account
+        return default_openai_account()
+    except Exception:
+        return None
+
+
+def _plan_classes():
+    """(PlanState, ChatGPTPlanAdapter, PlanFirstAdapter), or None when the plan module is unavailable."""
+    try:
+        from ..models.chatgpt_plan import ChatGPTPlanAdapter, PlanFirstAdapter, PlanState
+        return PlanState, ChatGPTPlanAdapter, PlanFirstAdapter
+    except Exception:
+        return None
+
+
+def _is_native_openai(definition) -> bool:
+    return definition.provider_type == "openai" and not definition.base_url
+
+
 _SIGN_IN_PAGE = """<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
 <title>{title}</title><style>body{{font-family:"Segoe UI",Arial,sans-serif;background:#f6f0e1;color:#342c19;margin:0;
@@ -300,7 +323,7 @@ def _document_in_progress(document_jobs) -> list[dict]:
 
 
 def make_handler(token: str, model_config_path: str | None = None, *, learning_service=None, key_store=None,
-                 account_factory=None, drive_factory=None):
+                 account_factory=None, drive_factory=None, openai_account_factory=None, plan_state=None):
     from ..translate.document_draft import (
         DocumentDraftError, DocumentJobs, MAX_FILE_BYTES, MODEL_CHOICES, QUALITY_MODES, render_download, validate_settings,
     )
@@ -344,6 +367,60 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 learning_holder[0] = LearningService(OUTPUT_ROOT.parent / "learning")
             return learning_holder[0]
 
+    # ---- OpenAI account (Sign in with ChatGPT): plan usage first, API key on exhaustion ----
+    # The browser only ever sees status booleans, the email, the plan state and times.
+    plan_classes = _plan_classes()
+    openai_account = None
+    if plan_classes is not None and openai_account_factory is not None:
+        # Only the production entry point passes the real factory: tests and embedders get
+        # no account (and so never read the user's stored sign-in) unless they inject one.
+        try:
+            openai_account = openai_account_factory()
+        except Exception:
+            openai_account = None
+        if plan_state is None and openai_account is not None:
+            try:
+                plan_state = plan_classes[0]()
+            except Exception:
+                plan_state = None
+    if openai_account is None or plan_state is None:
+        openai_account = None
+    openai_lock = threading.Lock()
+    pending_openai = {"value": None, "at": 0.0}
+
+    def _openai_settings_path() -> Path:
+        return OUTPUT_ROOT / "openai_account.json"
+
+    def _auto_fallback() -> bool:
+        try:
+            value = json.loads(_openai_settings_path().read_text(encoding="utf-8")).get("auto_fallback")
+        except (OSError, ValueError, AttributeError):
+            return True
+        return value if isinstance(value, bool) else True
+
+    def _save_auto_fallback(value: bool) -> None:
+        path = _openai_settings_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(path.name + ".tmp")
+        temporary.write_text(json.dumps({"auto_fallback": value}), encoding="utf-8")
+        os.replace(temporary, path)
+
+    def _openai_status() -> dict:
+        try:
+            status = openai_account.status() if openai_account is not None else {}
+        except Exception:
+            status = {}
+        return status if isinstance(status, dict) else {}
+
+    def _plan_granted() -> bool:
+        if openai_account is None:
+            return False
+        status = _openai_status()
+        return bool(status.get("signed_in") and status.get("plan_usage"))
+
+    def _has_credential(definition, keys) -> bool:
+        return bool(keys.get(definition.provider_id)) or (_is_native_openai(definition) and _plan_granted())
+
     def _learning_adapter(model=None, reasoning=None, configuration=None):
         """A new preparation's chosen model, or a saved job's own configuration
         on resume; the key of that model's provider must be available."""
@@ -352,7 +429,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         if configuration is None:
             configuration = model_settings.build_configuration({"translator": learning_model_selection(model, reasoning)})
         keys = _key_snapshot(configuration)
-        require(bool(keys.get(configuration.resolve("translator")[0].provider)), "missing_api_key")
+        require(_has_credential(configuration.resolve("translator")[1], keys), "missing_api_key")
         return configuration, _adapter_factory_for(configuration, keys)
 
     def _learning_action(path, data):
@@ -366,7 +443,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 if entry["provider"] not in summary["keys_available"]:
                     configuration = model_settings.build_configuration({"translator": {
                         "source": "catalog", "provider": entry["provider"], "model": entry["model"]}})
-                    summary["keys_available"][entry["provider"]] = bool(_key_snapshot(configuration).get(entry["provider"]))
+                    summary["keys_available"][entry["provider"]] = _has_credential(
+                        configuration.resolve("translator")[1], _key_snapshot(configuration))
             return summary
         if path == "/learning/language":
             return service.select_language(data.get("language"))
@@ -441,7 +519,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
     def _requirements(configuration, settings):
         snapshot = _key_snapshot(configuration)
         return [{"id": definition.provider_id, "type": definition.provider_type,
-                 "endpoint": definition.base_url, "key_available": bool(snapshot.get(definition.provider_id))}
+                 "endpoint": definition.base_url, "key_available": bool(snapshot.get(definition.provider_id)),
+                 "plan_available": _is_native_openai(definition) and _plan_granted()}
                 for definition in {definition.provider_id: definition for _, definition in
                     _required_roles_for(configuration, settings).values() if definition.provider_type != "mock"}.values()]
 
@@ -458,7 +537,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         keys_snapshot = _key_snapshot(configuration) if keys_snapshot is None else keys_snapshot
         missing = set()
         for _role, (selection, definition) in _required_roles_for(configuration, settings).items():
-            if definition.provider_type != "mock" and not keys_snapshot.get(definition.provider_id):
+            if definition.provider_type != "mock" and not _has_credential(definition, keys_snapshot):
                 missing.add(definition.provider_id)
         return sorted(missing)
 
@@ -472,19 +551,28 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
         return keys_snapshot
 
     def _adapter_factory_for(configuration, keys_snapshot):
+        plan_granted = _plan_granted()
 
         def adapter_factory(role, request):
             selection, definition = configuration.resolve(role)
-            if definition.provider_type != "mock" and not keys_snapshot.get(definition.provider_id):
+            use_plan = plan_granted and _is_native_openai(definition)
+            has_key = bool(keys_snapshot.get(definition.provider_id))
+            if definition.provider_type != "mock" and not has_key and not use_plan:
                 raise DocumentDraftError("מפתח הספק אינו זמין לעבודה זו; הזינו אותו לפני המשך.")
             max_output_tokens = getattr(request, "max_output_tokens", None)
             if max_output_tokens is None:
                 max_output_tokens = selection.capabilities.max_output_tokens if selection.capabilities else None
-            return build_translation_adapter(
+            reasoning = selection.capabilities.reasoning if selection.capabilities else None
+            key_adapter = build_translation_adapter(
                 selection.provider, selection.model, provider_definition=definition,
                 max_output_tokens=max_output_tokens, api_key=keys_snapshot.get(definition.provider_id),
-                reasoning=selection.capabilities.reasoning if selection.capabilities else None,
-            )
+                reasoning=reasoning,
+            ) if has_key or not use_plan else None
+            if not use_plan:
+                return key_adapter
+            _state, plan_adapter_class, plan_first_class = plan_classes
+            return plan_first_class(plan_adapter_class(openai_account, reasoning=reasoning), plan_state,
+                                    fallback_adapter=key_adapter, auto_fallback=_auto_fallback)  # read per call: the user may change it mid-job
         return adapter_factory
 
     def _resolve_model_config(settings):
@@ -684,6 +772,86 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
             return _drive_error(exc)
         return 404, {"error": "not found"}
 
+    def _openai_view() -> dict:
+        if openai_account is None:
+            return {"account": {"available": False}, "plan": None, "auto_fallback": _auto_fallback(),
+                    "key_available": False}
+        status = _openai_status()
+        try:
+            plan = plan_state.snapshot()
+        except Exception:
+            plan = None
+        with settings_lock:
+            key_available = bool(session_keys.get("openai"))
+        key_available = key_available or bool(os.environ.get("OPENAI_API_KEY"))
+        return {"account": {"available": True, "signed_in": bool(status.get("signed_in")),
+                            "email": status.get("email"), "plan_usage": bool(status.get("plan_usage"))},
+                "plan": plan, "auto_fallback": _auto_fallback(), "key_available": key_available}
+
+    def _openai_action(path: str, data: dict, port: int) -> tuple[int, dict]:
+        if path == "/openai-account":
+            return 200, _openai_view()
+        if path == "/openai-account/settings":
+            value = data.get("auto_fallback")
+            if not isinstance(value, bool):
+                return 400, {"error": "הגדרת ההמשך האוטומטי אינה תקינה.", "code": "bad_setting"}
+            try:
+                _save_auto_fallback(value)
+            except OSError:
+                return 500, {"error": "שמירת ההגדרה נכשלה.", "code": "save_failed"}
+            return 200, _openai_view()
+        if openai_account is None:
+            return 404, {"error": "החיבור לחשבון OpenAI אינו זמין בגרסה זו.", "code": "unavailable"}
+        if path == "/openai-account/sign-in":
+            try:
+                url, pending = openai_account.begin_sign_in(f"http://127.0.0.1:{port}/openai/callback")
+            except Exception:
+                return 400, {"error": "לא ניתן להתחיל התחברות ל־OpenAI.", "code": "sign_in_unavailable"}
+            with openai_lock:
+                pending_openai["value"], pending_openai["at"] = pending, time.monotonic()
+            try:
+                webbrowser.open(url)
+            except Exception:
+                pass
+            return 200, {"url": url}
+        if path == "/openai-account/sign-out":
+            with openai_lock:
+                pending_openai["value"] = None
+            try:
+                openai_account.sign_out()
+            except Exception:
+                pass
+            try:
+                plan_state.reset()
+            except Exception:
+                pass
+            return 200, {"ok": True}
+        return 404, {"error": "not found"}
+
+    def _openai_callback(query: dict) -> bytes:
+        with openai_lock:
+            pending = pending_openai["value"]
+            if pending is not None and time.monotonic() - pending_openai["at"] > PENDING_SIGN_IN_SECONDS:
+                pending = pending_openai["value"] = None
+        if openai_account is None or pending is None:
+            return _sign_in_page(False)
+        try:
+            who = openai_account.complete_sign_in(pending, query)
+        except Exception as exc:
+            reason = str(getattr(exc, "reason", "")) if exc.__class__.__name__ == "OpenAISignInError" else ""
+            if reason != "state_mismatch":  # a stray request must not cancel the real attempt
+                with openai_lock:
+                    pending_openai["value"] = None
+            return _sign_in_page(False, reason)
+        with openai_lock:
+            pending_openai["value"] = None
+        try:
+            plan_state.reset()
+        except Exception:
+            pass
+        email = who.get("email") if isinstance(who, dict) else getattr(who, "email", "")
+        return _sign_in_page(True, str(email or ""))
+
     def _oauth_callback(query: dict) -> bytes:
         with account_lock:
             pending = pending_sign_in["value"]
@@ -730,6 +898,12 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 # the one-time state (plus PKCE) must match the pending sign-in.
                 query = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items() if v}
                 self._reply(200, _oauth_callback(query), "text/html")
+                return
+            if urlparse(self.path).path == "/openai/callback":
+                # The browser redirect from OpenAI: no UI token possible. Safe because the
+                # one-time state (plus PKCE) must match the pending sign-in.
+                query = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items() if v}
+                self._reply(200, _openai_callback(query), "text/html")
                 return
             if urlparse(self.path).path == "/learning/wordlist":
                 language = parse_qs(urlparse(self.path).query).get('language', [''])[0]
@@ -870,6 +1044,10 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     status, body = _account_action(route.path, data, self.server.server_port)
                     self._json(status, body)
                     return
+                if route.path == "/openai-account" or route.path.startswith("/openai-account/"):
+                    status, body = _openai_action(route.path, data, self.server.server_port)
+                    self._json(status, body)
+                    return
                 if route.path == "/update-status":
                     self._json(200, {"status": ui_status()})
                     return
@@ -921,7 +1099,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                     if server_model_config:
                         configuration = ModelConfiguration.from_dict(server_model_config)
                         configured_requirements = [{"id": pid, "type": definition.provider_type,
-                            "endpoint": definition.base_url, "key_available": bool(_key_snapshot(configuration).get(pid))}
+                            "endpoint": definition.base_url, "key_available": bool(_key_snapshot(configuration).get(pid)),
+                            "plan_available": _is_native_openai(definition) and _plan_granted()}
                             for pid, definition in configuration.providers.items() if definition.provider_type != "mock"]
                     self._json(200, {
                         "profiles": [{"id": pid} for pid in SUPPORTED_PROFILE_IDS],
@@ -939,6 +1118,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                         "key_providers_external": {pid: True for pid in sorted(available_keys) if pid not in entered_ids},
                         "key_remember_supported": key_store is not None,
                         "configured_requirements": configured_requirements,
+                        "openai_plan_granted": _plan_granted(),
                     })
                 elif route.path == "/document-translate":
                     source = Path(data.get("path", "")).resolve()
@@ -1325,7 +1505,8 @@ def main() -> int:
     token = secrets.token_urlsafe(24)
     model_config_path = os.environ.get("SCHOLARLY_TRANSLATION_MODEL_CONFIG")
     from ..models.key_store import default_key_store
-    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(token, model_config_path, key_store=default_key_store()))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(
+        token, model_config_path, key_store=default_key_store(), openai_account_factory=_default_openai_account))
     url = f"http://127.0.0.1:{server.server_port}/"
     (instance_folder / "web_ui.url").write_text(url, encoding="utf-8")
     print(f"Local UI: {url}", flush=True)
