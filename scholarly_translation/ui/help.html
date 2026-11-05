@@ -35,7 +35,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>העמוד הזה מסביר את כל השלבים, ההגדרות ועלויות האומדן של כלי התרגום המקומי. דף זה נבנה מהשרת המקומי שלכם ואינו שולח מידע לאף שרת חיצוני.</p>
 </div>
 <nav class="help-nav" aria-label="ניווט בעמוד העזרה">
-<a href="#steps">שלבי השימוש</a><a href="#models">מודלים ומפתחות</a><a href="#pricing">תעריפים</a>
+<a href="#steps">שלבי השימוש</a><a href="#models">מודלים ומפתחות</a><a href="#openai-account">חשבון OpenAI</a><a href="#pricing">תעריפים</a>
 <a href="#tokens">טוקנים ועלות</a><a href="#quality">פרופיל ואיכות</a><a href="#fonts">גופנים</a><a href="#resume">המשך ותוצאות</a><a href="#library">הספרייה</a><a href="#blocks">כשהתרגום נעצר</a><a href="#notebook">מחברת הספר</a><a href="#scanned">ספרים סרוקים</a><a href="#limits">הפעלה ומגבלות</a>
 </nav>
 
@@ -52,6 +52,16 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <h2 id="models">מודלים, QA ומפתחות API</h2>
 <p>ה-Auto מדומה: אינו שולח טקסט לאף ספק, אינו מצריך מפתח, ומחזיר טקסט מקום-שמור בלבד — לעולם לא תרגום אמיתי.</p>
 <p>במודל משלכם בוחרים מודל מתרגם מהקטלוג (למטה) או מגדירים מודל "אחר" (מזהה, ספק, ולכתובת תואמת-OpenAI גם endpoint). בדיקת האיכות (QA — "semantic_reviewer" ו-"chapter_qa") מוגדרת כברירת מחדל זהה למודל המתרגם, וניתן לשנות אותה בנפרד. המפתחות נשמרים בזיכרון השרת המקומי להרצה הנוכחית: לא בקובץ ההגדרות, לא ב-log, לא ב-localStorage של הדפדפן ולא במשתני סביבה. אם מסמנים "לזכור במחשב הזה", המפתח נשמר גם מוצפן במנהל האישורים של Windows בחשבון המשתמש שלכם ונטען מחדש כשהתוכנית נפתחת; הכפתור "מחיקת המפתחות השמורים מהמחשב" מוחק אותו משם. סמל המפתח בכותרת זהוב כשיש מפתח, ועם נקודה ירוקה כשהוא שמור במחשב. הפעלה חדשה של השרת מאפסת אותם; חידוש עבודה שהושהתה מבקש את המפתחות מחדש ומשתמש בעבודה שנשמרה.</p>
+
+<h2 id="openai-account">חשבון OpenAI (ChatGPT Plus/Pro) במקום מפתח, והמעבר למפתח כשהתקציב נגמר</h2>
+<p>במקום מפתח API (או בנוסף לו) אפשר לחבר את חשבון ה־ChatGPT שלכם. אז קריאות למודלים של OpenAI משתמשות קודם בתקציב שכלול במנוי Plus או Pro. החיבור נעשה דרך "Sign in with ChatGPT", ההתחברות הרשמית של OpenAI. היא מיועדת גם לתוכנות אישיות שרצות במחשב, כמו זו.</p>
+<ul>
+<li><strong>חיבור:</strong> בהגדרות המודל, בכרטיס "חשבון OpenAI (ChatGPT Plus/Pro)", לוחצים "התחברות". נפתח דף ההתחברות של OpenAI בדפדפן. בדף ההסכמה יש לאשר גם את <strong>השימוש בתקציב המנוי</strong>. בלי האישור הזה החשבון משמש רק לזיהוי, והכרטיס יציע להתחבר מחדש.</li>
+<li><strong>מה מחויב:</strong> קריאה שהמנוי משרת אינה נספרת כהוצאה בתקציב העבודה (העלות נרשמת כ־0, והטוקנים נשמרים). מגבלה לכל תוכנה ושימוש בקרדיטים קובעים ב־ChatGPT, בהגדרות השימוש. התוכנית לא תעקוף אותם.</li>
+<li><strong>כשהתקציב נגמר:</strong> אם התיבה "כשתקציב החשבון נגמר — להמשיך אוטומטית עם מפתח ה־API" מסומנת (ברירת המחדל) ויש מפתח OpenAI, אותה קריאה נשלחת מיד עם המפתח, על חשבון המפתח. הכרטיס ומסך העבודה מציגים שהתוכנה עברה למפתח וכמה פעמים. אחרי חצי שעה התוכנה מנסה שוב את המנוי. אם התיבה לא מסומנת או שאין מפתח, העבודה נעצרת עם הודעה ולא מחויב דבר. אפשר לחדש אותה אחר כך.</li>
+<li><strong>מה חל על המנוי:</strong> רק מודלים של OpenAI בכתובת הרגילה. ספקים אחרים (Anthropic, DeepSeek, כתובת תואמת־OpenAI) ממשיכים לדרוש מפתח. מנוי Claude Code אינו מתחבר כך. אומדן העלות לפני התחלת עבודה הוא תמיד המקסימום, כלומר המצב שבו כל הקריאות עוברות למפתח.</li>
+<li><strong>פרטיות:</strong> פרטי ההתחברות נשמרים מוצפנים בהצפנה של Windows לחשבון המשתמש שלכם ואינם מגיעים לדפדפן. "התנתקות" מבטלת את ההרשאה ומוחקת אותם. אפשר לנתק את התוכנה גם מהגדרות ChatGPT.</li>
+</ul>
 
 <h2 id="pricing">תעריפים (רשימת מחיר רשמית, קטלוג __CATALOG_VERSION__)</h2>
 <div class="table-scroll"><table>
@@ -153,7 +163,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>לא נתמכים: כתב יד, טקסט בתוך איורים, ופריסת עמוד מורכבת מעבר למה ש־Tesseract מזהה.</p>
 
 <h2 id="limits">הפעלה ומגבלות</h2>
-<p>להפעלה ב־Windows לחצו על <strong>Run Scholarly Translation.vbs</strong> או הריצו <code>.\run-ui.ps1</code>. בהתקנה ראשונית השתמשו ב־<strong>Install.bat</strong>. השאירו את חלון השרת פתוח. מינוי ChatGPT או Claude Code אינו מפתח API לתרגום.</p>
+<p>להפעלה ב־Windows לחצו על <strong>Run Scholarly Translation.vbs</strong> או הריצו <code>.\run-ui.ps1</code>. בהתקנה ראשונית השתמשו ב־<strong>Install.bat</strong>. השאירו את חלון השרת פתוח. מנוי Claude Code אינו מפתח API לתרגום. מנוי ChatGPT Plus/Pro אפשר לחבר בכרטיס חשבון OpenAI (ראו <a href="#openai-account">חשבון OpenAI</a>).</p>
 <p>אם PowerShell חוסם סקריפטים, השתמשו בקובץ ה־VBS או ב־<code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1</code>. ההגדרה חלה על התהליך הזה בלבד ואינה משנה את מדיניות המחשב.</p>
 <p>הקלט מוגבל ל־2,000 עמודים/פרקים ול־3,000,000 תווים. ספרים סרוקים נתמכים: ראו <a href="#scanned">ספרים סרוקים</a>. PDF מתורגם נבנה מחדש ואינו משחזר עימוד מקורי; EPUB שומר את הארכיון והעיצוב, עם מגבלות במקטעים שאוחדו. עימוד מורכב ואיכות תרגום דורשים בדיקה על מסמכים אמיתיים.</p>
 <p><strong>מתמטיקה.</strong> ב־PDF המתורגם, סמלים שחסרים בגופן העברי (∑, √, ≤, אותיות יווניות, מעריכים ואינדקסים) מצוירים אוטומטית בגופן מתמטי (Noto Sans Math, ואחריו Noto Sans), ונוסחה בשורה נפרדת מוצגת משמאל לימין. ב־EPUB, נוסחאות MathML עוברות את התרגום מוגנות ומוחזרות למקומן כפי שהן; ב־PDF/HTML מוצגת גרסה טקסטואלית שלהן. קטע שכולו נוסחה אינו נשלח לבדיקת איכות. ב־PDF דיגיטלי הנוסחאות נקראות מהטקסט המוטמע; בספר סרוק הן מזוהות בבדיקת המודל (ראו <a href="#scanned">ספרים סרוקים</a>).</p>
@@ -164,7 +174,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>This page explains every step, setting and estimated cost of the local translation tool. It is built by your local server and sends no information to any external server.</p>
 </div>
 <nav class="help-nav" aria-label="Help page navigation">
-<a href="#en-steps">Steps</a><a href="#en-models">Models and keys</a><a href="#en-pricing">Pricing</a>
+<a href="#en-steps">Steps</a><a href="#en-models">Models and keys</a><a href="#en-openai-account">OpenAI account</a><a href="#en-pricing">Pricing</a>
 <a href="#en-tokens">Tokens and cost</a><a href="#en-quality">Profile and quality</a><a href="#en-fonts">Fonts</a><a href="#en-resume">Resume and results</a><a href="#en-library">The library</a><a href="#en-blocks">When translation stops</a><a href="#en-notebook">The book notebook</a><a href="#en-scanned">Scanned books</a><a href="#en-limits">Running and limits</a>
 </nav>
 
@@ -181,6 +191,16 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <h2 id="en-models">Models, QA and API keys</h2>
 <p>Auto is simulated: it sends no text to any provider, requires no key, and returns placeholder text only — never a real translation.</p>
 <p>With your own model, you choose a translator model from the catalog (below) or define an "Other" model (an ID, a provider, and for an OpenAI-compatible address, also an endpoint). Quality review (QA — "semantic_reviewer" and "chapter_qa") defaults to the same model as the translator, and can be changed separately. Keys are kept in the memory of the local server for the current run: not in the settings file, not in a log, not in the browser's localStorage and not in environment variables. If you tick "Remember on this computer", the key is also stored encrypted in the Windows Credential Manager under your user account and reloaded when the program starts; "Delete the saved keys from this computer" removes it from there. The key icon in the header turns gold when a key is present, with a green dot when it is saved on this computer. Starting the server again resets them; resuming a paused job asks for the keys again and uses the saved job.</p>
+
+<h2 id="en-openai-account">An OpenAI account (ChatGPT Plus/Pro) instead of a key, and switching to the key when its budget runs out</h2>
+<p>Instead of an API key (or in addition to one) you can connect your ChatGPT account. Calls to OpenAI models then use the budget included in your Plus or Pro plan first. The connection uses OpenAI's official "Sign in with ChatGPT", which also covers personal programs that run on your own computer, like this one.</p>
+<ul>
+<li><strong>Connecting:</strong> in the model settings, on the card "OpenAI account (ChatGPT Plus/Pro)", click Connect. OpenAI's sign-in page opens in your browser. On the consent page, also allow <strong>using your plan's budget</strong>. Without that permission the account only identifies you, and the card offers to reconnect.</li>
+<li><strong>What is charged:</strong> a call served by the plan does not count as spending in the job budget (its cost is recorded as 0, and its tokens are kept). Set a per-app limit and the use of credits in ChatGPT's usage settings. The program does not bypass them.</li>
+<li><strong>When the budget runs out:</strong> if the box "When the account's budget runs out, continue automatically with the API key" is ticked (the default) and an OpenAI key is present, the same call is sent at once with the key, at the key's cost. The card and the job screen show that it switched and how many times. After half an hour the program tries the plan again. If the box is not ticked or there is no key, the job stops with a message and nothing is charged. You can resume it later.</li>
+<li><strong>What the plan covers:</strong> only OpenAI models at the standard address. Other providers (Anthropic, DeepSeek, an OpenAI-compatible address) still need a key. A Claude Code subscription does not connect this way. The cost estimate before a job starts is always the maximum, that is, the case where every call switches to the key.</li>
+<li><strong>Privacy:</strong> the sign-in details are stored encrypted by Windows for your user account and never reach the browser. Disconnect revokes the permission and deletes them. You can also disconnect the program from ChatGPT's settings.</li>
+</ul>
 
 <h2 id="en-pricing">Pricing (official list price, catalog __CATALOG_VERSION__)</h2>
 <div class="table-scroll"><table>
@@ -282,7 +302,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:start}
 <p>Not supported: handwriting, text inside illustrations, and complex page layout beyond what Tesseract recognizes.</p>
 
 <h2 id="en-limits">Running and limits</h2>
-<p>To run on Windows, click <strong>Run Scholarly Translation.vbs</strong> or run <code>.\run-ui.ps1</code>. For first-time installation use <strong>Install.bat</strong>. Keep the server window open. A ChatGPT or Claude Code subscription is not an API key for translation.</p>
+<p>To run on Windows, click <strong>Run Scholarly Translation.vbs</strong> or run <code>.\run-ui.ps1</code>. For first-time installation use <strong>Install.bat</strong>. Keep the server window open. A Claude Code subscription is not an API key for translation. A ChatGPT Plus/Pro plan can be connected on the OpenAI account card (see <a href="#en-openai-account">OpenAI account</a>).</p>
 <p>If PowerShell blocks scripts, use the VBS file or <code>powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run-ui.ps1</code>. The setting applies to this process only and does not change the computer's policy.</p>
 <p>Input is limited to 2,000 pages/chapters and 3,000,000 characters. Scanned books are supported: see <a href="#en-scanned">Scanned books</a>. A translated PDF is rebuilt and does not reproduce the original layout; EPUB preserves the archive and styling, with limitations in segments that were merged. Complex layout and translation quality require checking on real documents.</p>
 <p><strong>Mathematics.</strong> In the translated PDF, symbols missing from the Hebrew font (∑, √, ≤, Greek letters, exponents and subscripts) are drawn automatically in a math font (Noto Sans Math, then Noto Sans), and a formula on its own line is displayed left to right. In EPUB, MathML formulas pass through translation protected and are restored in place as they were; in PDF/HTML a textual version of them is shown. A segment that is entirely a formula is not sent to quality review. In a digital PDF the formulas are read from the embedded text; in a scanned book they are detected in the model check (see <a href="#en-scanned">Scanned books</a>).</p>
