@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import unittest
 
-from scholarly_translation.learning.catalog import load_catalog
+from scholarly_translation.learning.catalog import WORDLIST_DIR, load_catalog
 from scholarly_translation.learning.contracts import new_learner, fixture_source, source_hash
 from scholarly_translation.learning.planner import plan_book
 
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class ExpandedCatalogTests(unittest.TestCase):
     def test_all_source500_forms_are_present_without_losing_previous_items(self):
         old, current = load_catalog(version='fr-common@1'), load_catalog()
-        dataset = json.loads((ROOT / 'prompts/language_learning/wordlists/european_500.json').read_text(encoding='utf-8'))
+        dataset = json.loads((WORDLIST_DIR / 'european_500.json').read_text(encoding='utf-8'))
         forms = {form for item in current['items'] for form in item['forms']}
         self.assertEqual(len(dataset['languages']['fr']['words']), 500)
         self.assertTrue({row['word'] for row in dataset['languages']['fr']['words']} <= forms)
@@ -25,7 +25,7 @@ class ExpandedCatalogTests(unittest.TestCase):
 
     def test_added_meanings_and_frequency_ids_are_not_empty_or_invented_ranks(self):
         current = load_catalog()
-        dataset = json.loads((ROOT / 'prompts/language_learning/wordlists/european_500.json').read_text(encoding='utf-8'))
+        dataset = json.loads((WORDLIST_DIR / 'european_500.json').read_text(encoding='utf-8'))
         ranks = {row['rank']: row['word'] for row in dataset['languages']['fr']['words']}
         for item in current['items']:
             self.assertTrue(any('\u0590' <= char <= '\u05ff' for char in item['sense_he']))

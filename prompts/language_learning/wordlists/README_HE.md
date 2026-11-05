@@ -5,13 +5,16 @@
 
 | שפה | רשימה לקריאה |
 |---|---|
-| צרפתית | [fr_500.md](fr_500.md) |
-| גרמנית | [de_500.md](de_500.md) |
-| ספרדית | [es_500.md](es_500.md) |
-| יידיש | [yi_500.md](yi_500.md) |
-| איטלקית | [it_500.md](it_500.md) |
+| צרפתית | [fr_500.md](../../../scholarly_translation/learning/wordlists/fr_500.md) |
+| גרמנית | [de_500.md](../../../scholarly_translation/learning/wordlists/de_500.md) |
+| ספרדית | [es_500.md](../../../scholarly_translation/learning/wordlists/es_500.md) |
+| יידיש | [yi_500.md](../../../scholarly_translation/learning/wordlists/yi_500.md) |
+| איטלקית | [it_500.md](../../../scholarly_translation/learning/wordlists/it_500.md) |
 
-[נתונים מובנים לכל חמש השפות](european_500.json) כוללים לכל מילה דירוג נבחר,
+הרשימות עצמן הן נתוני ריצה ונמצאות בתוך החבילה, ב־`scholarly_translation/learning/wordlists/`
+(גרסת ההפצה כוללת רק את `scholarly_translation/`); כאן נשארים התיעוד וכלי השחזור.
+
+[נתונים מובנים לכל חמש השפות](../../../scholarly_translation/learning/wordlists/european_500.json) כוללים לכל מילה דירוג נבחר,
 דירוג במקור ומספר הופעות בקורפוס. לכל שפה מקור, גרסה קבועה, טביעת קובץ וייחוס.
 אין תלות ריצה בספרייה חיצונית או בשירות שכיחות.
 

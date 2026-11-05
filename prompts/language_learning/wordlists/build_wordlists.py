@@ -21,8 +21,10 @@ LANGUAGES = {
     "yi": "יידיש", "it": "איטלקית",
 }
 RAW_BASE = f"https://raw.githubusercontent.com/hermitdave/FrequencyWords/{SOURCE_COMMIT}"
-HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[2]
+ROOT = Path(__file__).resolve().parents[3]
+# The generated lists are runtime data shipped inside the package (releases
+# contain only scholarly_translation/), not next to this generator.
+HERE = ROOT / "scholarly_translation" / "learning" / "wordlists"
 SNAPSHOTS = ROOT / "outputs" / "learning_wordlist_sources" / SOURCE_COMMIT
 YIDDISH_REVISION = 71268025
 YIDDISH_URL = f"https://en.wiktionary.org/w/index.php?title=Wiktionary:Frequency_lists/Yiddish/Newspaper_top_600&oldid={YIDDISH_REVISION}"

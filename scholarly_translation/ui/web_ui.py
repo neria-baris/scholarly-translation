@@ -736,7 +736,8 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 if language not in ('fr', 'de', 'es', 'yi', 'it', 'ar'):
                     self._json(404, {"error": "not found"})
                     return
-                self._reply(200, (ROOT / 'prompts' / 'language_learning' / 'wordlists' / ('ar_starter.md' if language == 'ar' else language + '_500.md')).read_bytes(), 'text/plain')
+                from scholarly_translation.learning.catalog import WORDLIST_DIR
+                self._reply(200, (WORDLIST_DIR / ('ar_starter.md' if language == 'ar' else language + '_500.md')).read_bytes(), 'text/plain')
                 return
             if urlparse(self.path).path == '/learning/help':
                 self._reply(200, (UI_DIR / 'learning_help.html').read_bytes(), 'text/html')

@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -200,6 +201,34 @@ class ExportTests(unittest.TestCase):
         zip_bytes = (out_dir / build_release.SETUP_ZIP_NAME).read_bytes()
         self.assertIn(zip_bytes, exe)  # embedded verbatim as the payload resource
         self.assertIn("1.2.0.0".encode("utf-16-le"), exe)  # file version resource
+
+
+class ReleaseTreeIsSelfContainedTests(unittest.TestCase):
+    """The installed app contains only the runtime allow-list. Anything the app
+    reads from outside it (e.g. prompts/ at the repo root) works in a checkout
+    but breaks every real install, so verify from a copy of exactly that set."""
+
+    def test_allow_listed_files_alone_pass_the_installer_verification(self):
+        listed = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                                cwd=REPO_ROOT, capture_output=True, check=True).stdout.decode("utf-8").split("\0")
+        names = [n for n in listed if n and build_release.is_runtime_path(n) and (REPO_ROOT / n).is_file()]
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in names:
+                target = Path(tmp) / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((REPO_ROOT / name).read_bytes())
+            code = ("import scholarly_translation, sys; "
+                    "from pathlib import Path; "
+                    "assert Path(scholarly_translation.__file__).resolve().is_relative_to(Path.cwd().resolve()), "
+                    "scholarly_translation.__file__; "
+                    "from scholarly_translation.learning.install_check import verify_learning_assets; "
+                    "verify_learning_assets(); "
+                    "import scholarly_translation.ui.web_ui; print('ok')")
+            env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "SCHOLARLY_DATA_ROOT")}
+            result = subprocess.run([sys.executable, "-B", "-c", code], cwd=tmp, env=env,
+                                    capture_output=True, text=True, timeout=180)
+        self.assertEqual(result.returncode, 0, result.stderr[-3000:])
+        self.assertIn("ok", result.stdout)
 
 
 class SetupExeSourceTests(unittest.TestCase):
