@@ -1,3 +1,11 @@
+# Current state — OPENAI-ACCOUNT merged (Claude Code conductor, 2026-11-05)
+Sign in with an OpenAI account (official Sign in with ChatGPT + plan usage), plan budget first, API key on exhaustion by the user's visible setting. Contract audit/contracts/openai_account_sign_in.md. main = 125b24c (fast-forward of feat/openai-account: backend 45dea7a, UI 466d065, integration fixes). Not pushed (remote unchecked). No active delegated work; worktrees .claude/worktrees/openai-backend, openai-ui, openai-integrate can be removed after review.
+Tests: full suite 1846, only the 33 pre-existing Python 3.9 write_text(newline=) errors (same as e25ea47).
+Not yet verified live: real OpenAI consent screen, plan-granted scope, a plan-billed call, and the fallback on a real exhaustion. Requires the user's own sign-in (ChatGPT Plus/Pro).
+Uncommitted, not ours (unchanged): staged translate/chapter_pipeline.py + its test; untracked source PDF.
+Next action: user restarts the app, connects the OpenAI account in model settings (allowing plan usage on the consent screen), runs one small translation; conductor checks the job record shows observed_provider openai-chatgpt-plan and actual_charge chatgpt_plan, and fixes any request field the plan route rejects.
+
+---
 # Current state — UI-LIBRARY-REDESIGN merged (Claude Code, 2026-10-15)
 The library design is now the real app UI (contract audit/contracts/ui_library_redesign.md, doc docs/design/UI_LIBRARY_REDESIGN_HE.md). Branch feat/ui-library-redesign fast-forwarded into main; worktree .claude/worktrees/ui-redesign can be removed after review. Not pushed (remote unchecked). No active delegated work. Verify locally: python scripts/design/serve_ui_sandbox.py --data outputs/ux/ui-redesign/data --port 8840, then node --experimental-websocket scripts/design/verify_ui_redesign.mjs. The running app picks up the new UI after a restart.
 Uncommitted, not ours (unchanged): staged translate/chapter_pipeline.py and tests/translate/test_chapter_pipeline.py; untracked source PDF.
