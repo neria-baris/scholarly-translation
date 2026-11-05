@@ -18,7 +18,7 @@
 
 ### מה זה?
 
-**Scholarly Translation** היא תוכנה למחשב Windows שמתרגמת ספרים ומאמרים לעברית, ועוזרת ללמוד שפה דרך קריאה בעברית. היא רצה על המחשב שלכם ונפתחת בדפדפן. אין חשבון, אין שרת חיצוני ואין מנוי. התרגום עצמו נעשה במודל בינה מלאכותית, עם מפתח API שלכם.
+**Scholarly Translation** היא תוכנה למחשב Windows שמתרגמת ספרים ומאמרים לעברית, ועוזרת ללמוד שפה דרך קריאה בעברית. היא רצה על המחשב שלכם ונפתחת בדפדפן. אין שרת חיצוני ואין צורך בהרשמה. התרגום עצמו נעשה במודל בינה מלאכותית, דרך חשבון ה־ChatGPT שלכם או מפתח API שלכם.
 
 - **תרגום מסמכים**: מעלים PDF או EPUB (עד ‎25 MB) ומקבלים אותו מתורגם באותו פורמט. אפשר לעבור על התרגום ולערוך אותו.
   - **שפת מקור**: זיהוי אוטומטי, אנגלית, צרפתית או יפנית.
@@ -67,30 +67,32 @@
   - אם תפתחו את קיצור הדרך שוב בזמן שהתוכנה פועלת, ייפתח אותו אתר שכבר רץ.
 - **ניסיון בלי מפתח ובלי עלות**: לחצו **"נסו עם PDF דוגמה, ללא עלות"**, או בחרו במודל **Auto**.
   - **שימו לב:** Auto הוא תצוגת ניסיון מדומה, ולא תרגום אמיתי.
-- **תרגום אמיתי** דורש מפתח API (בסעיף הבא). אחרי שהגדרתם אותו:
+- **תרגום אמיתי** דורש חשבון ChatGPT מחובר או מפתח API (בסעיף הבא). אחרי שהגדרתם אחד מהם:
   1. גוררים קובץ לחלון.
   2. ב־**אפשרויות** בוחרים פרופיל, רמת בדיקה ותקציב.
   3. לוחצים **תרגום לעברית**.
   4. לפני ששום דבר נשלח, מוצג אומדן עלות ומתבקש אישור.
 
-### מפתח API ועלויות
+### חשבון ChatGPT, מפתח API ועלויות
 
-התוכנה משתמשת במודל שאתם בוחרים, ואתם משלמים ישירות לספק לפי השימוש.
+התוכנה משתמשת במודל שאתם בוחרים. ברירת המחדל היא `gpt-6-luna` של OpenAI: הוא מתרגם בחשיבה נמוכה ובודק את האיכות בחשיבה גבוהה מאוד.
 
-**הספקים הנתמכים:**
-- **OpenAI** (מומלץ: `gpt-6-luna`, זול מאוד).
-- **Anthropic** (Claude).
-- כל שירות **תואם OpenAI**, למשל DeepSeek.
+**אפשרות א': חשבון ChatGPT (Plus/Pro)**
+1. לחצו על **סמל הפרופיל** בפינת המסך. נפתח החלון **"פרופיל וחשבונות"**.
+2. לחצו **"התחברות עם OpenAI"** ואשרו בדף ההתחברות הרשמי של OpenAI שנפתח בדפדפן.
+3. מעכשיו קריאות למודלים של OpenAI ייצאו קודם על חשבון המנוי.
+   - אפשר לסמן שכשתקציב החשבון נגמר, העבודה תמשיך אוטומטית עם מפתח API (אם הזנתם אחד). בלי הסימון העבודה נעצרת.
 
-**הגדרת המפתח:**
-1. פתחו **אפשרויות** ← **מודל** ← **"מודל משלי (מפתח API)"**.
+**אפשרות ב': מפתח API** (משלמים ישירות לספק לפי השימוש)
+- **הספקים הנתמכים:** **OpenAI**, **Anthropic** (Claude) וכל שירות **תואם OpenAI**, למשל DeepSeek.
+1. לחצו על **סמל המפתח** בכותרת. נפתח חלון **"מפתח API"**.
 2. לחצו **"איך משיגים מפתח?"**. נפתח מדריך מובנה עם הקישורים לכל ספק: יצירת מפתח, טעינת כ־5$ בקרדיט מראש, וכיבוי טעינה אוטומטית.
-3. הדביקו את המפתח ולחצו **"שמירת מפתחות API"**.
+3. הדביקו את המפתח ולחצו **"שמירת מפתחות API"**. כשיש מפתח, סמל המפתח מהבהב בירוק.
    - בלי סימון נוסף, המפתח נשמר רק עד שסוגרים את התוכנה.
    - כדי שיישמר גם אחר כך, סמנו **"לזכור במחשב הזה (מנהל האישורים של Windows)"**. המפתח נשמר מוצפן בחשבון Windows שלכם, ולא בקבצים או בדפדפן.
 
 **חשוב לדעת:**
-- מנוי ChatGPT Plus או Claude Pro **אינו** קרדיט API. אלה חשבונות נפרדים.
+- מנוי Claude Pro **אינו** קרדיט API. ל־Anthropic צריך מפתח API.
 - לכל מסמך מגדירים **תקציב מרבי**. התוכנה עוצרת כשהוא נגמר.
   - התקציב נאכף במחשב שלכם, ואינו מגבלת חיוב אצל הספק. אפשר להגדיר מגבלת חיוב גם בחשבון אצל הספק.
 
@@ -166,7 +168,7 @@ python -m venv .venv
 
 ### What is it?
 
-**Scholarly Translation** is a Windows app that translates books and articles into Hebrew and helps you learn a language through reading in Hebrew. It runs on your own computer and opens in your browser. There is no account, no external server and no subscription. The translation itself is done by an AI model, using your own API key.
+**Scholarly Translation** is a Windows app that translates books and articles into Hebrew and helps you learn a language through reading in Hebrew. It runs on your own computer and opens in your browser. There is no external server and nothing to sign up for. The translation itself is done by an AI model, through your own ChatGPT account or API key.
 
 - **Document translation**: upload a PDF or EPUB (up to 25 MB) and get it back translated in the same format. You can review and edit the translation.
   - **Source languages**: auto-detect, English, French or Japanese.
@@ -215,30 +217,32 @@ If something fails along the way, the window shows the reason and a **Retry** bu
   - If you open the shortcut again while the app is running, the same running app opens.
 - **Try it without a key, for free**: click **"Try a sample PDF, free"**, or choose the **Auto** model.
   - **Note:** Auto is a simulated demo, not a real translation.
-- **A real translation** needs an API key (next section). Once it is set up:
+- **A real translation** needs a connected ChatGPT account or an API key (next section). Once one of them is set up:
   1. Drop a file onto the window.
   2. Under **Options**, choose a profile, a check level and a budget.
   3. Click **Translate**.
   4. Before anything is sent, you see a cost estimate and are asked to confirm.
 
-### API key and costs
+### ChatGPT account, API key and costs
 
-The app uses the model you choose, and you pay the provider directly for what you use.
+The app uses the model you choose. The default is OpenAI's `gpt-6-luna`: it translates with low reasoning and reviews quality with extra-high reasoning.
 
-**Supported providers:**
-- **OpenAI** (recommended: `gpt-6-luna`, very cheap).
-- **Anthropic** (Claude).
-- Any **OpenAI-compatible** service, such as DeepSeek.
+**Option A: a ChatGPT account (Plus/Pro)**
+1. Click the **profile icon** in the corner of the screen. The **"Profile and accounts"** window opens.
+2. Click **"Connect OpenAI"** and approve on OpenAI's official sign-in page, which opens in your browser.
+3. From then on, calls to OpenAI models go to your plan first.
+   - You can tick that when the plan's budget runs out, the work continues automatically with an API key (if you entered one). Without the tick, the work stops.
 
-**Setting up the key:**
-1. Open **Options** → **Model** → **"My own model (API key)"**.
+**Option B: an API key** (you pay the provider directly for what you use)
+- **Supported providers:** **OpenAI**, **Anthropic** (Claude) and any **OpenAI-compatible** service, such as DeepSeek.
+1. Click the **key icon** in the header. The **"API key"** window opens.
 2. Click **"How do I get a key?"**. It opens a built-in guide with links for each provider: creating a key, adding about $5 of prepaid credit, and turning off auto-recharge.
-3. Paste the key and click **"Save API keys"**.
+3. Paste the key and click **"Save API keys"**. Once a key is set, the key icon blinks green.
    - Without the tick box, the key is kept only until you close the app.
    - To keep it after that, tick **"Remember on this computer (Windows Credential Manager)"**. The key is then stored encrypted in your Windows account, not in files or the browser.
 
 **Good to know:**
-- A ChatGPT Plus or Claude Pro subscription is **not** API credit. They are separate accounts.
+- A Claude Pro subscription is **not** API credit. Anthropic models need an API key.
 - Each document has a **maximum budget**. The app stops when it runs out.
   - The budget is enforced on your computer and is not a billing limit at the provider. You can also set a spending limit in your provider account.
 
