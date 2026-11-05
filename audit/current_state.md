@@ -1,5 +1,5 @@
 # Current state — sitting cat drawing fixed (Claude Code conductor, 2026-11-05)
-main = 8b19c91 on top of c0298f6, not pushed. 8b19c91: the sitting body's front edge no longer ends in a square corner at the floor (visible while grooming, when the paw lifts), and a cream belly shows behind the lifted paw. Checked by headless Chrome renders of sit/groom/happy; tests/ui/test_ui_redesign 17 OK.
+main = the CAT commit after f9cc218, not pushed. Sitting cat (8b19c91 + follow-up at the user's request): the belly is drawn up and back off the floor (no square corner, it no longer reads as fat), only the legs touch the floor; while grooming a cream chest shows behind the lifted paw and the other front leg steps under the chest; eyes are black (#1b1410). Checked by headless Chrome renders of sit/groom/happy; tests/ui/test_ui_redesign 17 OK.
 Uncommitted: only the untracked source PDF (do not commit).
 Next action: user restarts the app and watches the cat groom; on the user's request, push main to origin (gh credential).
 

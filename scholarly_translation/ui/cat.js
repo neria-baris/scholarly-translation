@@ -22,10 +22,10 @@
     </g>
     <g class="c-sit">
       ${tail('c-tail-sit', 'M37 85.5 C52 92 78 90.5 95 83.5', 'M91.5 84.6 C93 84.1 94 83.8 95 83.5')}
-      <path class="c-fur" d="M30 86.5 C19 85 19 68 28 58 C36 47 50 40 64 38 C79 36 87 48 86.5 62 C86.5 75 85.5 86.5 75 86.5 Z"/>
+      <path class="c-fur" d="M30 86.5 C19 85 19 68 28 58 C36 47 50 40 64 38 C79 36 87 48 86.5 62 C86.5 69 83 73 77 74.5 C69 76.5 60 76 52 78 L46 85 Z"/>
       <ellipse class="c-fur c-haunch" cx="41" cy="74" rx="16.5" ry="13"/>
       <path class="c-stripes" d="M33 66 q6 2.5 10.5 -2 M31 74.5 q6 2.5 10.5 -2"/>
-      <ellipse class="c-cream c-belly" cx="78.5" cy="64" rx="6.5" ry="13.5"/>${leg('sit far', 65)}${leg('sit near', 74.5)}
+      <ellipse class="c-cream c-belly" cx="77" cy="58" rx="8.5" ry="14"/>${leg('sit far', 65)}${leg('sit near', 74.5)}
       <ellipse class="c-cream c-chest" cx="77" cy="58" rx="8.5" ry="14"/>
       <ellipse class="paw" cx="37" cy="86.4" rx="7.5" ry="3"/>
     </g>
