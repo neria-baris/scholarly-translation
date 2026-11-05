@@ -1,3 +1,10 @@
+# Current state — ACCOUNT-SYNC + KEYS-IN-DIALOG + DEFAULT-ROLES on main, not pushed (Claude Code conductor, session 68, 2026-11-05)
+User requests: signing in from the profile window must be enough for translation; Luna low / Sol medium by default; the key light blinks green when a key exists; API keys only in the key window, not in the translation flow; models preselected (user chose: Luna translates, Sol reviews; reasoning each model's default) and "Checked" marked recommended.
+Branches feat/account-sync-defaults (54f76fd) and feat/keys-in-dialog (17be7ed, f74a351) merged with main 24870e0 and fast-forwarded into local main. Not pushed: main also carries other sessions' unpushed commits (cat swat, OCR bundle) whose checkpoints wait for the user's request before pushing.
+Tests: full suite 1871 on the branch before the last main merge: only new failure test_preview_uses_real_chapters_quickly (65 s vs 60 s cap), which also fails on main c0298f6 without these changes (68 s) — a timing regression from another change, not from these. After the merge: tests/ui, models, budget, bundled-tesseract tests and headless-Chrome checks (cat, profile, keys window, default roles, account sync, key light) pass.
+Next action: user restarts/uses the app; on the user's request push main (gh credential); investigate the slower long-document preview separately.
+
+---
 # Current state - OCR-BUNDLE committed, 1.0.1 release on hold (Claude Code conductor, 2026-11-05)
 Tesseract 5.4.0 is now bundled (scholarly_translation/assets/tesseract/, see run_history OCR-BUNDLE). Release 1.0.1 is on hold: the user is testing the OpenAI sign-in first and will say when to publish. At release time: build from main, trial-install, attach libiconv-1.17.tar.gz and jbigkit-2.1.tar.gz (GPL/LGPL sources; URLs and SHA-256 in assets/tesseract/sources.json) to the GitHub release, then refresh the distribution README (its OCR section now says nothing to install).
 Next action: wait for the user's go-ahead after the OpenAI sign-in test, then release 1.0.1 as above.
