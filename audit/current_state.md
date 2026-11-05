@@ -1,8 +1,9 @@
-# Current state — ACCOUNT-SYNC + KEYS-IN-DIALOG + DEFAULT-ROLES on main, not pushed (Claude Code conductor, session 68, 2026-11-05)
+# Current state — ACCOUNT-SYNC + KEYS-IN-DIALOG + DEFAULT-ROLES pushed (Claude Code conductor, session 68, 2026-11-05)
+Update: at the user's request main was pushed (e66be3d..0667260, including the other sessions' cat-swat and OCR-bundle commits). 0667260 (untested at the user's request, syntax check only): the quality review and chapter reviewer now default to Luna with xhigh reasoning; the translator stays Luna (low).
 User requests: signing in from the profile window must be enough for translation; Luna low / Sol medium by default; the key light blinks green when a key exists; API keys only in the key window, not in the translation flow; models preselected (user chose: Luna translates, Sol reviews; reasoning each model's default) and "Checked" marked recommended.
 Branches feat/account-sync-defaults (54f76fd) and feat/keys-in-dialog (17be7ed, f74a351) merged with main 24870e0 and fast-forwarded into local main. Not pushed: main also carries other sessions' unpushed commits (cat swat, OCR bundle) whose checkpoints wait for the user's request before pushing.
 Tests: full suite 1871 on the branch before the last main merge: only new failure test_preview_uses_real_chapters_quickly (65 s vs 60 s cap), which also fails on main c0298f6 without these changes (68 s) — a timing regression from another change, not from these. After the merge: tests/ui, models, budget, bundled-tesseract tests and headless-Chrome checks (cat, profile, keys window, default roles, account sync, key light) pass.
-Next action: user restarts/uses the app; on the user's request push main (gh credential); investigate the slower long-document preview separately.
+Next action: user reloads the app page and checks the defaults; investigate the slower long-document preview separately; run the UI tests that cover the reviewer defaults (0667260 was not tested).
 
 ---
 # Current state - OCR-BUNDLE committed, 1.0.1 release on hold (Claude Code conductor, 2026-11-05)
