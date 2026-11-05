@@ -39,6 +39,11 @@ const IN_PROGRESS_EN={"failed": "Stopped", "paused": "Paused", "interrupted": "I
 const LIMITATION_EN={"missing_translation": "Segments left in the source language", "inline_markup_flattened": "Inline formatting (emphasis/links) simplified", "units_merged_multiple_blocks": "Segments merged from several paragraphs"};
 const SERVER_EN={
 "החיבור לחשבון OpenAI אינו זמין בגרסה זו.": "OpenAI account sign-in is not available in this version.",
+"תקציב חשבון OpenAI (ChatGPT) נגמר. אפשר להמשיך עם מפתח API או להמתין לחידוש התקציב.": "The OpenAI (ChatGPT) account budget has run out. Continue with an API key or wait for the budget to renew.",
+"חשבון ה־ChatGPT המחובר אינו מורשה לשימוש במכסת התוכנית. אפשר להתחבר מחדש או להשתמש במפתח API.": "The connected ChatGPT account is not allowed to use plan usage. Reconnect, or use an API key.",
+"החשבון של OpenAI אינו מחובר. התחברו מחדש או השתמשו במפתח API.": "The OpenAI account is not connected. Reconnect, or use an API key.",
+"מכסת התוכנית אינה יכולה לשרת בקשה זו. נדרש מפתח API.": "Plan usage cannot serve this request. An API key is required.",
+"מכסת התוכנית אינה זמינה כרגע. נסו שוב מאוחר יותר או השתמשו במפתח API.": "Plan usage is not available right now. Try again later, or use an API key.",
 "לא ניתן להתחיל התחברות ל־OpenAI.": "Could not start the OpenAI sign-in.",
 "הגדרת ההמשך האוטומטי אינה תקינה.": "The automatic-continue setting is not valid.",
 "שמירת ההגדרה נכשלה.": "Saving the setting failed.",

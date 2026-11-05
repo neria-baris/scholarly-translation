@@ -328,7 +328,7 @@ class CredentialAndAdapterTests(ServerCase):
         self.assertIs(adapter.plan_adapter.account, self.account)
         self.assertIs(adapter.plan_state, self.plan)
         self.assertIsNone(adapter.fallback_adapter)  # no key: nothing to fall back to
-        self.assertIs(adapter.auto_fallback, True)
+        self.assertIs(adapter.auto_fallback(), True)  # a callable: read on every call
 
     def test_plan_with_key_falls_back_to_the_key_adapter_and_honours_setting(self):
         self.account.signed_in = True
@@ -338,7 +338,9 @@ class CredentialAndAdapterTests(ServerCase):
         self.translate()
         adapter = self.factory_adapter()
         self.assertEqual(adapter.fallback_adapter.api_key, "sk-test-key")
-        self.assertIs(adapter.auto_fallback, False)
+        self.assertIs(adapter.auto_fallback(), False)
+        self.post("/openai-account/settings", {"auto_fallback": True})
+        self.assertIs(adapter.auto_fallback(), True)  # a change mid-job applies to the next call
 
     def test_not_signed_in_uses_plain_key_adapter(self):
         self.start()

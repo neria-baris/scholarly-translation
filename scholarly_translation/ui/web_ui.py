@@ -552,7 +552,6 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
 
     def _adapter_factory_for(configuration, keys_snapshot):
         plan_granted = _plan_granted()
-        auto_fallback = _auto_fallback()
 
         def adapter_factory(role, request):
             selection, definition = configuration.resolve(role)
@@ -573,7 +572,7 @@ def make_handler(token: str, model_config_path: str | None = None, *, learning_s
                 return key_adapter
             _state, plan_adapter_class, plan_first_class = plan_classes
             return plan_first_class(plan_adapter_class(openai_account, reasoning=reasoning), plan_state,
-                                    fallback_adapter=key_adapter, auto_fallback=auto_fallback)
+                                    fallback_adapter=key_adapter, auto_fallback=_auto_fallback)  # read per call: the user may change it mid-job
         return adapter_factory
 
     def _resolve_model_config(settings):
