@@ -1,3 +1,8 @@
+# Current state - OCR-BUNDLE committed, 1.0.1 release on hold (Claude Code conductor, 2026-11-05)
+Tesseract 5.4.0 is now bundled (scholarly_translation/assets/tesseract/, see run_history OCR-BUNDLE). Release 1.0.1 is on hold: the user is testing the OpenAI sign-in first and will say when to publish. At release time: build from main, trial-install, attach libiconv-1.17.tar.gz and jbigkit-2.1.tar.gz (GPL/LGPL sources; URLs and SHA-256 in assets/tesseract/sources.json) to the GitHub release, then refresh the distribution README (its OCR section now says nothing to install).
+Next action: wait for the user's go-ahead after the OpenAI sign-in test, then release 1.0.1 as above.
+
+---
 # Current state — sitting cat drawing fixed (Claude Code conductor, 2026-11-05)
 main = the CAT commit after f9cc218, not pushed. Sitting cat (8b19c91 + follow-up at the user's request): the belly is drawn up and back off the floor (no square corner, it no longer reads as fat), only the legs touch the floor; while grooming a cream chest shows behind the lifted paw and the other front leg steps under the chest; eyes are black (#1b1410). Checked by headless Chrome renders of sit/groom/happy; tests/ui/test_ui_redesign 17 OK.
 Uncommitted: only the untracked source PDF (do not commit).
