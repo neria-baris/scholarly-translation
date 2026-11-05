@@ -29,7 +29,7 @@ class AutomationFoundationContractTests(unittest.TestCase):
         adapter = OpenAITextGenerationAdapter(client=SimpleNamespace(responses=SimpleNamespace(create=create)))
         adapter.generate('prompt', 'gpt-6.1-sol')
         adapter.generate('prompt', 'user-custom-model')
-        self.assertEqual(calls[0]['reasoning']['effort'], 'low')
+        self.assertEqual(calls[0]['reasoning']['effort'], 'medium')  # Sol's default (user decision 2026-11-05)
         self.assertNotIn('reasoning', calls[1])
 
     def test_empty_encoding_cache_never_opens_network(self):

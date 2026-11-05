@@ -378,19 +378,24 @@ class StaticTests(unittest.TestCase):
         cls.js = (UI_DIR / "ui.js").read_text(encoding="utf-8")
         cls.guide = (UI_DIR / "keys_guide.html").read_text(encoding="utf-8")
 
-    def test_card_elements(self):
-        for element in ('id="openai-card"', 'id="oa-connect"', 'id="oa-disconnect"', 'id="oa-fallback"',
-                        'id="oa-state"', 'id="oa-job-notice"', 'href="https://chatgpt.com/#settings"'):
+    def test_translation_options_only_summarise_the_account(self):
+        # Signing in, out and the fallback choice live in the profile window (user request 2026-11-05):
+        # the translation options show one line and a button to that window.
+        for gone in ('id="openai-card"', 'id="oa-connect"', 'id="oa-disconnect"', 'id="oa-fallback"'):
+            self.assertNotIn(gone, self.html)
+        for element in ('id="access-summary"', 'id="access-openai"', 'id="access-open-profile"', 'id="oa-job-notice"'):
             self.assertIn(element, self.html)
-        self.assertIn("חשבון OpenAI (ChatGPT Plus/Pro)", self.html)
-        self.assertIn("כשתקציב החשבון נגמר — להמשיך אוטומטית עם מפתח ה־API", self.html)
-        self.assertRegex(self.html, r'id="oa-fallback" type="checkbox" checked')
+        self.assertIn("document.querySelector('.pf-button')", self.js)
 
     def test_js_wiring_uses_routes_and_never_tokens(self):
-        for route in ("/openai-account", "/openai-account/sign-in", "/openai-account/sign-out", "/openai-account/settings"):
-            self.assertIn("'%s'" % route, self.js)
+        profile = (UI_DIR / "profile.js").read_text(encoding="utf-8")
+        self.assertIn("'/openai-account'", self.js)
+        for route in ("/openai-account/sign-in", "/openai-account/sign-out", "/openai-account/settings"):
+            self.assertNotIn("'%s'" % route, self.js)
+            self.assertIn("'%s'" % route, profile)
         self.assertIn("pollOpenAIDuringJob()", self.js)
         self.assertNotIn("access_token", self.js)
+        self.assertIn("כשתקציב החשבון נגמר, המשך אוטומטית עם מפתח ה־API", profile)
 
     def test_guide_mentions_account_and_fallback(self):
         self.assertIn("Sign in with ChatGPT", self.guide)

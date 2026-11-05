@@ -32,23 +32,16 @@
 <div class="field"><label for="quality" data-i18n="lblQuality">רמת בדיקה</label><select id="quality"><option value="fast" data-i18n="optFast">מהיר — ללא בדיקה נוספת</option><option value="checked" data-i18n="optChecked">נבדק — בדיקת מקטעים מסוכנים + בדיקת פרקים</option><option value="thorough" data-i18n="optThorough">מעמיק — בדיקת כל מקטע + בדיקת פרקים</option></select><small id="quality-help">מהיר אינו שולח קריאות בדיקה נוספות; נבדק ומעמיק דורשים מודל מוגדר.</small></div>
 <div class="field"><label for="budget" data-i18n="lblBudget">תקציב מרבי למסמך ($)</label><input id="budget" type="number" required min="0.01" step="0.01" placeholder="לדוגמה 5" inputmode="decimal" dir="ltr" data-i18n-ph="phBudget"><small data-i18n="noteBudget">חובה במודל משלי: אין תקרה מובנית; המגבלה שלכם נאכפת כעצירה קשיחה.</small></div>
 <div id="model-settings" class="model-settings" hidden>
-<p class="advanced-note" data-i18n="noteKeys">מודל משלי: המפתחות נשמרים בזיכרון השרת המקומי לאורך ההרצה. כדי שיישארו גם אחרי סגירת התוכנית, סמנו "לזכור במחשב הזה": הם יישמרו מוצפנים במנהל האישורים של Windows בחשבון המשתמש שלכם, ולא בקובצי הפרויקט, בקובץ ההגדרות או בדפדפן.</p>
+<p class="advanced-note" data-i18n="noteKeys">מודל משלי: מפתחות API מזינים, שומרים במחשב ומוחקים רק בחלון המפתח (סמל המפתח בכותרת). מפתח שנשמר במחשב נשמר מוצפן במנהל האישורים של Windows בחשבון המשתמש שלכם, ולא בקובצי הפרויקט, בקובץ ההגדרות או בדפדפן.</p>
 <p class="advanced-note"><a id="start-keys-guide-link" href="/keys-guide" target="_blank" rel="noopener noreferrer" data-i18n="keysGuideLink">איך משיגים מפתח? <span aria-hidden="true">↗</span></a></p>
 <div class="role-block" data-role="translator"><h3 data-i18n="roleTranslator">מתרגם</h3><div class="role-fields"></div></div>
 <div class="role-block" data-role="semantic_reviewer"><h3 data-i18n="roleQa">בדיקת איכות (QA) <small>— כברירת מחדל כמו המתרגם</small></h3><div class="role-fields"></div></div>
 <details id="advanced-roles"><summary data-i18n="advRoles">בחירת מבקר פרקים מתקדמת (chapter_qa)</summary><div class="role-block" data-role="chapter_qa"><div class="role-fields"></div></div></details>
-<section id="openai-card" class="openai-card" aria-labelledby="oa-title" hidden>
-<h3 id="oa-title" data-i18n="oaTitle">חשבון OpenAI (ChatGPT Plus/Pro)</h3>
-<p id="oa-status" role="status"></p>
-<div class="oa-actions"><button id="oa-connect" type="button" class="secondary-button" data-i18n="oaConnect">התחברות עם ChatGPT</button><button id="oa-reconnect" type="button" class="secondary-button" hidden data-i18n="oaReconnect">חיבור מחדש</button><button id="oa-disconnect" type="button" class="text-button" hidden data-i18n="oaDisconnect">ניתוק</button></div>
-<label class="oa-fallback"><input id="oa-fallback" type="checkbox" checked> <span data-i18n="oaFallback">כשתקציב החשבון נגמר — להמשיך אוטומטית עם מפתח ה־API</span></label>
-<p id="oa-state" role="status"></p>
-<p id="oa-warn" class="oa-warn" hidden></p>
-<a id="oa-usage-link" class="help-link" href="https://chatgpt.com/#settings" target="_blank" rel="noopener noreferrer" data-i18n="oaUsage">שימוש בחשבון: הגדרות ChatGPT ← Usage</a>
-</section>
-<div class="key-fields"></div>
-<label class="remember-keys" hidden><input id="remember-keys" type="checkbox"> <span data-i18n="rememberKeys">לזכור במחשב הזה (מנהל האישורים של Windows)</span></label>
-<div class="field"><button id="save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="key-message" class="key-message" role="status"></span><button id="forget-keys" type="button" class="text-button forget-keys" hidden data-i18n="forgetKeys">מחיקת המפתחות השמורים מהמחשב</button></div>
+<div id="access-summary" class="access-summary">
+<p id="access-openai" class="access-line" role="status" hidden></p>
+<p id="access-keys" class="access-line" role="status"></p>
+<div class="access-actions"><button id="access-open-keys" type="button" class="secondary-button" data-i18n="accessKeys">ניהול מפתחות</button><button id="access-open-profile" type="button" class="text-button" hidden data-i18n="accessProfile">חלון הפרופיל</button></div>
+</div>
 <div id="preview-card" class="preview-card" hidden><h3 data-i18n="previewTitle">אומדן עלות (לפני שליחה בפועל)</h3><div id="preview-body"></div></div>
 </div>
 <h3 class="opt-group-title" data-i18n="grpScan">ספרים סרוקים וגופן</h3>
@@ -76,10 +69,9 @@
 <div id="processing-budget" class="processing-budget" hidden></div>
 <div id="processing-usage" class="usage-summary" hidden></div>
 <div id="resume-keys" class="model-settings" hidden>
-<p class="advanced-note" data-i18n="noteResumeKeys">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. יש להזין אותם שוב כדי להמשיך (סמנו "לזכור" כדי שלא תצטרכו בפעם הבאה).</p>
-<div class="key-fields" id="resume-key-fields"></div>
-<label class="remember-keys" hidden><input id="resume-remember-keys" type="checkbox"> <span data-i18n="rememberKeys">לזכור במחשב הזה (מנהל האישורים של Windows)</span></label>
-<div class="field"><button id="resume-save-keys" type="button" class="secondary-button" data-i18n="saveKeys">שמירת מפתחות API</button><span id="resume-key-message" class="key-message" role="status"></span></div>
+<p class="advanced-note" data-i18n="noteResumeKeys">השרת הופעל מחדש ואיבד את מפתחות ה-API הזמניים שבזיכרון. כדי להמשיך, הזינו אותם שוב בחלון המפתח (סמנו שם "לזכור במחשב הזה" כדי שלא תצטרכו בפעם הבאה).</p>
+<p id="resume-missing" class="access-line" role="status"></p>
+<div class="field"><button id="resume-open-keys" type="button" class="secondary-button" data-i18n="resumeEnterKey">הזנת מפתח…</button><span id="resume-key-message" class="key-message" role="status"></span></div>
 </div>
 <div id="decision-box" class="decision-box" role="region" aria-labelledby="decision-title" hidden>
 <h2 id="decision-title" data-i18n="decisionTitle">נדרשת החלטה שלכם כדי להמשיך</h2>
@@ -168,8 +160,10 @@
 <ul id="key-dialog-list" class="key-dialog-list"></ul>
 <p id="key-dialog-note" class="advanced-note"></p>
 <p><a id="key-dialog-guide-link" href="/keys-guide" target="_blank" rel="noopener noreferrer" data-i18n="keysGuideLink">איך משיגים מפתח? <span aria-hidden="true">↗</span></a></p>
-<div class="dialog-actions"><button id="key-dialog-enter" class="primary-button" data-i18n="keyDlgEnter">הזנה או החלפה של מפתח</button><button id="key-dialog-forget" class="secondary-button" hidden data-i18n="forgetKeys">מחיקת המפתחות השמורים מהמחשב</button></div>
-<p id="key-dialog-message" class="key-message" role="status"></p>
+<div class="key-fields" id="key-dialog-fields"></div>
+<label class="remember-keys" hidden><input id="remember-keys" type="checkbox"> <span data-i18n="rememberKeys">לזכור במחשב הזה (מנהל האישורים של Windows)</span></label>
+<div class="dialog-actions"><button id="save-keys" type="button" class="primary-button" data-i18n="saveKeys">שמירת מפתחות API</button><button id="forget-keys" type="button" class="secondary-button" hidden data-i18n="forgetKeys">מחיקת המפתחות השמורים מהמחשב</button></div>
+<p id="key-message" class="key-message" role="status"></p>
 </dialog>
 <script>window.UI_CONFIG = __CONFIG__;</script><script src="/cat.js"></script><script src="/profile.js"></script><script src="/shelf.js"></script><script src="/bindery.js"></script><script src="/ui.js"></script><script src="/segments.js"></script>
 </body></html>
