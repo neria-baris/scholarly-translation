@@ -223,8 +223,20 @@ class ReleaseTreeIsSelfContainedTests(unittest.TestCase):
                     "scholarly_translation.__file__; "
                     "from scholarly_translation.learning.install_check import verify_learning_assets; "
                     "verify_learning_assets(); "
-                    "import scholarly_translation.ui.web_ui; print('ok')")
-            env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "SCHOLARLY_DATA_ROOT")}
+                    "import scholarly_translation.ui.web_ui; "
+                    # Scanned books: with every system Tesseract hidden, the copy finds and runs its own.
+                    "import os, subprocess; from scholarly_translation.sources import scanned_ocr; "
+                    "engine = scanned_ocr.find_tesseract(); "
+                    "assert os.name != 'nt' or (engine and Path(engine).resolve().is_relative_to(Path.cwd().resolve())), engine; "
+                    "assert os.name != 'nt' or subprocess.run([engine, '--version'], capture_output=True).returncode == 0; "
+                    "assert os.name != 'nt' or all(scanned_ocr.ocr_ready(l)[0] for l in ('en', 'fr', 'ja')); "
+                    "print('ok')")
+            env = {k: v for k, v in os.environ.items()
+                   if k not in ("PYTHONPATH", "SCHOLARLY_DATA_ROOT", "SCHOLARLY_TESSERACT")}
+            if os.name == "nt":
+                hidden = str(Path(tmp) / "no-system-tesseract")
+                env.update({"ProgramFiles": hidden, "ProgramFiles(x86)": hidden, "LOCALAPPDATA": hidden,
+                            "PATH": os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")})
             result = subprocess.run([sys.executable, "-B", "-c", code], cwd=tmp, env=env,
                                     capture_output=True, text=True, timeout=180)
         self.assertEqual(result.returncode, 0, result.stderr[-3000:])

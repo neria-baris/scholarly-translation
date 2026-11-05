@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" width="100%" alt="Scholarly Translation · תרגום מסמכים לעברית: the library cat sitting on a shelf of books">
+  <img src="assets/banner.png" width="100%" alt="Scholarly Translation: the library cat sitting on a shelf of books">
 </p>
 
 <h1 align="center">Scholarly Translation · תרגום מסמכים לעברית</h1>
@@ -96,13 +96,12 @@
 
 ### ספרים סרוקים (OCR)
 
-עמודים בלי טקסט מוטמע (סריקות) מזוהים במחשב שלכם בעזרת **Tesseract**, שצריך להתקין בנפרד:
+עמודים בלי טקסט מוטמע (סריקות) מזוהים במחשב שלכם בעזרת **Tesseract**.
 
-1. הורידו את מתקין Windows מ־[UB Mannheim Tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
-2. התקינו אותו בתיקיית ברירת המחדל.
-3. הפעילו מחדש את התוכנה.
-
-התוכנה כבר כוללת את נתוני הזיהוי לצרפתית וליפנית.
+- **אין צורך להתקין דבר.** Tesseract ומודלי הזיהוי לאנגלית, לצרפתית וליפנית מגיעים עם התוכנה.
+- **הזיהוי חינמי** ונעשה כולו במחשב שלכם.
+- **בדיקת המודל (רשות):** עם מודל משלכם, אפשר לשלוח גם כל עמוד למודל לבדיקה מול תמונת העמוד. כך מתוקנות טעויות זיהוי.
+- **בחירת שפה:** בחרו במפורש את שפת המקור של הספר הסרוק. בקובץ סרוק אין טקסט שממנו אפשר לזהות את השפה.
 
 ### עדכונים
 
@@ -245,13 +244,12 @@ The app uses the model you choose, and you pay the provider directly for what yo
 
 ### Scanned books (OCR)
 
-Pages without embedded text (scans) are recognised on your computer with **Tesseract**, which you install separately:
+Pages without embedded text (scans) are recognised on your computer with **Tesseract**.
 
-1. Download the Windows installer from [UB Mannheim Tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
-2. Install it to the default folder.
-3. Restart the app.
-
-The app already includes the recognition data for French and Japanese.
+- **Nothing to install.** Tesseract and the recognition models for English, French and Japanese come with the app.
+- **Recognition is free** and runs entirely on your computer.
+- **Model check (optional):** with your own model, each page can also be sent to the model to be checked against the page image. This fixes recognition errors.
+- **Choosing the language:** pick the scanned book's source language explicitly. A scanned file has no text from which the language could be detected.
 
 ### Updates
 

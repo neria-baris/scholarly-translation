@@ -6,3 +6,5 @@ scholarly_translation/assets/fonts/**/*.otf -text
 # Verbatim upstream notices/editable font sources retain original whitespace.
 scholarly_translation/assets/fonts/**/*.txt -text -whitespace
 scholarly_translation/assets/fonts/culmus/source/** -text -whitespace
+# Bundled Tesseract engine and its license texts: keep every byte as pinned in sources.json.
+scholarly_translation/assets/tesseract/** -text -whitespace

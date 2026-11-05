@@ -22,10 +22,10 @@
     </g>
     <g class="c-sit">
       ${tail('c-tail-sit', 'M37 85.5 C52 92 78 90.5 95 83.5', 'M91.5 84.6 C93 84.1 94 83.8 95 83.5')}
-      <path class="c-fur" d="M30 86.5 C19 85 19 68 28 58 C36 47 50 40 64 38 C79 36 87 48 86 62 L85 86.5 Z"/>
+      <path class="c-fur" d="M30 86.5 C19 85 19 68 28 58 C36 47 50 40 64 38 C79 36 87 48 86.5 62 C86.5 69 83 73 77 74.5 C69 76.5 60 76 52 78 L46 85 Z"/>
       <ellipse class="c-fur c-haunch" cx="41" cy="74" rx="16.5" ry="13"/>
       <path class="c-stripes" d="M33 66 q6 2.5 10.5 -2 M31 74.5 q6 2.5 10.5 -2"/>
-      ${leg('sit far', 65)}${leg('sit near', 74.5)}
+      <ellipse class="c-cream c-belly" cx="77" cy="58" rx="8.5" ry="14"/>${leg('sit far', 65)}${leg('sit near', 74.5)}
       <ellipse class="c-cream c-chest" cx="77" cy="58" rx="8.5" ry="14"/>
       <ellipse class="paw" cx="37" cy="86.4" rx="7.5" ry="3"/>
     </g>
@@ -164,6 +164,11 @@
     dropped: [['נחתתי על הרגליים. כרגיל.', 'Landed on my feet. As usual.'],
       ['כמובן שתכננתי את זה.', 'Of course I planned that.'],
       ['עשר מהשופט הצרפתי.', 'A ten from the French judge.']],
+    swat: [['זה עכבר? זה עכבר.', 'Is that a mouse? That is a mouse.'],
+      ['כמעט תפסתי. הוא זריז, החץ הזה.', 'Nearly had it. Quick, that arrow.'],
+      ['עכבר בלי זנב. חשוד.', 'A mouse with no tail. Suspicious.'],
+      ['אינסטינקט. לא אני החלטתי.', 'Instinct. I didn’t decide that.'],
+      ['הוא יחזור. אני מוכן.', 'It will be back. I am ready.']],
     wake: [['כמה זמן ישנתי? כנראה לא מספיק.', 'How long did I sleep? Not enough, clearly.'],
       ['חלמתי על דג שמתרגם את עצמו.', 'Dreamt of a fish that translates itself.'],
       ['מה פספסתי? כלום. מצוין.', 'What did I miss? Nothing. Excellent.']],
@@ -646,6 +651,72 @@
     node.textContent = '';
     requestAnimationFrame(() => { node.textContent = text; });
   }
+  // A mouse pointer within paw's reach of the sitting cat gets swatted at: he turns toward it, winds up
+  // and strikes two or three times. The leg stretches so the paw lands on the pointer itself, then
+  // pulls straight back. Decorative only: the paw ignores clicks and touches nothing.
+  let swatReadyAt = 0;
+  const pointer = { x: 0, y: 0 };
+  const reachLeg = svg.querySelector('.c-leg.sit.near'), reachRect = reachLeg.querySelector('rect'), reachPaw = reachLeg.querySelector('.paw');
+  // Drawing units (viewBox): the shoulder pivot, the paw's resting distance from it, and how far it can reach.
+  const SHOULDER_X = 79, SHOULDER_Y = 62, LEG = 24.4, REACH_MIN = 12, REACH_MAX = 48, AIM_LO = 30, AIM_HI = 150;
+  // The pointer in the cat's drawing units, x measured in the direction he faces.
+  function pointerLocal(face = cat.face) {
+    const k = W() / 120, u = (pointer.x - cat.x) / k, v = (pointer.y - (cat.y - H())) / k;
+    return { u: face > 0 ? u : 120 - u, v };
+  }
+  // 0deg = paw straight down, 90deg = straight ahead, 180deg = straight up.
+  function reachTo(p) { const dx = p.u - SHOULDER_X, dy = p.v - SHOULDER_Y; return { len: Math.hypot(dx, dy), angle: Math.atan2(dx, dy) * 180 / Math.PI }; }
+  function canSwat() {
+    const face = pointer.x >= cat.x + W() / 2 ? 1 : -1, p = pointerLocal(face), r = reachTo(p);
+    if (p.u > 16 && p.u < 102 && p.v > 4 && p.v < 92) return false; // over the cat himself: that is petting
+    return r.len >= REACH_MIN && r.len <= REACH_MAX && r.angle >= AIM_LO && r.angle <= AIM_HI;
+  }
+  function setLeg(angle, len) {
+    reachLeg.style.transform = `rotate(${(-angle).toFixed(1)}deg)`;
+    reachRect.setAttribute('height', (len + 5.6).toFixed(2));
+    reachPaw.setAttribute('cy', (SHOULDER_Y + len).toFixed(2));
+  }
+  function resetLeg() { reachLeg.style.transform = ''; reachRect.setAttribute('height', '30'); reachPaw.setAttribute('cy', '86.4'); }
+  const easeOut = t => 1 - (1 - t) * (1 - t), easeInOut = t => (t < .5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t));
+  function swat() {
+    swatReadyAt = performance.now() + rand(3500, 6000);
+    run(async tk => {
+      tk.waiters.add(() => { resetLeg(); if (cat.pose === 'swat') setPose('sit'); });
+      cat.face = pointer.x >= cat.x + W() / 2 ? 1 : -1;
+      setPose('swat');
+      const leg = { angle: 0, len: LEG }, curl = LEG * .8;
+      // One movement of the leg from where it is now; `target(t)` gives the goal at time t (0..1) and may follow the pointer.
+      const move = (ms, target, ease = easeInOut) => {
+        const from = { ...leg }, t0 = performance.now();
+        return animate(tk, now => {
+          const t = Math.min(1, (now - t0) / ms), e = ease(t), to = target(t);
+          leg.angle = from.angle + (to.angle - from.angle) * e;
+          leg.len = from.len + (to.len - from.len) * e;
+          setLeg(leg.angle, leg.len);
+          return t >= 1;
+        }, resetLeg);
+      };
+      const aim = () => { const r = reachTo(pointerLocal()); return { angle: clamp(r.angle, AIM_LO, AIM_HI), len: clamp(r.len, REACH_MIN, REACH_MAX) }; };
+      const windUp = () => ({ angle: Math.min(aim().angle + 40, 155), len: curl });
+      const strikes = Math.random() < .5 ? 2 : 3;
+      for (let i = 0; i < strikes && !tk.cancelled; i++) {
+        await move(i ? 150 : 230, windUp);
+        await move(90, aim, easeOut);
+        if (i < strikes - 1) await tk.wait(rand(60, 160));
+      }
+      await move(220, () => ({ angle: 0, len: LEG }));
+      resetLeg(); setPose('look'); await tk.wait(700); setPose('sit');
+      if (Math.random() < .35) await think(tk, say('swat'), 2200);
+    });
+  }
+  addEventListener('pointermove', event => {
+    if (event.pointerType !== 'mouse') return;
+    pointer.x = event.pageX; pointer.y = event.pageY;
+    const now = performance.now();
+    if (!running || paused || mode !== 'roam' || dragging || napping || now < swatReadyAt || now < annoyedUntil) return;
+    if (cat.motion || cat.airborne || !cat.anchor || cat.anchor.peek || !bubble.hidden || !['sit', 'look'].includes(cat.pose)) return;
+    if (canSwat()) swat();
+  }, { passive: true });
   body.addEventListener('click', event => {
     if (suppressClick) { suppressClick = false; event.preventDefault(); return; }
     pet();
@@ -754,7 +825,7 @@
         ${option('away', L(['בחופשה', 'On holiday']), L(['בלי חתול. הוא יתגעגע.', 'No cat. He will miss you.']))}</div>
       <label class="cat-check"><input type="checkbox" name="cat-sound" ${soundOn ? 'checked' : ''}> ${L(['צלילי גרגור קטנים, נוצרים כאן במחשב', 'A small purr, synthesized on this computer'])}</label>
       <p class="cat-sound-note" hidden>${L(['הצלילים אינם זמינים בדפדפן הזה. החתול ימשיך בשקט.', 'Sounds are unavailable in this browser. The cat carries on silently.'])}</p>
-      <p class="cat-hint">${L(['אפשר ללטף אותו (לחיצה או Enter) ולהרים אותו בגרירה. הוא לא יושב על כפתורים או על טקסט.', 'Pet him with a click or Enter, lift him by dragging. He never sits on buttons or text.'])}</p>
+      <p class="cat-hint">${L(['אפשר ללטף אותו (לחיצה או Enter) ולהרים אותו בגרירה. סמן עכבר שמתקרב אליו יחטוף חבטה. הוא לא יושב על כפתורים או על טקסט.', 'Pet him with a click or Enter, lift him by dragging. A mouse pointer that comes close gets swatted at. He never sits on buttons or text.'])}</p>
       <div class="cat-actions"><button type="button" class="primary-button" data-cat-close>${L(['סגירה', 'Close'])}</button></div>`;
     dialog.showModal();
     dialog.querySelector('input:checked')?.focus();

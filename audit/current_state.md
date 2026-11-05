@@ -1,3 +1,15 @@
+# Current state - OCR-BUNDLE committed, 1.0.1 release on hold (Claude Code conductor, 2026-11-05)
+Tesseract 5.4.0 is now bundled (scholarly_translation/assets/tesseract/, see run_history OCR-BUNDLE). Release 1.0.1 is on hold: the user is testing the OpenAI sign-in first and will say when to publish. At release time: build from main, trial-install, attach libiconv-1.17.tar.gz and jbigkit-2.1.tar.gz (GPL/LGPL sources; URLs and SHA-256 in assets/tesseract/sources.json) to the GitHub release, then refresh the distribution README (its OCR section now says nothing to install).
+Next action: wait for the user's go-ahead after the OpenAI sign-in test, then release 1.0.1 as above.
+Also on main (not pushed): CAT swat. A mouse pointer within paw's reach of the sitting cat (not over him) makes him face it and swat 2-3 times; JS rotates and stretches the near front leg every frame so the paw lands on the pointer (measured 0-1 px in headless Chrome, ahead/up/low/behind; out of reach = no swat). Cooldown 3.5-6 s; roam mode only, never while moving, napping, thinking or held. tests/ui/test_ui_redesign 17 OK.
+
+---
+# Current state — sitting cat drawing fixed (Claude Code conductor, 2026-11-05)
+main = the CAT commit after f9cc218, not pushed. Sitting cat (8b19c91 + follow-up at the user's request): the belly is drawn up and back off the floor (no square corner, it no longer reads as fat), only the legs touch the floor; while grooming a cream chest shows behind the lifted paw and the other front leg steps under the chest; eyes are black (#1b1410). Checked by headless Chrome renders of sit/groom/happy; tests/ui/test_ui_redesign 17 OK.
+Uncommitted: only the untracked source PDF (do not commit).
+Next action: user restarts the app and watches the cat groom; on the user's request, push main to origin (gh credential).
+
+---
 # Current state — tab icon + orphaned batch-parse fix committed (Claude Code conductor, session scholarly-translation-cf, 2026-11-05)
 main = b531ebb on top of bee8a1f, not pushed. fb58318: the cat logo (assets/app.ico) is served at /favicon.ico and is the tab icon on all five pages and the sign-in page; the old inline SVG icon was removed (its raw '#' colours were read as a URL fragment, so it never rendered). b531ebb: the previously staged, ownerless chapter_pipeline change (context_unit_ids: drop an extra batch item for a chapter-context unit) committed at the user's request; sessions b8, 9c and 68 each said it is not theirs.
 Tests: tests/ui 242, only the pre-existing Python 3.9 write_text(newline=) error. tests/translate 430 (PYTHONPATH=tests): 1 failure, test_preview_uses_real_chapters_quickly (60 s timing limit); it also fails on HEAD without the change (63.3 s), so it is a machine-speed issue, not this change.

@@ -28,6 +28,9 @@ from ..models.adapter import IMAGE_TOKEN_ALLOWANCE, ImagePrompt  # noqa: F401 (r
 from ..core.source_reading import OCR_VISION_STAGE
 
 BUNDLED_TESSDATA = Path(__file__).resolve().parents[1] / "assets" / "tessdata"
+# Tesseract 5.4.0 for Windows shipped with the app (assets/tesseract/README.md),
+# so scanned books work without a separate install or administrator rights.
+BUNDLED_TESSERACT = Path(__file__).resolve().parents[1] / "assets" / "tesseract" / "tesseract.exe"
 PROMPT_PATH = Path(__file__).resolve().parents[1] / "runtime_prompts" / "08_ocr_vision_review.md"
 VISION_STAGE = "ocr-vision"              # journal/budget stage of the review calls
 DISAGREEMENT_RATIO = 0.6                 # word-sequence similarity below this is surfaced
@@ -43,8 +46,14 @@ class ScannedOcrError(Exception):
 
 
 def find_tesseract():
-    """Path of a usable Tesseract executable, or None."""
-    candidates = [os.environ.get("SCHOLARLY_TESSERACT"), shutil.which("tesseract")]
+    """Path of a usable Tesseract executable, or None.
+
+    An explicit SCHOLARLY_TESSERACT wins; then the bundled, pinned engine (the
+    same results on every computer); then a system installation."""
+    candidates = [os.environ.get("SCHOLARLY_TESSERACT")]
+    if os.name == "nt":
+        candidates.append(str(BUNDLED_TESSERACT))
+    candidates.append(shutil.which("tesseract"))
     for root in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)"),
                  os.environ.get("LOCALAPPDATA") and str(Path(os.environ["LOCALAPPDATA"]) / "Programs")):
         if root:
